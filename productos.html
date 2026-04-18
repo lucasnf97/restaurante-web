@@ -178,6 +178,7 @@
             <button class="btn btn-secondary btn-sm" id="btn-editar-prod" disabled onclick="editarProductoSel()">Editar</button>
             <button class="btn btn-danger btn-sm" id="btn-elim-prod" disabled onclick="eliminarProductoSel()">Eliminar</button>
             <button class="btn btn-warning btn-sm" id="btn-promo" disabled onclick="abrirModalPromo()">★ Promoción</button>
+            <button class="btn btn-secondary btn-sm" id="btn-combos-hab" disabled onclick="abrirModalCombosHab()">🔗 Combos</button>
             <div class="sep"></div>
             <button class="btn btn-secondary btn-sm" onclick="exportarCSV()">↓ Exportar CSV</button>
             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('inp-csv').click()">↑ Importar CSV</button>
@@ -319,9 +320,6 @@
             <label class="checkbox-item">
                 <input type="checkbox" id="fp-favorito"> ★ Favorito
             </label>
-            <label class="checkbox-item">
-                <input type="checkbox" id="fp-en-combo" checked> En combos
-            </label>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-producto')">Cancelar</button>
@@ -456,6 +454,20 @@
         </div>
     </div>
 </div>
+<!-- Modal combos habilitados -->
+<div class="modal-overlay" id="modal-combos-hab">
+    <div class="modal" style="max-width:440px">
+        <h3 id="modal-comb-hab-titulo">Combos habilitados</h3>
+        <p style="font-size:13px;color:#666;margin-bottom:16px">
+            Seleccioná en qué combos puede aparecer este producto.
+        </p>
+        <div id="combos-hab-lista"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-combos-hab')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarCombosHab()">Guardar</button>
+        </div>
+    </div>
+</div>
 
 <script src="js/api.js"></script>
 <script>
@@ -572,6 +584,7 @@ function actualizarBtnsProducto() {
     document.getElementById('btn-editar-prod').disabled = !sel;
     document.getElementById('btn-elim-prod').disabled = !sel;
     document.getElementById('btn-promo').disabled = !sel;
+    document.getElementById('btn-combos-hab').disabled = !sel;
 }
 
 // ── MODAL PRODUCTO ────────────────────────────────────────────
@@ -931,6 +944,43 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
 document.querySelectorAll('.modal-overlay').forEach(m => {
     m.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
 });
+
+async function abrirModalCombosHab() {
+    if (!prodSel) return;
+    document.getElementById('modal-comb-hab-titulo').textContent = `Combos — ${prodSel.nombre}`;
+    const [todosLosCombos, habilitados] = await Promise.all([
+        api.get('/productos/combos/lista'),
+        api.get(`/productos/${prodSel.id}/combos-habilitados`)
+    ]);
+    const habIds = new Set(habilitados.map(h => h.id));
+    const cont = document.getElementById('combos-hab-lista');
+    if (!todosLosCombos.length) {
+        cont.innerHTML = '<p style="color:#888;font-size:14px">No hay combos creados todavía.</p>';
+    } else {
+        cont.innerHTML = todosLosCombos.map(c => `
+            <label class="checkbox-item" style="display:flex;gap:8px;padding:8px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:${habIds.has(c.id) ? '#f5f3ff' : '#fafafa'}">
+                <input type="checkbox" class="cb-combo-hab" value="${c.id}" ${habIds.has(c.id) ? 'checked' : ''}>
+                <span style="font-size:14px"><strong>${c.nombre}</strong> — $${parseFloat(c.precio).toFixed(2)}</span>
+            </label>
+        `).join('');
+    }
+    document.getElementById('modal-combos-hab').classList.add('active');
+}
+
+async function guardarCombosHab() {
+    const ids = Array.from(document.querySelectorAll('.cb-combo-hab:checked')).map(cb => parseInt(cb.value));
+    try {
+        await fetch(`${API_URL}/productos/${prodSel.id}/combos-habilitados`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify(ids)
+        });
+        cerrarModal('modal-combos-hab');
+    } catch(err) { alert('Error: ' + err.message); }
+}
 
 init();
 </script>
