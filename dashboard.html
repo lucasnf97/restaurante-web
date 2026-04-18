@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+
+        /* ── NAVBAR ── */
+        .navbar {
+            background: #1a1a2e;
+            color: white;
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .navbar-brand {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 14px;
+            color: #a5b4fc;
+        }
+
+        .btn-logout {
+            background: transparent;
+            border: 1px solid #4f46e5;
+            color: #a5b4fc;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: #4f46e5;
+            color: white;
+        }
+
+        /* ── CONTENIDO ── */
+        .content {
+            margin-top: 60px;
+            padding: 32px;
+        }
+
+        .welcome {
+            margin-bottom: 32px;
+        }
+
+        .welcome h2 {
+            font-size: 24px;
+            color: #1a1a2e;
+            font-weight: 700;
+        }
+
+        .welcome p {
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* ── GRID DE MÓDULOS ── */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .module-card {
+            background: white;
+            border-radius: 12px;
+            padding: 28px 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            border: 2px solid transparent;
+        }
+
+        .module-card:hover {
+            border-color: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79,70,229,0.12);
+        }
+
+        .module-icon {
+            font-size: 36px;
+            margin-bottom: 16px;
+        }
+
+        .module-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+        }
+
+        .module-desc {
+            font-size: 13px;
+            color: #888;
+            line-height: 1.5;
+        }
+
+        /* ── RESUMEN ── */
+        .resumen {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+
+        .stat-value.green { color: #16a34a; }
+        .stat-value.blue  { color: #4f46e5; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+        <div class="navbar-user">
+            <span id="nav-username"></span>
+            <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+        </div>
+    </nav>
+
+    <div class="content">
+
+        <div class="welcome">
+            <h2 id="welcome-msg">Bienvenido</h2>
+            <p>Panel de administración y gerencia</p>
+        </div>
+
+        <!-- Estadísticas del día -->
+        <div class="resumen">
+            <div class="stat-card">
+                <div class="stat-label">Pedidos hoy</div>
+                <div class="stat-value blue" id="stat-pedidos">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total hoy</div>
+                <div class="stat-value green" id="stat-total">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Mesas ocupadas</div>
+                <div class="stat-value" id="stat-mesas">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Reservas hoy</div>
+                <div class="stat-value" id="stat-reservas">—</div>
+            </div>
+        </div>
+
+        <!-- Módulos -->
+        <div class="grid">
+            <a href="productos.html" class="module-card">
+                <div class="module-icon">🍕</div>
+                <div class="module-title">Carta y productos</div>
+                <div class="module-desc">Gestioná el menú, precios, categorías y disponibilidad</div>
+            </a>
+            <a href="mesas.html" class="module-card">
+                <div class="module-icon">🪑</div>
+                <div class="module-title">Salas y mesas</div>
+                <div class="module-desc">Configurá la distribución del local y las mesas</div>
+            </a>
+            <a href="reservas.html" class="module-card">
+                <div class="module-icon">📅</div>
+                <div class="module-title">Reservas</div>
+                <div class="module-desc">Gestioná las reservas y asignación de mesas</div>
+            </a>
+            <a href="usuarios.html" class="module-card">
+                <div class="module-icon">👥</div>
+                <div class="module-title">Usuarios</div>
+                <div class="module-desc">Administrá el personal y sus roles de acceso</div>
+            </a>
+            <a href="caja.html" class="module-card">
+                <div class="module-icon">💰</div>
+                <div class="module-title">Caja e historial</div>
+                <div class="module-desc">Abrí y cerrá caja, revisá cierres anteriores</div>
+            </a>
+        </div>
+
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        requireAuth();
+        requireRol("admin", "gerente");
+
+        const user = getUser();
+        document.getElementById("nav-username").textContent = user.username;
+        document.getElementById("welcome-msg").textContent = `Bienvenido, ${user.username}`;
+
+        // Cargar estadísticas del día
+        async function cargarResumen() {
+            try {
+                const resumen = await api.get("/caja/resumen/hoy");
+                document.getElementById("stat-pedidos").textContent = resumen.pedidos_cobrados;
+                document.getElementById("stat-total").textContent = `$${resumen.total_hoy.toFixed(2)}`;
+            } catch (e) {
+                document.getElementById("stat-pedidos").textContent = "—";
+                document.getElementById("stat-total").textContent = "—";
+            }
+
+            try {
+                const mesas = await api.get("/mesas/?estado=ocupada");
+                document.getElementById("stat-mesas").textContent = mesas.length;
+            } catch (e) {
+                document.getElementById("stat-mesas").textContent = "—";
+            }
+
+            try {
+                const hoy = new Date().toISOString().split("T")[0];
+                const reservas = await api.get(`/reservas/?fecha=${hoy}`);
+                document.getElementById("stat-reservas").textContent = reservas.length;
+            } catch (e) {
+                document.getElementById("stat-reservas").textContent = "—";
+            }
+        }
+
+        cargarResumen();
+    </script>
+
+</body>
+</html>

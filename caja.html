@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Caja</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        .navbar {
+            background: #1a1a2e; color: white; padding: 0 32px; height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+        }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
+        .btn-logout {
+            background: transparent; border: 1px solid #4f46e5; color: #a5b4fc;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+
+        .content { margin-top: 60px; padding: 32px; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
+        }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+
+        .btn {
+            padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 14px; font-weight: 600; transition: all 0.2s;
+        }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; }
+        .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── ESTADO CAJA ── */
+        .caja-estado {
+            background: white; border-radius: 12px; padding: 24px 28px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px;
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+        }
+        .caja-info h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+        .caja-info p { font-size: 13px; color: #888; }
+        .caja-acciones { display: flex; gap: 12px; }
+
+        .estado-pill {
+            display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 700;
+        }
+        .estado-abierta { background: #dcfce7; color: #16a34a; }
+        .estado-cerrada { background: #fee2e2; color: #dc2626; }
+
+        /* ── STATS ── */
+        .stats {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white; border-radius: 12px; padding: 20px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+        .stat-value.green { color: #16a34a; }
+
+        /* ── HISTORIAL ── */
+        .historial-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+        }
+        .historial-header h3 { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+
+        .filtros {
+            background: white; border-radius: 12px; padding: 16px 20px;
+            display: flex; gap: 12px; align-items: center; margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .filtros input {
+            padding: 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none;
+        }
+        .filtros input:focus { border-color: #4f46e5; }
+        .filtros label { font-size: 13px; color: #666; }
+
+        .tabla-wrapper {
+            background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            background: #f8f9fa; padding: 12px 16px; text-align: left;
+            font-size: 12px; font-weight: 700; color: #666;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        td { padding: 14px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; }
+        tr:hover td { background: #fafafa; }
+        .empty { text-align: center; padding: 48px; color: #888; }
+
+        /* ── MODAL DETALLE ── */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: none; align-items: center; justify-content: center; z-index: 200;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white; border-radius: 16px; padding: 32px;
+            width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto;
+        }
+        .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+        .modal-sub { color: #888; font-size: 13px; margin-bottom: 24px; }
+        .modal-footer { display: flex; justify-content: flex-end; margin-top: 24px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <a href="dashboard.html">← Dashboard</a>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header">
+        <h2>💰 Caja e historial</h2>
+    </div>
+
+    <!-- Estado de caja -->
+    <div class="caja-estado">
+        <div class="caja-info">
+            <h3>Estado de caja: <span id="estado-pill" class="estado-pill">—</span></h3>
+            <p id="estado-detalle">Cargando...</p>
+        </div>
+        <div class="caja-acciones">
+            <button class="btn btn-success" id="btn-abrir" onclick="abrirCaja()" disabled>Abrir caja</button>
+            <button class="btn btn-danger" id="btn-cerrar" onclick="cerrarCaja()" disabled>Cerrar caja</button>
+        </div>
+    </div>
+
+    <!-- Stats del día -->
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-label">Pedidos cobrados hoy</div>
+            <div class="stat-value" id="stat-pedidos">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total facturado hoy</div>
+            <div class="stat-value green" id="stat-total">—</div>
+        </div>
+    </div>
+
+    <!-- Historial de cierres -->
+    <div class="historial-header">
+        <h3>Historial de cierres</h3>
+    </div>
+
+    <div class="filtros">
+        <label>Desde:</label>
+        <input type="date" id="filtro-desde" onchange="cargarCierres()">
+        <label>Hasta:</label>
+        <input type="date" id="filtro-hasta" onchange="cargarCierres()">
+        <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
+    </div>
+
+    <div class="tabla-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha</th>
+                    <th>Cerrado por</th>
+                    <th>Hora cierre</th>
+                    <th>Total</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-body">
+                <tr><td colspan="6" class="empty">Cargando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal detalle cierre -->
+<div class="modal-overlay" id="modal-detalle">
+    <div class="modal">
+        <h3 id="modal-titulo">Detalle del cierre</h3>
+        <p class="modal-sub" id="modal-sub"></p>
+        <div class="tabla-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mesa</th>
+                        <th>Comensales</th>
+                        <th>Total</th>
+                        <th>Hora cobro</th>
+                    </tr>
+                </thead>
+                <tbody id="modal-tabla"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal()">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    requireAuth();
+    requireRol("admin", "gerente");
+
+    async function init() {
+        const hoy = new Date().toISOString().split("T")[0];
+        document.getElementById("filtro-desde").value = hoy;
+        document.getElementById("filtro-hasta").value = hoy;
+        await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
+    }
+
+    async function cargarEstado() {
+        const estado = await api.get("/caja/estado");
+        const pill = document.getElementById("estado-pill");
+        const detalle = document.getElementById("estado-detalle");
+        const btnAbrir = document.getElementById("btn-abrir");
+        const btnCerrar = document.getElementById("btn-cerrar");
+
+        if (estado.abierta) {
+            pill.textContent = "ABIERTA";
+            pill.className = "estado-pill estado-abierta";
+            detalle.textContent = `Abierta por: ${estado.abierta_por} — ${formatTs(estado.ts_apertura)}`;
+            btnAbrir.disabled = true;
+            btnCerrar.disabled = false;
+        } else {
+            pill.textContent = "CERRADA";
+            pill.className = "estado-pill estado-cerrada";
+            detalle.textContent = estado.ts_cierre
+                ? `Último cierre: ${formatTs(estado.ts_cierre)} por ${estado.cerrada_por}`
+                : "Sin cierres registrados";
+            btnAbrir.disabled = false;
+            btnCerrar.disabled = true;
+        }
+    }
+
+    async function cargarResumen() {
+        try {
+            const r = await api.get("/caja/resumen/hoy");
+            document.getElementById("stat-pedidos").textContent = r.pedidos_cobrados;
+            document.getElementById("stat-total").textContent = `$${r.total_hoy.toFixed(2)}`;
+        } catch(e) {}
+    }
+
+    async function cargarCierres() {
+        const desde = document.getElementById("filtro-desde").value;
+        const hasta = document.getElementById("filtro-hasta").value;
+        let url = "/caja/cierres?";
+        if (desde) url += `desde=${desde}&`;
+        if (hasta) url += `hasta=${hasta}&`;
+
+        const cierres = await api.get(url);
+        const tbody = document.getElementById("tabla-body");
+
+        if (!cierres.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="empty">No hay cierres en el período seleccionado</td></tr>`;
+            return;
+        }
+
+        let totalGeneral = 0;
+        tbody.innerHTML = cierres.map(c => {
+            totalGeneral += parseFloat(c.total);
+            return `
+                <tr>
+                    <td>#${c.id}</td>
+                    <td>${formatFecha(c.fecha)}</td>
+                    <td>${c.cerrado_por}</td>
+                    <td>${formatTs(c.ts_cierre)}</td>
+                    <td><strong>$${parseFloat(c.total).toFixed(2)}</strong></td>
+                    <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
+                </tr>
+            `;
+        }).join("");
+
+        tbody.innerHTML += `
+            <tr style="background:#f8f9fa">
+                <td colspan="4" style="text-align:right;font-weight:700;color:#666">TOTAL PERÍODO</td>
+                <td style="font-weight:700;font-size:16px">$${totalGeneral.toFixed(2)}</td>
+                <td></td>
+            </tr>
+        `;
+    }
+
+    function limpiarFiltros() {
+        document.getElementById("filtro-desde").value = "";
+        document.getElementById("filtro-hasta").value = "";
+        cargarCierres();
+    }
+
+    async function verDetalle(id) {
+        const data = await api.get(`/caja/cierres/${id}`);
+        const c = data.cierre;
+        document.getElementById("modal-titulo").textContent = `Cierre #${c.id}`;
+        document.getElementById("modal-sub").textContent =
+            `${formatFecha(c.fecha)} — Cerrado por ${c.cerrado_por} — Total: $${parseFloat(c.total).toFixed(2)}`;
+
+        const tbody = document.getElementById("modal-tabla");
+        if (!data.detalle.length) {
+            tbody.innerHTML = `<tr><td colspan="4" class="empty">Sin pedidos registrados</td></tr>`;
+        } else {
+            tbody.innerHTML = data.detalle.map(d => `
+                <tr>
+                    <td>Mesa ${d.mesa_numero}</td>
+                    <td>${d.comensales} personas</td>
+                    <td>$${parseFloat(d.total).toFixed(2)}</td>
+                    <td>${formatTs(d.ts_cobro)}</td>
+                </tr>
+            `).join("");
+        }
+        document.getElementById("modal-detalle").classList.add("active");
+    }
+
+    async function abrirCaja() {
+        if (!confirm("¿Abrir la caja?")) return;
+        try {
+            await api.post("/caja/abrir", {});
+            await cargarEstado();
+        } catch(err) { alert("Error: " + err.message); }
+    }
+
+    async function cerrarCaja() {
+        if (!confirm("¿Cerrar la caja? Se generará el registro del turno.")) return;
+        try {
+            const res = await api.post("/caja/cerrar", {});
+            alert(`Caja cerrada. Total del turno: $${res.total.toFixed(2)}`);
+            await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
+        } catch(err) { alert("Error: " + err.message); }
+    }
+
+    function cerrarModal() {
+        document.getElementById("modal-detalle").classList.remove("active");
+    }
+
+    function formatFecha(f) {
+        if (!f) return "—";
+        const [y, m, d] = f.split("-");
+        return `${d}/${m}/${y}`;
+    }
+
+    function formatTs(ts) {
+        if (!ts) return "—";
+        return new Date(ts).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
+    }
+
+    document.getElementById("modal-detalle").addEventListener("click", function(e) {
+        if (e.target === this) cerrarModal();
+    });
+
+    init();
+</script>
+</body>
+</html>

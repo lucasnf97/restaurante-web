@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Salas y mesas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        .navbar {
+            background: #1a1a2e; color: white; padding: 0 32px; height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+        }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
+        .btn-logout {
+            background: transparent; border: 1px solid #4f46e5; color: #a5b4fc;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+
+        .content { margin-top: 60px; padding: 32px; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
+        }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+        .header-actions { display: flex; gap: 12px; }
+
+        .btn {
+            padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 14px; font-weight: 600; transition: all 0.2s;
+        }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; }
+        .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+        /* ── LAYOUT DOS COLUMNAS ── */
+        .layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; }
+
+        /* ── PANEL SALAS ── */
+        .panel {
+            background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .panel-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+        }
+        .panel-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+
+        .sala-item {
+            padding: 12px 14px; border-radius: 8px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 6px; transition: all 0.15s; border: 2px solid transparent;
+        }
+        .sala-item:hover { background: #f5f3ff; }
+        .sala-item.activa { background: #f5f3ff; border-color: #4f46e5; }
+        .sala-nombre { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+        .sala-acciones { display: flex; gap: 6px; }
+
+        /* ── GRID MESAS ── */
+        .mesas-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+        }
+        .mesas-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+
+        .mesas-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px;
+        }
+
+        .mesa-card {
+            background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center;
+            border: 2px solid #e0e0e0; transition: all 0.2s;
+        }
+        .mesa-card:hover { border-color: #4f46e5; }
+        .mesa-numero { font-size: 28px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+        .mesa-capacidad { font-size: 12px; color: #888; margin-bottom: 12px; }
+        .mesa-estado {
+            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 12px;
+            display: inline-block;
+        }
+        .estado-libre { background: #dcfce7; color: #16a34a; }
+        .estado-ocupada { background: #fee2e2; color: #dc2626; }
+        .estado-reservada { background: #ede9fe; color: #7c3aed; }
+        .estado-pendiente_pago { background: #fef9c3; color: #854d0e; }
+        .mesa-acciones { display: flex; gap: 6px; justify-content: center; }
+
+        .empty { text-align: center; padding: 48px; color: #888; }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: none; align-items: center; justify-content: center; z-index: 200;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white; border-radius: 16px; padding: 32px;
+            width: 100%; max-width: 440px;
+        }
+        .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 24px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px 14px; border: 1.5px solid #e0e0e0;
+            border-radius: 8px; font-size: 14px; outline: none;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: #4f46e5; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .modal-footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <a href="dashboard.html">← Dashboard</a>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header">
+        <h2>🪑 Salas y mesas</h2>
+    </div>
+
+    <div class="layout">
+        <!-- Panel salas -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3>Salas</h3>
+                <button class="btn btn-primary btn-sm" onclick="abrirModalSala()">+ Nueva</button>
+            </div>
+            <div id="lista-salas">
+                <div class="empty">Cargando...</div>
+            </div>
+        </div>
+
+        <!-- Panel mesas -->
+        <div class="panel">
+            <div class="mesas-header">
+                <h3 id="mesas-titulo">Seleccioná una sala</h3>
+                <button class="btn btn-primary btn-sm" id="btn-nueva-mesa" onclick="abrirModalMesa()" style="display:none">+ Nueva mesa</button>
+            </div>
+            <div class="mesas-grid" id="mesas-grid">
+                <div class="empty" style="grid-column:1/-1">Seleccioná una sala para ver sus mesas</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal sala -->
+<div class="modal-overlay" id="modal-sala">
+    <div class="modal">
+        <h3 id="modal-sala-titulo">Nueva sala</h3>
+        <div class="form-group">
+            <label>Nombre *</label>
+            <input type="text" id="fs-nombre" placeholder="Ej: Salón principal">
+        </div>
+        <div class="form-group">
+            <label>Orden de visualización</label>
+            <input type="number" id="fs-orden" value="0" min="0">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-sala')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarSala()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal mesa -->
+<div class="modal-overlay" id="modal-mesa">
+    <div class="modal">
+        <h3 id="modal-mesa-titulo">Nueva mesa</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Número de mesa *</label>
+                <input type="number" id="fm-numero" min="1" placeholder="1">
+            </div>
+            <div class="form-group">
+                <label>Capacidad *</label>
+                <input type="number" id="fm-capacidad" min="1" value="4">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Notas</label>
+            <input type="text" id="fm-notas" placeholder="Opcional">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-mesa')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarMesa()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    requireAuth();
+    requireRol("admin", "gerente");
+
+    let salas = [];
+    let mesas = [];
+    let salaSelId = null;
+    let editandoSalaId = null;
+    let editandoMesaId = null;
+
+    async function init() {
+        await cargarSalas();
+    }
+
+    async function cargarSalas() {
+        salas = await api.get("/mesas/salas");
+        const cont = document.getElementById("lista-salas");
+        if (!salas.length) {
+            cont.innerHTML = `<div class="empty">No hay salas. Creá una.</div>`;
+            return;
+        }
+        cont.innerHTML = salas.map(s => `
+            <div class="sala-item ${s.id === salaSelId ? 'activa' : ''}" onclick="seleccionarSala(${s.id})">
+                <div class="sala-nombre">${s.nombre}</div>
+                <div class="sala-acciones">
+                    <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); abrirModalSala(${s.id})">✏️</button>
+                    <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); eliminarSala(${s.id})">🗑️</button>
+                </div>
+            </div>
+        `).join("");
+
+        if (salaSelId) seleccionarSala(salaSelId);
+    }
+
+    async function seleccionarSala(id) {
+        salaSelId = id;
+        const sala = salas.find(s => s.id === id);
+        document.getElementById("mesas-titulo").textContent = `Mesas — ${sala.nombre}`;
+        document.getElementById("btn-nueva-mesa").style.display = "block";
+        await cargarSalas();
+        await cargarMesas(id);
+    }
+
+    async function cargarMesas(salaId) {
+        mesas = await api.get(`/mesas/?sala_id=${salaId}`);
+        const grid = document.getElementById("mesas-grid");
+        if (!mesas.length) {
+            grid.innerHTML = `<div class="empty" style="grid-column:1/-1">No hay mesas en esta sala.</div>`;
+            return;
+        }
+        grid.innerHTML = mesas.map(m => `
+            <div class="mesa-card">
+                <div class="mesa-numero">Mesa ${m.numero}</div>
+                <div class="mesa-capacidad">${m.capacidad} personas</div>
+                <div class="mesa-estado estado-${m.estado}">${estadoLabel(m.estado)}</div>
+                <div class="mesa-acciones">
+                    <button class="btn btn-secondary btn-sm" onclick="abrirModalMesa(${m.id})">✏️</button>
+                    <button class="btn btn-danger btn-sm" onclick="eliminarMesa(${m.id})">🗑️</button>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    function estadoLabel(e) {
+        const labels = { libre: "Libre", ocupada: "Ocupada", reservada: "Reservada", pendiente_pago: "Pend. pago" };
+        return labels[e] || e;
+    }
+
+    // ── SALAS ──
+    function abrirModalSala(id = null) {
+        editandoSalaId = id;
+        if (id) {
+            const s = salas.find(x => x.id === id);
+            document.getElementById("modal-sala-titulo").textContent = "Editar sala";
+            document.getElementById("fs-nombre").value = s.nombre;
+            document.getElementById("fs-orden").value = s.orden;
+        } else {
+            document.getElementById("modal-sala-titulo").textContent = "Nueva sala";
+            document.getElementById("fs-nombre").value = "";
+            document.getElementById("fs-orden").value = "0";
+        }
+        document.getElementById("modal-sala").classList.add("active");
+    }
+
+    async function guardarSala() {
+        const body = {
+            nombre: document.getElementById("fs-nombre").value.trim(),
+            orden: parseInt(document.getElementById("fs-orden").value) || 0
+        };
+        if (!body.nombre) { alert("El nombre es obligatorio."); return; }
+        try {
+            if (editandoSalaId) {
+                await api.patch(`/mesas/salas/${editandoSalaId}`, body);
+            } else {
+                await api.post("/mesas/salas", body);
+            }
+            cerrarModal("modal-sala");
+            await cargarSalas();
+        } catch (err) { alert("Error: " + err.message); }
+    }
+
+    async function eliminarSala(id) {
+        if (!confirm("¿Eliminar esta sala? Se eliminarán todas sus mesas.")) return;
+        try {
+            await api.delete(`/mesas/salas/${id}`);
+            if (salaSelId === id) {
+                salaSelId = null;
+                document.getElementById("mesas-titulo").textContent = "Seleccioná una sala";
+                document.getElementById("btn-nueva-mesa").style.display = "none";
+                document.getElementById("mesas-grid").innerHTML = "";
+            }
+            await cargarSalas();
+        } catch (err) { alert("Error: " + err.message); }
+    }
+
+    // ── MESAS ──
+    function abrirModalMesa(id = null) {
+        editandoMesaId = id;
+        if (id) {
+            const m = mesas.find(x => x.id === id);
+            document.getElementById("modal-mesa-titulo").textContent = "Editar mesa";
+            document.getElementById("fm-numero").value = m.numero;
+            document.getElementById("fm-capacidad").value = m.capacidad;
+            document.getElementById("fm-notas").value = m.notas || "";
+        } else {
+            document.getElementById("modal-mesa-titulo").textContent = "Nueva mesa";
+            document.getElementById("fm-numero").value = "";
+            document.getElementById("fm-capacidad").value = "4";
+            document.getElementById("fm-notas").value = "";
+        }
+        document.getElementById("modal-mesa").classList.add("active");
+    }
+
+    async function guardarMesa() {
+        const body = {
+            sala_id: salaSelId,
+            numero: parseInt(document.getElementById("fm-numero").value),
+            capacidad: parseInt(document.getElementById("fm-capacidad").value) || 4,
+            notas: document.getElementById("fm-notas").value.trim() || null
+        };
+        if (!body.numero) { alert("El número de mesa es obligatorio."); return; }
+        try {
+            if (editandoMesaId) {
+                await api.patch(`/mesas/${editandoMesaId}`, body);
+            } else {
+                await api.post("/mesas/", body);
+            }
+            cerrarModal("modal-mesa");
+            await cargarMesas(salaSelId);
+        } catch (err) { alert("Error: " + err.message); }
+    }
+
+    async function eliminarMesa(id) {
+        if (!confirm("¿Eliminar esta mesa?")) return;
+        try {
+            await api.delete(`/mesas/${id}`);
+            await cargarMesas(salaSelId);
+        } catch (err) { alert("Error: " + err.message); }
+    }
+
+    function cerrarModal(id) {
+        document.getElementById(id).classList.remove("active");
+    }
+
+    document.querySelectorAll(".modal-overlay").forEach(m => {
+        m.addEventListener("click", function(e) {
+            if (e.target === this) this.classList.remove("active");
+        });
+    });
+
+    init();
+</script>
+</body>
+</html>

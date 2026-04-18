@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Usuarios</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        .navbar {
+            background: #1a1a2e; color: white; padding: 0 32px; height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+        }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
+        .btn-logout {
+            background: transparent; border: 1px solid #4f46e5; color: #a5b4fc;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+
+        .content { margin-top: 60px; padding: 32px; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
+        }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+
+        .btn {
+            padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 14px; font-weight: 600; transition: all 0.2s;
+        }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; }
+        .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+        .tabla-wrapper {
+            background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            background: #f8f9fa; padding: 12px 16px; text-align: left;
+            font-size: 12px; font-weight: 700; color: #666;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        td { padding: 14px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; }
+        tr:hover td { background: #fafafa; }
+
+        .badge {
+            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+        }
+        .badge-purple { background: #ede9fe; color: #7c3aed; }
+        .badge-blue { background: #dbeafe; color: #1d4ed8; }
+        .badge-gray { background: #f3f4f6; color: #666; }
+        .badge-orange { background: #fff7ed; color: #c2410c; }
+        .badge-green { background: #dcfce7; color: #16a34a; }
+        .badge-red { background: #fee2e2; color: #dc2626; }
+
+        .acciones { display: flex; gap: 8px; }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: none; align-items: center; justify-content: center; z-index: 200;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white; border-radius: 16px; padding: 32px;
+            width: 100%; max-width: 440px;
+        }
+        .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 24px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px 14px; border: 1.5px solid #e0e0e0;
+            border-radius: 8px; font-size: 14px; outline: none;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: #4f46e5; }
+        .modal-footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+
+        .empty { text-align: center; padding: 48px; color: #888; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <a href="dashboard.html">← Dashboard</a>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header">
+        <h2>👥 Usuarios</h2>
+        <button class="btn btn-primary" onclick="abrirModalNuevo()">+ Nuevo usuario</button>
+    </div>
+
+    <div class="tabla-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Creado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-body">
+                <tr><td colspan="5" class="empty">Cargando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal nuevo usuario -->
+<div class="modal-overlay" id="modal-nuevo">
+    <div class="modal">
+        <h3>Nuevo usuario</h3>
+        <div class="form-group">
+            <label>Usuario *</label>
+            <input type="text" id="fn-username" placeholder="Nombre de usuario">
+        </div>
+        <div class="form-group">
+            <label>Contraseña *</label>
+            <input type="password" id="fn-password" placeholder="Contraseña inicial">
+        </div>
+        <div class="form-group">
+            <label>Rol *</label>
+            <select id="fn-rol">
+                <option value="empleado">Empleado</option>
+                <option value="cocinero">Cocinero</option>
+                <option value="gerente">Gerente</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo')">Cancelar</button>
+            <button class="btn btn-primary" onclick="crearUsuario()">Crear</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal editar rol -->
+<div class="modal-overlay" id="modal-editar">
+    <div class="modal">
+        <h3>Editar usuario</h3>
+        <div class="form-group">
+            <label>Rol</label>
+            <select id="fe-rol">
+                <option value="empleado">Empleado</option>
+                <option value="cocinero">Cocinero</option>
+                <option value="gerente">Gerente</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Estado</label>
+            <select id="fe-activo">
+                <option value="true">Activo</option>
+                <option value="false">Inactivo</option>
+            </select>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-editar')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEdicion()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    requireAuth();
+    requireRol("admin", "gerente");
+
+    let usuarios = [];
+    let editandoId = null;
+
+    async function cargarUsuarios() {
+        usuarios = await api.get("/auth/usuarios");
+        const tbody = document.getElementById("tabla-body");
+        if (!usuarios.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="empty">No hay usuarios</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = usuarios.map(u => `
+            <tr>
+                <td><strong>${u.username}</strong></td>
+                <td><span class="badge ${rolBadge(u.rol)}">${u.rol}</span></td>
+                <td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                <td>${formatFecha(u.creado_en)}</td>
+                <td>
+                    <div class="acciones">
+                        <button class="btn btn-secondary btn-sm" onclick="abrirModalEditar(${u.id})">Editar</button>
+                        <button class="btn btn-warning btn-sm" onclick="toggleActivo(${u.id}, ${u.activo})">
+                            ${u.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join("");
+    }
+
+    function rolBadge(rol) {
+        const map = { admin: 'badge-purple', gerente: 'badge-blue', empleado: 'badge-gray', cocinero: 'badge-orange' };
+        return map[rol] || 'badge-gray';
+    }
+
+    function formatFecha(ts) {
+        if (!ts) return "—";
+        return new Date(ts).toLocaleDateString("es-AR");
+    }
+
+    function abrirModalNuevo() {
+        document.getElementById("fn-username").value = "";
+        document.getElementById("fn-password").value = "";
+        document.getElementById("fn-rol").value = "empleado";
+        document.getElementById("modal-nuevo").classList.add("active");
+    }
+
+    async function crearUsuario() {
+        const body = {
+            username: document.getElementById("fn-username").value.trim(),
+            password: document.getElementById("fn-password").value,
+            rol: document.getElementById("fn-rol").value
+        };
+        if (!body.username || !body.password) { alert("Usuario y contraseña son obligatorios."); return; }
+        try {
+            await api.post("/auth/usuarios", body);
+            cerrarModal("modal-nuevo");
+            await cargarUsuarios();
+        } catch (err) { alert("Error: " + err.message); }
+    }
+
+    function abrirModalEditar(id) {
+        editandoId = id;
+        const u = usuarios.find(x => x.id === id);
+        document.getElementById("fe-rol").value = u.rol;
+        document.getElementById("fe-activo").value = u.activo ? "true" : "false";
+        document.getElementById("modal-editar").classList.add("active");
+    }
+
+    async function guardarEdicion() {
+        const body = {
+            rol: document.getElementById("fe-rol").value,
+            activo: document.getElementById("fe-activo").value === "true"
+        };
+        try {
+            await api.patch(`/auth/usuarios/${editandoId}`, body);
+            cerrarModal("modal-editar");
+            await cargarUsuarios();
+        } catch (err) { alert("Error: " + err.message); }
+    }
+
+    async function toggleActivo(id, actual) {
+        try {
+            await api.patch(`/auth/usuarios/${id}`, { activo: !actual });
+            await cargarUsuarios();
+        } catch (err) { alert("Error: " + err.message); }
+    }
+
+    function cerrarModal(id) {
+        document.getElementById(id).classList.remove("active");
+    }
+
+    document.querySelectorAll(".modal-overlay").forEach(m => {
+        m.addEventListener("click", function(e) {
+            if (e.target === this) this.classList.remove("active");
+        });
+    });
+
+    cargarUsuarios();
+</script>
+</body>
+</html>
