@@ -319,6 +319,9 @@
             <label class="checkbox-item">
                 <input type="checkbox" id="fp-favorito"> ★ Favorito
             </label>
+            <label class="checkbox-item">
+                <input type="checkbox" id="fp-en-combo" checked> En combos
+            </label>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-producto')">Cancelar</button>
@@ -612,7 +615,8 @@ async function guardarProducto() {
         en_carta: document.getElementById('fp-encarta').checked,
         agotado: document.getElementById('fp-agotado').checked,
         favorito: document.getElementById('fp-favorito').checked,
-        disponible: !document.getElementById('fp-agotado').checked
+        disponible: !document.getElementById('fp-agotado').checked,
+        en_combo: document.getElementById('fp-en-combo').checked
     };
     if (!body.nombre || isNaN(body.precio)) { alert('Nombre y precio son obligatorios.'); return; }
     try {
@@ -780,7 +784,7 @@ function renderCombos() {
             <td><strong>${c.nombre}</strong>${c.descripcion ? `<br><small style="color:#888">${c.descripcion}</small>` : ''}</td>
             <td><strong>$${parseFloat(c.precio).toFixed(2)}</strong></td>
             <td>${c.categoria || '—'}</td>
-            <td>${c.items.map(i => `${i.cantidad}x ${i.producto_nombre}`).join(', ')}</td>
+            <td>${c.items.map(i => `${i.cantidad}x ${i.categoria_nombre}`).join(', ')}</td>
             <td><span class="badge ${c.disponible ? 'badge-green' : 'badge-gray'}">${c.disponible ? 'Sí' : 'No'}</span></td>
             <td><span class="badge ${c.agotado ? 'badge-orange' : 'badge-gray'}">${c.agotado ? 'Sí' : 'No'}</span></td>
         </tr>
@@ -812,7 +816,7 @@ function abrirModalCombo(id = null) {
         document.getElementById('fc-area').value = comboSel.area_id || '';
         document.getElementById('fc-disponible').checked = comboSel.disponible;
         document.getElementById('fc-favorito').checked = comboSel.favorito;
-        comboSel.items.forEach(i => agregarComboItem(i.producto_id, i.cantidad));
+        comboSel.items.forEach(i => agregarComboItem(i.categoria_id, i.cantidad));
     } else {
         ['fc-nombre','fc-descripcion'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('fc-precio').value = '';
@@ -825,14 +829,15 @@ function abrirModalCombo(id = null) {
 
 function editarComboSel() { if (comboSel) abrirModalCombo(comboSel.id); }
 
-function agregarComboItem(prodId = '', cant = 1) {
+function agregarComboItem(catId = '', cant = 1) {
     const cont = document.getElementById('combo-items-cont');
     const row = document.createElement('div');
     row.className = 'combo-item-row';
-    const opts = productos.map(p => `<option value="${p.id}" ${p.id == prodId ? 'selected' : ''}>${p.nombre}</option>`).join('');
+    const opts = categorias.map(c => `<option value="${c.id}" ${c.id == catId ? 'selected' : ''}>${c.nombre}</option>`).join('');
     row.innerHTML = `
-        <select class="ci-prod">${opts}</select>
+        <select class="ci-cat">${opts}</select>
         <input type="number" class="ci-cant" min="1" value="${cant}" style="width:60px">
+        <span style="font-size:12px;color:#888">opciones</span>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>
     `;
     cont.appendChild(row);
@@ -840,7 +845,7 @@ function agregarComboItem(prodId = '', cant = 1) {
 
 async function guardarCombo() {
     const items = Array.from(document.querySelectorAll('.combo-item-row')).map(row => ({
-        producto_id: parseInt(row.querySelector('.ci-prod').value),
+        categoria_id: parseInt(row.querySelector('.ci-cat').value),
         cantidad: parseInt(row.querySelector('.ci-cant').value) || 1
     }));
     const body = {
