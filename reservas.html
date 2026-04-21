@@ -551,6 +551,57 @@ async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
     const[sh,smm]=nuevaHoraInicio.split(':').map(Number);
     const finM=sh*60+smm+durMins;
     const nuevaHoraFin=(Math.floor(finM/60)%24).toString().padStart(2,'0')+':'+(finM%60).toString().padStart(2,'0');
+
+    // ── Validar horario del día ──────────────────────────────
+    const diaSem=(fechaActual.getDay()+6)%7;
+    const diaH=horarios.find(h=>h.dia_semana===diaSem);
+    if(diaH){
+        if(!diaH.activo){
+            alert('El restaurante está cerrado ese día.');dibujar();return;
+        }
+        const franjas=(diaH.franjas||[]);
+        if(franjas.length){
+            const hiM=sh*60+smm, hfM=sh*60+smm+durMins;
+            const encaja=franjas.some(f=>{
+                const[fsh,fsm]=f.inicio.split(':').map(Number);
+                const[feh,fem]=f.fin.split(':').map(Number);
+                let fIni=fsh*60+fsm, fFin=feh*60+fem;
+                if(fFin<=fIni)fFin+=24*60;
+                return hiM>=fIni&&hfM<=fFin;
+            });
+            if(!encaja){alert('El horario elegido está fuera del horario de atención.');dibujar();return;}
+        }
+    }
+
+    // ── Validar bloqueos ─────────────────────────────────────
+    const fechaStr=fechaISO(fechaActual);
+    const hiM=sh*60+smm, hfM=sh*60+smm+durMins;
+    for(const b of bloqueos){
+        if(b.fecha!==fechaStr)continue;
+        if(!b.hora_inicio||!b.hora_fin){
+            alert('El restaurante está bloqueado ese día'+(b.motivo?' ('+b.motivo+')':'')+'.');dibujar();return;
+        }
+        const[bsh,bsm]=b.hora_inicio.split(':').map(Number);
+        const[beh,bem]=b.hora_fin.split(':').map(Number);
+        const bIni=bsh*60+bsm, bFin=beh*60+bem;
+        if(hiM<bFin&&hfM>bIni){
+            alert('El horario coincide con un bloqueo de '+b.hora_inicio.substring(0,5)+' – '+b.hora_fin.substring(0,5)+(b.motivo?' ('+b.motivo+')':'')+'.');
+            dibujar();return;
+        }
+    }
+
+    // ── Validar colisión con otras reservas ──────────────────
+    for(const rv of reservas){
+        if(rv.id===r.id)continue;
+        if(rv.mesa_id!==nuevaMesaId)continue;
+        const rvSm=minsDesdeInicio(rv.hora_inicio);
+        let rvEm;if(rv.hora_fin){rvEm=minsDesdeInicio(rv.hora_fin);if(rvEm<=rvSm)rvEm+=24*60;}else rvEm=rvSm+60;
+        if(hiM<rvEm&&hfM>rvSm){
+            alert('Colisión con la reserva de '+rv.nombre_cliente+' ('+rv.hora_inicio.substring(0,5)+' – '+(rv.hora_fin?rv.hora_fin.substring(0,5):'')+'.)');
+            dibujar();return;
+        }
+    }
+
     try{
         await api.patch('/reservas/'+r.id,{mesa_id:nuevaMesaId,hora_inicio:nuevaHoraInicio,hora_fin:nuevaHoraFin});
         await cargarDatos();
