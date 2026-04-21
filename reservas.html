@@ -483,20 +483,79 @@ function dibujar(){
 canvasWrap.addEventListener('scroll',()=>{canvasTime.style.transform='translateX(-'+canvasWrap.scrollLeft+'px)';});
 setInterval(()=>{if(document.getElementById('panel-reservas').classList.contains('active'))dibujar();},60000);
 
-// ── Drag to scroll ────────────────────────────────────────────
 let isDragging=false, dragStartX=0, scrollStartX=0, dragMoved=false;
+let dragReserva=null, dragStartCX=0, dragStartCY=0, dropCol=-1, dropRow=-1;
+
 canvasWrap.addEventListener('mousedown',e=>{
     if(e.button!==0)return;
-    isDragging=true;dragStartX=e.clientX;scrollStartX=canvasWrap.scrollLeft;dragMoved=false;
+    const{x,y}=canvasPos(e);
+    const hit=hitReserva(x,y);
+    if(hit && hit.r.estado!=='cancelada'){
+        dragReserva=hit;dragStartCX=x;dragStartCY=y;
+        dragMoved=false;dropCol=-1;dropRow=-1;
+    } else {
+        isDragging=true;dragStartX=e.clientX;scrollStartX=canvasWrap.scrollLeft;dragMoved=false;
+    }
     canvasWrap.classList.add('grabbing');e.preventDefault();
 });
 document.addEventListener('mousemove',e=>{
+    if(dragReserva){
+        const{x,y}=canvasPos(e);
+        if(Math.abs(x-dragStartCX)>6||Math.abs(y-dragStartCY)>6){
+            dragMoved=true;
+            dropCol=Math.max(0,Math.min(TOTAL_SLOTS-1,Math.floor(x/COL_W)));
+            dropRow=Math.max(0,Math.min(mesas.length-1,Math.floor((y-HEADER_H)/ROW_H)));
+            _dibujarConIndicador();
+        }
+        return;
+    }
     if(!isDragging)return;
     const dx=dragStartX-e.clientX;
     if(Math.abs(dx)>4)dragMoved=true;
     canvasWrap.scrollLeft=scrollStartX+dx;
 });
-document.addEventListener('mouseup',()=>{isDragging=false;canvasWrap.classList.remove('grabbing');});
+document.addEventListener('mouseup',()=>{
+    if(dragReserva){
+        if(dragMoved&&dropCol>=0&&dropRow>=0){
+            const mt=HORA_INICIO*60+dropCol*SLOT_MIN;
+            const hh=Math.floor(mt/60)%24,mm=mt%60;
+            _moverReserva(dragReserva.r,mesas[dropRow].id,
+                hh.toString().padStart(2,'0')+':'+mm.toString().padStart(2,'0'));
+        }
+        dragReserva=null;dragMoved=false;dropCol=-1;dropRow=-1;
+        canvasWrap.classList.remove('grabbing');dibujar();return;
+    }
+    isDragging=false;canvasWrap.classList.remove('grabbing');
+});
+
+function _dibujarConIndicador(){
+    dibujar();
+    if(dropCol<0||dropRow<0)return;
+    const r=dragReserva.r;
+    const sm=minsDesdeInicio(r.hora_inicio);
+    let em;if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
+    const durCols=Math.round((em-sm)/SLOT_MIN);
+    const x=dropCol*COL_W,y=HEADER_H+dropRow*ROW_H+2,w=durCols*COL_W-2,h=ROW_H-4;
+    ctxC.save();
+    ctxC.globalAlpha=0.55;ctxC.fillStyle=colorReserva(r);
+    roundRect(ctxC,x,y,w,h,5);ctxC.fill();
+    ctxC.globalAlpha=1;ctxC.strokeStyle='#4f46e5';ctxC.lineWidth=2.5;ctxC.setLineDash([4,3]);
+    roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
+    ctxC.setLineDash([]);ctxC.restore();
+}
+
+async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
+    const sm=minsDesdeInicio(r.hora_inicio);
+    let em;if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
+    const durMins=em-sm;
+    const[sh,smm]=nuevaHoraInicio.split(':').map(Number);
+    const finM=sh*60+smm+durMins;
+    const nuevaHoraFin=(Math.floor(finM/60)%24).toString().padStart(2,'0')+':'+(finM%60).toString().padStart(2,'0');
+    try{
+        await api.patch('/reservas/'+r.id,{mesa_id:nuevaMesaId,hora_inicio:nuevaHoraInicio,hora_fin:nuevaHoraFin});
+        await cargarDatos();
+    }catch(err){alert('Error al mover reserva: '+err.message);}
+}
 
 // ── Interacción canvas ─────────────────────────────────────────
 function canvasPos(e){const rect=canvas.getBoundingClientRect();return{x:e.clientX-rect.left+canvasWrap.scrollLeft,y:e.clientY-rect.top};}
@@ -690,7 +749,7 @@ async function crearBloqueo(){
     if(!fecha){alert('La fecha es obligatoria.');return;}
     const todoDia=document.getElementById('b-todo-dia').checked;
     const body={fecha,hora_inicio:todoDia?null:(document.getElementById('b-hora-inicio').value||null),hora_fin:todoDia?null:(document.getElementById('b-hora-fin').value||null),motivo:document.getElementById('b-motivo').value.trim()||null};
-    try{await api.post('/horarios/bloqueos',body);document.getElementById('b-motivo').value='';await cargarBloqueos();}
+    try{await api.post('/horarios/bloqueos',body);document.getElementById('b-motivo').value='';await cargarBloqueos();await cargarDatos();}
     catch(err){
         const msg=err.message||'';
         if(msg.toLowerCase().includes('fetch')||msg.toLowerCase().includes('cors'))
