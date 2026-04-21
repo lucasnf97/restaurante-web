@@ -110,6 +110,7 @@
                     <th>Usuario</th>
                     <th>Rol</th>
                     <th>Estado</th>
+                    <th style="text-align:center;">Gestión caja</th>
                     <th>Creado</th>
                     <th>Acciones</th>
                 </tr>
@@ -196,6 +197,12 @@
                 <td><strong>${u.username}</strong></td>
                 <td><span class="badge ${rolBadge(u.rol)}">${u.rol}</span></td>
                 <td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                <td style="text-align:center;">
+                    <button onclick="toggleCaja(${u.id}, ${u.gestion_caja})" title="${u.gestion_caja ? 'Quitar permiso' : 'Dar permiso'}"
+                        style="background:none;border:none;cursor:pointer;font-size:20px;line-height:1;">
+                        ${u.gestion_caja ? '✅' : '⬜'}
+                    </button>
+                </td>
                 <td>${formatFecha(u.creado_en)}</td>
                 <td>
                     <div class="acciones">
@@ -205,7 +212,6 @@
                         </button>
                     </div>
                 </td>
-            </tr>
         `).join("");
     }
 
@@ -263,6 +269,13 @@
     async function toggleActivo(id, actual) {
         try {
             await api.patch(`/auth/usuarios/${id}`, { activo: !actual });
+            await cargarUsuarios();
+        } catch (err) { alert("Error: " + err.message); }
+    }
+
+    async function toggleCaja(id, actual) {
+        try {
+            await api.patch(`/auth/usuarios/${id}`, { gestion_caja: !actual });
             await cargarUsuarios();
         } catch (err) { alert("Error: " + err.message); }
     }
