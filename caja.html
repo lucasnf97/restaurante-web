@@ -106,7 +106,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th><th>Fecha</th><th>Cerrado por</th>
+                    <th>ID</th><th>Fecha</th><th>Abierto por</th><th>Cerrado por</th>
                     <th>Hora cierre</th><th>Total</th><th>Acciones</th>
                 </tr>
             </thead>
@@ -222,6 +222,7 @@ async function cargarCierres() {
             return `<tr>
                 <td>#${c.id}</td>
                 <td>${formatFecha(c.fecha)}</td>
+                <td>${c.abierto_por || '—'}</td>
                 <td>${c.cerrado_por}</td>
                 <td>${formatTs(c.ts_cierre)}</td>
                 <td><strong>$${parseFloat(c.total).toFixed(2)}</strong></td>
@@ -247,8 +248,7 @@ async function verDetalle(id) {
         const data = await api.get(`/caja/cierres/${id}`);
         const c = data.cierre;
         document.getElementById("modal-titulo").textContent = `Cierre #${c.id}`;
-        document.getElementById("modal-sub").textContent =
-            `${formatFecha(c.fecha)} — Cerrado por ${c.cerrado_por} — Total: $${parseFloat(c.total).toFixed(2)}`;
+        document.getElementById("modal-sub").textContent = `${formatFecha(c.fecha)} — Abierto por ${c.abierto_por || '—'} — Cerrado por ${c.cerrado_por} — Total: $${parseFloat(c.total).toFixed(2)}`;
         const tbody = document.getElementById("modal-tabla");
         if (!data.detalle.length) {
             tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin pedidos registrados</td></tr>`;
