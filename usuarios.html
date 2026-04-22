@@ -111,7 +111,7 @@
                     <th>Siglas</th>
                     <th>Rol</th>
                     <th>Estado</th>
-                    <th style="text-align:center;">Gestión caja</th>
+                    <th style="text-align:center;">Permisos</th>
                     <th>Creado</th>
                     <th>Acciones</th>
                 </tr>
@@ -183,6 +183,40 @@
     </div>
 </div>
 
+<!-- Modal permisos -->
+<div class="modal-overlay" id="modal-permisos">
+    <div class="modal">
+        <h3 id="mp-titulo">Permisos de usuario</h3>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px;">
+            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+                <input type="checkbox" id="mp-caja" style="width:16px;height:16px;accent-color:#4f46e5;">
+                <div>
+                    <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Gestión de caja</div>
+                    <div style="font-size:12px;color:#888;">Puede abrir y cerrar la caja</div>
+                </div>
+            </label>
+            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+                <input type="checkbox" id="mp-resumen" style="width:16px;height:16px;accent-color:#4f46e5;">
+                <div>
+                    <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Editar resumen</div>
+                    <div style="font-size:12px;color:#888;">Puede aplicar descuentos al cerrar mesas</div>
+                </div>
+            </label>
+            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+                <input type="checkbox" id="mp-agenda" style="width:16px;height:16px;accent-color:#4f46e5;">
+                <div>
+                    <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Edición de agenda</div>
+                    <div style="font-size:12px;color:#888;">Puede editar horarios y bloqueos de reservas</div>
+                </div>
+            </label>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-permisos')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarPermisos()">Guardar</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/api.js"></script>
 <script>
     requireAuth();
@@ -209,9 +243,9 @@
                 <td><span class="badge ${rolBadge(u.rol)}">${u.rol}</span></td>
                 <td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
                 <td style="text-align:center;">
-                    <button onclick="toggleCaja(${u.id}, ${u.gestion_caja})" title="${u.gestion_caja ? 'Quitar permiso' : 'Dar permiso'}"
-                        style="background:none;border:none;cursor:pointer;font-size:20px;line-height:1;">
-                        ${u.gestion_caja ? '✅' : '⬜'}
+                    <button onclick="abrirModalPermisos(${u.id})"
+                        style="background:#ede9fe;color:#7c3aed;border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;">
+                        ⚙ Permisos
                     </button>
                 </td>
                 <td>${formatFecha(u.creado_en)}</td>
@@ -302,6 +336,30 @@
             if (e.target === this) this.classList.remove("active");
         });
     });
+
+    let editandoPermisosId = null;
+
+    function abrirModalPermisos(id) {
+        editandoPermisosId = id;
+        const u = usuarios.find(x => x.id === id);
+        document.getElementById("mp-titulo").textContent = `Permisos — ${u.username}`;
+        document.getElementById("mp-caja").checked    = !!u.gestion_caja;
+        document.getElementById("mp-resumen").checked = !!u.editar_resumen;
+        document.getElementById("mp-agenda").checked  = !!u.edicion_agenda;
+        document.getElementById("modal-permisos").classList.add("active");
+    }
+
+    async function guardarPermisos() {
+        try {
+            await api.patch(`/auth/usuarios/${editandoPermisosId}`, {
+                gestion_caja:   document.getElementById("mp-caja").checked,
+                editar_resumen: document.getElementById("mp-resumen").checked,
+                edicion_agenda: document.getElementById("mp-agenda").checked
+            });
+            cerrarModal("modal-permisos");
+            await cargarUsuarios();
+        } catch(err) { alert("Error: " + err.message); }
+    }
 
     cargarUsuarios();
 </script>
