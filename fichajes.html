@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Fichajes</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
+        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+        .content { margin-top: 60px; padding: 32px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; }
+        .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-sm { padding: 5px 11px; font-size: 12px; }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .stat-value { font-size: 26px; font-weight: 700; color: #1a1a2e; }
+        .stat-value.green { color: #16a34a; }
+        .stat-value.blue  { color: #4f46e5; }
+
+        .activos-section { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .activos-section h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px; }
+        .globos-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+        .globo { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .globo-circle { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: white; }
+        .globo-name { font-size: 11px; color: #64748b; text-align: center; max-width: 70px; }
+        .globo-time { font-size: 10px; color: #94a3b8; }
+        .sin-activos { color: #94a3b8; font-size: 13px; }
+
+        .filtros { background: white; border-radius: 12px; padding: 16px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
+        .filtros label { font-size: 13px; color: #666; }
+        .filtros input, .filtros select { padding: 7px 11px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
+        .filtros input:focus, .filtros select:focus { border-color: #4f46e5; }
+
+        .tabla-wrapper { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 13px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; }
+        tr:hover td { background: #fafafa; }
+        .empty { text-align: center; padding: 48px; color: #888; }
+
+        .badge { padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-green { background: #dcfce7; color: #16a34a; }
+        .badge-blue  { background: #dbeafe; color: #1d4ed8; }
+        .badge-gray  { background: #f3f4f6; color: #666; }
+        .badge-purple { background: #ede9fe; color: #7c3aed; }
+        .badge-orange { background: #fff7ed; color: #c2410c; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <a href="dashboard.html">← Dashboard</a>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header"><h2>🕐 Fichajes de turno</h2></div>
+
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-label">Activos ahora</div>
+            <div class="stat-value green" id="stat-activos">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Fichajes hoy</div>
+            <div class="stat-value blue" id="stat-hoy">—</div>
+        </div>
+    </div>
+
+    <!-- Activos ahora -->
+    <div class="activos-section">
+        <h3>👥 Turno activo ahora</h3>
+        <div class="globos-wrap" id="globos-activos">
+            <span class="sin-activos">Cargando...</span>
+        </div>
+    </div>
+
+    <!-- Filtros historial -->
+    <div class="filtros">
+        <label>Desde:</label>
+        <input type="date" id="filtro-desde" onchange="cargarHistorial()">
+        <label>Hasta:</label>
+        <input type="date" id="filtro-hasta" onchange="cargarHistorial()">
+        <label>Usuario:</label>
+        <select id="filtro-usuario" onchange="cargarHistorial()">
+            <option value="">Todos</option>
+        </select>
+        <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
+    </div>
+
+    <div class="tabla-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Entrada</th>
+                    <th>Salida</th>
+                    <th>Duración</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-body">
+                <tr><td colspan="5" class="empty">Cargando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+requireRol("admin", "gerente");
+
+const COLORES = ["#4f46e5","#16a34a","#dc2626","#ca8a04","#0891b2","#7c3aed","#be185d","#0f766e"];
+
+async function init() {
+    const hoy = new Date().toISOString().split("T")[0];
+    document.getElementById("filtro-desde").value = hoy;
+    document.getElementById("filtro-hasta").value = hoy;
+    await Promise.all([cargarActivos(), cargarHistorial(), cargarUsuariosFiltro()]);
+}
+
+async function cargarActivos() {
+    try {
+        const activos = await api.get("/turnos/activos");
+        document.getElementById("stat-activos").textContent = activos.length;
+        const wrap = document.getElementById("globos-activos");
+        if (!activos.length) {
+            wrap.innerHTML = '<span class="sin-activos">Sin empleados en turno ahora.</span>';
+            return;
+        }
+        wrap.innerHTML = activos.map((t, i) => {
+            const iniciales = t.iniciales || t.username.substring(0,3).toUpperCase();
+            const color = COLORES[i % COLORES.length];
+            const desde = formatTs(t.ts_entrada);
+            return `<div class="globo">
+                <div class="globo-circle" style="background:${color};">${iniciales}</div>
+                <div class="globo-name">${t.username}</div>
+                <div class="globo-time">desde ${desde}</div>
+            </div>`;
+        }).join("");
+    } catch(e) { console.error(e); }
+}
+
+async function cargarUsuariosFiltro() {
+    try {
+        const usuarios = await api.get("/auth/usuarios");
+        const sel = document.getElementById("filtro-usuario");
+        usuarios.forEach(u => {
+            sel.innerHTML += `<option value="${u.username}">${u.username}</option>`;
+        });
+    } catch(e) {}
+}
+
+async function cargarHistorial() {
+    const desde   = document.getElementById("filtro-desde").value;
+    const hasta   = document.getElementById("filtro-hasta").value;
+    const usuario = document.getElementById("filtro-usuario").value;
+    let url = "/turnos/historial?";
+    if (desde)   url += `desde=${desde}T00:00:00&`;
+    if (hasta)   url += `hasta=${hasta}T23:59:59&`;
+
+    try {
+        let fichajes = await api.get(url);
+        if (usuario) fichajes = fichajes.filter(f => f.username === usuario);
+
+        document.getElementById("stat-hoy").textContent = fichajes.length;
+
+        const tbody = document.getElementById("tabla-body");
+        if (!fichajes.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin fichajes en el período seleccionado</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = fichajes.map(f => {
+            const duracion = f.horas != null ? formatHoras(f.horas) : "—";
+            const activo   = !f.ts_salida;
+            return `<tr>
+                <td><strong>${f.username}</strong></td>
+                <td>${formatTs(f.ts_entrada)}</td>
+                <td>${f.ts_salida ? formatTs(f.ts_salida) : '<span style="color:#94a3b8;">En turno</span>'}</td>
+                <td>${duracion}</td>
+                <td><span class="badge ${activo ? 'badge-green' : 'badge-gray'}">${activo ? 'Activo' : 'Finalizado'}</span></td>
+            </tr>`;
+        }).join("");
+    } catch(e) { console.error(e); }
+}
+
+function limpiarFiltros() {
+    document.getElementById("filtro-desde").value = "";
+    document.getElementById("filtro-hasta").value = "";
+    document.getElementById("filtro-usuario").value = "";
+    cargarHistorial();
+}
+
+function formatTs(ts) {
+    if (!ts) return "—";
+    return new Date(ts).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function formatHoras(h) {
+    const horas = Math.floor(h);
+    const mins  = Math.round((h - horas) * 60);
+    if (horas === 0) return `${mins}m`;
+    if (mins  === 0) return `${horas}h`;
+    return `${horas}h ${mins}m`;
+}
+
+init();
+</script>
+</body>
+</html>

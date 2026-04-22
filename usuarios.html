@@ -108,6 +108,7 @@
             <thead>
                 <tr>
                     <th>Usuario</th>
+                    <th>Siglas</th>
                     <th>Rol</th>
                     <th>Estado</th>
                     <th style="text-align:center;">Gestión caja</th>
@@ -155,6 +156,11 @@
     <div class="modal">
         <h3>Editar usuario</h3>
         <div class="form-group">
+            <label>Iniciales <span style="color:#94a3b8;font-weight:400;">(máx 3 caracteres)</span></label>
+            <input type="text" id="fe-iniciales" maxlength="3" placeholder="Ej: LUC"
+                   style="text-transform:uppercase;">
+        </div>
+        <div class="form-group">
             <label>Rol</label>
             <select id="fe-rol">
                 <option value="empleado">Empleado</option>
@@ -195,6 +201,11 @@
         tbody.innerHTML = usuarios.map(u => `
             <tr>
                 <td><strong>${u.username}</strong></td>
+                <td style="text-align:center;">
+                    <span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">
+                        ${u.iniciales || u.username.substring(0,3).toUpperCase()}
+                    </span>
+                </td>
                 <td><span class="badge ${rolBadge(u.rol)}">${u.rol}</span></td>
                 <td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
                 <td style="text-align:center;">
@@ -249,15 +260,17 @@
     function abrirModalEditar(id) {
         editandoId = id;
         const u = usuarios.find(x => x.id === id);
+        document.getElementById("fe-iniciales").value = u.iniciales || "";
         document.getElementById("fe-rol").value = u.rol;
         document.getElementById("fe-activo").value = u.activo ? "true" : "false";
         document.getElementById("modal-editar").classList.add("active");
     }
-
     async function guardarEdicion() {
+        const iniciales = document.getElementById("fe-iniciales").value.trim().toUpperCase();
         const body = {
             rol: document.getElementById("fe-rol").value,
-            activo: document.getElementById("fe-activo").value === "true"
+            activo: document.getElementById("fe-activo").value === "true",
+            iniciales: iniciales || null
         };
         try {
             await api.patch(`/auth/usuarios/${editandoId}`, body);
