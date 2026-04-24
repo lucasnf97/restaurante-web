@@ -49,8 +49,9 @@
         .empty { text-align: center; padding: 48px; color: #888; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; }
         .modal-overlay.active { display: flex; }
-        .modal { background: white; border-radius: 16px; padding: 32px; width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto; overflow-x: hidden; }
-        .modal-overlay { padding: 16px; }
+        .modal { background: white; border-radius: 16px; padding: 32px; width: 100%; max-width: 660px; max-height: 85vh; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
+        .modal-overlay { padding: 16px; box-sizing: border-box; }
+        .modal .tabla-wrapper { border-radius: 8px; overflow: hidden; }
         .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
         .modal-sub { color: #888; font-size: 13px; margin-bottom: 24px; }
         .modal-footer { display: flex; justify-content: flex-end; margin-top: 24px; }
@@ -251,7 +252,7 @@ async function verDetalle(id) {
         const data = await api.get(`/caja/cierres/${id}`);
         const c = data.cierre;
         document.getElementById("modal-titulo").textContent = `Cierre #${c.id}`;
-        document.getElementById("modal-sub").textContent = `${formatFecha(c.fecha)} — Abierto por ${c.abierto_por || '—'} — Cerrado por ${c.cerrado_por} — Total: $${parseFloat(c.total).toFixed(2)}`;
+        document.getElementById("modal-sub").textContent = "";
         const tbody = document.getElementById("modal-tabla");
         if (!data.detalle.length) {
             tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin pedidos registrados</td></tr>`;
@@ -301,12 +302,10 @@ async function verItems(pedidoId, mesaNumero) {
                 const descuento = parseFloat(i.descuento_pct) || 0;
                 const linea = i._cant_ef * parseFloat(i.precio_unit) * (1 - descuento / 100);
                 subtotal += linea;
-                const prepagadoBadge = i.prepagado
-                    ? `<br><small style="color:#16a34a;">✓ Ya pagado</small>` : '';
                 const parcialBadge = i._cant_el > 0
                     ? `<br><small style="color:#b45309;">(${i._cant_el} elim.)</small>` : '';
                 return `<tr>
-                    <td>${i.nombre}${i.notas ? `<br><small style="color:#888">📝 ${i.notas}</small>` : ''}${prepagadoBadge}${parcialBadge}</td>
+                    <td>${i.nombre}${i.notas ? `<br><small style="color:#888">📝 ${i.notas}</small>` : ''}${parcialBadge}</td>
                     <td style="text-align:center;">${i._cant_ef}</td>
                     <td style="text-align:right;">$${parseFloat(i.precio_unit).toFixed(2)}</td>
                     <td style="text-align:center;color:#16a34a;">${descuento > 0 ? descuento.toFixed(1) + '%' : '—'}</td>
