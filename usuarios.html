@@ -209,6 +209,13 @@
                     <div style="font-size:12px;color:#888;">Puede editar horarios y bloqueos de reservas</div>
                 </div>
             </label>
+            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+                <input type="checkbox" id="mp-revision" style="width:16px;height:16px;accent-color:#4f46e5;">
+                <div>
+                    <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Revisión de cuentas</div>
+                    <div style="font-size:12px;color:#888;">Puede modificar pedidos ya cobrados</div>
+                </div>
+            </label>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-permisos')">Cancelar</button>
@@ -320,12 +327,6 @@
         } catch (err) { alert("Error: " + err.message); }
     }
 
-    async function toggleCaja(id, actual) {
-        try {
-            await api.patch(`/auth/usuarios/${id}`, { gestion_caja: !actual });
-            await cargarUsuarios();
-        } catch (err) { alert("Error: " + err.message); }
-    }
 
     function cerrarModal(id) {
         document.getElementById(id).classList.remove("active");
@@ -343,9 +344,10 @@
         editandoPermisosId = id;
         const u = usuarios.find(x => x.id === id);
         document.getElementById("mp-titulo").textContent = `Permisos — ${u.username}`;
-        document.getElementById("mp-caja").checked    = !!u.gestion_caja;
-        document.getElementById("mp-resumen").checked = !!u.editar_resumen;
-        document.getElementById("mp-agenda").checked  = !!u.edicion_agenda;
+        document.getElementById("mp-caja").checked     = !!u.gestion_caja;
+        document.getElementById("mp-resumen").checked  = !!u.editar_resumen;
+        document.getElementById("mp-agenda").checked   = !!u.edicion_agenda;
+        document.getElementById("mp-revision").checked = !!u.revision;
         document.getElementById("modal-permisos").classList.add("active");
     }
 
@@ -354,7 +356,8 @@
             await api.patch(`/auth/usuarios/${editandoPermisosId}`, {
                 gestion_caja:   document.getElementById("mp-caja").checked,
                 editar_resumen: document.getElementById("mp-resumen").checked,
-                edicion_agenda: document.getElementById("mp-agenda").checked
+                edicion_agenda: document.getElementById("mp-agenda").checked,
+                revision:       document.getElementById("mp-revision").checked
             });
             cerrarModal("modal-permisos");
             await cargarUsuarios();

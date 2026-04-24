@@ -57,6 +57,20 @@
         .modal-footer { display: flex; justify-content: flex-end; margin-top: 24px; }
         .btn-libreta { background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; transition: background 0.15s; }
         .btn-libreta:hover { background: #f1f5f9; }
+        .rev-screen { display: none; }
+        .rev-screen.active { display: block; }
+        .rev-item-row { display: grid; grid-template-columns: 2fr 80px 110px 80px 40px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+        .rev-item-row:last-child { border-bottom: none; }
+        .rev-input { width: 100%; padding: 5px 8px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px; outline: none; text-align: right; }
+        .rev-input:focus { border-color: #4f46e5; }
+        .rev-input.readonly { background: #f8f9fa; color: #888; }
+        .rev-del-btn { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 16px; padding: 4px; border-radius: 4px; }
+        .rev-del-btn:hover { background: #fee2e2; }
+        .rev-header-grid { display: grid; grid-template-columns: 2fr 80px 110px 80px 40px; gap: 8px; padding: 8px 0; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid #e2e8f0; margin-bottom: 4px; }
+        .diff-box { border-radius: 10px; padding: 16px 20px; margin-top: 16px; font-size: 14px; }
+        .diff-cobro { background: #fff7ed; border: 1.5px solid #fed7aa; color: #92400e; }
+        .diff-refund { background: #f0fdf4; border: 1.5px solid #86efac; color: #166534; }
+        .diff-ok { background: #f0f9ff; border: 1.5px solid #bae6fd; color: #075985; }
     </style>
 </head>
 <body>
@@ -165,10 +179,269 @@
     </div>
 </div>
 
+<!-- Modal revisión -->
+<div class="modal-overlay" id="modal-revision">
+    <div class="modal" style="max-width:720px;padding:0;overflow:hidden;">
+
+        <!-- Pantalla 1: lista de mesas del cierre -->
+        <div class="rev-screen active" id="rev-lista">
+            <div style="background:#1a1a2e;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <div style="color:white;font-size:17px;font-weight:700;" id="rev-titulo">Revisión — Cierre #</div>
+                    <div style="color:#a5b4fc;font-size:12px;margin-top:2px;" id="rev-subtitulo"></div>
+                </div>
+                <button onclick="cerrarModal('modal-revision')" style="background:transparent;border:1px solid #4f46e5;color:#a5b4fc;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">Cerrar</button>
+            </div>
+            <div style="padding:24px 28px;max-height:70vh;overflow-y:auto;">
+                <div id="rev-mesas-lista"></div>
+            </div>
+        </div>
+
+        <!-- Pantalla 2: editor de items -->
+        <div class="rev-screen" id="rev-editor">
+            <div style="background:#1a1a2e;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <div style="color:white;font-size:17px;font-weight:700;" id="rev-editor-titulo">Editar mesa</div>
+                    <div style="color:#a5b4fc;font-size:12px;margin-top:2px;">Modificá cantidades, precios y descuentos</div>
+                </div>
+                <button onclick="revVolver()" style="background:transparent;border:1px solid #4f46e5;color:#a5b4fc;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">← Volver</button>
+            </div>
+            <div style="padding:20px 28px;max-height:calc(85vh - 200px);overflow-y:auto;">
+                <div class="rev-header-grid">
+                    <span>Producto</span><span style="text-align:right;">Cant.</span>
+                    <span style="text-align:right;">Precio unit.</span>
+                    <span style="text-align:right;">Desc.%</span><span></span>
+                </div>
+                <div id="rev-items-lista"></div>
+                <button onclick="revAgregarItem()" style="margin-top:12px;background:#f0f9ff;color:#0369a1;border:1.5px dashed #7dd3fc;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">+ Agregar producto manual</button>
+            </div>
+            <div style="padding:16px 28px;border-top:1px solid #e2e8f0;background:#f8f9fa;">
+                <div id="rev-diff-box"></div>
+                <div style="margin-top:12px;display:flex;gap:12px;align-items:center;">
+                    <input type="text" id="rev-motivo" placeholder="Motivo del ajuste (opcional)"
+                        style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">
+                    <button onclick="revConfirmar()" style="background:#4f46e5;color:white;border:none;border-radius:8px;padding:10px 22px;font-size:14px;font-weight:700;cursor:pointer;">Confirmar ajuste</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal historial revisiones -->
+<div class="modal-overlay" id="modal-historial-rev">
+    <div class="modal" style="max-width:640px;">
+        <h3 id="hrev-titulo">Historial de revisiones</h3>
+        <div id="hrev-contenido" style="margin-top:16px;max-height:60vh;overflow-y:auto;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-historial-rev')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/api.js"></script>
 <script>
 requireAuth();
 requireRol("admin", "gerente");
+
+// ── REVISIÓN ──────────────────────────────────────────────
+let _revCierreId   = null;
+let _revPedidoId   = null;
+let _revItems      = [];   // items actuales del editor
+let _revOrigTotal  = 0;
+
+async function abrirRevision(cierreId) {
+    _revCierreId = cierreId;
+    try {
+        const mesas = await api.get(`/caja/revision/${cierreId}`);
+        document.getElementById("rev-titulo").textContent    = `Revisión — Cierre #${cierreId}`;
+        document.getElementById("rev-subtitulo").textContent = `${mesas.length} mesa(s) en este cierre`;
+        const cont = document.getElementById("rev-mesas-lista");
+        if (!mesas.length) {
+            cont.innerHTML = `<p style="color:#888;text-align:center;padding:32px;">Sin mesas en este cierre.</p>`;
+        } else {
+            cont.innerHTML = mesas.map(m => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:white;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;">
+                    <div>
+                        <div style="font-weight:700;color:#1a1a2e;">Mesa ${m.mesa_numero}</div>
+                        <div style="font-size:12px;color:#888;">${m.comensales} personas · ${formatTs(m.ts_cobro)}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-weight:700;color:#16a34a;">$${parseFloat(m.total).toFixed(2)}</span>
+                        <button onclick="abrirEditorMesa(${m.pedido_id}, ${m.mesa_numero})"
+                            style="background:#ede9fe;color:#7c3aed;border:none;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;">
+                            Editar
+                        </button>
+                    </div>
+                </div>
+            `).join("");
+        }
+        revMostrarPantalla("rev-lista");
+        document.getElementById("modal-revision").classList.add("active");
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+async function abrirEditorMesa(pedidoId, mesaNumero) {
+    _revPedidoId = pedidoId;
+    document.getElementById("rev-editor-titulo").textContent = `Mesa ${mesaNumero}`;
+    try {
+        const items = await api.get(`/caja/revision/${_revCierreId}/pedido/${pedidoId}/items`);
+        // Calcular total original
+        _revOrigTotal = items.reduce((sum, i) => {
+            if (i.prepagado) return sum;
+            const cant = (i.revision_cantidad ?? i.cantidad) - (i.eliminado_cantidad || 0);
+            const precio = i.revision_precio_unit ?? i.precio_unit;
+            const desc = i.revision_descuento_pct ?? i.descuento_pct;
+            return sum + cant * parseFloat(precio) * (1 - parseFloat(desc) / 100);
+        }, 0);
+        // Construir estado editable
+        _revItems = items.map(i => ({
+            item_id:      i.id,
+            nombre:       i.nombre,
+            cantidad:     i.revision_cantidad ?? i.cantidad,
+            precio_unit:  parseFloat(i.revision_precio_unit ?? i.precio_unit),
+            descuento_pct: parseFloat(i.revision_descuento_pct ?? i.descuento_pct),
+            eliminado:    (i.eliminado_cantidad || 0) >= i.cantidad,
+            prepagado:    i.prepagado,
+            es_nuevo:     false
+        }));
+        revRenderItems();
+        revMostrarPantalla("rev-editor");
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+function revRenderItems() {
+    const cont = document.getElementById("rev-items-lista");
+    cont.innerHTML = _revItems.map((it, idx) => {
+        if (it.eliminado) {
+            return `<div class="rev-item-row" style="opacity:.45;">
+                <span style="text-decoration:line-through;color:#9ca3af;">${it.nombre}</span>
+                <span style="text-align:right;color:#9ca3af;">—</span>
+                <span style="text-align:right;color:#9ca3af;">—</span>
+                <span style="text-align:right;color:#9ca3af;">—</span>
+                <button class="rev-del-btn" onclick="revRestaurar(${idx})" title="Restaurar">↩</button>
+            </div>`;
+        }
+        const prepTag = it.prepagado ? `<span style="font-size:10px;color:#16a34a;margin-left:4px;">✓ prepago</span>` : '';
+        return `<div class="rev-item-row">
+            <span>${it.es_nuevo ? `<input class="rev-input" style="text-align:left;" value="${it.nombre}"
+                oninput="_revItems[${idx}].nombre=this.value">` : it.nombre + prepTag}</span>
+            <input class="rev-input ${it.prepagado ? 'readonly' : ''}" type="number" min="0"
+                value="${it.cantidad}" ${it.prepagado ? 'readonly' : ''}
+                oninput="_revItems[${idx}].cantidad=parseFloat(this.value)||0;revActualizarDiff()">
+            <input class="rev-input" type="number" min="0" step="0.01"
+                value="${it.precio_unit.toFixed(2)}"
+                oninput="_revItems[${idx}].precio_unit=parseFloat(this.value)||0;revActualizarDiff()">
+            <input class="rev-input" type="number" min="0" max="100" step="0.1"
+                value="${it.descuento_pct.toFixed(1)}"
+                oninput="_revItems[${idx}].descuento_pct=parseFloat(this.value)||0;revActualizarDiff()">
+            <button class="rev-del-btn" onclick="revEliminarItem(${idx})" title="Eliminar">✕</button>
+        </div>`;
+    }).join("");
+    revActualizarDiff();
+}
+
+function revEliminarItem(idx) {
+    _revItems[idx].eliminado = true;
+    revRenderItems();
+}
+
+function revRestaurar(idx) {
+    _revItems[idx].eliminado = false;
+    revRenderItems();
+}
+
+function revAgregarItem() {
+    _revItems.push({
+        item_id: null, nombre: "", cantidad: 1,
+        precio_unit: 0, descuento_pct: 0,
+        eliminado: false, prepagado: false, es_nuevo: true
+    });
+    revRenderItems();
+}
+
+function revActualizarDiff() {
+    const nuevoTotal = _revItems.reduce((sum, it) => {
+        if (it.eliminado || it.prepagado) return sum;
+        return sum + it.cantidad * it.precio_unit * (1 - it.descuento_pct / 100);
+    }, 0);
+    const diff = nuevoTotal - _revOrigTotal;
+    const box  = document.getElementById("rev-diff-box");
+    if (Math.abs(diff) < 0.01) {
+        box.innerHTML = `<div class="diff-box diff-ok">ℹ️ Sin diferencia de importe — Total: <strong>$${nuevoTotal.toFixed(2)}</strong></div>`;
+    } else if (diff > 0) {
+        box.innerHTML = `<div class="diff-box diff-cobro">⚠️ Cobro adicional requerido: <strong>$${diff.toFixed(2)}</strong> — Nuevo total: $${nuevoTotal.toFixed(2)}</div>`;
+    } else {
+        box.innerHTML = `<div class="diff-box diff-refund">✅ Refund a realizar: <strong>$${Math.abs(diff).toFixed(2)}</strong> — Nuevo total: $${nuevoTotal.toFixed(2)}</div>`;
+    }
+}
+
+async function revConfirmar() {
+    const motivo = document.getElementById("rev-motivo").value.trim();
+    const payload = {
+        pedido_id: _revPedidoId,
+        cierre_id: _revCierreId,
+        motivo:    motivo || null,
+        items:     _revItems.map(it => ({
+            item_id:       it.item_id,
+            nombre:        it.nombre,
+            cantidad:      it.cantidad,
+            precio_unit:   it.precio_unit,
+            descuento_pct: it.descuento_pct,
+            eliminar:      it.eliminado
+        }))
+    };
+    try {
+        const res = await api.post("/caja/revision/aplicar", payload);
+        const tipos = { cobro_adicional: "⚠️ Cobro adicional", refund: "✅ Refund", sin_diferencia: "ℹ️ Sin cambio de importe" };
+        let msg = `Ajuste guardado.\n${tipos[res.tipo] || ""}\nOriginal: $${res.monto_original.toFixed(2)} → Ajustado: $${res.monto_ajustado.toFixed(2)}`;
+        if (Math.abs(res.diferencia) >= 0.01)
+            msg += `\nDiferencia: $${Math.abs(res.diferencia).toFixed(2)}`;
+        alert(msg);
+        cerrarModal("modal-revision");
+        await cargarCierres();
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+async function verHistorialRev(cierreId) {
+    try {
+        const data = await api.get(`/caja/revision/historial/${cierreId}`);
+        document.getElementById("hrev-titulo").textContent = `Historial de revisiones — Cierre #${cierreId}`;
+        const cont = document.getElementById("hrev-contenido");
+        if (!data.length) {
+            cont.innerHTML = `<p style="color:#888;text-align:center;padding:24px;">Sin revisiones en este cierre.</p>`;
+        } else {
+            cont.innerHTML = data.map(r => {
+                const tipos = { cobro_adicional: "⚠️ Cobro adicional", refund: "✅ Refund", sin_diferencia: "ℹ️ Sin diferencia" };
+                const diffColor = r.tipo === "cobro_adicional" ? "#92400e" : r.tipo === "refund" ? "#166534" : "#075985";
+                return `<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <span style="font-weight:700;color:#1a1a2e;">Mesa ${r.mesa_numero}</span>
+                            <span style="margin-left:10px;font-size:12px;color:#888;">${formatTs(r.creado_en)} · por ${r.creado_por}</span>
+                        </div>
+                        <span style="font-weight:700;color:${diffColor};">${tipos[r.tipo] || r.tipo}</span>
+                    </div>
+                    <div style="margin-top:8px;font-size:13px;color:#555;">
+                        $${parseFloat(r.monto_original).toFixed(2)} → $${parseFloat(r.monto_ajustado).toFixed(2)}
+                        ${r.diferencia != 0 ? ` <strong>(${r.diferencia > 0 ? '+' : ''}$${parseFloat(r.diferencia).toFixed(2)})</strong>` : ''}
+                        ${r.motivo ? `<br><em style="color:#888;">"${r.motivo}"</em>` : ''}
+                    </div>
+                </div>`;
+            }).join("");
+        }
+        document.getElementById("modal-historial-rev").classList.add("active");
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+function revMostrarPantalla(id) {
+    document.querySelectorAll(".rev-screen").forEach(s => s.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+}
+
+function revVolver() {
+    revMostrarPantalla("rev-lista");
+}
 
 async function init() {
     const hoy = new Date().toISOString().split("T")[0];
@@ -230,7 +503,11 @@ async function cargarCierres() {
                 <td>${c.cerrado_por}</td>
                 <td>${formatTs(c.ts_cierre)}</td>
                 <td><strong>$${parseFloat(c.total).toFixed(2)}</strong></td>
-                <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
+                <td style="display:flex;gap:6px;">
+                    <button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button>
+                    <button class="btn btn-secondary btn-sm" onclick="abrirRevision(${c.id})" style="color:#7c3aed;border-color:#c4b5fd;">🔍 Revisión</button>
+                    <button class="btn btn-secondary btn-sm" onclick="verHistorialRev(${c.id})" title="Historial de revisiones" style="padding:6px 8px;">📋</button>
+                </td>
             </tr>`;
         }).join("") + `
             <tr style="background:#f8f9fa">
@@ -357,6 +634,10 @@ async function cerrarCaja() {
 
 function cerrarModal(id) {
     document.getElementById(id).classList.remove("active");
+    if (id === "modal-revision") {
+        revMostrarPantalla("rev-lista");
+        _revItems = [];
+    }
 }
 
 function formatFecha(f) {
