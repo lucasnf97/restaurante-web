@@ -250,8 +250,17 @@ let _revPedidoId   = null;
 let _revItems      = [];   // items actuales del editor
 let _revOrigTotal  = 0;
 
-async function abrirRevision(cierreId) {
+async function abrirRevision(cierreId, pedidoId, mesaNumero) {
     _revCierreId = cierreId;
+    // Si viene con pedidoId, abrir directo al editor
+    if (pedidoId) {
+        revMostrarPantalla("rev-editor");
+        document.getElementById("rev-editor-titulo").textContent = `Mesa ${mesaNumero}`;
+        document.getElementById("modal-revision").classList.add("active");
+        await abrirEditorMesa(pedidoId, mesaNumero);
+        return;
+    }
+    // Si no, mostrar lista de mesas del cierre
     try {
         const mesas = await api.get(`/caja/revision/${cierreId}`);
         document.getElementById("rev-titulo").textContent    = `Revisión — Cierre #${cierreId}`;
@@ -503,11 +512,7 @@ async function cargarCierres() {
                 <td>${c.cerrado_por}</td>
                 <td>${formatTs(c.ts_cierre)}</td>
                 <td><strong>$${parseFloat(c.total).toFixed(2)}</strong></td>
-                <td style="display:flex;gap:6px;">
-                    <button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button>
-                    <button class="btn btn-secondary btn-sm" onclick="abrirRevision(${c.id})" style="color:#7c3aed;border-color:#c4b5fd;">🔍 Revisión</button>
-                    <button class="btn btn-secondary btn-sm" onclick="verHistorialRev(${c.id})" title="Historial de revisiones" style="padding:6px 8px;">📋</button>
-                </td>
+                <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
             </tr>`;
         }).join("") + `
             <tr style="background:#f8f9fa">
@@ -524,7 +529,10 @@ function limpiarFiltros() {
     cargarCierres();
 }
 
+let _revCierreActual = null;
+
 async function verDetalle(id) {
+    _revCierreActual = id;
     try {
         const data = await api.get(`/caja/cierres/${id}`);
         const c = data.cierre;
@@ -542,6 +550,7 @@ async function verDetalle(id) {
                     <td>${formatTs(d.ts_cobro)}</td>
                     <td>
                         <button class="btn-libreta" onclick="verItems(${d.pedido_id}, ${d.mesa_numero})" title="Ver productos">📒</button>
+                        <button class="btn-libreta" onclick="abrirRevision(${d.cierre_id || _revCierreActual}, ${d.pedido_id}, ${d.mesa_numero})" title="Revisar cuenta" style="color:#7c3aed;">🔍</button>
                     </td>
                 </tr>
             `).join("");
