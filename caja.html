@@ -49,7 +49,8 @@
         .empty { text-align: center; padding: 48px; color: #888; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; }
         .modal-overlay.active { display: flex; }
-        .modal { background: white; border-radius: 16px; padding: 32px; width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto; }
+        .modal { background: white; border-radius: 16px; padding: 32px; width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto; overflow-x: hidden; }
+        .modal-overlay { padding: 16px; }
         .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
         .modal-sub { color: #888; font-size: 13px; margin-bottom: 24px; }
         .modal-footer { display: flex; justify-content: flex-end; margin-top: 24px; }
@@ -150,6 +151,7 @@
                         <th>Producto</th>
                         <th style="text-align:center;">Cant.</th>
                         <th style="text-align:right;">Precio unit.</th>
+                        <th style="text-align:center;">Desc.%</th>
                         <th style="text-align:right;">Subtotal</th>
                     </tr>
                 </thead>
@@ -276,24 +278,60 @@ async function verItems(pedidoId, mesaNumero) {
         document.getElementById("items-titulo").textContent = `Mesa ${mesaNumero} — productos`;
         const tbody = document.getElementById("items-tabla");
         if (!items.length) {
-            tbody.innerHTML = `<tr><td colspan="4" class="empty">Sin productos registrados</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin productos registrados</td></tr>`;
         } else {
             let subtotal = 0;
-            const filas = items.map(i => {
+            const normales = [];
+            const eliminados = [];
+
+            items.forEach(i => {
+                const cantEl = parseInt(i.eliminado_cantidad) || 0;
+                const cantEf = i.cantidad - cantEl;
+                if (cantEf <= 0 && cantEl > 0) {
+                    eliminados.push(i);
+                } else if (cantEl > 0) {
+                    // parcialmente eliminado — va a normales con cantidad efectiva
+                    normales.push({...i, _cant_ef: cantEf, _cant_el: cantEl});
+                } else {
+                    normales.push({...i, _cant_ef: i.cantidad, _cant_el: 0});
+                }
+            });
+
+            const filasNormales = normales.map(i => {
                 const descuento = parseFloat(i.descuento_pct) || 0;
-                const linea = i.cantidad * parseFloat(i.precio_unit) * (1 - descuento / 100);
+                const linea = i._cant_ef * parseFloat(i.precio_unit) * (1 - descuento / 100);
                 subtotal += linea;
-                const descLabel = descuento > 0 ? ` <small style="color:#16a34a">(-${descuento}%)</small>` : '';
+                const prepagadoBadge = i.prepagado
+                    ? `<br><small style="color:#16a34a;">✓ Ya pagado</small>` : '';
+                const parcialBadge = i._cant_el > 0
+                    ? `<br><small style="color:#b45309;">(${i._cant_el} elim.)</small>` : '';
                 return `<tr>
-                    <td>${i.nombre}${i.notas ? `<br><small style="color:#888">📝 ${i.notas}</small>` : ''}</td>
-                    <td style="text-align:center;">${i.cantidad}</td>
-                    <td style="text-align:right;">$${parseFloat(i.precio_unit).toFixed(2)}${descLabel}</td>
+                    <td>${i.nombre}${i.notas ? `<br><small style="color:#888">📝 ${i.notas}</small>` : ''}${prepagadoBadge}${parcialBadge}</td>
+                    <td style="text-align:center;">${i._cant_ef}</td>
+                    <td style="text-align:right;">$${parseFloat(i.precio_unit).toFixed(2)}</td>
+                    <td style="text-align:center;color:#16a34a;">${descuento > 0 ? descuento.toFixed(1) + '%' : '—'}</td>
                     <td style="text-align:right;font-weight:600;">$${linea.toFixed(2)}</td>
                 </tr>`;
             }).join("");
-            tbody.innerHTML = filas + `
+
+            const filasEliminados = eliminados.length > 0
+                ? `<tr style="background:#f9fafb;">
+                    <td colspan="5" style="padding:8px 16px;font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;">
+                        Productos eliminados (no cobrados)
+                    </td>
+                   </tr>` +
+                  eliminados.map(i => `<tr style="opacity:.6;">
+                    <td style="text-decoration:line-through;color:#9ca3af;">${i.nombre}</td>
+                    <td style="text-align:center;color:#9ca3af;">${i.cantidad}</td>
+                    <td style="text-align:right;color:#9ca3af;">$${parseFloat(i.precio_unit).toFixed(2)}</td>
+                    <td style="text-align:center;color:#9ca3af;">—</td>
+                    <td style="text-align:right;color:#9ca3af;">—</td>
+                  </tr>`).join("")
+                : "";
+
+            tbody.innerHTML = filasNormales + filasEliminados + `
                 <tr style="background:#f8f9fa;border-top:2px solid #e2e8f0;">
-                    <td colspan="3" style="text-align:right;font-weight:700;color:#666;">SUBTOTAL</td>
+                    <td colspan="4" style="text-align:right;font-weight:700;color:#666;">SUBTOTAL COBRADO</td>
                     <td style="text-align:right;font-weight:700;font-size:15px;">$${subtotal.toFixed(2)}</td>
                 </tr>`;
         }
