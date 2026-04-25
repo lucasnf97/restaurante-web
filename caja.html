@@ -115,12 +115,12 @@
         <input type="date" id="filtro-desde" onchange="cargarCierres()">
         <label>Hasta:</label>
         <input type="date" id="filtro-hasta" onchange="cargarCierres()">
-        <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
-    </div>
-    <div class="filtros" style="margin-top:-8px;">
-        <label>Buscar por ID de pedido:</label>
-        <input type="number" id="filtro-pedido-id" placeholder="Ej: 42" style="width:130px;">
+        <label>ID Caja:</label>
+        <input type="number" id="filtro-cierre-id" placeholder="—" style="width:90px;" onchange="cargarCierres()">
+        <label>ID Pedido:</label>
+        <input type="number" id="filtro-pedido-id" placeholder="—" style="width:90px;">
         <button class="btn btn-secondary" onclick="buscarPorPedidoId()">Buscar</button>
+        <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
     </div>
 
     <div class="tabla-wrapper">
@@ -522,11 +522,39 @@ async function cargarResumen() {
 }
 
 async function cargarCierres() {
-    const desde = document.getElementById("filtro-desde").value;
-    const hasta = document.getElementById("filtro-hasta").value;
+    const desde     = document.getElementById("filtro-desde").value;
+    const hasta     = document.getElementById("filtro-hasta").value;
+    const cierreId  = document.getElementById("filtro-cierre-id").value.trim();
     let url = "/caja/cierres?";
     if (desde) url += `desde=${desde}&`;
     if (hasta) url += `hasta=${hasta}&`;
+
+    // Si hay ID Caja, abrir directo ese cierre
+    if (cierreId) {
+        try {
+            const tbody = document.getElementById("tabla-body");
+            const data = await api.get(`/caja/cierres/${cierreId}`);
+            if (!data || !data.cierre) {
+                tbody.innerHTML = `<tr><td colspan="8" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
+                return;
+            }
+            const c = data.cierre;
+            tbody.innerHTML = `<tr>
+                <td>#${c.id}</td>
+                <td>${formatFecha(c.fecha)}</td>
+                <td>${c.abierto_por || '—'}</td>
+                <td>${formatTs(c.ts_apertura)}</td>
+                <td>${c.cerrado_por}</td>
+                <td>${formatTs(c.ts_cierre)}</td>
+                <td><strong>$${parseFloat(c.total).toFixed(2)}</strong></td>
+                <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
+            </tr>`;
+        } catch(e) {
+            document.getElementById("tabla-body").innerHTML =
+                `<tr><td colspan="8" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
+        }
+        return;
+    }
     try {
         const cierres = await api.get(url);
         const tbody = document.getElementById("tabla-body");
@@ -557,8 +585,11 @@ async function cargarCierres() {
 }
 
 function limpiarFiltros() {
-    document.getElementById("filtro-desde").value = "";
-    document.getElementById("filtro-hasta").value = "";
+    const hoy = new Date().toISOString().split("T")[0];
+    document.getElementById("filtro-desde").value    = hoy;
+    document.getElementById("filtro-hasta").value    = hoy;
+    document.getElementById("filtro-cierre-id").value = "";
+    document.getElementById("filtro-pedido-id").value = "";
     cargarCierres();
 }
 
