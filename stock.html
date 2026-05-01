@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Stock</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
+        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+        .content { margin-top: 60px; padding: 32px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { background: #4f46e5; color: white; } .btn-primary:hover { background: #4338ca; }
+        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; } .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-danger { background: #dc2626; color: white; } .btn-danger:hover { background: #b91c1c; }
+        .btn-success { background: #16a34a; color: white; } .btn-success:hover { background: #15803d; }
+        .btn-warning { background: #f59e0b; color: white; } .btn-warning:hover { background: #d97706; }
+        .btn-sm { padding: 5px 11px; font-size: 12px; }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: white; border-radius: 12px; padding: 18px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .stat-value { font-size: 26px; font-weight: 700; color: #1a1a2e; }
+        .stat-value.green { color: #16a34a; }
+        .stat-value.yellow { color: #ca8a04; }
+        .stat-value.red { color: #dc2626; }
+
+        .filtros { background: white; border-radius: 12px; padding: 14px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
+        .filtros input, .filtros select { padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
+        .filtros input:focus, .filtros select:focus { border-color: #4f46e5; }
+
+        .acciones-bar { background: white; border-radius: 12px; padding: 12px 20px; display: flex; gap: 10px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
+
+        .tabla-wrapper { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 13px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; }
+        tr:hover td { background: #fafafa; }
+        .empty { text-align: center; padding: 48px; color: #888; }
+
+        .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .badge-ok { background: #dcfce7; color: #16a34a; }
+        .badge-warn { background: #fef9c3; color: #ca8a04; }
+        .badge-alert { background: #fee2e2; color: #dc2626; }
+
+        .stock-bar { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+        .stock-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 16px; padding: 28px 32px; width: 100%; max-width: 520px; max-height: 85vh; overflow-y: auto; }
+        .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 5px; }
+        .form-group input, .form-group select { width: 100%; padding: 9px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
+        .form-group input:focus, .form-group select:focus { border-color: #4f46e5; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+        .tabs { display: flex; gap: 4px; background: white; border-radius: 10px; padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; width: fit-content; }
+        .tab { padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; transition: all 0.2s; border: none; background: transparent; }
+        .tab.active { background: #4f46e5; color: white; }
+        .tab:hover:not(.active) { background: #f5f3ff; color: #4f46e5; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <a href="dashboard.html">← Dashboard</a>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header"><h2>📦 Control de Stock</h2></div>
+
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-label">Total insumos</div>
+            <div class="stat-value" id="stat-total">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">En advertencia</div>
+            <div class="stat-value yellow" id="stat-adv">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Agotados</div>
+            <div class="stat-value red" id="stat-agot">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">OK</div>
+            <div class="stat-value green" id="stat-ok">—</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" id="tab-insumos" onclick="setStockTab('insumos')">Insumos</button>
+        <button class="tab" id="tab-historial" onclick="setStockTab('historial')">Historial de recargas</button>
+    </div>
+
+    <!-- Vista insumos -->
+    <div id="vista-insumos">
+        <div class="acciones-bar">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalInsumo()">+ Nuevo insumo</button>
+        </div>
+        <div class="filtros">
+            <input type="text" id="filtro-ins-nombre" placeholder="Buscar por nombre..." oninput="cargarInsumos()">
+            <select id="filtro-ins-estado" onchange="cargarInsumos()">
+                <option value="">Todos los estados</option>
+                <option value="agotado">Agotados</option>
+                <option value="advertencia">En advertencia</option>
+                <option value="ok">OK</option>
+            </select>
+        </div>
+        <div class="tabla-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Unidad</th>
+                        <th>Stock actual</th>
+                        <th>Estándar</th>
+                        <th>Advertencia</th>
+                        <th>Mínimo</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-insumos">
+                    <tr><td colspan="8" class="empty">Cargando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Vista historial -->
+    <div id="vista-historial" style="display:none">
+        <div class="filtros">
+            <select id="filtro-hist-insumo" onchange="cargarHistorial()">
+                <option value="">Todos los insumos</option>
+            </select>
+        </div>
+        <div class="tabla-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Insumo</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Anterior</th>
+                        <th>Posterior</th>
+                        <th>Referencia</th>
+                        <th>Usuario</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-historial">
+                    <tr><td colspan="8" class="empty">Seleccioná un insumo para ver su historial</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal nuevo/editar insumo -->
+<div class="modal-overlay" id="modal-insumo">
+    <div class="modal">
+        <h3 id="insumo-titulo">Nuevo insumo</h3>
+        <div class="form-group">
+            <label>Nombre *</label>
+            <input type="text" id="ins-nombre" placeholder="Ej: Harina 000">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Unidad *</label>
+                <select id="ins-unidad">
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="l">l</option>
+                    <option value="ml">ml</option>
+                    <option value="unidad">unidad</option>
+                    <option value="docena">docena</option>
+                    <option value="porcion">porción</option>
+                    <option value="rollo">rollo</option>
+                    <option value="paquete">paquete</option>
+                    <option value="caja">caja</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Stock actual</label>
+                <input type="number" id="ins-actual" min="0" step="0.001" value="0">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Cantidad estándar</label>
+                <input type="number" id="ins-estandar" min="0" step="0.001" value="0">
+            </div>
+            <div class="form-group">
+                <label>Cantidad advertencia</label>
+                <input type="number" id="ins-advertencia" min="0" step="0.001" value="0">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Cantidad mínima (alarma agotado)</label>
+            <input type="number" id="ins-minima" min="0" step="0.001" value="0">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-insumo')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarInsumo()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal recarga -->
+<div class="modal-overlay" id="modal-recarga">
+    <div class="modal">
+        <h3 id="recarga-titulo">Recargar insumo</h3>
+        <div class="form-group">
+            <label>Tipo de recarga</label>
+            <select id="rec-tipo">
+                <option value="agregar">Agregar cantidad</option>
+                <option value="total">Establecer cantidad total</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Cantidad</label>
+            <input type="number" id="rec-cantidad" min="0.001" step="0.001" placeholder="0">
+        </div>
+        <div class="form-group">
+            <label>Referencia (opcional)</label>
+            <input type="text" id="rec-referencia" placeholder="Ej: Factura #1234, Compra semanal">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-recarga')">Cancelar</button>
+            <button class="btn btn-success" onclick="confirmarRecarga()">Recargar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+
+let _insumos = [];
+let _editandoInsumoId = null;
+let _recargandoInsumoId = null;
+
+function setStockTab(tab) {
+    ["insumos", "historial"].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle("active", t === tab);
+        document.getElementById(`vista-${t}`).style.display = t === tab ? "block" : "none";
+    });
+    if (tab === "historial") cargarSelectorHistorial();
+}
+
+async function cargarInsumos() {
+    const nombre  = document.getElementById("filtro-ins-nombre").value.trim();
+    const estado  = document.getElementById("filtro-ins-estado").value;
+    let url = "/stock/insumos?";
+    if (nombre) url += `nombre=${encodeURIComponent(nombre)}&`;
+
+    try {
+        let data = await api.get(url);
+        _insumos = data;
+
+        if (estado === "agotado")      data = data.filter(i => i.agotado);
+        else if (estado === "advertencia") data = data.filter(i => i.en_advertencia && !i.agotado);
+        else if (estado === "ok")      data = data.filter(i => !i.en_advertencia);
+
+        // Stats
+        document.getElementById("stat-total").textContent = _insumos.length;
+        document.getElementById("stat-agot").textContent  = _insumos.filter(i => i.agotado).length;
+        document.getElementById("stat-adv").textContent   = _insumos.filter(i => i.en_advertencia && !i.agotado).length;
+        document.getElementById("stat-ok").textContent    = _insumos.filter(i => !i.en_advertencia).length;
+
+        const tbody = document.getElementById("tbody-insumos");
+        if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="empty">Sin insumos</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map(i => {
+            const actual  = parseFloat(i.cantidad_actual);
+            const estand  = parseFloat(i.cantidad_estandar) || 1;
+            const pct     = Math.min(100, (actual / estand) * 100);
+            const fillColor = i.agotado ? "#dc2626" : i.en_advertencia ? "#ca8a04" : "#16a34a";
+            const badge = i.agotado
+                ? `<span class="badge badge-alert">Agotado</span>`
+                : i.en_advertencia
+                    ? `<span class="badge badge-warn">Advertencia</span>`
+                    : `<span class="badge badge-ok">OK</span>`;
+            return `<tr>
+                <td><strong>${i.nombre}</strong></td>
+                <td>${i.unidad}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span>${actual.toFixed(3)}</span>
+                        <div class="stock-bar" style="width:80px;">
+                            <div class="stock-bar-fill" style="width:${pct}%;background:${fillColor};"></div>
+                        </div>
+                    </div>
+                </td>
+                <td>${parseFloat(i.cantidad_estandar).toFixed(3)}</td>
+                <td>${parseFloat(i.cantidad_advertencia).toFixed(3)}</td>
+                <td>${parseFloat(i.cantidad_minima).toFixed(3)}</td>
+                <td>${badge}</td>
+                <td>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-success btn-sm" onclick="abrirModalRecarga(${i.id}, '${i.nombre}')">↑ Recargar</button>
+                        <button class="btn btn-secondary btn-sm" onclick="editarInsumo(${i.id})">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="eliminarInsumo(${i.id})">✕</button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join("");
+    } catch(e) { console.error(e); }
+}
+
+function abrirModalInsumo() {
+    _editandoInsumoId = null;
+    document.getElementById("insumo-titulo").textContent = "Nuevo insumo";
+    ["ins-nombre","ins-actual","ins-estandar","ins-advertencia","ins-minima"].forEach(id => {
+        document.getElementById(id).value = id === "ins-actual" || id === "ins-estandar" ||
+            id === "ins-advertencia" || id === "ins-minima" ? "0" : "";
+    });
+    document.getElementById("ins-unidad").value = "unidad";
+    document.getElementById("modal-insumo").classList.add("active");
+}
+
+function editarInsumo(id) {
+    _editandoInsumoId = id;
+    const ins = _insumos.find(i => i.id === id);
+    document.getElementById("insumo-titulo").textContent = `Editar — ${ins.nombre}`;
+    document.getElementById("ins-nombre").value       = ins.nombre;
+    document.getElementById("ins-unidad").value       = ins.unidad;
+    document.getElementById("ins-actual").value       = ins.cantidad_actual;
+    document.getElementById("ins-estandar").value     = ins.cantidad_estandar;
+    document.getElementById("ins-advertencia").value  = ins.cantidad_advertencia;
+    document.getElementById("ins-minima").value       = ins.cantidad_minima;
+    document.getElementById("modal-insumo").classList.add("active");
+}
+
+async function guardarInsumo() {
+    const body = {
+        nombre:               document.getElementById("ins-nombre").value.trim(),
+        unidad:               document.getElementById("ins-unidad").value,
+        cantidad_actual:      parseFloat(document.getElementById("ins-actual").value) || 0,
+        cantidad_estandar:    parseFloat(document.getElementById("ins-estandar").value) || 0,
+        cantidad_advertencia: parseFloat(document.getElementById("ins-advertencia").value) || 0,
+        cantidad_minima:      parseFloat(document.getElementById("ins-minima").value) || 0
+    };
+    if (!body.nombre) { alert("El nombre es obligatorio."); return; }
+    try {
+        if (_editandoInsumoId) {
+            await api.patch(`/stock/insumos/${_editandoInsumoId}`, body);
+        } else {
+            await api.post("/stock/insumos", body);
+        }
+        cerrarModal("modal-insumo");
+        await cargarInsumos();
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+async function eliminarInsumo(id) {
+    const ins = _insumos.find(i => i.id === id);
+    if (!confirm(`¿Eliminar "${ins.nombre}"? Se eliminará también de todas las recetas.`)) return;
+    try {
+        await api.delete(`/stock/insumos/${id}`);
+        await cargarInsumos();
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+function abrirModalRecarga(id, nombre) {
+    _recargandoInsumoId = id;
+    document.getElementById("recarga-titulo").textContent = `Recargar — ${nombre}`;
+    document.getElementById("rec-cantidad").value = "";
+    document.getElementById("rec-referencia").value = "";
+    document.getElementById("rec-tipo").value = "agregar";
+    document.getElementById("modal-recarga").classList.add("active");
+}
+
+async function confirmarRecarga() {
+    const cant = parseFloat(document.getElementById("rec-cantidad").value);
+    if (!cant || cant <= 0) { alert("Ingresá una cantidad válida."); return; }
+    const body = {
+        insumo_id:  _recargandoInsumoId,
+        tipo:       document.getElementById("rec-tipo").value,
+        cantidad:   cant,
+        referencia: document.getElementById("rec-referencia").value.trim() || null
+    };
+    try {
+        const res = await api.post("/stock/recargar", body);
+        cerrarModal("modal-recarga");
+        alert(`Recarga registrada. Stock actual: ${res.cantidad_nueva}`);
+        await cargarInsumos();
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+// Historial
+async function cargarSelectorHistorial() {
+    const sel = document.getElementById("filtro-hist-insumo");
+    if (sel.options.length <= 1) {
+        _insumos.forEach(i => {
+            const opt = document.createElement("option");
+            opt.value = i.id;
+            opt.textContent = i.nombre;
+            sel.appendChild(opt);
+        });
+    }
+    cargarHistorial();
+}
+
+async function cargarHistorial() {
+    const insumoId = document.getElementById("filtro-hist-insumo").value;
+    if (!insumoId) {
+        document.getElementById("tbody-historial").innerHTML =
+            `<tr><td colspan="8" class="empty">Seleccioná un insumo para ver su historial</td></tr>`;
+        return;
+    }
+    try {
+        const data = await api.get(`/stock/movimientos/${insumoId}`);
+        const ins  = _insumos.find(i => i.id == insumoId);
+        const tbody = document.getElementById("tbody-historial");
+        if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="empty">Sin movimientos registrados</td></tr>`;
+            return;
+        }
+        const tipoLabel = {
+            "recarga_agregar": "↑ Recarga (suma)",
+            "recarga_total":   "↑ Recarga (total)",
+            "consumo":         "↓ Consumo"
+        };
+        tbody.innerHTML = data.map(m => {
+            const color = m.tipo === "consumo" ? "#dc2626" : "#16a34a";
+            const signo = m.tipo === "consumo" ? "-" : "+";
+            return `<tr>
+                <td>${ins ? ins.nombre : "—"}</td>
+                <td><span style="color:${color};font-weight:600;">${tipoLabel[m.tipo] || m.tipo}</span></td>
+                <td style="color:${color};font-weight:600;">${signo}${parseFloat(m.cantidad).toFixed(3)}</td>
+                <td>${parseFloat(m.cantidad_anterior).toFixed(3)}</td>
+                <td>${parseFloat(m.cantidad_posterior).toFixed(3)}</td>
+                <td>${m.referencia || "—"}</td>
+                <td>${m.usuario || "—"}</td>
+                <td>${new Date(m.creado_en).toLocaleString("es-AR", {dateStyle:"short",timeStyle:"short"})}</td>
+            </tr>`;
+        }).join("");
+    } catch(e) { console.error(e); }
+}
+
+function cerrarModal(id) {
+    document.getElementById(id).classList.remove("active");
+}
+
+document.querySelectorAll(".modal-overlay").forEach(m => {
+    m.addEventListener("click", function(e) { if (e.target === this) cerrarModal(this.id); });
+});
+
+cargarInsumos();
+</script>
+</body>
+</html>
