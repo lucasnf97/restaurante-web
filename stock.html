@@ -109,6 +109,7 @@
         <button class="tab active" id="tab-insumos" onclick="setStockTab('insumos')">Insumos</button>
         <button class="tab" id="tab-recargas" onclick="setStockTab('recargas')">📥 Recargas</button>
         <button class="tab" id="tab-proveedores" onclick="setStockTab('proveedores')">🏢 Proveedores</button>
+        <button class="tab" id="tab-historial" onclick="setStockTab('historial')">📋 Historial</button>
     </div>
 
     <!-- INSUMOS -->
@@ -138,7 +139,6 @@
         <div class="sub-tabs">
             <button class="sub-tab active" id="subtab-manual" onclick="setRecargaSubTab('manual')">📝 Recarga manual</button>
             <button class="sub-tab" id="subtab-factura" onclick="setRecargaSubTab('factura')">🤖 Cargar factura (IA)</button>
-            <button class="sub-tab" id="subtab-historial" onclick="setRecargaSubTab('historial')">📋 Historial</button>
         </div>
 
         <div id="sub-manual">
@@ -185,16 +185,18 @@
             </div>
         </div>
 
-        <div id="sub-historial" style="display:none">
-            <div class="filtros">
-                <select id="filtro-hist-insumo" onchange="cargarHistorial()"><option value="">Todos los insumos</option></select>
-            </div>
-            <div class="tabla-wrapper">
-                <table>
-                    <thead><tr><th>Insumo</th><th>Tipo</th><th>Cantidad</th><th>Precio unit.</th><th>Proveedor</th><th>Referencia</th><th>Usuario</th><th>Fecha</th></tr></thead>
-                    <tbody id="tbody-historial"><tr><td colspan="8" class="empty">Seleccioná un insumo para ver su historial</td></tr></tbody>
-                </table>
-            </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div id="vista-historial" style="display:none">
+        <div class="filtros">
+            <input type="text" id="filtro-hist-nombre" placeholder="Buscar por insumo..." oninput="cargarHistorial()" style="min-width:240px;">
+        </div>
+        <div class="tabla-wrapper">
+            <table>
+                <thead><tr><th>Fecha</th><th>Insumo</th><th>Cantidad</th><th>Precio unit.</th><th>Moneda</th><th>Proveedor</th><th>Referencia</th><th>Factura</th><th>Usuario</th></tr></thead>
+                <tbody id="tbody-historial-global"><tr><td colspan="9" class="empty">Cargando...</td></tr></tbody>
+            </table>
         </div>
     </div>
 
@@ -313,8 +315,16 @@
                 </select>
             </div>
         </div>
+        <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="font-size:13px;font-weight:700;color:#1d4ed8;">💱 Moneda</div>
+            <span id="conf-moneda-badge" style="font-size:13px;font-weight:700;color:#1e40af;background:#dbeafe;padding:3px 12px;border-radius:20px;">—</span>
+            <span style="font-size:12px;color:#64748b;">Si difiere, corregí:</span>
+            <input type="text" id="conf-moneda-codigo" placeholder="ARS, USD, EUR..." maxlength="10" style="padding:5px 10px;border:1.5px solid #93c5fd;border-radius:7px;font-size:13px;width:110px;outline:none;">
+        </div>
         <div id="conf-items"></div>
+        <button type="button" onclick="agregarItemConf()" style="width:100%;padding:10px;border:1.5px dashed #c4b5fd;border-radius:8px;background:#faf5ff;color:#7c3aed;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;">+ Agregar ítem manualmente</button>
         <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="previsualizarFactura()">👁 Ver factura</button>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-confirmacion')">Cancelar</button>
             <button class="btn btn-primary" onclick="confirmarRecargas()">✓ Confirmar y registrar</button>
         </div>
@@ -335,23 +345,24 @@ let _fotoBlob = null;
 let _cameraStream = null;
 let _datosFacturaIA = null;
 let _insumoRapidoIdx = null;
+let _confItemCounter = 0;
 
 // ── TABS ──────────────────────────────────────────────────────
 function setStockTab(tab) {
-    ["insumos","recargas","proveedores"].forEach(t => {
+    ["insumos","recargas","proveedores","historial"].forEach(t => {
         document.getElementById(`tab-${t}`).classList.toggle("active", t === tab);
         document.getElementById(`vista-${t}`).style.display = t === tab ? "block" : "none";
     });
     if (tab === "recargas") cargarSelectoresRecargas();
     if (tab === "proveedores") cargarProveedores();
+    if (tab === "historial") cargarHistorial();
 }
 
 function setRecargaSubTab(sub) {
-    ["manual","factura","historial"].forEach(t => {
+    ["manual","factura"].forEach(t => {
         document.getElementById(`subtab-${t}`).classList.toggle("active", t === sub);
         document.getElementById(`sub-${t}`).style.display = t === sub ? "block" : "none";
     });
-    if (sub === "historial") cargarSelectorHistorial();
 }
 
 // ── INSUMOS ───────────────────────────────────────────────────
@@ -659,21 +670,25 @@ async function procesarFacturas() {
 
 // ── CONFIRMACIÓN ──────────────────────────────────────────────
 function abrirModalConfirmacion(datos) {
+    _confItemCounter = 0;
     document.getElementById("conf-prov-nombre").value = datos.proveedor_nombre || "";
     document.getElementById("conf-prov-cuit").value   = datos.proveedor_cuit   || "";
+
+    const monedaCodigo  = datos.moneda        || "";
+    const monedaSimbolo = datos.moneda_simbolo || (monedaCodigo ? monedaCodigo + " " : "$");
+    document.getElementById("conf-moneda-badge").textContent  = monedaCodigo || "—";
+    document.getElementById("conf-moneda-codigo").value       = monedaCodigo;
 
     const selProv = document.getElementById("conf-prov-existente");
     selProv.innerHTML = `<option value="">— O seleccioná uno ya registrado —</option>` +
         _proveedores.map(p => `<option value="${p.id}" data-nombre="${p.nombre}" data-cuit="${p.cuit}">${p.nombre} (${p.cuit})</option>`).join("");
-
-    const optsInsumos = _insumos.map(i =>
-        `<option value="${i.id}">${i.nombre} (${i.unidad})</option>`).join("");
 
     document.getElementById("conf-items").innerHTML = (datos.items || []).map((item, idx) => {
         const ok = !!item.insumo_id;
         const optsConSel = _insumos.map(i =>
             `<option value="${i.id}" ${i.id === item.insumo_id ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`
         ).join("");
+        const totalStr = item.precio_total ? `${monedaSimbolo}${item.precio_total}` : "—";
         return `
         <div class="item-confirm-row ${ok ? 'ok' : 'pendiente'}" id="conf-item-${idx}">
             <div class="item-confirm-header">
@@ -704,7 +719,7 @@ function abrirModalConfirmacion(datos) {
                 </div>
                 <div class="item-field">
                     <label>Total factura</label>
-                    <input type="text" disabled value="$${item.precio_total || '—'}" style="background:#f9fafb;color:#888;">
+                    <input type="text" disabled value="${totalStr}" style="background:#f9fafb;color:#888;">
                 </div>
             </div>
         </div>`;
@@ -764,6 +779,21 @@ async function confirmarRecargas() {
             }
         }
 
+        const moneda = document.getElementById("conf-moneda-codigo").value.trim() || _datosFacturaIA?.moneda || null;
+
+        let facturaUrl = null;
+        if (_archivosFactura.length > 0) {
+            try {
+                const fd = new FormData();
+                fd.append("file", _archivosFactura[0]);
+                const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
+                const up = await fetch(`${API_URL}/stock/facturas/upload`, {
+                    method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd
+                });
+                if (up.ok) facturaUrl = (await up.json()).url;
+            } catch(e) { console.error("Error subiendo factura:", e); }
+        }
+
         for (const item of items) {
             await api.post("/stock/recargar", {
                 insumo_id:       item.insId,
@@ -771,7 +801,9 @@ async function confirmarRecargas() {
                 cantidad:        item.cant,
                 precio_unitario: item.precio,
                 proveedor_id:    proveedorId,
-                referencia:      `Factura IA — ${_datosFacturaIA?.archivo || ''}`
+                referencia:      `Factura IA — ${_datosFacturaIA?.archivo || ''}`,
+                moneda:          moneda,
+                factura_url:     facturaUrl
             });
         }
 
@@ -784,47 +816,70 @@ async function confirmarRecargas() {
 }
 
 // ── HISTORIAL ─────────────────────────────────────────────────
-async function cargarSelectorHistorial() {
-    const sel = document.getElementById("filtro-hist-insumo");
-    if (sel.options.length <= 1) {
-        _insumos.forEach(i => {
-            const opt = document.createElement("option");
-            opt.value = i.id; opt.textContent = i.nombre;
-            sel.appendChild(opt);
-        });
-    }
-    cargarHistorial();
-}
-
 async function cargarHistorial() {
-    const insumoId = document.getElementById("filtro-hist-insumo").value;
-    if (!insumoId) {
-        document.getElementById("tbody-historial").innerHTML =
-            `<tr><td colspan="8" class="empty">Seleccioná un insumo para ver su historial</td></tr>`;
-        return;
-    }
+    const nombre = document.getElementById("filtro-hist-nombre")?.value?.trim() || "";
+    const tbody  = document.getElementById("tbody-historial-global");
+    tbody.innerHTML = `<tr><td colspan="9" class="empty">Cargando...</td></tr>`;
     try {
-        const data = await api.get(`/stock/movimientos/${insumoId}`);
-        const ins  = _insumos.find(i => i.id == insumoId);
-        const tbody = document.getElementById("tbody-historial");
-        if (!data.length) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Sin movimientos</td></tr>`; return; }
-        const tipoLabel = { "recarga_agregar": "↑ Recarga (suma)", "recarga_total": "↑ Recarga (total)", "consumo": "↓ Consumo" };
+        const url = nombre ? `/stock/movimientos?insumo_nombre=${encodeURIComponent(nombre)}` : "/stock/movimientos";
+        const data = await api.get(url);
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin recargas registradas</td></tr>`; return; }
         tbody.innerHTML = data.map(m => {
-            const color = m.tipo === "consumo" ? "#dc2626" : "#16a34a";
-            const signo = m.tipo === "consumo" ? "-" : "+";
-            const prov  = m.proveedor_id ? (_proveedores.find(p => p.id === m.proveedor_id)?.nombre || "—") : "—";
+            const tipoLabel = { "recarga_agregar": "↑ Suma", "recarga_total": "↑ Total" };
+            const precioStr = m.precio_unitario
+                ? `${m.moneda ? m.moneda + " " : ""}${parseFloat(m.precio_unitario).toFixed(2)}`
+                : "—";
+            const facturaLink = m.factura_url
+                ? `<a href="${API_URL}${m.factura_url}" target="_blank" style="color:#4f46e5;font-weight:600;text-decoration:none;">📄 Ver</a>`
+                : "—";
             return `<tr>
-                <td>${ins ? ins.nombre : "—"}</td>
-                <td><span style="color:${color};font-weight:600;">${tipoLabel[m.tipo] || m.tipo}</span></td>
-                <td style="color:${color};font-weight:600;">${signo}${parseFloat(m.cantidad).toFixed(3)}</td>
-                <td>${m.precio_unitario ? `$${parseFloat(m.precio_unitario).toFixed(2)}` : '—'}</td>
-                <td>${prov !== "—" ? `<span class="prov-chip">🏢 ${prov}</span>` : '—'}</td>
-                <td>${m.referencia || "—"}</td>
-                <td>${m.usuario || "—"}</td>
-                <td>${new Date(m.creado_en).toLocaleString("es-AR",{dateStyle:"short",timeStyle:"short"})}</td>
+                <td style="font-size:12px;color:#555;">${new Date(m.creado_en).toLocaleString("es-AR",{dateStyle:"short",timeStyle:"short"})}</td>
+                <td><strong>${m.insumo_nombre}</strong> <span style="color:#aaa;font-size:11px;">${m.unidad}</span></td>
+                <td style="color:#16a34a;font-weight:600;">+${parseFloat(m.cantidad).toFixed(3)}</td>
+                <td>${precioStr}</td>
+                <td>${m.moneda ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;">${m.moneda}</span>` : '—'}</td>
+                <td>${m.proveedor_nombre ? `<span class="prov-chip">🏢 ${m.proveedor_nombre}</span>` : '—'}</td>
+                <td style="font-size:12px;color:#666;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${m.referencia || '—'}</td>
+                <td>${facturaLink}</td>
+                <td style="font-size:12px;color:#888;">${m.usuario || '—'}</td>
             </tr>`;
         }).join("");
-    } catch(e) { console.error(e); }
+    } catch(e) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Error cargando historial</td></tr>`; console.error(e); }
+}
+
+function previsualizarFactura() {
+    const archivo = _archivosFactura[0];
+    if (!archivo) { alert("No hay factura cargada para previsualizar."); return; }
+    window.open(URL.createObjectURL(archivo), "_blank");
+}
+
+function agregarItemConf() {
+    const idx = `m${_confItemCounter++}`;
+    const optsConSel = _insumos.map(i => `<option value="${i.id}">${i.nombre} (${i.unidad})</option>`).join("");
+    const row = document.createElement("div");
+    row.className = "item-confirm-row pendiente";
+    row.id = `conf-item-${idx}`;
+    row.innerHTML = `
+        <div class="item-confirm-header">
+            <span style="font-size:18px;">⚠️</span>
+            <div><div style="font-weight:700;font-size:14px;">Ítem manual</div></div>
+            <button onclick="quitarItemConf('${idx}')" style="margin-left:auto;background:none;border:none;color:#dc2626;cursor:pointer;font-size:18px;line-height:1;">✕</button>
+        </div>
+        <div class="item-fields">
+            <div class="item-field">
+                <label>Insumo *</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <select id="ci-insumo-${idx}" onchange="actualizarIconoItem('${idx}')" style="flex:1;min-width:0;">
+                        <option value="">— Seleccioná —</option>${optsConSel}
+                    </select>
+                    <button type="button" onclick="abrirModalInsumoRapido('${idx}')" title="Agregar nuevo insumo" style="flex-shrink:0;padding:7px 10px;background:#4f46e5;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600;">+ Nuevo</button>
+                </div>
+            </div>
+            <div class="item-field"><label>Cantidad *</label><input type="number" id="ci-cant-${idx}" min="0.001" step="0.001"></div>
+            <div class="item-field"><label>Precio unit. *</label><input type="number" id="ci-precio-${idx}" min="0" step="0.01"></div>
+            <div class="item-field"><label>Total factura</label><input type="text" disabled value="—" style="background:#f9fafb;color:#888;"></div>
+        </div>`;
+    document.getElementById("conf-items").appendChild(row);
 }
 
 // ── PROVEEDORES ───────────────────────────────────────────────
