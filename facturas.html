@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Facturas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
+        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+        .content { margin-top: 60px; padding: 32px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { background: #4f46e5; color: white; } .btn-primary:hover { background: #4338ca; }
+        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; } .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-danger { background: #dc2626; color: white; } .btn-danger:hover { background: #b91c1c; }
+        .btn-success { background: #16a34a; color: white; } .btn-success:hover { background: #15803d; }
+        .btn-sm { padding: 5px 11px; font-size: 12px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .filtros { background: white; border-radius: 12px; padding: 14px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
+        .filtros input, .filtros select { padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
+        .acciones-bar { background: white; border-radius: 12px; padding: 12px 20px; display: flex; gap: 10px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
+        .tabla-wrapper { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 13px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; }
+        tr:hover td { background: #fafafa; }
+        .empty { text-align: center; padding: 48px; color: #888; }
+        .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 16px; padding: 28px 32px; width: 100%; max-width: 520px; max-height: 85vh; overflow-y: auto; }
+        .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 5px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #4f46e5; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .tabs { display: flex; gap: 4px; background: white; border-radius: 10px; padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; width: fit-content; flex-wrap: wrap; }
+        .tab { padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; transition: all 0.2s; border: none; background: transparent; }
+        .tab.active { background: #4f46e5; color: white; }
+        .tab:hover:not(.active) { background: #f5f3ff; color: #4f46e5; }
+        .dropzone { border: 2.5px dashed #c4b5fd; border-radius: 16px; background: #faf5ff; padding: 48px 32px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .dropzone:hover, .dropzone.drag-over { border-color: #7c3aed; background: #ede9fe; }
+        .dropzone-icon { font-size: 48px; margin-bottom: 12px; }
+        .dropzone-text { font-size: 16px; font-weight: 600; color: #4c1d95; margin-bottom: 6px; }
+        .dropzone-sub { font-size: 13px; color: #7c3aed; margin-bottom: 20px; }
+        .dropzone-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .archivos-cargados { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .archivo-chip { background: white; border: 1.5px solid #c4b5fd; border-radius: 8px; padding: 6px 12px; font-size: 12px; color: #4c1d95; display: flex; align-items: center; gap: 6px; }
+        .archivo-chip button { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 14px; padding: 0; line-height: 1; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2.5px solid #e0e0e0; border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .item-confirm-row { background: #f9fafb; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+        .item-confirm-row.pendiente { border-left: 4px solid #f59e0b; }
+        .item-confirm-row.ok { border-left: 4px solid #16a34a; }
+        .item-confirm-row.servicio { border-left: 4px solid #8b5cf6; }
+        .item-confirm-row.omitido { border-left: 4px solid #d1d5db; opacity: 0.5; }
+        .item-confirm-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+        .item-desc-original { font-size: 12px; color: #888; font-style: italic; }
+        .item-fields { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; }
+        .item-fields-servicio { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+        .item-field label { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; display: block; margin-bottom: 4px; }
+        .item-field input, .item-field select { width: 100%; padding: 7px 10px; border: 1.5px solid #e0e0e0; border-radius: 7px; font-size: 13px; outline: none; }
+        .item-field input:focus, .item-field select:focus { border-color: #4f46e5; }
+        .prov-chip { display: inline-flex; align-items: center; gap: 6px; background: #ede9fe; color: #5b21b6; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+        #camara-video { width: 100%; border-radius: 10px; }
+        .cat-chip { display: inline-block; background: #f3f4f6; color: #374151; border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <a href="dashboard.html">← Dashboard</a>
+        <a href="stock.html">📦 Stock</a>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header"><h2>📄 Facturas y Gastos</h2></div>
+
+    <div class="tabs">
+        <button class="tab active" id="tab-cargar" onclick="setTab('cargar')">📥 Cargar nueva factura</button>
+        <button class="tab" id="tab-historial" onclick="setTab('historial')">📋 Historial de facturas</button>
+        <button class="tab" id="tab-servicios" onclick="setTab('servicios')">🔧 Servicios</button>
+        <button class="tab" id="tab-proveedores" onclick="setTab('proveedores')">🏢 Proveedores</button>
+    </div>
+
+    <!-- CARGAR FACTURA -->
+    <div id="vista-cargar">
+        <div style="background:white;border-radius:12px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <h3 style="margin-bottom:8px;font-size:16px;color:#1a1a2e;">Procesar factura con IA</h3>
+            <p style="font-size:13px;color:#888;margin-bottom:20px;">Subí una factura. Claude analizará automáticamente los ítems, cantidades y precios.</p>
+            <div class="dropzone" id="dropzone"
+                 ondragover="event.preventDefault();this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="handleDrop(event)">
+                <div class="dropzone-icon">📄</div>
+                <div class="dropzone-text">Arrastrá la factura aquí</div>
+                <div class="dropzone-sub">PDF, JPG, PNG</div>
+                <div class="dropzone-btns" onclick="event.stopPropagation()">
+                    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('file-input').click()">📁 Seleccionar archivo</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-camara" onclick="abrirCamara()">📷 Cámara</button>
+                </div>
+                <input type="file" id="file-input" accept="image/*,.pdf" multiple style="display:none" onchange="agregarArchivos(this.files)">
+                <div class="archivos-cargados" id="archivos-cargados"></div>
+            </div>
+            <div style="margin-top:20px;display:flex;gap:12px;align-items:center;">
+                <button class="btn btn-primary" id="btn-procesar" onclick="procesarFactura()" disabled>🤖 Procesar con IA</button>
+                <span id="procesar-status" style="font-size:13px;color:#666;"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- HISTORIAL DE FACTURAS -->
+    <div id="vista-historial" style="display:none">
+        <div class="tabla-wrapper">
+            <table>
+                <thead><tr><th>Fecha</th><th>Proveedor</th><th>Archivo</th><th>Moneda</th><th>Total detectado</th><th>Usuario</th><th>Documento</th></tr></thead>
+                <tbody id="tbody-facturas"><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SERVICIOS -->
+    <div id="vista-servicios" style="display:none">
+        <div class="acciones-bar">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalServicio()">+ Nuevo servicio</button>
+        </div>
+        <div class="tabla-wrapper">
+            <table>
+                <thead><tr><th>Nombre</th><th>Categoría</th><th>Descripción</th><th>Acciones</th></tr></thead>
+                <tbody id="tbody-servicios"><tr><td colspan="4" class="empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PROVEEDORES -->
+    <div id="vista-proveedores" style="display:none">
+        <div class="acciones-bar">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalProveedor()">+ Nuevo proveedor</button>
+        </div>
+        <div class="tabla-wrapper">
+            <table>
+                <thead><tr><th>Nombre</th><th>CUIT</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr></thead>
+                <tbody id="tbody-proveedores"><tr><td colspan="5" class="empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal cámara -->
+<div class="modal-overlay" id="modal-camara">
+    <div class="modal" style="max-width:600px;">
+        <h3>📷 Capturar factura</h3>
+        <video id="camara-video" autoplay playsinline style="width:100%;border-radius:10px;margin:16px 0;"></video>
+        <canvas id="camara-canvas" style="display:none;"></canvas>
+        <div id="foto-preview" style="display:none;margin:16px 0;">
+            <img id="foto-img" style="width:100%;border-radius:10px;">
+            <p style="font-size:13px;color:#666;margin-top:8px;text-align:center;">¿Se lee correctamente la factura?</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarCamara()">Cancelar</button>
+            <button class="btn btn-primary" id="btn-sacar-foto" onclick="sacarFoto()">📸 Sacar foto</button>
+            <button class="btn btn-success" id="btn-usar-foto" style="display:none" onclick="usarFoto()">✓ Usar esta foto</button>
+            <button class="btn btn-secondary" id="btn-reintentar" style="display:none" onclick="reintentarFoto()">↩ Reintentar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal confirmación factura -->
+<div class="modal-overlay" id="modal-confirmacion">
+    <div class="modal" style="max-width:860px;">
+        <h3>✅ Confirmar datos de la factura</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">Revisá y corregí los datos. Cada ítem puede ser un insumo de stock, un servicio o puede omitirse.</p>
+
+        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:16px;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:10px;">🏢 Proveedor</div>
+            <div class="form-row">
+                <div class="form-group" style="margin:0;"><label>Nombre *</label><input type="text" id="conf-prov-nombre" placeholder="Nombre del proveedor"></div>
+                <div class="form-group" style="margin:0;"><label>CUIT</label><input type="text" id="conf-prov-cuit" placeholder="30-12345678-9"></div>
+            </div>
+            <div style="margin-top:10px;">
+                <select id="conf-prov-existente" onchange="seleccionarProveedorExistente()" style="padding:7px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;width:100%;">
+                    <option value="">— O seleccioná un proveedor ya registrado —</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="font-size:13px;font-weight:700;color:#1d4ed8;">💱 Moneda</div>
+            <span id="conf-moneda-badge" style="font-size:13px;font-weight:700;color:#1e40af;background:#dbeafe;padding:3px 12px;border-radius:20px;">—</span>
+            <span style="font-size:12px;color:#64748b;">Si difiere, corregí:</span>
+            <input type="text" id="conf-moneda-codigo" placeholder="ARS, USD, EUR..." maxlength="10" style="padding:5px 10px;border:1.5px solid #93c5fd;border-radius:7px;font-size:13px;width:110px;outline:none;">
+        </div>
+
+        <div id="conf-items"></div>
+        <button type="button" onclick="agregarItemConf()" style="width:100%;padding:10px;border:1.5px dashed #c4b5fd;border-radius:8px;background:#faf5ff;color:#7c3aed;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;">+ Agregar ítem manualmente</button>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="previsualizarFactura()">👁 Ver factura</button>
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-confirmacion')">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmarFactura()">✓ Confirmar y registrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal insumo rápido -->
+<div class="modal-overlay" id="modal-insumo-rapido">
+    <div class="modal" style="z-index:400;">
+        <h3>Nuevo insumo</h3>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="ri-nombre" placeholder="Ej: Harina 000"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Unidad *</label>
+                <select id="ri-unidad">
+                    <option value="kg">kg</option><option value="g">g</option><option value="l">l</option>
+                    <option value="ml">ml</option><option value="unidad">unidad</option><option value="docena">docena</option>
+                    <option value="porcion">porción</option><option value="rollo">rollo</option>
+                    <option value="paquete">paquete</option><option value="caja">caja</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Stock actual</label><input type="number" id="ri-actual" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Cantidad estándar</label><input type="number" id="ri-estandar" min="0" step="0.001" value="0"></div>
+            <div class="form-group"><label>Cantidad mínima</label><input type="number" id="ri-minima" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-insumo-rapido')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarInsumoRapido()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal servicio -->
+<div class="modal-overlay" id="modal-servicio">
+    <div class="modal">
+        <h3 id="srv-titulo">Nuevo servicio</h3>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="srv-nombre" placeholder="Ej: Electricidad EDESUR"></div>
+        <div class="form-group"><label>Categoría</label>
+            <select id="srv-categoria">
+                <option value="">Sin categoría</option>
+                <option value="agua">Agua</option>
+                <option value="electricidad">Electricidad</option>
+                <option value="gas">Gas</option>
+                <option value="limpieza">Limpieza</option>
+                <option value="impuestos">Impuestos</option>
+                <option value="transporte">Transporte</option>
+                <option value="alquiler">Alquiler</option>
+                <option value="seguro">Seguro</option>
+                <option value="telefonia">Telefonía / Internet</option>
+                <option value="mantenimiento">Mantenimiento</option>
+                <option value="otros">Otros</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Descripción</label><textarea id="srv-descripcion" rows="2" placeholder="Opcional"></textarea></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-servicio')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarServicio()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal proveedor -->
+<div class="modal-overlay" id="modal-proveedor">
+    <div class="modal">
+        <h3 id="prov-titulo">Nuevo proveedor</h3>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="prov-nombre" placeholder="Ej: Distribuidora del Sur"></div>
+        <div class="form-group"><label>CUIT *</label><input type="text" id="prov-cuit" placeholder="Ej: 30-12345678-9"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Teléfono</label><input type="text" id="prov-tel" placeholder="Opcional"></div>
+            <div class="form-group"><label>Email</label><input type="email" id="prov-email" placeholder="Opcional"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-proveedor')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarProveedor()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+
+let _insumos     = [];
+let _servicios   = [];
+let _proveedores = [];
+let _archivosFactura  = [];
+let _fotoBlob    = null;
+let _cameraStream = null;
+let _datosFacturaIA = null;
+let _insumoRapidoIdx = null;
+let _editandoServId  = null;
+let _editandoProvId  = null;
+let _confItemCounter = 0;
+
+// ── TABS ──────────────────────────────────────────────────────
+function setTab(tab) {
+    ["cargar","historial","servicios","proveedores"].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle("active", t === tab);
+        document.getElementById(`vista-${t}`).style.display = t === tab ? "block" : "none";
+    });
+    if (tab === "historial")   cargarHistorialFacturas();
+    if (tab === "servicios")   cargarServicios();
+    if (tab === "proveedores") cargarProveedores();
+}
+
+// ── DROPZONE ──────────────────────────────────────────────────
+function handleDrop(event) {
+    event.preventDefault();
+    document.getElementById("dropzone").classList.remove("drag-over");
+    agregarArchivos(event.dataTransfer.files);
+}
+
+function agregarArchivos(files) {
+    for (const f of files) {
+        if (!_archivosFactura.find(a => a.name === f.name && a.size === f.size))
+            _archivosFactura.push(f);
+    }
+    renderArchivos();
+}
+
+function renderArchivos() {
+    const cont = document.getElementById("archivos-cargados");
+    cont.innerHTML = _archivosFactura.map((f, idx) => `
+        <div class="archivo-chip">
+            ${f.name.endsWith('.pdf') ? '📄' : '🖼️'} ${f.name}
+            <button onclick="quitarArchivo(${idx})">✕</button>
+        </div>`).join("");
+    document.getElementById("btn-procesar").disabled = _archivosFactura.length === 0;
+}
+
+function quitarArchivo(idx) { _archivosFactura.splice(idx, 1); renderArchivos(); }
+
+// ── CÁMARA ────────────────────────────────────────────────────
+async function abrirCamara() {
+    try {
+        _cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        document.getElementById("camara-video").srcObject = _cameraStream;
+        document.getElementById("foto-preview").style.display = "none";
+        document.getElementById("camara-video").style.display = "";
+        document.getElementById("btn-sacar-foto").style.display = "";
+        document.getElementById("btn-usar-foto").style.display = "none";
+        document.getElementById("btn-reintentar").style.display = "none";
+        document.getElementById("modal-camara").classList.add("active");
+    } catch(e) { alert("No se pudo acceder a la cámara."); }
+}
+
+function sacarFoto() {
+    const video = document.getElementById("camara-video");
+    const canvas = document.getElementById("camara-canvas");
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+        _fotoBlob = blob;
+        document.getElementById("foto-img").src = URL.createObjectURL(blob);
+        document.getElementById("camara-video").style.display = "none";
+        document.getElementById("foto-preview").style.display = "block";
+        document.getElementById("btn-sacar-foto").style.display = "none";
+        document.getElementById("btn-usar-foto").style.display = "";
+        document.getElementById("btn-reintentar").style.display = "";
+    }, "image/jpeg", 0.92);
+}
+
+function reintentarFoto() {
+    _fotoBlob = null;
+    document.getElementById("camara-video").style.display = "";
+    document.getElementById("foto-preview").style.display = "none";
+    document.getElementById("btn-sacar-foto").style.display = "";
+    document.getElementById("btn-usar-foto").style.display = "none";
+    document.getElementById("btn-reintentar").style.display = "none";
+}
+
+function usarFoto() {
+    if (_fotoBlob) { _archivosFactura.push(new File([_fotoBlob], `foto_${Date.now()}.jpg`, { type: "image/jpeg" })); renderArchivos(); }
+    cerrarCamara();
+}
+
+function cerrarCamara() {
+    if (_cameraStream) { _cameraStream.getTracks().forEach(t => t.stop()); _cameraStream = null; }
+    cerrarModal("modal-camara");
+}
+
+// ── PROCESAR IA ───────────────────────────────────────────────
+async function procesarFactura() {
+    if (!_archivosFactura.length) return;
+    const btn = document.getElementById("btn-procesar");
+    const status = document.getElementById("procesar-status");
+    btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Procesando...`;
+    const f = _archivosFactura[0];
+    status.textContent = `Analizando ${f.name}...`;
+    try {
+        const formData = new FormData();
+        formData.append("file", f);
+        const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
+        const resp = await fetch(`${API_URL}/stock/procesar-factura`, {
+            method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: formData
+        });
+        if (!resp.ok) { const err = await resp.json(); throw new Error(err.detail || "Error de API"); }
+        _datosFacturaIA = { archivo: f.name, ...await resp.json() };
+        abrirModalConfirmacion(_datosFacturaIA);
+    } catch(e) { alert(`Error: ${e.message}`); }
+    btn.disabled = false; btn.innerHTML = "🤖 Procesar con IA"; status.textContent = "";
+}
+
+// ── CONFIRMACIÓN ──────────────────────────────────────────────
+function optsInsumos(selId) {
+    return _insumos.map(i => `<option value="${i.id}" ${i.id === selId ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`).join("");
+}
+function optsServicios(selId) {
+    return _servicios.map(s => `<option value="${s.id}" ${s.id === selId ? 'selected' : ''}>${s.nombre}${s.categoria ? ' — '+s.categoria : ''}</option>`).join("");
+}
+
+function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioUnit, precioTotal, monedaSimbolo) {
+    const esInsumo   = tipo === "insumo";
+    const esServicio = tipo === "servicio";
+    const esOmitido  = tipo === "omitir";
+    const claseRow   = esInsumo ? (insumoId ? 'ok' : 'pendiente') : esServicio ? 'servicio' : 'omitido';
+    const icono      = esInsumo ? (insumoId ? '✅' : '⚠️') : esServicio ? '🔧' : '—';
+
+    const fieldsInsumo = `
+        <div class="item-fields" id="fields-insumo-${idx}" style="${esServicio || esOmitido ? 'display:none' : ''}">
+            <div class="item-field">
+                <label>Insumo *</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <select id="ci-insumo-${idx}" onchange="actualizarIconoItem('${idx}')" style="flex:1;min-width:0;">
+                        <option value="">— Seleccioná —</option>${optsInsumos(insumoId)}
+                    </select>
+                    <button type="button" onclick="abrirInsumoRapido('${idx}')" title="Agregar nuevo insumo" style="flex-shrink:0;padding:7px 10px;background:#4f46e5;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;">+ Nuevo</button>
+                </div>
+            </div>
+            <div class="item-field"><label>Cantidad *</label><input type="number" id="ci-cant-${idx}" value="${cantidad || ''}" min="0.001" step="0.001"></div>
+            <div class="item-field"><label>Precio unit. *</label><input type="number" id="ci-precio-${idx}" value="${precioUnit || ''}" min="0" step="0.01"></div>
+            <div class="item-field"><label>Total factura</label><input type="text" disabled value="${precioTotal ? monedaSimbolo+precioTotal : '—'}" style="background:#f9fafb;color:#888;"></div>
+        </div>`;
+
+    const fieldsServicio = `
+        <div class="item-fields-servicio" id="fields-servicio-${idx}" style="${!esServicio ? 'display:none' : ''}">
+            <div class="item-field">
+                <label>Servicio *</label>
+                <select id="ci-servicio-${idx}">
+                    <option value="">— Seleccioná —</option>${optsServicios(servicioId)}
+                </select>
+            </div>
+            <div class="item-field"><label>Monto *</label><input type="number" id="ci-monto-${idx}" value="${precioTotal || precioUnit || ''}" min="0" step="0.01"></div>
+        </div>`;
+
+    return `
+    <div class="item-confirm-row ${claseRow}" id="conf-item-${idx}">
+        <div class="item-confirm-header">
+            <span style="font-size:18px;" id="icono-${idx}">${icono}</span>
+            <div style="flex:1;">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
+                    <select id="ci-tipo-${idx}" onchange="cambiarTipoItem('${idx}')" style="padding:4px 8px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:12px;font-weight:600;outline:none;">
+                        <option value="insumo" ${esInsumo ? 'selected' : ''}>📦 Insumo de stock</option>
+                        <option value="servicio" ${esServicio ? 'selected' : ''}>🔧 Servicio</option>
+                        <option value="omitir" ${esOmitido ? 'selected' : ''}>✕ Omitir</option>
+                    </select>
+                </div>
+                <div class="item-desc-original">Factura: "${descripcion}"</div>
+            </div>
+            <button onclick="quitarItemConf('${idx}')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:18px;line-height:1;">✕</button>
+        </div>
+        ${fieldsInsumo}
+        ${fieldsServicio}
+    </div>`;
+}
+
+function abrirModalConfirmacion(datos) {
+    _confItemCounter = 0;
+    document.getElementById("conf-prov-nombre").value = datos.proveedor_nombre || "";
+    document.getElementById("conf-prov-cuit").value   = datos.proveedor_cuit   || "";
+
+    const monedaCodigo  = datos.moneda || "";
+    const monedaSimbolo = datos.moneda_simbolo || (monedaCodigo ? monedaCodigo + " " : "$");
+    document.getElementById("conf-moneda-badge").textContent = monedaCodigo || "—";
+    document.getElementById("conf-moneda-codigo").value      = monedaCodigo;
+
+    const selProv = document.getElementById("conf-prov-existente");
+    selProv.innerHTML = `<option value="">— O seleccioná uno ya registrado —</option>` +
+        _proveedores.map(p => `<option value="${p.id}" data-nombre="${p.nombre}" data-cuit="${p.cuit || ''}">${p.nombre}${p.cuit ? ' ('+p.cuit+')' : ''}</option>`).join("");
+
+    const tipoIA = (item) => item.insumo_id ? "insumo" : "insumo"; // default insumo, user puede cambiar
+    document.getElementById("conf-items").innerHTML = (datos.items || []).map((item, idx) =>
+        itemRow(idx, tipoIA(item), item.descripcion_factura, item.insumo_id, null, item.cantidad, item.precio_unitario, item.precio_total, monedaSimbolo)
+    ).join("");
+
+    document.getElementById("modal-confirmacion").classList.add("active");
+}
+
+function cambiarTipoItem(idx) {
+    const tipo = document.getElementById(`ci-tipo-${idx}`).value;
+    const row  = document.getElementById(`conf-item-${idx}`);
+    const fi   = document.getElementById(`fields-insumo-${idx}`);
+    const fs   = document.getElementById(`fields-servicio-${idx}`);
+    row.className = `item-confirm-row ${tipo === 'insumo' ? (document.getElementById(`ci-insumo-${idx}`)?.value ? 'ok' : 'pendiente') : tipo === 'servicio' ? 'servicio' : 'omitido'}`;
+    document.getElementById(`icono-${idx}`).textContent = tipo === 'insumo' ? '⚠️' : tipo === 'servicio' ? '🔧' : '—';
+    if (fi) fi.style.display = tipo === 'insumo' ? '' : 'none';
+    if (fs) fs.style.display = tipo === 'servicio' ? '' : 'none';
+}
+
+function actualizarIconoItem(idx) {
+    const row = document.getElementById(`conf-item-${idx}`);
+    if (row && document.getElementById(`ci-tipo-${idx}`)?.value === 'insumo') {
+        const ok = !!document.getElementById(`ci-insumo-${idx}`)?.value;
+        row.className = `item-confirm-row ${ok ? 'ok' : 'pendiente'}`;
+        document.getElementById(`icono-${idx}`).textContent = ok ? '✅' : '⚠️';
+    }
+}
+
+function seleccionarProveedorExistente() {
+    const sel = document.getElementById("conf-prov-existente");
+    const opt = sel.options[sel.selectedIndex];
+    if (opt.value) {
+        document.getElementById("conf-prov-nombre").value = opt.dataset.nombre;
+        document.getElementById("conf-prov-cuit").value   = opt.dataset.cuit || "";
+    }
+}
+
+function quitarItemConf(idx) { document.getElementById(`conf-item-${idx}`)?.remove(); }
+
+function agregarItemConf() {
+    const idx = `m${_confItemCounter++}`;
+    const monedaSimbolo = document.getElementById("conf-moneda-codigo").value || "$";
+    const container = document.getElementById("conf-items");
+    const div = document.createElement("div");
+    div.innerHTML = itemRow(idx, "insumo", "Ítem manual", null, null, null, null, null, monedaSimbolo);
+    container.appendChild(div.firstElementChild);
+}
+
+function previsualizarFactura() {
+    const archivo = _archivosFactura[0];
+    if (!archivo) { alert("No hay factura cargada para previsualizar."); return; }
+    window.open(URL.createObjectURL(archivo), "_blank");
+}
+
+// ── GUARDAR INSUMO RÁPIDO ─────────────────────────────────────
+function abrirInsumoRapido(idx) {
+    _insumoRapidoIdx = idx;
+    ["ri-nombre","ri-actual","ri-estandar","ri-minima"].forEach(id => document.getElementById(id).value = id === "ri-nombre" ? "" : "0");
+    document.getElementById("ri-unidad").value = "unidad";
+    const el = document.getElementById("modal-insumo-rapido");
+    el.style.zIndex = "400";
+    el.classList.add("active");
+}
+
+async function guardarInsumoRapido() {
+    const body = {
+        nombre: document.getElementById("ri-nombre").value.trim(),
+        unidad: document.getElementById("ri-unidad").value,
+        cantidad_actual:      parseFloat(document.getElementById("ri-actual").value) || 0,
+        cantidad_estandar:    0,
+        cantidad_advertencia: 0,
+        cantidad_minima:      parseFloat(document.getElementById("ri-minima").value) || 0
+    };
+    if (!body.nombre) { alert("El nombre es obligatorio."); return; }
+    try {
+        const nuevo = await api.post("/stock/insumos", body);
+        _insumos = await api.get("/stock/insumos");
+        cerrarModal("modal-insumo-rapido");
+        if (_insumoRapidoIdx !== null) {
+            const sel = document.getElementById(`ci-insumo-${_insumoRapidoIdx}`);
+            if (sel) {
+                sel.innerHTML = `<option value="">— Seleccioná —</option>` +
+                    _insumos.map(i => `<option value="${i.id}" ${i.id === nuevo.id ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`).join("");
+                actualizarIconoItem(_insumoRapidoIdx);
+            }
+            _insumoRapidoIdx = null;
+        }
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+// ── CONFIRMAR FACTURA ─────────────────────────────────────────
+async function confirmarFactura() {
+    const provNombre = document.getElementById("conf-prov-nombre").value.trim();
+    if (!provNombre) { alert("El nombre del proveedor es obligatorio."); return; }
+    const provCuit = document.getElementById("conf-prov-cuit").value.trim();
+    const moneda   = document.getElementById("conf-moneda-codigo").value.trim() || _datosFacturaIA?.moneda || null;
+
+    const rows = document.querySelectorAll("[id^='conf-item-']");
+    const itemsInsumo = [], itemsServicio = [];
+    for (const row of rows) {
+        const idx  = row.id.replace("conf-item-", "");
+        const tipo = document.getElementById(`ci-tipo-${idx}`)?.value;
+        if (tipo === "omitir") continue;
+        if (tipo === "insumo") {
+            const insId  = parseInt(document.getElementById(`ci-insumo-${idx}`)?.value);
+            const cant   = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
+            const precio = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value);
+            if (!insId)  { alert("Todos los ítems de insumo deben tener un insumo asignado."); return; }
+            if (!cant || cant <= 0) { alert("Cantidad inválida en un ítem de insumo."); return; }
+            itemsInsumo.push({ insId, cant, precio: precio || null });
+        } else if (tipo === "servicio") {
+            const srvId = parseInt(document.getElementById(`ci-servicio-${idx}`)?.value);
+            const monto = parseFloat(document.getElementById(`ci-monto-${idx}`)?.value);
+            if (!srvId)  { alert("Todos los ítems de servicio deben tener un servicio asignado."); return; }
+            if (!monto || monto <= 0) { alert("Monto inválido en un ítem de servicio."); return; }
+            itemsServicio.push({ srvId, monto });
+        }
+    }
+    if (!itemsInsumo.length && !itemsServicio.length) { alert("No hay ítems para registrar (todos omitidos)."); return; }
+
+    try {
+        // Resolver proveedor
+        let proveedorId = parseInt(document.getElementById("conf-prov-existente").value) || null;
+        if (!proveedorId) {
+            const existing = _proveedores.find(p => p.cuit && p.cuit === provCuit);
+            if (existing) proveedorId = existing.id;
+            else if (provNombre) {
+                const nuevo = await api.post("/stock/proveedores", { nombre: provNombre, cuit: provCuit || null });
+                proveedorId = nuevo.id;
+                await cargarProveedores();
+            }
+        }
+
+        // Subir imagen
+        let facturaUrl = null;
+        if (_archivosFactura.length > 0) {
+            try {
+                const fd = new FormData();
+                fd.append("file", _archivosFactura[0]);
+                const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
+                const up = await fetch(`${API_URL}/stock/facturas/upload`, {
+                    method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd
+                });
+                if (up.ok) facturaUrl = (await up.json()).url;
+            } catch(e) { console.error("Error subiendo imagen:", e); }
+        }
+
+        // Registrar factura
+        const totalDetectado = [...itemsInsumo.map(i => (i.precio || 0) * i.cant), ...itemsServicio.map(s => s.monto)].reduce((a, b) => a + b, 0);
+        const facturaReg = await api.post("/stock/facturas/registrar", {
+            proveedor_id: proveedorId, proveedor_nombre: provNombre,
+            archivo_nombre: _datosFacturaIA?.archivo || null,
+            archivo_url: facturaUrl, moneda, total_detectado: totalDetectado || null
+        });
+        const facturaId = facturaReg.id;
+        const referencia = `Factura IA — ${_datosFacturaIA?.archivo || ''}`;
+
+        // Registrar recargas de insumos
+        for (const item of itemsInsumo) {
+            await api.post("/stock/recargar", {
+                insumo_id: item.insId, tipo: "agregar", cantidad: item.cant,
+                precio_unitario: item.precio, proveedor_id: proveedorId,
+                referencia, moneda, factura_url: facturaUrl, factura_id: facturaId
+            });
+        }
+
+        // Registrar movimientos de servicios
+        for (const item of itemsServicio) {
+            await api.post("/stock/servicios/movimiento", {
+                servicio_id: item.srvId, factura_id: facturaId,
+                monto: item.monto, moneda, proveedor_id: proveedorId, referencia
+            });
+        }
+
+        cerrarModal("modal-confirmacion");
+        _archivosFactura = []; _datosFacturaIA = null; renderArchivos();
+        const msg = [];
+        if (itemsInsumo.length)   msg.push(`${itemsInsumo.length} recarga(s) de stock`);
+        if (itemsServicio.length) msg.push(`${itemsServicio.length} gasto(s) de servicio`);
+        alert(`✅ Registrado: ${msg.join(" y ")}.`);
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+// ── HISTORIAL FACTURAS ────────────────────────────────────────
+async function cargarHistorialFacturas() {
+    const tbody = document.getElementById("tbody-facturas");
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
+    try {
+        const data = await api.get("/stock/facturas/historial");
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin facturas registradas</td></tr>`; return; }
+        tbody.innerHTML = data.map(f => {
+            const prov = f.proveedor_nombre_reg || f.proveedor_nombre || "—";
+            const docLink = f.archivo_url
+                ? `<a href="${API_URL}${f.archivo_url}" target="_blank" style="color:#4f46e5;font-weight:600;text-decoration:none;">📄 Ver</a>`
+                : "—";
+            return `<tr>
+                <td style="font-size:12px;color:#555;">${new Date(f.creado_en).toLocaleString("es-AR",{dateStyle:"short",timeStyle:"short"})}</td>
+                <td><strong>${prov}</strong></td>
+                <td style="font-size:12px;color:#666;">${f.archivo_nombre || '—'}</td>
+                <td>${f.moneda ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;">${f.moneda}</span>` : '—'}</td>
+                <td>${f.total_detectado ? `${f.moneda || ''} ${parseFloat(f.total_detectado).toFixed(2)}` : '—'}</td>
+                <td style="font-size:12px;color:#888;">${f.usuario || '—'}</td>
+                <td>${docLink}</td>
+            </tr>`;
+        }).join("");
+    } catch(e) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Error cargando historial</td></tr>`; }
+}
+
+// ── SERVICIOS ─────────────────────────────────────────────────
+async function cargarServicios() {
+    try {
+        _servicios = await api.get("/stock/servicios");
+        const tbody = document.getElementById("tbody-servicios");
+        if (!_servicios.length) { tbody.innerHTML = `<tr><td colspan="4" class="empty">Sin servicios. Agregá los gastos fijos del local.</td></tr>`; return; }
+        tbody.innerHTML = _servicios.map(s => `<tr>
+            <td><strong>${s.nombre}</strong></td>
+            <td>${s.categoria ? `<span class="cat-chip">${s.categoria}</span>` : '—'}</td>
+            <td style="font-size:13px;color:#666;">${s.descripcion || '—'}</td>
+            <td><div style="display:flex;gap:6px;">
+                <button class="btn btn-secondary btn-sm" onclick="editarServicio(${s.id})">Editar</button>
+                <button class="btn btn-danger btn-sm" onclick="eliminarServicio(${s.id})">✕</button>
+            </div></td>
+        </tr>`).join("");
+    } catch(e) { console.error(e); }
+}
+
+function abrirModalServicio() {
+    _editandoServId = null;
+    document.getElementById("srv-titulo").textContent = "Nuevo servicio";
+    ["srv-nombre","srv-descripcion"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("srv-categoria").value = "";
+    document.getElementById("modal-servicio").classList.add("active");
+}
+
+function editarServicio(id) {
+    _editandoServId = id;
+    const s = _servicios.find(s => s.id === id);
+    document.getElementById("srv-titulo").textContent = `Editar — ${s.nombre}`;
+    document.getElementById("srv-nombre").value       = s.nombre;
+    document.getElementById("srv-categoria").value    = s.categoria || "";
+    document.getElementById("srv-descripcion").value  = s.descripcion || "";
+    document.getElementById("modal-servicio").classList.add("active");
+}
+
+async function guardarServicio() {
+    const body = {
+        nombre:      document.getElementById("srv-nombre").value.trim(),
+        categoria:   document.getElementById("srv-categoria").value || null,
+        descripcion: document.getElementById("srv-descripcion").value.trim() || null
+    };
+    if (!body.nombre) { alert("El nombre es obligatorio."); return; }
+    try {
+        if (_editandoServId) await api.patch(`/stock/servicios/${_editandoServId}`, body);
+        else await api.post("/stock/servicios", body);
+        cerrarModal("modal-servicio");
+        await cargarServicios();
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+async function eliminarServicio(id) {
+    const s = _servicios.find(s => s.id === id);
+    if (!confirm(`¿Eliminar "${s.nombre}"?`)) return;
+    try { await api.delete(`/stock/servicios/${id}`); await cargarServicios(); }
+    catch(e) { alert("Error: " + e.message); }
+}
+
+// ── PROVEEDORES ───────────────────────────────────────────────
+async function cargarProveedores() {
+    try {
+        _proveedores = await api.get("/stock/proveedores");
+        const tbody = document.getElementById("tbody-proveedores");
+        if (!tbody) return;
+        if (!_proveedores.length) { tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin proveedores</td></tr>`; return; }
+        tbody.innerHTML = _proveedores.map(p => `<tr>
+            <td><strong>${p.nombre}</strong></td>
+            <td>${p.cuit || '—'}</td>
+            <td>${p.telefono || '—'}</td>
+            <td>${p.email || '—'}</td>
+            <td><div style="display:flex;gap:6px;">
+                <button class="btn btn-secondary btn-sm" onclick="editarProveedor(${p.id})">Editar</button>
+                <button class="btn btn-danger btn-sm" onclick="eliminarProveedor(${p.id})">✕</button>
+            </div></td>
+        </tr>`).join("");
+    } catch(e) { console.error(e); }
+}
+
+function abrirModalProveedor() {
+    _editandoProvId = null;
+    document.getElementById("prov-titulo").textContent = "Nuevo proveedor";
+    ["prov-nombre","prov-cuit","prov-tel","prov-email"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("modal-proveedor").classList.add("active");
+}
+
+function editarProveedor(id) {
+    _editandoProvId = id;
+    const p = _proveedores.find(p => p.id === id);
+    document.getElementById("prov-titulo").textContent = `Editar — ${p.nombre}`;
+    document.getElementById("prov-nombre").value = p.nombre;
+    document.getElementById("prov-cuit").value   = p.cuit || "";
+    document.getElementById("prov-tel").value    = p.telefono || "";
+    document.getElementById("prov-email").value  = p.email || "";
+    document.getElementById("modal-proveedor").classList.add("active");
+}
+
+async function guardarProveedor() {
+    const body = {
+        nombre: document.getElementById("prov-nombre").value.trim(),
+        cuit:   document.getElementById("prov-cuit").value.trim() || null,
+        telefono: document.getElementById("prov-tel").value.trim() || null,
+        email:    document.getElementById("prov-email").value.trim() || null
+    };
+    if (!body.nombre) { alert("El nombre es obligatorio."); return; }
+    try {
+        if (_editandoProvId) await api.patch(`/stock/proveedores/${_editandoProvId}`, body);
+        else await api.post("/stock/proveedores", body);
+        cerrarModal("modal-proveedor");
+        await cargarProveedores();
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+async function eliminarProveedor(id) {
+    const p = _proveedores.find(p => p.id === id);
+    if (!confirm(`¿Eliminar "${p.nombre}"?`)) return;
+    try { await api.delete(`/stock/proveedores/${id}`); await cargarProveedores(); }
+    catch(e) { alert("Error: " + e.message); }
+}
+
+// ── UTILS ─────────────────────────────────────────────────────
+function cerrarModal(id) {
+    const el = document.getElementById(id);
+    el.classList.remove("active");
+    el.style.zIndex = "";
+    if (id === "modal-camara") cerrarCamara();
+}
+document.querySelectorAll(".modal-overlay").forEach(m => {
+    m.addEventListener("click", function(e) { if (e.target === this) cerrarModal(this.id); });
+});
+
+// Carga inicial
+Promise.all([
+    api.get("/stock/insumos").then(d => _insumos = d),
+    api.get("/stock/servicios").then(d => _servicios = d),
+    api.get("/stock/proveedores").then(d => _proveedores = d)
+]).catch(console.error);
+</script>
+</body>
+</html>
