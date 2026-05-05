@@ -334,6 +334,7 @@ let _archivosFactura = [];
 let _fotoBlob = null;
 let _cameraStream = null;
 let _datosFacturaIA = null;
+let _insumoRapidoIdx = null;
 
 // ── TABS ──────────────────────────────────────────────────────
 function setStockTab(tab) {
@@ -404,6 +405,18 @@ async function cargarInsumos() {
 
 function abrirModalInsumo() {
     _editandoInsumoId = null;
+    _insumoRapidoIdx = null;
+    document.getElementById("insumo-titulo").textContent = "Nuevo insumo";
+    ["ins-nombre","ins-actual","ins-estandar","ins-advertencia","ins-minima"].forEach(id => {
+        document.getElementById(id).value = id === "ins-nombre" ? "" : "0";
+    });
+    document.getElementById("ins-unidad").value = "unidad";
+    document.getElementById("modal-insumo").classList.add("active");
+}
+
+function abrirModalInsumoRapido(idx) {
+    _insumoRapidoIdx = idx;
+    _editandoInsumoId = null;
     document.getElementById("insumo-titulo").textContent = "Nuevo insumo";
     ["ins-nombre","ins-actual","ins-estandar","ins-advertencia","ins-minima"].forEach(id => {
         document.getElementById(id).value = id === "ins-nombre" ? "" : "0";
@@ -436,10 +449,20 @@ async function guardarInsumo() {
     };
     if (!body.nombre) { alert("El nombre es obligatorio."); return; }
     try {
+        let nuevoId = null;
         if (_editandoInsumoId) await api.patch(`/stock/insumos/${_editandoInsumoId}`, body);
-        else await api.post("/stock/insumos", body);
+        else { const nuevo = await api.post("/stock/insumos", body); nuevoId = nuevo.id; }
         cerrarModal("modal-insumo");
         await cargarInsumos();
+        if (_insumoRapidoIdx !== null && nuevoId) {
+            const sel = document.getElementById(`ci-insumo-${_insumoRapidoIdx}`);
+            if (sel) {
+                sel.innerHTML = `<option value="">— Seleccioná —</option>` +
+                    _insumos.map(i => `<option value="${i.id}" ${i.id === nuevoId ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`).join("");
+                actualizarIconoItem(_insumoRapidoIdx);
+            }
+            _insumoRapidoIdx = null;
+        }
     } catch(e) { alert("Error: " + e.message); }
 }
 
@@ -663,9 +686,12 @@ function abrirModalConfirmacion(datos) {
             <div class="item-fields">
                 <div class="item-field">
                     <label>Insumo *</label>
-                    <select id="ci-insumo-${idx}" onchange="actualizarIconoItem(${idx})">
-                        <option value="">— Seleccioná —</option>${optsConSel}
-                    </select>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <select id="ci-insumo-${idx}" onchange="actualizarIconoItem(${idx})" style="flex:1;min-width:0;">
+                            <option value="">— Seleccioná —</option>${optsConSel}
+                        </select>
+                        <button type="button" onclick="abrirModalInsumoRapido(${idx})" title="Agregar nuevo insumo" style="flex-shrink:0;padding:7px 10px;background:#4f46e5;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600;">+ Nuevo</button>
+                    </div>
                 </div>
                 <div class="item-field">
                     <label>Cantidad *</label>
