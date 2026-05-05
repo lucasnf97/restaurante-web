@@ -421,7 +421,9 @@ function abrirModalInsumoRapido(idx) {
         document.getElementById(id).value = id === "ins-nombre" ? "" : "0";
     });
     document.getElementById("ins-unidad").value = "unidad";
-    document.getElementById("modal-insumo").classList.add("active");
+    const el = document.getElementById("modal-insumo");
+    el.style.zIndex = "400";
+    el.classList.add("active");
 }
 
 function editarInsumo(id) {
@@ -888,7 +890,9 @@ async function eliminarProveedor(id) {
 
 // ── UTILS ─────────────────────────────────────────────────────
 function cerrarModal(id) {
-    document.getElementById(id).classList.remove("active");
+    const el = document.getElementById(id);
+    el.classList.remove("active");
+    if (id === "modal-insumo") el.style.zIndex = "";
     if (id === "modal-camara") cerrarCamara();
 }
 document.querySelectorAll(".modal-overlay").forEach(m => {
