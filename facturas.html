@@ -299,8 +299,9 @@ requireAuth();
 let _insumos     = [];
 let _servicios   = [];
 let _proveedores = [];
-let _archivosFactura  = [];   // [{file, estado, datos, error}]
-let _archivoActivo   = null;  // índice del archivo en revisión
+let _archivosFactura  = [];   // [{id, file, estado, datos, error}]
+let _archivoActivo   = null;  // ID estable del archivo en revisión
+let _nextFileId      = 0;
 let _fotoBlob    = null;
 let _cameraStream = null;
 let _insumoRapidoIdx  = null;
@@ -330,32 +331,34 @@ function handleDrop(event) {
 function agregarArchivos(files) {
     for (const f of files) {
         if (!_archivosFactura.find(a => a.file.name === f.name && a.file.size === f.size))
-            _archivosFactura.push({ file: f, estado: 'pendiente', datos: null, error: null });
+            _archivosFactura.push({ id: _nextFileId++, file: f, estado: 'pendiente', datos: null, error: null });
     }
     renderArchivos();
 }
+
+function getEntrada(id) { return _archivosFactura.find(a => a.id === id); }
 
 function renderArchivos() {
     const cont = document.getElementById("archivos-cargados");
     if (!_archivosFactura.length) { cont.innerHTML = ""; return; }
     const statusTexto = { pendiente: 'Listo para procesar', procesando: 'Procesando con IA…', procesado: 'Listo para confirmar', confirmado: 'Registrado ✓', error: 'Error al procesar' };
-    cont.innerHTML = _archivosFactura.map((a, idx) => {
+    cont.innerHTML = _archivosFactura.map((a) => {
         const icon = a.file.name.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️';
         let acciones = '';
         if (a.estado === 'pendiente') {
-            acciones = `<button class="btn btn-primary btn-sm" onclick="procesarArchivo(${idx})">🤖 Procesar</button>
-                        <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${idx})">✕</button>`;
+            acciones = `<button class="btn btn-primary btn-sm" onclick="procesarArchivo(${a.id})">🤖 Procesar</button>
+                        <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${a.id})">✕</button>`;
         } else if (a.estado === 'procesando') {
             acciones = `<button class="btn btn-primary btn-sm" disabled><span class="spinner"></span>Procesando…</button>`;
         } else if (a.estado === 'procesado') {
-            acciones = `<button class="btn btn-success btn-sm" onclick="abrirRevision(${idx})">✅ Revisión</button>
-                        <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${idx})">✕</button>`;
+            acciones = `<button class="btn btn-success btn-sm" onclick="abrirRevision(${a.id})">✅ Revisión</button>
+                        <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${a.id})">✕</button>`;
         } else if (a.estado === 'confirmado') {
             acciones = `<button class="btn btn-success btn-sm" disabled>✓ Confirmado</button>`;
         } else if (a.estado === 'error') {
             acciones = `<span style="font-size:12px;color:#dc2626;margin-right:6px;" title="${a.error || ''}">⚠️ Error</span>
-                        <button class="btn btn-primary btn-sm" onclick="procesarArchivo(${idx})">🔁 Reintentar</button>
-                        <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${idx})">✕</button>`;
+                        <button class="btn btn-primary btn-sm" onclick="procesarArchivo(${a.id})">🔁 Reintentar</button>
+                        <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${a.id})">✕</button>`;
         }
         const claseCard = a.estado === 'confirmado' ? 'confirmado' : a.estado === 'procesado' ? 'procesado' : a.estado === 'error' ? 'error' : '';
         return `<div class="fcard ${claseCard}">
@@ -369,7 +372,7 @@ function renderArchivos() {
     }).join("");
 }
 
-function quitarArchivo(idx) { _archivosFactura.splice(idx, 1); renderArchivos(); }
+function quitarArchivo(id) { _archivosFactura = _archivosFactura.filter(a => a.id !== id); renderArchivos(); }
 
 // ── CÁMARA ────────────────────────────────────────────────────
 async function abrirCamara() {
@@ -413,7 +416,7 @@ function reintentarFoto() {
 function usarFoto() {
     if (_fotoBlob) {
         const f = new File([_fotoBlob], `foto_${Date.now()}.jpg`, { type: "image/jpeg" });
-        _archivosFactura.push({ file: f, estado: 'pendiente', datos: null, error: null });
+        _archivosFactura.push({ id: _nextFileId++, file: f, estado: 'pendiente', datos: null, error: null });
         renderArchivos();
     }
     cerrarCamara();
@@ -425,8 +428,8 @@ function cerrarCamara() {
 }
 
 // ── PROCESAR IA (por archivo) ─────────────────────────────────
-async function procesarArchivo(idx) {
-    const entrada = _archivosFactura[idx];
+async function procesarArchivo(id) {
+    const entrada = getEntrada(id);
     if (!entrada) return;
     entrada.estado = 'procesando';
     renderArchivos();
@@ -447,9 +450,10 @@ async function procesarArchivo(idx) {
     renderArchivos();
 }
 
-function abrirRevision(idx) {
-    _archivoActivo = idx;
-    abrirModalConfirmacion(_archivosFactura[idx].datos);
+function abrirRevision(id) {
+    _archivoActivo = id;
+    const entrada = getEntrada(id);
+    abrirModalConfirmacion(entrada.datos);
 }
 
 // ── CONFIRMACIÓN ──────────────────────────────────────────────
@@ -581,7 +585,7 @@ function agregarItemConf() {
 }
 
 function previsualizarFactura() {
-    const entrada = _archivoActivo !== null ? _archivosFactura[_archivoActivo] : _archivosFactura[0];
+    const entrada = _archivoActivo !== null ? getEntrada(_archivoActivo) : _archivosFactura[0];
     if (!entrada) { alert("No hay factura cargada para previsualizar."); return; }
     window.open(URL.createObjectURL(entrada.file), "_blank");
 }
@@ -639,7 +643,7 @@ async function confirmarFactura() {
     const provNombre = document.getElementById("conf-prov-nombre").value.trim();
     if (!provNombre) { alert("El nombre del proveedor es obligatorio."); return; }
     const provCuit = document.getElementById("conf-prov-cuit").value.trim();
-    const entradaActiva = _archivoActivo !== null ? _archivosFactura[_archivoActivo] : null;
+    const entradaActiva = _archivoActivo !== null ? getEntrada(_archivoActivo) : null;
     const moneda   = document.getElementById("conf-moneda-codigo").value.trim() || entradaActiva?.datos?.moneda || null;
     const rows = document.querySelectorAll("[id^='conf-item-']");
     const itemsInsumo = [], itemsServicio = [];
@@ -720,7 +724,8 @@ async function confirmarFactura() {
 
         cerrarModal("modal-confirmacion");
         if (_archivoActivo !== null) {
-            _archivosFactura[_archivoActivo].estado = 'confirmado';
+            const ea = getEntrada(_archivoActivo);
+            if (ea) ea.estado = 'confirmado';
             _archivoActivo = null;
         }
         renderArchivos();
