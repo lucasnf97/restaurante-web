@@ -53,9 +53,16 @@
         .dropzone-text { font-size: 16px; font-weight: 600; color: #4c1d95; margin-bottom: 6px; }
         .dropzone-sub { font-size: 13px; color: #7c3aed; margin-bottom: 20px; }
         .dropzone-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-        .archivos-cargados { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-        .archivo-chip { background: white; border: 1.5px solid #c4b5fd; border-radius: 8px; padding: 6px 12px; font-size: 12px; color: #4c1d95; display: flex; align-items: center; gap: 6px; }
-        .archivo-chip button { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 14px; padding: 0; line-height: 1; }
+        .archivos-cargados { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .fcard { background: white; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .fcard.procesado { border-color: #86efac; }
+        .fcard.error { border-color: #fca5a5; }
+        .fcard.confirmado { border-color: #86efac; background:#f0fdf4; }
+        .fcard-icon { font-size: 24px; flex-shrink: 0; }
+        .fcard-info { flex: 1; min-width: 0; }
+        .fcard-name { font-size: 13px; font-weight: 600; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fcard-status { font-size: 11px; color: #888; margin-top: 2px; }
+        .fcard-actions { display: flex; gap: 6px; flex-shrink: 0; }
         .spinner { display: inline-block; width: 16px; height: 16px; border: 2.5px solid #e0e0e0; border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .item-confirm-row { background: #f9fafb; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
@@ -115,10 +122,7 @@
                 <input type="file" id="file-input" accept="image/*,.pdf" multiple style="display:none" onchange="agregarArchivos(this.files)">
                 <div class="archivos-cargados" id="archivos-cargados"></div>
             </div>
-            <div style="margin-top:20px;display:flex;gap:12px;align-items:center;">
-                <button class="btn btn-primary" id="btn-procesar" onclick="procesarFactura()" disabled>🤖 Procesar con IA</button>
-                <span id="procesar-status" style="font-size:13px;color:#666;"></span>
-            </div>
+            <p style="margin-top:12px;font-size:12px;color:#7c3aed;">Cada factura se procesa individualmente. Podés cargar varias a la vez.</p>
         </div>
     </div>
 
@@ -295,11 +299,12 @@ requireAuth();
 let _insumos     = [];
 let _servicios   = [];
 let _proveedores = [];
-let _archivosFactura  = [];
+let _archivosFactura  = [];   // [{file, estado, datos, error}]
+let _archivoActivo   = null;  // índice del archivo en revisión
 let _fotoBlob    = null;
 let _cameraStream = null;
-let _datosFacturaIA = null;
-let _insumoRapidoIdx = null;
+let _insumoRapidoIdx  = null;
+let _servicioRapidoIdx = null;
 let _editandoServId  = null;
 let _editandoProvId  = null;
 let _confItemCounter = 0;
@@ -324,20 +329,44 @@ function handleDrop(event) {
 
 function agregarArchivos(files) {
     for (const f of files) {
-        if (!_archivosFactura.find(a => a.name === f.name && a.size === f.size))
-            _archivosFactura.push(f);
+        if (!_archivosFactura.find(a => a.file.name === f.name && a.file.size === f.size))
+            _archivosFactura.push({ file: f, estado: 'pendiente', datos: null, error: null });
     }
     renderArchivos();
 }
 
 function renderArchivos() {
     const cont = document.getElementById("archivos-cargados");
-    cont.innerHTML = _archivosFactura.map((f, idx) => `
-        <div class="archivo-chip">
-            ${f.name.endsWith('.pdf') ? '📄' : '🖼️'} ${f.name}
-            <button onclick="quitarArchivo(${idx})">✕</button>
-        </div>`).join("");
-    document.getElementById("btn-procesar").disabled = _archivosFactura.length === 0;
+    if (!_archivosFactura.length) { cont.innerHTML = ""; return; }
+    const statusTexto = { pendiente: 'Listo para procesar', procesando: 'Procesando con IA…', procesado: 'Listo para confirmar', confirmado: 'Registrado ✓', error: 'Error al procesar' };
+    cont.innerHTML = _archivosFactura.map((a, idx) => {
+        const icon = a.file.name.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️';
+        let acciones = '';
+        if (a.estado === 'pendiente') {
+            acciones = `<button class="btn btn-primary btn-sm" onclick="procesarArchivo(${idx})">🤖 Procesar</button>
+                        <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${idx})">✕</button>`;
+        } else if (a.estado === 'procesando') {
+            acciones = `<button class="btn btn-primary btn-sm" disabled><span class="spinner"></span>Procesando…</button>`;
+        } else if (a.estado === 'procesado') {
+            acciones = `<button class="btn btn-success btn-sm" onclick="abrirRevision(${idx})">✅ Revisión</button>
+                        <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${idx})">✕</button>`;
+        } else if (a.estado === 'confirmado') {
+            acciones = `<button class="btn btn-success btn-sm" disabled>✓ Confirmado</button>`;
+        } else if (a.estado === 'error') {
+            acciones = `<span style="font-size:12px;color:#dc2626;margin-right:6px;" title="${a.error || ''}">⚠️ Error</span>
+                        <button class="btn btn-primary btn-sm" onclick="procesarArchivo(${idx})">🔁 Reintentar</button>
+                        <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${idx})">✕</button>`;
+        }
+        const claseCard = a.estado === 'confirmado' ? 'confirmado' : a.estado === 'procesado' ? 'procesado' : a.estado === 'error' ? 'error' : '';
+        return `<div class="fcard ${claseCard}">
+            <div class="fcard-icon">${icon}</div>
+            <div class="fcard-info">
+                <div class="fcard-name">${a.file.name}</div>
+                <div class="fcard-status">${statusTexto[a.estado] || ''}</div>
+            </div>
+            <div class="fcard-actions">${acciones}</div>
+        </div>`;
+    }).join("");
 }
 
 function quitarArchivo(idx) { _archivosFactura.splice(idx, 1); renderArchivos(); }
@@ -382,7 +411,11 @@ function reintentarFoto() {
 }
 
 function usarFoto() {
-    if (_fotoBlob) { _archivosFactura.push(new File([_fotoBlob], `foto_${Date.now()}.jpg`, { type: "image/jpeg" })); renderArchivos(); }
+    if (_fotoBlob) {
+        const f = new File([_fotoBlob], `foto_${Date.now()}.jpg`, { type: "image/jpeg" });
+        _archivosFactura.push({ file: f, estado: 'pendiente', datos: null, error: null });
+        renderArchivos();
+    }
     cerrarCamara();
 }
 
@@ -391,26 +424,32 @@ function cerrarCamara() {
     cerrarModal("modal-camara");
 }
 
-// ── PROCESAR IA ───────────────────────────────────────────────
-async function procesarFactura() {
-    if (!_archivosFactura.length) return;
-    const btn = document.getElementById("btn-procesar");
-    const status = document.getElementById("procesar-status");
-    btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Procesando...`;
-    const f = _archivosFactura[0];
-    status.textContent = `Analizando ${f.name}...`;
+// ── PROCESAR IA (por archivo) ─────────────────────────────────
+async function procesarArchivo(idx) {
+    const entrada = _archivosFactura[idx];
+    if (!entrada) return;
+    entrada.estado = 'procesando';
+    renderArchivos();
     try {
         const formData = new FormData();
-        formData.append("file", f);
+        formData.append("file", entrada.file);
         const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
         const resp = await fetch(`${API_URL}/stock/procesar-factura`, {
             method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: formData
         });
         if (!resp.ok) { const err = await resp.json(); throw new Error(err.detail || "Error de API"); }
-        _datosFacturaIA = { archivo: f.name, ...await resp.json() };
-        abrirModalConfirmacion(_datosFacturaIA);
-    } catch(e) { alert(`Error: ${e.message}`); }
-    btn.disabled = false; btn.innerHTML = "🤖 Procesar con IA"; status.textContent = "";
+        entrada.datos = { archivo: entrada.file.name, ...await resp.json() };
+        entrada.estado = 'procesado';
+    } catch(e) {
+        entrada.estado = 'error';
+        entrada.error = e.message;
+    }
+    renderArchivos();
+}
+
+function abrirRevision(idx) {
+    _archivoActivo = idx;
+    abrirModalConfirmacion(_archivosFactura[idx].datos);
 }
 
 // ── CONFIRMACIÓN ──────────────────────────────────────────────
@@ -448,9 +487,12 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioU
         <div class="item-fields-servicio" id="fields-servicio-${idx}" style="${!esServicio ? 'display:none' : ''}">
             <div class="item-field">
                 <label>Servicio *</label>
-                <select id="ci-servicio-${idx}">
-                    <option value="">— Seleccioná —</option>${optsServicios(servicioId)}
-                </select>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <select id="ci-servicio-${idx}" style="flex:1;min-width:0;">
+                        <option value="">— Seleccioná —</option>${optsServicios(servicioId)}
+                    </select>
+                    <button type="button" onclick="abrirServicioRapido('${idx}')" title="Agregar nuevo servicio" style="flex-shrink:0;padding:7px 10px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;">+ Nuevo</button>
+                </div>
             </div>
             <div class="item-field"><label>Monto *</label><input type="number" id="ci-monto-${idx}" value="${precioTotal !== null && precioTotal !== undefined ? precioTotal : (precioUnit !== null && precioUnit !== undefined ? precioUnit : '')}" step="0.01"></div>
         </div>`;
@@ -539,9 +581,21 @@ function agregarItemConf() {
 }
 
 function previsualizarFactura() {
-    const archivo = _archivosFactura[0];
-    if (!archivo) { alert("No hay factura cargada para previsualizar."); return; }
-    window.open(URL.createObjectURL(archivo), "_blank");
+    const entrada = _archivoActivo !== null ? _archivosFactura[_archivoActivo] : _archivosFactura[0];
+    if (!entrada) { alert("No hay factura cargada para previsualizar."); return; }
+    window.open(URL.createObjectURL(entrada.file), "_blank");
+}
+
+// ── SERVICIO RÁPIDO ───────────────────────────────────────────
+function abrirServicioRapido(idx) {
+    _servicioRapidoIdx = idx;
+    _editandoServId = null;
+    document.getElementById("srv-titulo").textContent = "Nuevo servicio";
+    ["srv-nombre","srv-descripcion"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("srv-categoria").value = "";
+    const el = document.getElementById("modal-servicio");
+    el.style.zIndex = "400";
+    el.classList.add("active");
 }
 
 // ── GUARDAR INSUMO RÁPIDO ─────────────────────────────────────
@@ -585,8 +639,8 @@ async function confirmarFactura() {
     const provNombre = document.getElementById("conf-prov-nombre").value.trim();
     if (!provNombre) { alert("El nombre del proveedor es obligatorio."); return; }
     const provCuit = document.getElementById("conf-prov-cuit").value.trim();
-    const moneda   = document.getElementById("conf-moneda-codigo").value.trim() || _datosFacturaIA?.moneda || null;
-
+    const entradaActiva = _archivoActivo !== null ? _archivosFactura[_archivoActivo] : null;
+    const moneda   = document.getElementById("conf-moneda-codigo").value.trim() || entradaActiva?.datos?.moneda || null;
     const rows = document.querySelectorAll("[id^='conf-item-']");
     const itemsInsumo = [], itemsServicio = [];
     for (const row of rows) {
@@ -625,10 +679,10 @@ async function confirmarFactura() {
 
         // Subir imagen
         let facturaUrl = null;
-        if (_archivosFactura.length > 0) {
+        if (entradaActiva) {
             try {
                 const fd = new FormData();
-                fd.append("file", _archivosFactura[0]);
+                fd.append("file", entradaActiva.file);
                 const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
                 const up = await fetch(`${API_URL}/stock/facturas/upload`, {
                     method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd
@@ -641,11 +695,11 @@ async function confirmarFactura() {
         const totalDetectado = [...itemsInsumo.map(i => (i.precio || 0) * i.cant), ...itemsServicio.map(s => s.monto)].reduce((a, b) => a + b, 0);
         const facturaReg = await api.post("/stock/facturas/registrar", {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
-            archivo_nombre: _datosFacturaIA?.archivo || null,
+            archivo_nombre: entradaActiva?.datos?.archivo || entradaActiva?.file?.name || null,
             archivo_url: facturaUrl, moneda, total_detectado: totalDetectado || null
         });
         const facturaId = facturaReg.id;
-        const referencia = `Factura IA — ${_datosFacturaIA?.archivo || ''}`;
+        const referencia = `Factura IA — ${entradaActiva?.datos?.archivo || entradaActiva?.file?.name || ''}`;
 
         // Registrar recargas de insumos
         for (const item of itemsInsumo) {
@@ -665,7 +719,11 @@ async function confirmarFactura() {
         }
 
         cerrarModal("modal-confirmacion");
-        _archivosFactura = []; _datosFacturaIA = null; renderArchivos();
+        if (_archivoActivo !== null) {
+            _archivosFactura[_archivoActivo].estado = 'confirmado';
+            _archivoActivo = null;
+        }
+        renderArchivos();
         const msg = [];
         if (itemsInsumo.length)   msg.push(`${itemsInsumo.length} recarga(s) de stock`);
         if (itemsServicio.length) msg.push(`${itemsServicio.length} gasto(s) de servicio`);
@@ -718,6 +776,7 @@ async function cargarServicios() {
 
 function abrirModalServicio() {
     _editandoServId = null;
+    _servicioRapidoIdx = null;
     document.getElementById("srv-titulo").textContent = "Nuevo servicio";
     ["srv-nombre","srv-descripcion"].forEach(id => document.getElementById(id).value = "");
     document.getElementById("srv-categoria").value = "";
@@ -726,6 +785,7 @@ function abrirModalServicio() {
 
 function editarServicio(id) {
     _editandoServId = id;
+    _servicioRapidoIdx = null;
     const s = _servicios.find(s => s.id === id);
     document.getElementById("srv-titulo").textContent = `Editar — ${s.nombre}`;
     document.getElementById("srv-nombre").value       = s.nombre;
@@ -742,10 +802,22 @@ async function guardarServicio() {
     };
     if (!body.nombre) { alert("El nombre es obligatorio."); return; }
     try {
+        let nuevoId = null;
         if (_editandoServId) await api.patch(`/stock/servicios/${_editandoServId}`, body);
-        else await api.post("/stock/servicios", body);
+        else { const nuevo = await api.post("/stock/servicios", body); nuevoId = nuevo.id; }
+        _servicios = await api.get("/stock/servicios");
         cerrarModal("modal-servicio");
-        await cargarServicios();
+        // Si se abrió desde el modal de confirmación, auto-seleccionar en el ítem
+        if (_servicioRapidoIdx !== null && nuevoId !== null) {
+            const sel = document.getElementById(`ci-servicio-${_servicioRapidoIdx}`);
+            if (sel) {
+                sel.innerHTML = `<option value="">— Seleccioná —</option>` +
+                    _servicios.map(s => `<option value="${s.id}" ${s.id === nuevoId ? 'selected' : ''}>${s.nombre}${s.categoria ? ' — '+s.categoria : ''}</option>`).join("");
+            }
+            _servicioRapidoIdx = null;
+        } else {
+            await cargarServicios();
+        }
     } catch(e) { alert("Error: " + e.message); }
 }
 
