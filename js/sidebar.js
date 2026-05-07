@@ -4,7 +4,6 @@
         { href: "dashboard.html",  icon: "🏠", label: "Panel principal" },
         { href: "mesas.html",      icon: "🪑", label: "Mesas" },
         { href: "reservas.html",   icon: "📅", label: "Reservas" },
-        { href: "pedidos.html",    icon: "🛎️",  label: "Pedidos" },
         { href: "productos.html",  icon: "🍽️", label: "Productos" },
         { href: "stock.html",      icon: "📦", label: "Stock" },
         { href: "facturas.html",   icon: "🧾", label: "Facturas" },
@@ -18,6 +17,11 @@
     // ── CSS ──────────────────────────────────────────────────────
     const style = document.createElement("style");
     style.textContent = `
+        /* Subir navbar por encima del sidebar */
+        nav.navbar {
+            z-index: 300 !important;
+        }
+
         /* Hamburger button */
         #sidebar-toggle {
             background: none;
@@ -29,6 +33,7 @@
             flex-direction: column;
             gap: 5px;
             flex-shrink: 0;
+            align-self: center;
         }
         #sidebar-toggle span {
             display: block;
@@ -54,25 +59,24 @@
             position: fixed;
             inset: 0;
             background: rgba(0,0,0,0.35);
-            z-index: 199;
+            z-index: 250;
         }
         #sidebar-overlay.visible { display: block; }
 
         /* Sidebar panel */
         #sidebar-panel {
             position: fixed;
-            top: 0;
+            top: 60px;
             left: 0;
             width: 240px;
-            height: 100%;
+            height: calc(100% - 60px);
             background: #1a1a2e;
-            z-index: 200;
+            z-index: 260;
             transform: translateX(-100%);
             transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
             display: flex;
             flex-direction: column;
             box-shadow: 4px 0 24px rgba(0,0,0,0.25);
-            padding-top: 60px; /* debajo del navbar */
         }
         #sidebar-panel.open {
             transform: translateX(0);
@@ -147,8 +151,8 @@
 
     // ── HAMBURGER en el navbar ───────────────────────────────────
     function injectHamburger() {
-        const brand = document.querySelector(".navbar-brand");
-        if (!brand) return;
+        const navbar = document.querySelector("nav.navbar");
+        if (!navbar) return;
 
         const btn = document.createElement("button");
         btn.id = "sidebar-toggle";
@@ -156,10 +160,8 @@
         btn.innerHTML = "<span></span><span></span><span></span>";
         btn.addEventListener("click", toggleSidebar);
 
-        // Envolver brand en un flex container si no lo está
-        brand.style.display = "flex";
-        brand.style.alignItems = "center";
-        brand.insertBefore(btn, brand.firstChild);
+        // Insertar como primer hijo del navbar (antes del brand)
+        navbar.insertBefore(btn, navbar.firstChild);
     }
 
     // ── TOGGLE ───────────────────────────────────────────────────
