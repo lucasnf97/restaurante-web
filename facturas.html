@@ -128,6 +128,25 @@
 
     <!-- HISTORIAL DE FACTURAS -->
     <div id="vista-historial" style="display:none">
+        <!-- Filtros -->
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;padding:12px 0 8px 0;border-bottom:1px solid #e5e7eb;margin-bottom:12px;">
+            <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px;">
+                <label style="font-size:12px;font-weight:600;color:#6b7280;">Buscar proveedor</label>
+                <input type="text" id="filtro-proveedor" placeholder="Nombre del proveedor..." oninput="filtrarHistorial()"
+                    style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:12px;font-weight:600;color:#6b7280;">Desde</label>
+                <input type="date" id="filtro-desde" oninput="filtrarHistorial()"
+                    style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:12px;font-weight:600;color:#6b7280;">Hasta</label>
+                <input type="date" id="filtro-hasta" oninput="filtrarHistorial()"
+                    style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
+            </div>
+            <button onclick="limpiarFiltrosHistorial()" style="padding:7px 14px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;font-size:13px;cursor:pointer;color:#374151;">✕ Limpiar</button>
+        </div>
         <div class="tabla-wrapper">
             <table>
                 <thead><tr><th>Fecha</th><th>Proveedor</th><th>Archivo</th><th>Moneda</th><th>Total detectado</th><th>Usuario</th><th>Documento</th></tr></thead>
@@ -737,28 +756,78 @@ async function confirmarFactura() {
 }
 
 // ── HISTORIAL FACTURAS ────────────────────────────────────────
+let _historialFacturas = [];
+
+function parseFechaUTC(str) {
+    // Fuerza interpretación UTC agregando Z si no tiene info de timezone
+    if (!str) return null;
+    if (!str.endsWith("Z") && !str.includes("+") && !/[+-]\d{2}:\d{2}$/.test(str)) {
+        str = str.replace(" ", "T") + "Z";
+    }
+    return new Date(str);
+}
+
+function formatFecha(str) {
+    const d = parseFechaUTC(str);
+    if (!d || isNaN(d)) return "—";
+    return d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
+}
+
 async function cargarHistorialFacturas() {
     const tbody = document.getElementById("tbody-facturas");
     tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
     try {
-        const data = await api.get("/stock/facturas/historial");
-        if (!data.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin facturas registradas</td></tr>`; return; }
-        tbody.innerHTML = data.map(f => {
-            const prov = f.proveedor_nombre_reg || f.proveedor_nombre || "—";
-            const docLink = f.archivo_url
-                ? `<a href="${API_URL}${f.archivo_url}" target="_blank" style="color:#4f46e5;font-weight:600;text-decoration:none;">📄 Ver</a>`
-                : "—";
-            return `<tr>
-                <td style="font-size:12px;color:#555;">${new Date(f.creado_en).toLocaleString("es-AR",{dateStyle:"short",timeStyle:"short"})}</td>
-                <td><strong>${prov}</strong></td>
-                <td style="font-size:12px;color:#666;">${f.archivo_nombre || '—'}</td>
-                <td>${f.moneda ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;">${f.moneda}</span>` : '—'}</td>
-                <td>${f.total_detectado ? `${f.moneda || ''} ${parseFloat(f.total_detectado).toFixed(2)}` : '—'}</td>
-                <td style="font-size:12px;color:#888;">${f.usuario || '—'}</td>
-                <td>${docLink}</td>
-            </tr>`;
-        }).join("");
+        _historialFacturas = await api.get("/stock/facturas/historial");
+        filtrarHistorial();
     } catch(e) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Error cargando historial</td></tr>`; }
+}
+
+function filtrarHistorial() {
+    const tbody = document.getElementById("tbody-facturas");
+    const busq = (document.getElementById("filtro-proveedor")?.value || "").toLowerCase().trim();
+    const desde = document.getElementById("filtro-desde")?.value;  // "YYYY-MM-DD"
+    const hasta = document.getElementById("filtro-hasta")?.value;
+
+    const filtradas = _historialFacturas.filter(f => {
+        const prov = (f.proveedor_nombre_reg || f.proveedor_nombre || "").toLowerCase();
+        if (busq && !prov.includes(busq)) return false;
+        const fecha = parseFechaUTC(f.creado_en);
+        if (fecha) {
+            // Comparar solo fecha local (sin hora)
+            const ymd = fecha.toLocaleDateString("sv-SE"); // "YYYY-MM-DD"
+            if (desde && ymd < desde) return false;
+            if (hasta && ymd > hasta) return false;
+        }
+        return true;
+    });
+
+    if (!filtradas.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin facturas para los filtros aplicados</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtradas.map(f => {
+        const prov = f.proveedor_nombre_reg || f.proveedor_nombre || "—";
+        const docLink = f.archivo_url
+            ? `<a href="${API_URL}${f.archivo_url}" target="_blank" style="color:#4f46e5;font-weight:600;text-decoration:none;">📄 Ver</a>`
+            : "—";
+        return `<tr>
+            <td style="font-size:12px;color:#555;">${formatFecha(f.creado_en)}</td>
+            <td><strong>${prov}</strong></td>
+            <td style="font-size:12px;color:#666;">${f.archivo_nombre || '—'}</td>
+            <td>${f.moneda ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;">${f.moneda}</span>` : '—'}</td>
+            <td>${f.total_detectado ? `${f.moneda || ''} ${parseFloat(f.total_detectado).toFixed(2)}` : '—'}</td>
+            <td style="font-size:12px;color:#888;">${f.usuario || '—'}</td>
+            <td>${docLink}</td>
+        </tr>`;
+    }).join("");
+}
+
+function limpiarFiltrosHistorial() {
+    document.getElementById("filtro-proveedor").value = "";
+    document.getElementById("filtro-desde").value = "";
+    document.getElementById("filtro-hasta").value = "";
+    filtrarHistorial();
 }
 
 // ── SERVICIOS ─────────────────────────────────────────────────
