@@ -20,6 +20,14 @@
         /* Subir navbar por encima del sidebar */
         nav.navbar {
             z-index: 300 !important;
+            position: relative !important;
+        }
+        /* Centrar el título en todas las páginas */
+        .navbar-brand {
+            position: absolute !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            pointer-events: none;
         }
 
         /* Hamburger button */

@@ -18,7 +18,8 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .btn-logout:hover { background:#4f46e5; color:white; }
 
 /* CONTENT */
-.content { margin-top:60px; padding:28px 32px; }
+.content { margin-top:60px; padding:28px 32px; margin-right:0; transition:margin-right .3s cubic-bezier(.4,0,.2,1); }
+body.config-open .content { margin-right:390px; }
 .welcome { margin-bottom:22px; }
 .welcome h2 { font-size:22px; color:#1a1a2e; font-weight:700; }
 .welcome p  { color:#888; margin-top:4px; font-size:14px; }
@@ -64,23 +65,30 @@ body.config-open .block-drag { display:inline; }
 .modules-cols-6 { grid-template-columns:repeat(6,1fr); }
 
 /* RESERVAS WIDGET */
-.reservas-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; display:flex; flex-direction:column; min-height:240px; }
-.widget-title { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:12px; display:flex; align-items:center; gap:6px; text-decoration:none; }
+.reservas-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; display:flex; flex-direction:column; height:300px; }
+.widget-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-shrink:0; }
+.widget-title { font-size:13px; font-weight:700; color:#1a1a2e; display:flex; align-items:center; gap:6px; text-decoration:none; }
 .widget-title:hover { color:#4f46e5; }
-.reservas-book { display:grid; grid-template-columns:1fr 1fr; gap:14px; flex:1; }
-.reservas-col  { display:flex; flex-direction:column; gap:5px; }
-.reservas-list { display:flex; flex-direction:column; gap:5px; flex:1; }
-.res-slot { display:flex; align-items:flex-start; gap:8px; padding:6px 9px; border-radius:7px; font-size:12px; }
-.res-slot.ok     { background:#f0fdf4; border-left:3px solid #16a34a; }
+.res-summary { display:flex; align-items:center; gap:8px; }
+.res-badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; }
+.res-badge.cad  { background:#f3f4f6; color:#6b7280; }
+.res-badge.act  { background:#eff6ff; color:#2563eb; }
+.res-badge.prox { background:#f0fdf4; color:#16a34a; }
+.reservas-slots { flex:1; overflow:hidden; display:flex; flex-direction:column; gap:5px; }
+.reservas-book { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; flex:1; overflow:hidden; }
+.reservas-col  { display:flex; flex-direction:column; gap:5px; overflow:hidden; }
+.res-slot { display:flex; align-items:flex-start; gap:8px; padding:6px 9px; border-radius:7px; font-size:12px; flex-shrink:0; }
+.res-slot.prox   { background:#f0fdf4; border-left:3px solid #16a34a; }
+.res-slot.actual { background:#eff6ff; border-left:3px solid #2563eb; }
+.res-slot.cad    { background:#f9fafb; border-left:3px solid #d1d5db; opacity:.65; }
 .res-slot.bloq   { background:#fff7ed; border-left:3px solid #f59e0b; }
-.res-slot.pasado { background:#f9fafb; border-left:3px solid #e5e7eb; opacity:.6; }
-.res-slot.actual { background:#eff6ff; border-left:3px solid #3b82f6; }
 .res-hora { font-weight:700; min-width:38px; flex-shrink:0; }
-.res-info { flex:1; }
+.res-info { flex:1; min-width:0; }
+.res-nombre { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .res-sub  { font-size:11px; color:#888; margin-top:1px; }
 .res-empty { text-align:center; padding:28px 16px; color:#9ca3af; font-size:13px; }
-.res-pager { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; flex-shrink:0; }
-.res-pag-btn { background:#f3f4f6; border:none; border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
+.res-pager { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; flex-shrink:0; }
+.res-pag-btn { background:#f3f4f6; border:none; border-radius:6px; width:26px; height:26px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
 .res-pag-btn:hover:not(:disabled) { background:#e0e7ff; }
 .res-pag-btn:disabled { opacity:.3; cursor:not-allowed; }
 .res-pag-info { font-size:11px; color:#9ca3af; }
@@ -307,34 +315,56 @@ function buildStats(b) {
     </div>`;
 }
 
+function estadoReserva(hora, bloq) {
+    if (bloq) return "bloq";
+    const ahora = new Date();
+    const [hh, mm] = (hora || "00:00").split(":").map(Number);
+    const resMin = hh * 60 + mm;
+    const ahoraMin = ahora.getHours() * 60 + ahora.getMinutes();
+    if (resMin > ahoraMin) return "prox";
+    if (resMin >= ahoraMin - 120) return "actual";   // activa: hasta 2h después del inicio
+    return "cad";
+}
+
 function buildReservas(b) {
     const span   = b.span;
     const pp     = ppag(span);
     const total  = totalPags(span);
-    const ahora  = new Date();
-    const hStr   = `${String(ahora.getHours()).padStart(2,"0")}:${String(ahora.getMinutes()).padStart(2,"0")}`;
     const inicio = resPag * pp;
     const slots  = reservasHoy.slice(inicio, inicio + pp);
 
+    // Resumen global
+    let nCad = 0, nAct = 0, nProx = 0;
+    reservasHoy.forEach(r => {
+        const bloq = r.tipo === "bloqueo" || r.bloqueo;
+        if (!bloq) {
+            const e = estadoReserva(r.hora, false);
+            if (e === "cad") nCad++;
+            else if (e === "actual") nAct++;
+            else nProx++;
+        }
+    });
+
     function slotHtml(r) {
         if (!r) return "";
-        const hora = r.hora || "";
-        const bloq = r.tipo==="bloqueo" || r.bloqueo;
-        const pas  = hora < hStr;
-        const cls  = bloq ? "bloq" : pas ? "pasado" : "ok";
+        const bloq = r.tipo === "bloqueo" || r.bloqueo;
+        const cls  = estadoReserva(r.hora, bloq);
         const nom  = bloq ? `🔒 ${r.motivo||"Bloqueo"}` : (r.nombre_cliente||r.cliente||"—");
         const sub  = bloq
             ? (r.mesas_bloqueadas ? `Mesas: ${r.mesas_bloqueadas}` : "")
             : `👥 ${r.personas||"?"} · Mesa ${r.mesa_numero||r.mesa_id||"?"}`;
         return `<div class="res-slot ${cls}">
-            <span class="res-hora">${hora}</span>
-            <div class="res-info"><div>${nom}</div><div class="res-sub">${sub}</div></div>
+            <span class="res-hora">${r.hora||"—"}</span>
+            <div class="res-info">
+                <div class="res-nombre">${nom}</div>
+                <div class="res-sub">${sub}</div>
+            </div>
         </div>`;
     }
 
     let body = "";
     if (!reservasHoy.length) {
-        body = `<div class="res-empty">Sin reservas para hoy</div>`;
+        body = `<div class="reservas-slots"><div class="res-empty">Sin reservas para hoy</div></div>`;
     } else if (span === 6) {
         const c1 = slots.slice(0,3), c2 = slots.slice(3,6);
         body = `<div class="reservas-book">
@@ -342,7 +372,7 @@ function buildReservas(b) {
             <div class="reservas-col">${c2.map(slotHtml).join("")}</div>
         </div>`;
     } else {
-        body = `<div class="reservas-list">${slots.map(slotHtml).join("")}</div>`;
+        body = `<div class="reservas-slots">${slots.map(slotHtml).join("")}</div>`;
     }
 
     const pager = total > 1 ? `<div class="res-pager">
@@ -353,7 +383,14 @@ function buildReservas(b) {
 
     return `${blockHeader("")}
     <div class="reservas-card">
-        <a href="reservas.html" class="widget-title">📅 Reservas de hoy</a>
+        <div class="widget-head">
+            <a href="reservas.html" class="widget-title">📅 Reservas de hoy</a>
+            <div class="res-summary">
+                <span class="res-badge cad">✓ ${nCad} caducadas</span>
+                <span class="res-badge act">● ${nAct} activas</span>
+                <span class="res-badge prox">◷ ${nProx} próximas</span>
+            </div>
+        </div>
         ${body}${pager}
     </div>`;
 }
