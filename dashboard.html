@@ -72,14 +72,16 @@ body.config-open .block-drag { display:inline; }
 .res-summary { display:flex; align-items:center; gap:8px; }
 .res-badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; }
 .res-badge.cad  { background:#f3f4f6; color:#6b7280; }
-.res-badge.act  { background:#eff6ff; color:#2563eb; }
-.res-badge.prox { background:#f0fdf4; color:#16a34a; }
+.res-badge.act  { background:#f0fdf4; color:#16a34a; }
+.res-badge.prox { background:#ede9fe; color:#7c3aed; }
 .reservas-slots { flex:1; overflow:hidden; display:flex; flex-direction:column; gap:5px; }
 .reservas-book { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; flex:1; overflow:hidden; }
 .reservas-col  { display:flex; flex-direction:column; gap:5px; overflow:hidden; }
 .res-slot { display:flex; align-items:flex-start; gap:8px; padding:6px 9px; border-radius:7px; font-size:12px; flex-shrink:0; }
-.res-slot.prox   { background:#f0fdf4; border-left:3px solid #16a34a; }
-.res-slot.actual { background:#eff6ff; border-left:3px solid #2563eb; }
+.res-slot.prox   { background:#ede9fe; border-left:3px solid #7c3aed; }
+.res-slot.actual { background:#f0fdf4; border-left:3px solid #22c55e; }
+.res-slot.warn   { background:#fffbeb; border-left:3px solid #f59e0b; }
+.res-slot.post   { background:#fef2f2; border-left:3px solid #ef4444; }
 .res-slot.cad    { background:#f9fafb; border-left:3px solid #d1d5db; opacity:.65; }
 .res-slot.bloq   { background:#fff7ed; border-left:3px solid #f59e0b; }
 .res-hora { font-weight:700; min-width:38px; flex-shrink:0; }
@@ -266,7 +268,7 @@ function calcPaginaActual() {
     const pp   = ppag(span);
     const hora = new Date();
     const hStr = `${String(hora.getHours()).padStart(2,"0")}:${String(hora.getMinutes()).padStart(2,"0")}`;
-    const idx  = reservasHoy.findIndex(r => (r.hora||"") >= hStr);
+    const idx  = reservasHoy.findIndex(r => (r.hora_inicio||"") >= hStr);
     const pivot = idx === -1 ? Math.max(reservasHoy.length-1,0) : Math.max(idx-1,0);
     resPag = Math.floor(pivot / pp);
 }
@@ -315,15 +317,27 @@ function buildStats(b) {
     </div>`;
 }
 
-function estadoReserva(hora, bloq) {
-    if (bloq) return "bloq";
-    const ahora = new Date();
-    const [hh, mm] = (hora || "00:00").split(":").map(Number);
-    const resMin = hh * 60 + mm;
-    const ahoraMin = ahora.getHours() * 60 + ahora.getMinutes();
-    if (resMin > ahoraMin) return "prox";
-    if (resMin >= ahoraMin - 120) return "actual";   // activa: hasta 2h después del inicio
-    return "cad";
+function estadoReserva(r) {
+    if (!r) return "cad";
+    if (r.tipo === "bloqueo" || r.bloqueo) return "bloq";
+    const now = new Date();
+    const [hh, mm] = (r.hora_inicio || "00:00").split(":").map(Number);
+    const hi = new Date(now); hi.setHours(hh, mm, 0, 0);
+    let hf;
+    if (r.hora_fin) {
+        const [eh, em] = r.hora_fin.split(":").map(Number);
+        hf = new Date(now); hf.setHours(eh, em, 0, 0);
+        if (hf <= hi) hf = new Date(hf.getTime() + 86400000);
+    } else {
+        hf = new Date(hi.getTime() + 60 * 60000);
+    }
+    const fin_real = new Date(hf.getTime() - 15 * 60000);
+    const alerta   = new Date(fin_real.getTime() - 15 * 60000);
+    if (now >= hf)       return "cad";
+    if (now >= fin_real) return "post";
+    if (now >= alerta)   return "warn";
+    if (now >= hi)       return "actual";
+    return "prox";
 }
 
 function buildReservas(b) {
@@ -338,23 +352,23 @@ function buildReservas(b) {
     reservasHoy.forEach(r => {
         const bloq = r.tipo === "bloqueo" || r.bloqueo;
         if (!bloq) {
-            const e = estadoReserva(r.hora, false);
+            const e = estadoReserva(r);
             if (e === "cad") nCad++;
-            else if (e === "actual") nAct++;
-            else nProx++;
+            else if (e === "prox") nProx++;
+            else nAct++;   // actual, warn, post
         }
     });
 
     function slotHtml(r) {
         if (!r) return "";
-        const bloq = r.tipo === "bloqueo" || r.bloqueo;
-        const cls  = estadoReserva(r.hora, bloq);
+        const cls  = estadoReserva(r);
+        const bloq = cls === "bloq";
         const nom  = bloq ? `🔒 ${r.motivo||"Bloqueo"}` : (r.nombre_cliente||r.cliente||"—");
         const sub  = bloq
             ? (r.mesas_bloqueadas ? `Mesas: ${r.mesas_bloqueadas}` : "")
             : `👥 ${r.personas||"?"} · Mesa ${r.mesa_numero||r.mesa_id||"?"}`;
         return `<div class="res-slot ${cls}">
-            <span class="res-hora">${r.hora||"—"}</span>
+            <span class="res-hora">${r.hora_inicio||"—"}</span>
             <div class="res-info">
                 <div class="res-nombre">${nom}</div>
                 <div class="res-sub">${sub}</div>
