@@ -20,7 +20,6 @@
         /* Subir navbar por encima del sidebar */
         nav.navbar {
             z-index: 300 !important;
-            position: relative !important;
         }
         /* Centrar el título en todas las páginas */
         .navbar-brand {
@@ -29,6 +28,26 @@
             transform: translateX(-50%) !important;
             pointer-events: none;
         }
+
+        /* Home button */
+        #sidebar-home {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            margin-left: 4px;
+            color: white;
+            font-size: 18px;
+            line-height: 1;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            align-self: center;
+            border-radius: 6px;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+        #sidebar-home:hover { background: rgba(255,255,255,0.12); }
 
         /* Hamburger button */
         #sidebar-toggle {
@@ -157,7 +176,7 @@
     `;
     document.body.appendChild(panel);
 
-    // ── HAMBURGER en el navbar ───────────────────────────────────
+    // ── HAMBURGER + HOME en el navbar ───────────────────────────
     function injectHamburger() {
         const navbar = document.querySelector("nav.navbar");
         if (!navbar) return;
@@ -170,6 +189,16 @@
 
         // Insertar como primer hijo del navbar (antes del brand)
         navbar.insertBefore(btn, navbar.firstChild);
+
+        // Botón 🏠 solo en páginas que no son el dashboard
+        if (currentPage !== "dashboard.html") {
+            const home = document.createElement("a");
+            home.id = "sidebar-home";
+            home.href = "dashboard.html";
+            home.setAttribute("aria-label", "Ir al dashboard");
+            home.textContent = "🏠";
+            navbar.insertBefore(home, btn.nextSibling);
+        }
     }
 
     // ── TOGGLE ───────────────────────────────────────────────────
