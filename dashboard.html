@@ -37,9 +37,10 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .db-block.drop-after  { box-shadow:  4px 0 0 #4f46e5; }
 
 .block-label { font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; display:flex; align-items:center; gap:6px; user-select:none; }
-.block-drag { cursor:grab; color:#c4b5fd; font-size:16px; padding:2px 4px; border-radius:4px; line-height:1; }
+.block-drag { cursor:grab; color:#c4b5fd; font-size:16px; padding:2px 4px; border-radius:4px; line-height:1; display:none; }
 .block-drag:active { cursor:grabbing; }
 .block-drag:hover { background:rgba(196,181,253,.15); }
+body.config-open .block-drag { display:inline; }
 
 /* STAT CARDS */
 .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:14px; }
@@ -239,9 +240,8 @@ async function cargarDatos() {
         const ins = await api.get("/stock/insumos");
         stockData = { ok:0, warn:0, agotado:0 };
         ins.forEach(i => {
-            const s = i.stock_actual ?? 0, min = i.stock_minimo ?? 0;
-            if (s <= 0) stockData.agotado++;
-            else if (s <= min) stockData.warn++;
+            if (i.agotado) stockData.agotado++;
+            else if (i.en_advertencia) stockData.warn++;
             else stockData.ok++;
         });
     } catch(e) {}
@@ -401,9 +401,10 @@ function initDrag() {
     let canDrag  = false;
 
     grid.querySelectorAll(".db-block").forEach(block => {
-        // Solo arrastrar si mousedown fue sobre el handle
+        // Solo arrastrar si el config está abierto Y el mousedown fue sobre el handle
         block.addEventListener("mousedown", e => {
-            canDrag = !!e.target.closest(".block-drag");
+            const cfgOpen = document.body.classList.contains("config-open");
+            canDrag = cfgOpen && !!e.target.closest(".block-drag");
             block.setAttribute("draggable", canDrag ? "true" : "false");
         });
         document.addEventListener("mouseup", () => {
@@ -463,10 +464,12 @@ function abrirConfig() {
     renderConfigPanel();
     document.getElementById("cfg-overlay").classList.add("open");
     document.getElementById("cfg-panel").classList.add("open");
+    document.body.classList.add("config-open");
 }
 function cerrarConfig() {
     document.getElementById("cfg-overlay").classList.remove("open");
     document.getElementById("cfg-panel").classList.remove("open");
+    document.body.classList.remove("config-open");
 }
 
 function renderConfigPanel() {
@@ -542,10 +545,9 @@ function setSpan(i, span) {
     }, 10);
 }
 function toggleModAcceso(i, moduleId, val) {
-    const mods = config.blocks[i].modules || [];
+    let mods = [...(config.blocks[i].modules || [])];
     if (val && !mods.includes(moduleId)) mods.push(moduleId);
-    else if (!val) config.blocks[i].modules = mods.filter(m => m !== moduleId);
-    else config.blocks[i].modules = mods;
+    else if (!val) mods = mods.filter(m => m !== moduleId);
     config.blocks[i].modules = mods;
     renderDash();
 }
