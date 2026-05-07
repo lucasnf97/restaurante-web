@@ -8,128 +8,132 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
 
-/* ── NAVBAR ── */
+/* NAVBAR */
 .navbar { background:#1a1a2e; color:white; padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:fixed; top:0; left:0; right:0; z-index:300; }
 .navbar-brand { font-size:18px; font-weight:700; letter-spacing:.5px; }
 .navbar-user { display:flex; align-items:center; gap:12px; font-size:14px; color:#a5b4fc; }
-.btn-config { background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); color:#a5b4fc; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; display:flex; align-items:center; gap:6px; transition:all .2s; }
-.btn-config:hover { background:rgba(99,102,241,0.35); color:white; }
+.btn-config { background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.4); color:#a5b4fc; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; display:flex; align-items:center; gap:6px; transition:all .2s; }
+.btn-config:hover { background:rgba(99,102,241,.35); color:white; }
 .btn-logout { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; transition:all .2s; }
 .btn-logout:hover { background:#4f46e5; color:white; }
 
-/* ── CONTENT ── */
+/* CONTENT */
 .content { margin-top:60px; padding:28px 32px; }
-.welcome { margin-bottom:24px; }
+.welcome { margin-bottom:22px; }
 .welcome h2 { font-size:22px; color:#1a1a2e; font-weight:700; }
-.welcome p { color:#888; margin-top:4px; font-size:14px; }
+.welcome p  { color:#888; margin-top:4px; font-size:14px; }
 
-/* ── 6-COL GRID ── */
-.dash-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:20px; align-items:start; }
-.block-2 { grid-column:span 2; }
-.block-3 { grid-column:span 3; }
-.block-6 { grid-column:span 6; }
+/* 6-COL GRID */
+.dash-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:18px; align-items:start; }
+.span-1 { grid-column:span 1; }
+.span-2 { grid-column:span 2; }
+.span-3 { grid-column:span 3; }
+.span-6 { grid-column:span 6; }
 
 /* Block wrapper */
-.db-block { position:relative; }
-.db-block.dragging { opacity:.35; }
-.db-block.drop-before::before { content:''; display:block; height:4px; background:#4f46e5; border-radius:2px; margin-bottom:8px; }
-.db-block.drop-after::after  { content:''; display:block; height:4px; background:#4f46e5; border-radius:2px; margin-top:8px; }
+.db-block { position:relative; cursor:default; }
+.db-block.dragging { opacity:.35; pointer-events:none; }
+.db-block.drop-before { box-shadow: -4px 0 0 #4f46e5; }
+.db-block.drop-after  { box-shadow:  4px 0 0 #4f46e5; }
 
 .block-label { font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; display:flex; align-items:center; gap:6px; user-select:none; }
-.block-drag { cursor:grab; color:#c4b5fd; font-size:16px; padding:2px 4px; border-radius:4px; }
+.block-drag { cursor:grab; color:#c4b5fd; font-size:16px; padding:2px 4px; border-radius:4px; line-height:1; }
+.block-drag:active { cursor:grabbing; }
 .block-drag:hover { background:rgba(196,181,253,.15); }
 
-/* ── STAT CARDS ── */
-.stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:16px; }
+/* STAT CARDS */
+.stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:14px; }
 .stat-card { background:white; border-radius:12px; padding:18px 22px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
 .stat-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
 .stat-value { font-size:26px; font-weight:700; color:#1a1a2e; }
-.stat-value.green { color:#16a34a; }
-.stat-value.blue  { color:#4f46e5; }
-.stat-value.orange{ color:#d97706; }
+.stat-value.green  { color:#16a34a; }
+.stat-value.blue   { color:#4f46e5; }
+.stat-value.orange { color:#d97706; }
 
-/* ── MODULE CARDS ── */
-.modules-grid { display:grid; gap:16px; }
-.modules-grid.cols-2 { grid-template-columns:repeat(2,1fr); }
-.modules-grid.cols-3 { grid-template-columns:repeat(3,1fr); }
-.modules-grid.cols-6 { grid-template-columns:repeat(6,1fr); }
-.module-card { background:white; border-radius:12px; padding:22px 18px; cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.06); text-decoration:none; color:inherit; display:flex; flex-direction:column; border:2px solid transparent; }
+/* MODULE CARD */
+.module-card { background:white; border-radius:12px; padding:20px 16px; cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.06); text-decoration:none; color:inherit; display:flex; flex-direction:column; border:2px solid transparent; height:100%; }
 .module-card:hover { border-color:#4f46e5; transform:translateY(-2px); box-shadow:0 6px 20px rgba(79,70,229,.12); }
-.module-icon { font-size:30px; margin-bottom:10px; }
-.module-title { font-size:14px; font-weight:700; color:#1a1a2e; margin-bottom:4px; }
-.module-desc { font-size:11px; color:#888; line-height:1.4; }
+.module-icon  { font-size:28px; margin-bottom:10px; }
+.module-title { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:4px; }
+.module-desc  { font-size:11px; color:#888; line-height:1.4; }
+.modules-grid { display:grid; gap:14px; }
+.modules-cols-1 { grid-template-columns:1fr; }
+.modules-cols-2 { grid-template-columns:repeat(2,1fr); }
+.modules-cols-3 { grid-template-columns:repeat(3,1fr); }
+.modules-cols-6 { grid-template-columns:repeat(6,1fr); }
 
-/* ── RESERVAS WIDGET ── */
-.reservas-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:18px 20px; display:flex; flex-direction:column; min-height:260px; }
-.reservas-card h4 { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
-.reservas-book { display:grid; grid-template-columns:1fr 1fr; gap:16px; flex:1; }
-.reservas-col { display:flex; flex-direction:column; gap:6px; }
-.reservas-single { display:flex; flex-direction:column; gap:6px; flex:1; }
-.res-slot { display:flex; align-items:flex-start; gap:8px; padding:7px 10px; border-radius:8px; font-size:12px; }
-.res-slot.ok   { background:#f0fdf4; border-left:3px solid #16a34a; }
-.res-slot.bloq { background:#fff7ed; border-left:3px solid #f59e0b; }
-.res-slot.pasado { background:#f9fafb; border-left:3px solid #e5e7eb; opacity:.65; }
+/* RESERVAS WIDGET */
+.reservas-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; display:flex; flex-direction:column; min-height:240px; }
+.widget-title { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:12px; display:flex; align-items:center; gap:6px; text-decoration:none; }
+.widget-title:hover { color:#4f46e5; }
+.reservas-book { display:grid; grid-template-columns:1fr 1fr; gap:14px; flex:1; }
+.reservas-col  { display:flex; flex-direction:column; gap:5px; }
+.reservas-list { display:flex; flex-direction:column; gap:5px; flex:1; }
+.res-slot { display:flex; align-items:flex-start; gap:8px; padding:6px 9px; border-radius:7px; font-size:12px; }
+.res-slot.ok     { background:#f0fdf4; border-left:3px solid #16a34a; }
+.res-slot.bloq   { background:#fff7ed; border-left:3px solid #f59e0b; }
+.res-slot.pasado { background:#f9fafb; border-left:3px solid #e5e7eb; opacity:.6; }
 .res-slot.actual { background:#eff6ff; border-left:3px solid #3b82f6; }
-.res-hora { font-weight:700; min-width:40px; }
+.res-hora { font-weight:700; min-width:38px; flex-shrink:0; }
 .res-info { flex:1; }
-.res-sub  { font-size:11px; color:#888; }
-.res-empty { text-align:center; padding:24px; color:#9ca3af; font-size:13px; }
-.res-pagination { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; }
-.res-pag-btn { background:#f3f4f6; border:none; border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
-.res-pag-btn:hover { background:#e0e7ff; }
+.res-sub  { font-size:11px; color:#888; margin-top:1px; }
+.res-empty { text-align:center; padding:28px 16px; color:#9ca3af; font-size:13px; }
+.res-pager { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; flex-shrink:0; }
+.res-pag-btn { background:#f3f4f6; border:none; border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
+.res-pag-btn:hover:not(:disabled) { background:#e0e7ff; }
 .res-pag-btn:disabled { opacity:.3; cursor:not-allowed; }
 .res-pag-info { font-size:11px; color:#9ca3af; }
 
-/* ── STOCK WIDGET ── */
-.stock-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:18px 20px; }
-.stock-card h4 { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
-.stock-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f3f4f6; font-size:13px; }
+/* STOCK WIDGET */
+.stock-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
+.stock-row  { display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid #f3f4f6; font-size:13px; }
 .stock-row:last-child { border-bottom:none; }
-.stock-dot { width:10px; height:10px; border-radius:50%; }
+.stock-dot  { width:10px; height:10px; border-radius:50%; }
 .dot-ok   { background:#16a34a; }
 .dot-warn { background:#f59e0b; }
 .dot-red  { background:#dc2626; }
 .stock-num { font-size:22px; font-weight:700; }
 
-/* ── CONFIG PANEL ── */
+/* CONFIG PANEL */
 .cfg-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:400; display:none; }
 .cfg-overlay.open { display:block; }
 .cfg-panel { position:fixed; top:0; right:0; width:390px; height:100%; background:white; z-index:401; box-shadow:-4px 0 24px rgba(0,0,0,.15); display:flex; flex-direction:column; transform:translateX(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); }
 .cfg-panel.open { transform:translateX(0); }
-.cfg-head { padding:18px 22px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.cfg-head { padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
 .cfg-head h3 { font-size:15px; font-weight:700; color:#1a1a2e; }
 .cfg-close { background:none; border:none; font-size:20px; cursor:pointer; color:#888; }
-.cfg-body { flex:1; overflow-y:auto; padding:18px 22px; }
-.cfg-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#6366f1; margin-bottom:8px; }
-.cfg-hint { font-size:12px; color:#9ca3af; margin-bottom:14px; }
+.cfg-body { flex:1; overflow-y:auto; padding:16px 20px; }
+.cfg-sec-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#6366f1; margin-bottom:6px; }
+.cfg-hint { font-size:12px; color:#9ca3af; margin-bottom:12px; }
 
-.cblock { background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:10px; overflow:hidden; }
-.cblock-head { display:flex; align-items:center; gap:10px; padding:11px 13px; cursor:pointer; user-select:none; }
-.cblock-drag { color:#c4b5fd; font-size:16px; cursor:grab; }
+.cblock { background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:8px; overflow:hidden; }
+.cblock-head { display:flex; align-items:center; gap:8px; padding:10px 12px; cursor:pointer; user-select:none; }
+.cblock-drag { color:#c4b5fd; font-size:15px; cursor:grab; }
 .cblock-name { flex:1; font-size:13px; font-weight:600; color:#374151; }
-.span-badge { font-size:11px; background:#ede9fe; color:#5b21b6; border-radius:12px; padding:2px 8px; }
-.tsw { position:relative; width:36px; height:20px; flex-shrink:0; }
+.span-badge { font-size:11px; background:#ede9fe; color:#5b21b6; border-radius:12px; padding:2px 7px; white-space:nowrap; }
+.tsw { position:relative; width:34px; height:19px; flex-shrink:0; }
 .tsw input { opacity:0; width:0; height:0; }
 .tsl { position:absolute; inset:0; background:#d1d5db; border-radius:20px; cursor:pointer; transition:.2s; }
-.tsl::before { content:''; position:absolute; width:14px; height:14px; left:3px; top:3px; background:white; border-radius:50%; transition:.2s; }
+.tsl::before { content:''; position:absolute; width:13px; height:13px; left:3px; top:3px; background:white; border-radius:50%; transition:.2s; }
 input:checked + .tsl { background:#4f46e5; }
-input:checked + .tsl::before { transform:translateX(16px); }
-
-.cblock-opts { padding:4px 13px 12px; border-top:1px solid #e5e7eb; background:white; }
+input:checked + .tsl::before { transform:translateX(14px); }
+.cblock-opts { padding:2px 12px 10px; border-top:1px solid #e5e7eb; background:white; }
 .opt-row { display:flex; align-items:center; justify-content:space-between; padding:7px 0; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f4f6; }
 .opt-row:last-child { border-bottom:none; }
 .span-btns { display:flex; gap:4px; }
-.span-btn { padding:3px 10px; border:1px solid #d1d5db; border-radius:5px; background:white; font-size:11px; cursor:pointer; color:#6b7280; transition:all .15s; }
+.span-btn { padding:3px 9px; border:1px solid #d1d5db; border-radius:5px; background:white; font-size:11px; cursor:pointer; color:#6b7280; transition:all .15s; }
 .span-btn.active { background:#4f46e5; color:white; border-color:#4f46e5; }
 .sub-lbl { font-size:11px; color:#9ca3af; margin:8px 0 2px; font-weight:600; }
-.mi-item { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; font-size:12px; color:#374151; }
+.mi-item { display:flex; align-items:center; gap:7px; padding:5px 4px; border-radius:6px; font-size:12px; color:#374151; }
 .mi-item:hover { background:#f3f4f6; }
-.mi-drag { color:#d1d5db; cursor:grab; font-size:13px; }
 .mi-name { flex:1; }
+.mi-del { background:none; border:none; color:#f87171; cursor:pointer; font-size:16px; line-height:1; padding:0 2px; }
 
-.cfg-save-btn { width:100%; padding:11px; background:#4f46e5; color:white; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; margin-top:16px; }
+.cfg-add-btn { width:100%; padding:8px; background:#f5f3ff; color:#6d28d9; border:1.5px dashed #c4b5fd; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; margin-top:4px; transition:all .15s; }
+.cfg-add-btn:hover { background:#ede9fe; }
+.cfg-save-btn  { width:100%; padding:11px; background:#4f46e5; color:white; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; margin-top:14px; }
 .cfg-save-btn:hover { background:#4338ca; }
-.cfg-reset-btn { width:100%; padding:9px; background:none; color:#9ca3af; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; cursor:pointer; margin-top:8px; }
+.cfg-reset-btn { width:100%; padding:9px; background:none; color:#9ca3af; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; cursor:pointer; margin-top:7px; }
 </style>
 </head>
 <body>
@@ -151,17 +155,17 @@ input:checked + .tsl::before { transform:translateX(16px); }
     <div class="dash-grid" id="dash-grid"></div>
 </div>
 
-<!-- CONFIG OVERLAY + PANEL -->
 <div class="cfg-overlay" id="cfg-overlay" onclick="cerrarConfig()"></div>
 <div class="cfg-panel" id="cfg-panel">
     <div class="cfg-head">
         <h3>⚙️ Personalizar dashboard</h3>
         <button class="cfg-close" onclick="cerrarConfig()">✕</button>
     </div>
-    <div class="cfg-body" id="cfg-body">
-        <div class="cfg-section-title">Bloques</div>
-        <p class="cfg-hint">Arrastrá ⠿ para reordenar. Expandí para configurar cada bloque.</p>
+    <div class="cfg-body">
+        <div class="cfg-sec-title">Bloques</div>
+        <p class="cfg-hint">Arrastrá ⠿ para reordenar. Expandí para configurar.</p>
         <div id="cfg-blocks-list"></div>
+        <button class="cfg-add-btn" onclick="agregarAccesoRapido()">＋ Agregar acceso rápido</button>
         <button class="cfg-save-btn" onclick="guardarConfig()">Guardar configuración</button>
         <button class="cfg-reset-btn" onclick="resetConfig()">Restablecer por defecto</button>
     </div>
@@ -171,86 +175,54 @@ input:checked + .tsl::before { transform:translateX(16px); }
 <script src="js/api.js"></script>
 <script>
 requireAuth();
-requireRol("admin", "gerente");
+requireRol("admin","gerente");
 
 const user = getUser();
 document.getElementById("nav-username").textContent = user.username;
 document.getElementById("welcome-msg").textContent = `Bienvenido, ${user.username}`;
 
-// ── DEFINICIÓN DE MÓDULOS ────────────────────────────────────
+// ── MÓDULOS DISPONIBLES ──────────────────────────────────────
 const ALL_MODULES = [
-    { id:"mesas",     icon:"🪑", title:"Salas y mesas",    desc:"Distribución del local",       href:"mesas.html" },
-    { id:"reservas",  icon:"📅", title:"Reservas",          desc:"Asignación de mesas",          href:"reservas.html" },
-    { id:"productos", icon:"🍕", title:"Carta y productos", desc:"Menú, precios y categorías",   href:"productos.html" },
-    { id:"caja",      icon:"💰", title:"Caja e historial",  desc:"Abrí y cerrá caja",            href:"caja.html" },
-    { id:"fichajes",  icon:"🕐", title:"Fichajes",          desc:"Entrada y salida del personal", href:"fichajes.html" },
-    { id:"usuarios",  icon:"👥", title:"Usuarios",          desc:"Personal y roles de acceso",   href:"usuarios.html" },
-    { id:"stock",     icon:"📦", title:"Stock",             desc:"Control de insumos",           href:"stock.html" },
-    { id:"facturas",  icon:"📄", title:"Facturas",          desc:"Carga con IA y proveedores",   href:"facturas.html" },
+    { id:"mesas",     icon:"🪑", title:"Salas y mesas",    desc:"Distribución del local",        href:"mesas.html" },
+    { id:"reservas",  icon:"📅", title:"Reservas",          desc:"Asignación de mesas",           href:"reservas.html" },
+    { id:"productos", icon:"🍕", title:"Carta y productos", desc:"Menú, precios y categorías",    href:"productos.html" },
+    { id:"caja",      icon:"💰", title:"Caja e historial",  desc:"Abrí y cerrá caja",             href:"caja.html" },
+    { id:"fichajes",  icon:"🕐", title:"Fichajes",          desc:"Entrada y salida del personal",  href:"fichajes.html" },
+    { id:"usuarios",  icon:"👥", title:"Usuarios",          desc:"Personal y roles de acceso",    href:"usuarios.html" },
+    { id:"stock",     icon:"📦", title:"Stock",             desc:"Control de insumos",            href:"stock.html" },
+    { id:"facturas",  icon:"📄", title:"Facturas",          desc:"Carga con IA y proveedores",    href:"facturas.html" },
 ];
+function getMod(id) { return ALL_MODULES.find(m => m.id === id); }
 
 // ── CONFIG POR DEFECTO ───────────────────────────────────────
-const DEFAULT_CONFIG = {
-    blocks: [
-        {
-            id: "stats",
-            label: "Resumen del día",
-            visible: true,
-            span: 6
-        },
-        {
-            id: "reservas",
-            label: "Reservas del día",
-            visible: true,
-            span: 3,
-            showWidget: true,
-            modules: ["reservas"]
-        },
-        {
-            id: "accesos",
-            label: "Accesos rápidos",
-            visible: true,
-            span: 6,
-            modules: ["mesas","productos","caja","fichajes","usuarios","stock","facturas"]
-        },
-        {
-            id: "stock-status",
-            label: "Estado del stock",
-            visible: true,
-            span: 3,
-            showWidget: true,
-            modules: ["stock","facturas"]
-        }
-    ]
-};
+const DEFAULT_CONFIG = { blocks: [
+    { id:"stats",        type:"stats",   label:"Resumen del día",   visible:true, span:6 },
+    { id:"reservas",     type:"reservas",label:"Reservas del día",  visible:true, span:3 },
+    { id:"accesos",      type:"accesos", label:"Accesos rápidos",   visible:true, span:6,
+      modules:["mesas","productos","caja","fichajes","usuarios","stock","facturas"] },
+    { id:"stock-status", type:"stock",   label:"Estado del stock",  visible:true, span:3 },
+]};
 
-// ── LOAD / SAVE CONFIG ───────────────────────────────────────
+// ── LOAD / SAVE ──────────────────────────────────────────────
 function loadConfig() {
-    try {
-        const saved = localStorage.getItem("dash_config_v2");
-        if (saved) return JSON.parse(saved);
-    } catch(e) {}
+    try { const s = localStorage.getItem("dash_cfg_v3"); if (s) return JSON.parse(s); } catch(e) {}
     return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
 }
-
-function saveConfig(cfg) {
-    localStorage.setItem("dash_config_v2", JSON.stringify(cfg));
-}
+function saveConfig() { localStorage.setItem("dash_cfg_v3", JSON.stringify(config)); }
 
 let config = loadConfig();
 
-// ── DATOS DINÁMICOS ──────────────────────────────────────────
-let statsData = { pedidos:"—", total:"—", mesas:"—", reservas:"—" };
+// ── DATOS ────────────────────────────────────────────────────
+let statsData   = { pedidos:"—", total:"—", mesas:"—", reservas:"—" };
 let reservasHoy = [];
-let stockStatus = { ok:0, warn:0, agotado:0 };
-let resPagina = 0;
+let stockData   = { ok:0, warn:0, agotado:0 };
+let resPag      = 0;
 
 async function cargarDatos() {
-    // Stats
     try {
         const r = await api.get("/caja/resumen/hoy");
         statsData.pedidos = r.pedidos_cobrados;
-        statsData.total = `$${r.total_hoy.toFixed(2)}`;
+        statsData.total   = `$${r.total_hoy.toFixed(2)}`;
     } catch(e) {}
     try {
         const m = await api.get("/mesas/?estado=ocupada");
@@ -258,230 +230,235 @@ async function cargarDatos() {
     } catch(e) {}
     try {
         const hoy = new Date().toISOString().split("T")[0];
-        const rv = await api.get(`/reservas/?fecha=${hoy}`);
+        const rv  = await api.get(`/reservas/?fecha=${hoy}`);
         statsData.reservas = rv.length;
         reservasHoy = rv.sort((a,b) => (a.hora||"").localeCompare(b.hora||""));
-        // Calcular página inicial: la que contiene la hora actual
-        inicializarPagina();
+        calcPaginaActual();
     } catch(e) {}
-    // Stock status
     try {
         const ins = await api.get("/stock/insumos");
-        stockStatus = { ok:0, warn:0, agotado:0 };
+        stockData = { ok:0, warn:0, agotado:0 };
         ins.forEach(i => {
-            const s = i.stock_actual ?? 0;
-            const min = i.stock_minimo ?? 0;
-            if (s <= 0) stockStatus.agotado++;
-            else if (s <= min) stockStatus.warn++;
-            else stockStatus.ok++;
+            const s = i.stock_actual ?? 0, min = i.stock_minimo ?? 0;
+            if (s <= 0) stockData.agotado++;
+            else if (s <= min) stockData.warn++;
+            else stockData.ok++;
         });
     } catch(e) {}
-
     renderDash();
 }
 
-// ── RESERVAS: PAGINACIÓN ─────────────────────────────────────
-// Calcula cuántos slots por página según span y modo libro
-function slotsPorPagina(span) {
-    return span === 6 ? 6 : 4; // libro: 6 total (3+3 cols); angosto: 4
+// ── PAGINACIÓN RESERVAS ──────────────────────────────────────
+function ppag(span) { return span === 6 ? 6 : 4; }
+function totalPags(span) { return Math.max(1, Math.ceil(reservasHoy.length / ppag(span))); }
+function calcPaginaActual() {
+    const b = config.blocks.find(b => b.type === "reservas");
+    const span = b ? b.span : 3;
+    const pp   = ppag(span);
+    const hora = new Date();
+    const hStr = `${String(hora.getHours()).padStart(2,"0")}:${String(hora.getMinutes()).padStart(2,"0")}`;
+    const idx  = reservasHoy.findIndex(r => (r.hora||"") >= hStr);
+    const pivot = idx === -1 ? Math.max(reservasHoy.length-1,0) : Math.max(idx-1,0);
+    resPag = Math.floor(pivot / pp);
 }
-
-function inicializarPagina() {
-    const ahora = new Date();
-    const horaActual = `${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}`;
-    const span = config.blocks.find(b=>b.id==="reservas")?.span ?? 3;
-    const perPag = slotsPorPagina(span);
-    const idx = reservasHoy.findIndex(r => (r.hora||"") >= horaActual);
-    const pivot = idx === -1 ? reservasHoy.length - 1 : Math.max(idx - 1, 0);
-    resPagina = Math.floor(pivot / perPag);
-}
-
-function totalPaginas(span) {
-    const pp = slotsPorPagina(span);
-    return Math.max(1, Math.ceil(reservasHoy.length / pp));
+function cambiarPagRes(dir) {
+    const b = config.blocks.find(b => b.type === "reservas");
+    const total = totalPags(b ? b.span : 3);
+    resPag = Math.max(0, Math.min(total-1, resPag+dir));
+    renderDash();
 }
 
 // ── RENDER DASHBOARD ─────────────────────────────────────────
 function renderDash() {
     const grid = document.getElementById("dash-grid");
     grid.innerHTML = "";
-
     config.blocks.forEach(block => {
         if (!block.visible) return;
-
-        const wrapper = document.createElement("div");
-        wrapper.className = `db-block block-${block.span}`;
-        wrapper.dataset.id = block.id;
-        wrapper.draggable = true;
-
-        let inner = "";
-
-        if (block.id === "stats") {
-            inner = `
-                <div class="block-label"><span class="block-drag" draggable="false">⠿</span> Resumen del día</div>
-                <div class="stats-row">
-                    <div class="stat-card"><div class="stat-label">Pedidos hoy</div><div class="stat-value blue">${statsData.pedidos}</div></div>
-                    <div class="stat-card"><div class="stat-label">Total hoy</div><div class="stat-value green">${statsData.total}</div></div>
-                    <div class="stat-card"><div class="stat-label">Mesas ocupadas</div><div class="stat-value">${statsData.mesas}</div></div>
-                    <div class="stat-card"><div class="stat-label">Reservas hoy</div><div class="stat-value orange">${statsData.reservas}</div></div>
-                </div>`;
-        }
-
-        else if (block.id === "reservas") {
-            inner = `<div class="block-label"><span class="block-drag" draggable="false">⠿</span> Reservas del día</div>
-                     ${renderReservasWidget(block)}`;
-        }
-
-        else if (block.id === "accesos") {
-            const mods = (block.modules || []).map(mid => ALL_MODULES.find(m=>m.id===mid)).filter(Boolean);
-            const cols = block.span === 2 ? "cols-2" : block.span === 3 ? "cols-3" : "cols-6";
-            const cards = mods.map(m => `
-                <a href="${m.href}" class="module-card">
-                    <div class="module-icon">${m.icon}</div>
-                    <div class="module-title">${m.title}</div>
-                    <div class="module-desc">${m.desc}</div>
-                </a>`).join("");
-            inner = `<div class="block-label"><span class="block-drag" draggable="false">⠿</span> Accesos rápidos</div>
-                     <div class="modules-grid ${cols}">${cards}</div>`;
-        }
-
-        else if (block.id === "stock-status") {
-            const mods = (block.modules || []).map(mid => ALL_MODULES.find(m=>m.id===mid)).filter(Boolean);
-            const cols = block.span === 2 ? "cols-2" : block.span === 3 ? "cols-3" : "cols-6";
-            let stockHtml = "";
-            if (block.showWidget) {
-                stockHtml = `<div class="stock-card" style="margin-bottom:14px;">
-                    <h4>📦 Estado de insumos</h4>
-                    <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-ok"></div><span>OK</span></div><div class="stock-num" style="color:#16a34a;">${stockStatus.ok}</div></div>
-                    <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-warn"></div><span>Advertencia</span></div><div class="stock-num" style="color:#d97706;">${stockStatus.warn}</div></div>
-                    <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-red"></div><span>Agotados</span></div><div class="stock-num" style="color:#dc2626;">${stockStatus.agotado}</div></div>
-                </div>`;
-            }
-            const cards = mods.map(m => `
-                <a href="${m.href}" class="module-card">
-                    <div class="module-icon">${m.icon}</div>
-                    <div class="module-title">${m.title}</div>
-                    <div class="module-desc">${m.desc}</div>
-                </a>`).join("");
-            inner = `<div class="block-label"><span class="block-drag" draggable="false">⠿</span> Estado del stock</div>
-                     ${stockHtml}
-                     ${mods.length ? `<div class="modules-grid ${cols}">${cards}</div>` : ""}`;
-        }
-
-        wrapper.innerHTML = inner;
-        grid.appendChild(wrapper);
+        const el = document.createElement("div");
+        el.className = `db-block span-${block.span}`;
+        el.dataset.id = block.id;
+        el.innerHTML = buildBlock(block);
+        grid.appendChild(el);
     });
-
-    initDragBlocks();
+    initDrag();
 }
 
-// ── RESERVAS WIDGET RENDER ───────────────────────────────────
-function renderReservasWidget(block) {
-    const span = block.span;
-    const perPag = slotsPorPagina(span);
-    const total = totalPaginas(span);
-    const ahora = new Date();
-    const horaActual = `${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}`;
+function buildBlock(b) {
+    if (b.type === "stats") return buildStats(b);
+    if (b.type === "reservas") return buildReservas(b);
+    if (b.type === "accesos")  return buildAccesos(b);
+    if (b.type === "stock")    return buildStock(b);
+    if (b.type === "quick")    return buildQuick(b);
+    return "";
+}
+
+function blockHeader(label) {
+    return `<div class="block-label"><span class="block-drag">⠿</span>${label}</div>`;
+}
+
+function buildStats(b) {
+    return `${blockHeader("Resumen del día")}
+    <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Pedidos hoy</div><div class="stat-value blue">${statsData.pedidos}</div></div>
+        <div class="stat-card"><div class="stat-label">Total hoy</div><div class="stat-value green">${statsData.total}</div></div>
+        <div class="stat-card"><div class="stat-label">Mesas ocupadas</div><div class="stat-value">${statsData.mesas}</div></div>
+        <div class="stat-card"><div class="stat-label">Reservas hoy</div><div class="stat-value orange">${statsData.reservas}</div></div>
+    </div>`;
+}
+
+function buildReservas(b) {
+    const span   = b.span;
+    const pp     = ppag(span);
+    const total  = totalPags(span);
+    const ahora  = new Date();
+    const hStr   = `${String(ahora.getHours()).padStart(2,"0")}:${String(ahora.getMinutes()).padStart(2,"0")}`;
+    const inicio = resPag * pp;
+    const slots  = reservasHoy.slice(inicio, inicio + pp);
 
     function slotHtml(r) {
-        if (!r) return `<div class="res-slot pasado"><span class="res-hora">—</span><div class="res-info"><div style="color:#d1d5db">Libre</div></div></div>`;
+        if (!r) return "";
         const hora = r.hora || "";
-        const esBloqueo = r.tipo === "bloqueo" || r.bloqueo;
-        const esPasado = hora < horaActual;
-        const esActual = hora <= horaActual && !esPasado;
-        let cls = esBloqueo ? "bloq" : esPasado ? "pasado" : "ok";
-        const nombre = esBloqueo ? `🔒 ${r.motivo||"Bloqueo"}` : (r.nombre_cliente || r.cliente || "—");
-        const sub = esBloqueo ? (r.mesas_bloqueadas ? `Mesas: ${r.mesas_bloqueadas}` : "") : `👥 ${r.personas||"?"} personas · Mesa ${r.mesa_numero||r.mesa_id||"?"}`;
+        const bloq = r.tipo==="bloqueo" || r.bloqueo;
+        const pas  = hora < hStr;
+        const cls  = bloq ? "bloq" : pas ? "pasado" : "ok";
+        const nom  = bloq ? `🔒 ${r.motivo||"Bloqueo"}` : (r.nombre_cliente||r.cliente||"—");
+        const sub  = bloq
+            ? (r.mesas_bloqueadas ? `Mesas: ${r.mesas_bloqueadas}` : "")
+            : `👥 ${r.personas||"?"} · Mesa ${r.mesa_numero||r.mesa_id||"?"}`;
         return `<div class="res-slot ${cls}">
             <span class="res-hora">${hora}</span>
-            <div class="res-info"><div>${nombre}</div><div class="res-sub">${sub}</div></div>
+            <div class="res-info"><div>${nom}</div><div class="res-sub">${sub}</div></div>
         </div>`;
     }
-
-    const inicio = resPagina * perPag;
-    const pagSlots = reservasHoy.slice(inicio, inicio + perPag);
 
     let body = "";
-    if (reservasHoy.length === 0) {
+    if (!reservasHoy.length) {
         body = `<div class="res-empty">Sin reservas para hoy</div>`;
     } else if (span === 6) {
-        // Modo libro: dos columnas de 3
-        const col1 = pagSlots.slice(0, 3);
-        const col2 = pagSlots.slice(3, 6);
-        while (col1.length < 3) col1.push(null);
-        while (col2.length < 3) col2.push(null);
+        const c1 = slots.slice(0,3), c2 = slots.slice(3,6);
         body = `<div class="reservas-book">
-            <div class="reservas-col">${col1.map(slotHtml).join("")}</div>
-            <div class="reservas-col">${col2.map(slotHtml).join("")}</div>
+            <div class="reservas-col">${c1.map(slotHtml).join("")}</div>
+            <div class="reservas-col">${c2.map(slotHtml).join("")}</div>
         </div>`;
     } else {
-        body = `<div class="reservas-single">${pagSlots.map(slotHtml).join("")}</div>`;
+        body = `<div class="reservas-list">${slots.map(slotHtml).join("")}</div>`;
     }
 
-    const pag = `<div class="res-pagination">
-        <span class="res-pag-info">Pág. ${resPagina+1} / ${total}</span>
-        <button class="res-pag-btn" onclick="cambiarPagRes(-1)" ${resPagina===0?"disabled":""}>◀</button>
-        <button class="res-pag-btn" onclick="cambiarPagRes(1)"  ${resPagina>=total-1?"disabled":""}>▶</button>
-    </div>`;
+    const pager = total > 1 ? `<div class="res-pager">
+        <span class="res-pag-info">Pág. ${resPag+1}/${total}</span>
+        <button class="res-pag-btn" onclick="cambiarPagRes(-1)" ${resPag===0?"disabled":""}>◀</button>
+        <button class="res-pag-btn" onclick="cambiarPagRes(1)"  ${resPag>=total-1?"disabled":""}>▶</button>
+    </div>` : "";
 
-    return `<div class="reservas-card"><h4>📅 Reservas de hoy</h4>${body}${total > 1 ? pag : ""}</div>`;
+    return `${blockHeader("")}
+    <div class="reservas-card">
+        <a href="reservas.html" class="widget-title">📅 Reservas de hoy</a>
+        ${body}${pager}
+    </div>`;
 }
 
-function cambiarPagRes(dir) {
-    const span = config.blocks.find(b=>b.id==="reservas")?.span ?? 3;
-    const total = totalPaginas(span);
-    resPagina = Math.max(0, Math.min(total - 1, resPagina + dir));
-    renderDash();
+function buildAccesos(b) {
+    const mods = (b.modules||[]).map(getMod).filter(Boolean);
+    const cn   = span2cols(b.span);
+    const cards = mods.map(m => `
+        <a href="${m.href}" class="module-card">
+            <div class="module-icon">${m.icon}</div>
+            <div class="module-title">${m.title}</div>
+            <div class="module-desc">${m.desc}</div>
+        </a>`).join("");
+    return `${blockHeader("Accesos rápidos")}<div class="modules-grid modules-cols-${cn}">${cards}</div>`;
+}
+
+function buildStock(b) {
+    return `${blockHeader("")}
+    <div class="stock-card">
+        <a href="stock.html" class="widget-title">📦 Estado del stock</a>
+        <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-ok"></div><span>OK</span></div><div class="stock-num" style="color:#16a34a;">${stockData.ok}</div></div>
+        <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-warn"></div><span>Advertencia</span></div><div class="stock-num" style="color:#d97706;">${stockData.warn}</div></div>
+        <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-red"></div><span>Agotados</span></div><div class="stock-num" style="color:#dc2626;">${stockData.agotado}</div></div>
+    </div>`;
+}
+
+function buildQuick(b) {
+    const m = getMod(b.moduleId);
+    if (!m) return `${blockHeader("Acceso rápido")}<div style="background:white;border-radius:12px;padding:16px;text-align:center;color:#9ca3af;font-size:12px;">Sin módulo</div>`;
+    return `${blockHeader("")}
+    <a href="${m.href}" class="module-card" style="min-height:120px;">
+        <div class="module-icon">${m.icon}</div>
+        <div class="module-title">${m.title}</div>
+        <div class="module-desc">${m.desc}</div>
+    </a>`;
+}
+
+function span2cols(span) {
+    return span === 1 ? 1 : span === 2 ? 2 : span === 3 ? 3 : 6;
 }
 
 // ── DRAG & DROP BLOQUES ──────────────────────────────────────
-function initDragBlocks() {
+function initDrag() {
     const grid = document.getElementById("dash-grid");
     let dragging = null;
+    let canDrag  = false;
 
     grid.querySelectorAll(".db-block").forEach(block => {
+        // Solo arrastrar si mousedown fue sobre el handle
+        block.addEventListener("mousedown", e => {
+            canDrag = !!e.target.closest(".block-drag");
+            block.setAttribute("draggable", canDrag ? "true" : "false");
+        });
+        document.addEventListener("mouseup", () => {
+            block.setAttribute("draggable","false");
+        }, { once: false });
+
         block.addEventListener("dragstart", e => {
-            if (!e.target.classList.contains("block-drag")) { e.preventDefault(); return; }
+            if (!canDrag) { e.preventDefault(); return; }
             dragging = block;
-            setTimeout(() => block.classList.add("dragging"), 0);
             e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", block.dataset.id);
+            setTimeout(() => { if (dragging) dragging.classList.add("dragging"); }, 0);
         });
+
         block.addEventListener("dragend", () => {
-            block.classList.remove("dragging");
+            if (dragging) dragging.classList.remove("dragging");
+            dragging = null; canDrag = false;
             grid.querySelectorAll(".db-block").forEach(b => b.classList.remove("drop-before","drop-after"));
-            dragging = null;
-            // Guardar nuevo orden en config
-            const newOrder = [...grid.querySelectorAll(".db-block")].map(b => b.dataset.id);
-            config.blocks.sort((a,b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+            // Sync order to config
+            syncOrder();
         });
+
         block.addEventListener("dragover", e => {
             e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
             if (!dragging || dragging === block) return;
             const rect = block.getBoundingClientRect();
             grid.querySelectorAll(".db-block").forEach(b => b.classList.remove("drop-before","drop-after"));
-            if (e.clientY < rect.top + rect.height / 2) {
-                block.classList.add("drop-before");
-            } else {
-                block.classList.add("drop-after");
-            }
+            block.classList.add(e.clientX < rect.left + rect.width/2 ? "drop-before" : "drop-after");
         });
-        block.addEventListener("dragleave", () => {
-            block.classList.remove("drop-before","drop-after");
+
+        block.addEventListener("dragleave", e => {
+            if (!block.contains(e.relatedTarget)) block.classList.remove("drop-before","drop-after");
         });
+
         block.addEventListener("drop", e => {
             e.preventDefault();
             if (!dragging || dragging === block) return;
-            const isBefore = block.classList.contains("drop-before");
+            const before = block.classList.contains("drop-before");
             block.classList.remove("drop-before","drop-after");
-            if (isBefore) grid.insertBefore(dragging, block);
-            else grid.insertBefore(dragging, block.nextSibling);
-            const newOrder = [...grid.querySelectorAll(".db-block")].map(b => b.dataset.id);
-            config.blocks.sort((a,b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+            grid.insertBefore(dragging, before ? block : block.nextSibling);
+            syncOrder();
         });
     });
 }
 
-// ── PANEL DE CONFIGURACIÓN ───────────────────────────────────
+function syncOrder() {
+    const ids = [...document.querySelectorAll(".db-block")].map(b => b.dataset.id);
+    config.blocks.sort((a,b) => {
+        const ai = ids.indexOf(a.id), bi = ids.indexOf(b.id);
+        return (ai<0?999:ai)-(bi<0?999:bi);
+    });
+}
+
+// ── PANEL DE CONFIG ──────────────────────────────────────────
 function abrirConfig() {
     renderConfigPanel();
     document.getElementById("cfg-overlay").classList.add("open");
@@ -493,132 +470,131 @@ function cerrarConfig() {
 }
 
 function renderConfigPanel() {
-    const list = document.getElementById("cfg-blocks-list");
-    list.innerHTML = config.blocks.map((block, bi) => {
-        const spanBadge = `${block.span} col${block.span > 1 ? "s" : ""}`;
-
-        let optsHtml = "";
-
-        // Selector de span
-        optsHtml += `<div class="opt-row"><span>Columnas</span>
-            <div class="span-btns">
-                <button class="span-btn ${block.span===2?"active":""}" onclick="setSpan(${bi},2)">2</button>
-                <button class="span-btn ${block.span===3?"active":""}" onclick="setSpan(${bi},3)">3</button>
-                <button class="span-btn ${block.span===6?"active":""}" onclick="setSpan(${bi},6)">6</button>
-            </div></div>`;
-
-        // Opciones específicas por bloque
-        if (block.id === "reservas") {
-            optsHtml += `<div class="opt-row"><span>Mini-grilla de reservas</span>
-                <label class="tsw" onclick="event.stopPropagation()">
-                    <input type="checkbox" ${block.showWidget!==false?"checked":""} onchange="toggleWidget(${bi},this.checked)">
-                    <span class="tsl"></span>
-                </label></div>`;
-            optsHtml += buildModuleList(block, bi, ["reservas"]);
-        }
-        if (block.id === "accesos") {
-            optsHtml += buildModuleList(block, bi, ALL_MODULES.map(m=>m.id));
-        }
-        if (block.id === "stock-status") {
-            optsHtml += `<div class="opt-row"><span>Widget estado insumos</span>
-                <label class="tsw" onclick="event.stopPropagation()">
-                    <input type="checkbox" ${block.showWidget!==false?"checked":""} onchange="toggleWidget(${bi},this.checked)">
-                    <span class="tsl"></span>
-                </label></div>`;
-            optsHtml += buildModuleList(block, bi, ["mesas","reservas","productos","caja","fichajes","usuarios","stock","facturas"]);
-        }
-
-        return `<div class="cblock">
-            <div class="cblock-head" onclick="toggleCblockOpts(${bi})">
-                <span class="cblock-drag">⠿</span>
-                <span class="cblock-name">${block.label}</span>
-                <span class="span-badge">${spanBadge}</span>
-                <label class="tsw" onclick="event.stopPropagation()">
-                    <input type="checkbox" ${block.visible?"checked":""} onchange="toggleBlock(${bi},this.checked)">
-                    <span class="tsl"></span>
-                </label>
-            </div>
-            <div class="cblock-opts" id="cblock-opts-${bi}" style="display:none">${optsHtml}</div>
-        </div>`;
-    }).join("");
+    document.getElementById("cfg-blocks-list").innerHTML =
+        config.blocks.map((b,i) => buildCblock(b,i)).join("");
 }
 
-function buildModuleList(block, bi, availableIds) {
-    const available = availableIds.map(id => ALL_MODULES.find(m=>m.id===id)).filter(Boolean);
-    const active = block.modules || [];
-    const items = available.map(m => {
-        const on = active.includes(m.id);
-        return `<div class="mi-item">
-            <span class="mi-drag">⠿</span>
-            <span>${m.icon}</span>
-            <span class="mi-name">${m.title}</span>
+function buildCblock(b, i) {
+    const spanLabel = `${b.span} col${b.span===1?"":"s"}`;
+    let opts = "";
+
+    // Span selector: todos tienen esto
+    const spanOpts = [1,2,3,6].map(s =>
+        `<button class="span-btn ${b.span===s?"active":""}" onclick="setSpan(${i},${s})">${s}</button>`
+    ).join("");
+    opts += `<div class="opt-row"><span>Columnas</span><div class="span-btns">${spanOpts}</div></div>`;
+
+    // Accesos rápidos: selector de módulo
+    if (b.type === "quick") {
+        const modOptions = ALL_MODULES.map(m =>
+            `<option value="${m.id}" ${b.moduleId===m.id?"selected":""}>${m.icon} ${m.title}</option>`
+        ).join("");
+        opts += `<div class="opt-row"><span>Módulo</span>
+            <select onchange="setQuickModule(${i},this.value)" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+                ${modOptions}
+            </select></div>`;
+    }
+
+    // Accesos: lista de módulos
+    if (b.type === "accesos") {
+        const items = ALL_MODULES.map(m => {
+            const on = (b.modules||[]).includes(m.id);
+            return `<div class="mi-item">
+                <span>${m.icon}</span><span class="mi-name">${m.title}</span>
+                <label class="tsw"><input type="checkbox" ${on?"checked":""} onchange="toggleModAcceso(${i},'${m.id}',this.checked)"><span class="tsl"></span></label>
+            </div>`;
+        }).join("");
+        opts += `<div class="sub-lbl">Módulos visibles</div><div>${items}</div>`;
+    }
+
+    const canDelete = b.type === "quick";
+    return `<div class="cblock">
+        <div class="cblock-head" onclick="toggleOpts(${i})">
+            <span class="cblock-drag">⠿</span>
+            <span class="cblock-name">${b.label}</span>
+            <span class="span-badge">${spanLabel}</span>
+            ${canDelete ? `<button class="mi-del" onclick="event.stopPropagation();eliminarBloque(${i})">✕</button>` : ""}
             <label class="tsw" onclick="event.stopPropagation()">
-                <input type="checkbox" ${on?"checked":""} onchange="toggleModule(${bi},'${m.id}',this.checked)">
+                <input type="checkbox" ${b.visible?"checked":""} onchange="toggleVisible(${i},this.checked)">
                 <span class="tsl"></span>
             </label>
-        </div>`;
-    }).join("");
-    return `<div class="sub-lbl">Módulos incluidos</div><div>${items}</div>`;
+        </div>
+        <div id="cblock-opts-${i}" class="cblock-opts" style="display:none">${opts}</div>
+    </div>`;
 }
 
-function toggleCblockOpts(bi) {
-    const el = document.getElementById(`cblock-opts-${bi}`);
+function toggleOpts(i) {
+    const el = document.getElementById(`cblock-opts-${i}`);
     if (el) el.style.display = el.style.display === "none" ? "block" : "none";
 }
-
-function toggleBlock(bi, val) {
-    config.blocks[bi].visible = val;
+function toggleVisible(i, val) {
+    config.blocks[i].visible = val;
     renderDash();
-    renderConfigPanel();
 }
-
-function setSpan(bi, span) {
-    config.blocks[bi].span = span;
-    if (config.blocks[bi].id === "reservas") inicializarPagina();
+function setSpan(i, span) {
+    config.blocks[i].span = span;
+    if (config.blocks[i].type === "reservas") calcPaginaActual();
     renderDash();
     renderConfigPanel();
-    // Reabrir el opts panel
     setTimeout(() => {
-        const el = document.getElementById(`cblock-opts-${bi}`);
+        const el = document.getElementById(`cblock-opts-${i}`);
         if (el) el.style.display = "block";
     }, 10);
 }
-
-function toggleWidget(bi, val) {
-    config.blocks[bi].showWidget = val;
+function toggleModAcceso(i, moduleId, val) {
+    const mods = config.blocks[i].modules || [];
+    if (val && !mods.includes(moduleId)) mods.push(moduleId);
+    else if (!val) config.blocks[i].modules = mods.filter(m => m !== moduleId);
+    else config.blocks[i].modules = mods;
+    config.blocks[i].modules = mods;
     renderDash();
 }
-
-function toggleModule(bi, moduleId, val) {
-    const block = config.blocks[bi];
-    if (!block.modules) block.modules = [];
-    if (val && !block.modules.includes(moduleId)) {
-        block.modules.push(moduleId);
-    } else if (!val) {
-        block.modules = block.modules.filter(m => m !== moduleId);
-    }
+function setQuickModule(i, moduleId) {
+    config.blocks[i].moduleId = moduleId;
+    const m = getMod(moduleId);
+    if (m) config.blocks[i].label = m.title;
     renderDash();
+    renderConfigPanel();
+    setTimeout(() => {
+        const el = document.getElementById(`cblock-opts-${i}`);
+        if (el) el.style.display = "block";
+    }, 10);
+}
+function eliminarBloque(i) {
+    config.blocks.splice(i, 1);
+    renderDash();
+    renderConfigPanel();
+}
+
+let _quickCounter = 0;
+function agregarAccesoRapido() {
+    const defaultMod = ALL_MODULES[0];
+    config.blocks.push({
+        id: `quick-${Date.now()}-${_quickCounter++}`,
+        type: "quick",
+        label: defaultMod.title,
+        visible: true,
+        span: 1,
+        moduleId: defaultMod.id
+    });
+    renderDash();
+    renderConfigPanel();
+    // Scroll al fondo del panel
+    const body = document.querySelector(".cfg-body");
+    if (body) body.scrollTop = body.scrollHeight;
 }
 
 function guardarConfig() {
-    // Capturar orden actual del DOM
-    const grid = document.getElementById("dash-grid");
-    const domOrder = [...grid.querySelectorAll(".db-block")].map(b => b.dataset.id);
-    config.blocks.sort((a,b) => {
-        const ai = domOrder.indexOf(a.id);
-        const bi2 = domOrder.indexOf(b.id);
-        return (ai === -1 ? 999 : ai) - (bi2 === -1 ? 999 : bi2);
-    });
-    saveConfig(config);
+    syncOrder();
+    saveConfig();
     cerrarConfig();
-    renderDash();
 }
 
 function resetConfig() {
     if (!confirm("¿Restablecer la configuración por defecto?")) return;
     config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-    saveConfig(config);
-    resPagina = 0;
+    saveConfig();
+    resPag = 0;
     renderDash();
     renderConfigPanel();
 }
