@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PREVIEW — Dashboard personalizable</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+
+/* ── NAVBAR ── */
+.navbar { background:#1a1a2e; color:white; padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:fixed; top:0; left:0; right:0; z-index:300; }
+.navbar-left { display:flex; align-items:center; gap:10px; }
+.navbar-brand { font-size:18px; font-weight:700; }
+.navbar-right { display:flex; align-items:center; gap:12px; font-size:14px; color:#a5b4fc; }
+.btn-config { background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); color:#a5b4fc; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; display:flex; align-items:center; gap:6px; transition:all 0.2s; }
+.btn-config:hover { background:rgba(99,102,241,0.35); color:white; }
+.btn-logout { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+
+/* ── CONTENT ── */
+.content { margin-top:60px; padding:28px 32px; }
+
+/* ── WIDGET BLOCKS ── */
+.widget-block { margin-bottom:20px; position:relative; transition: opacity 0.2s; }
+.widget-block.dragging { opacity: 0.4; }
+.widget-block.drag-over-top { border-top: 3px solid #4f46e5; padding-top: 4px; }
+.widget-block.drag-over-bottom { border-bottom: 3px solid #4f46e5; padding-bottom: 4px; }
+
+.widget-block-label { font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; display:flex; align-items:center; gap:6px; user-select:none; }
+.drag-handle { cursor:grab; font-size:16px; color:#c4b5fd; padding:2px 4px; border-radius:4px; }
+.drag-handle:hover { background:rgba(196,181,253,0.15); }
+.drag-handle:active { cursor:grabbing; }
+
+/* Layout: ROW */
+.layout-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:16px; }
+.stat-card { background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.stat-label { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+.stat-value { font-size:28px; font-weight:700; color:#1a1a2e; }
+.stat-value.green { color:#16a34a; }
+.stat-value.blue { color:#4f46e5; }
+.stat-value.orange { color:#d97706; }
+
+/* Layout: GRID */
+.layout-grid-6 { display:grid; grid-template-columns:repeat(6,1fr); gap:16px; grid-auto-rows:160px; }
+.layout-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; grid-auto-rows:160px; }
+
+/* Module card */
+.module-card { background:white; border-radius:12px; padding:22px 18px; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-decoration:none; color:inherit; display:flex; flex-direction:column; border:2px solid transparent; }
+.module-card:hover { border-color:#4f46e5; transform:translateY(-2px); }
+.module-icon { font-size:30px; margin-bottom:10px; }
+.module-title { font-size:14px; font-weight:700; color:#1a1a2e; margin-bottom:3px; }
+.module-desc { font-size:11px; color:#888; line-height:1.4; }
+
+/* Widget: reservas mini (span 3 cols x 2 filas) */
+.reservas-widget { background:white; border-radius:12px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); grid-column:span 3; grid-row:span 2; display:flex; flex-direction:column; }
+.reservas-widget h4 { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+.reserva-slot { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; margin-bottom:6px; font-size:12px; flex-shrink:0; }
+.reserva-slot.ok   { background:#f0fdf4; border-left:3px solid #16a34a; }
+.reserva-slot.bloq { background:#fff7ed; border-left:3px solid #f59e0b; }
+.reserva-slot.libre{ background:#f9fafb; border-left:3px solid #e5e7eb; color:#9ca3af; }
+.slot-hora { font-weight:700; min-width:42px; font-size:12px; }
+.slot-personas { font-size:11px; color:#888; }
+
+/* Widget: stock status */
+.stock-widget { background:white; border-radius:12px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; flex-direction:column; }
+.stock-widget h4 { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+.stock-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f3f4f6; font-size:13px; }
+.stock-row:last-child { border-bottom:none; }
+.stock-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.dot-ok   { background:#16a34a; }
+.dot-warn { background:#f59e0b; }
+.dot-empty{ background:#dc2626; }
+.stock-count { font-size:22px; font-weight:700; }
+
+/* ── CONFIG PANEL ── */
+.config-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:400; display:none; }
+.config-overlay.open { display:block; }
+.config-panel { position:fixed; top:0; right:0; width:390px; height:100%; background:white; z-index:401; box-shadow:-4px 0 24px rgba(0,0,0,0.15); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+.config-panel.open { transform:translateX(0); }
+.config-header { padding:20px 24px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.config-header h3 { font-size:16px; font-weight:700; color:#1a1a2e; }
+.config-close { background:none; border:none; font-size:20px; cursor:pointer; color:#888; }
+.config-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.config-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#6366f1; margin-bottom:10px; }
+.config-hint { font-size:12px; color:#9ca3af; margin-bottom:14px; }
+
+/* Cblock */
+.cblock { background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:10px; overflow:hidden; }
+.cblock-header { display:flex; align-items:center; gap:10px; padding:12px 14px; cursor:pointer; user-select:none; }
+.cblock-drag { color:#c4b5fd; font-size:16px; cursor:grab; }
+.cblock-name { flex:1; font-size:13px; font-weight:600; color:#374151; }
+.cblock-type-badge { font-size:11px; background:#ede9fe; color:#5b21b6; border-radius:12px; padding:2px 8px; white-space:nowrap; }
+.toggle-sw { position:relative; width:36px; height:20px; flex-shrink:0; }
+.toggle-sw input { opacity:0; width:0; height:0; }
+.toggle-sl { position:absolute; inset:0; background:#d1d5db; border-radius:20px; cursor:pointer; transition:0.2s; }
+.toggle-sl:before { content:''; position:absolute; width:14px; height:14px; left:3px; top:3px; background:white; border-radius:50%; transition:0.2s; }
+input:checked + .toggle-sl { background:#4f46e5; }
+input:checked + .toggle-sl:before { transform:translateX(16px); }
+.cblock-opts { padding:4px 14px 12px; border-top:1px solid #e5e7eb; background:white; }
+.opt-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f4f6; }
+.opt-row:last-child { border-bottom:none; }
+.layout-btns { display:flex; gap:4px; }
+.layout-btn { padding:3px 8px; border:1px solid #d1d5db; border-radius:5px; background:white; font-size:11px; cursor:pointer; color:#6b7280; transition:all 0.15s; }
+.layout-btn.active { background:#4f46e5; color:white; border-color:#4f46e5; }
+.mi-list { margin-top:4px; }
+.mi-item { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; font-size:12px; color:#374151; }
+.mi-item:hover { background:#f3f4f6; }
+.mi-drag { color:#d1d5db; cursor:grab; font-size:13px; }
+.mi-icon { font-size:14px; }
+.mi-name { flex:1; }
+.sub-label { font-size:11px; color:#9ca3af; margin:8px 0 2px; font-weight:600; }
+
+/* Badge */
+.preview-badge { position:fixed; bottom:20px; right:20px; background:#1a1a2e; color:white; padding:10px 18px; border-radius:10px; font-size:12px; font-weight:600; z-index:999; box-shadow:0 4px 20px rgba(0,0,0,0.3); }
+.preview-badge span { color:#a5b4fc; }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <div class="navbar-left">
+        <button style="background:none;border:none;cursor:pointer;padding:6px 8px;display:flex;flex-direction:column;gap:5px;">
+            <span style="display:block;width:22px;height:2px;background:white;border-radius:2px;"></span>
+            <span style="display:block;width:22px;height:2px;background:white;border-radius:2px;"></span>
+            <span style="display:block;width:22px;height:2px;background:white;border-radius:2px;"></span>
+        </button>
+        <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    </div>
+    <div class="navbar-right">
+        <span>admin</span>
+        <button class="btn-config" onclick="toggleConfig()">⚙️ Personalizar</button>
+        <button class="btn-logout">Cerrar sesión</button>
+    </div>
+</nav>
+
+<!-- DASHBOARD -->
+<div class="content" id="dashboard-content">
+
+    <!-- BLOQUE 1: Resumen del día -->
+    <div class="widget-block" id="block-stats" draggable="true">
+        <div class="widget-block-label">
+            <span class="drag-handle" title="Arrastrá para reordenar">⠿</span>
+            Resumen del día
+        </div>
+        <div class="layout-row">
+            <div class="stat-card"><div class="stat-label">Pedidos hoy</div><div class="stat-value blue">12</div></div>
+            <div class="stat-card"><div class="stat-label">Total facturado</div><div class="stat-value green">$84.500</div></div>
+            <div class="stat-card"><div class="stat-label">Mesas ocupadas</div><div class="stat-value">5 / 12</div></div>
+            <div class="stat-card"><div class="stat-label">Reservas hoy</div><div class="stat-value orange">3</div></div>
+        </div>
+    </div>
+
+    <!-- BLOQUE 2: Reservas (bloque propio) -->
+    <div class="widget-block" id="block-reservas" draggable="true">
+        <div class="widget-block-label">
+            <span class="drag-handle" title="Arrastrá para reordenar">⠿</span>
+            Reservas del día
+        </div>
+        <div class="layout-grid-3">
+            <div class="reservas-widget">
+                <h4>📅 Reservas de hoy</h4>
+                <div class="reserva-slot ok"><span class="slot-hora">13:00</span><div><div>Mesa 4 — García</div><div class="slot-personas">👥 4 personas</div></div></div>
+                <div class="reserva-slot ok"><span class="slot-hora">14:30</span><div><div>Mesa 7 — Rodríguez</div><div class="slot-personas">👥 2 personas</div></div></div>
+                <div class="reserva-slot bloq"><span class="slot-hora">20:00</span><div><div>🔒 Bloqueo — evento privado</div><div class="slot-personas">Mesas 1–4</div></div></div>
+                <div class="reserva-slot libre"><span class="slot-hora">21:00</span><div><div>Sin reservas</div></div></div>
+            </div>
+            <a class="module-card" href="#"><div class="module-icon">📅</div><div class="module-title">Reservas</div><div class="module-desc">Gestión completa</div></a>
+        </div>
+    </div>
+
+    <!-- BLOQUE 3: Accesos rápidos -->
+    <div class="widget-block" id="block-accesos" draggable="true">
+        <div class="widget-block-label">
+            <span class="drag-handle" title="Arrastrá para reordenar">⠿</span>
+            Accesos rápidos
+        </div>
+        <div class="layout-grid-6">
+            <a class="module-card" href="#"><div class="module-icon">🪑</div><div class="module-title">Mesas</div><div class="module-desc">Estado y asignación</div></a>
+            <a class="module-card" href="#"><div class="module-icon">🍽️</div><div class="module-title">Productos</div><div class="module-desc">Carta y precios</div></a>
+            <a class="module-card" href="#"><div class="module-icon">💰</div><div class="module-title">Caja</div><div class="module-desc">Ventas del día</div></a>
+            <a class="module-card" href="#"><div class="module-icon">🕐</div><div class="module-title">Fichajes</div><div class="module-desc">Turnos del personal</div></a>
+            <a class="module-card" href="#"><div class="module-icon">📦</div><div class="module-title">Stock</div><div class="module-desc">Inventario</div></a>
+            <a class="module-card" href="#"><div class="module-icon">🧾</div><div class="module-title">Facturas</div><div class="module-desc">Proveedores</div></a>
+        </div>
+    </div>
+
+    <!-- BLOQUE 4: Estado del stock -->
+    <div class="widget-block" id="block-stock" draggable="true">
+        <div class="widget-block-label">
+            <span class="drag-handle" title="Arrastrá para reordenar">⠿</span>
+            Estado del stock
+        </div>
+        <div class="layout-grid-3">
+            <div class="stock-widget">
+                <h4>📦 Insumos</h4>
+                <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-ok"></div><span>OK</span></div><div class="stock-count" style="color:#16a34a;">34</div></div>
+                <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-warn"></div><span>Advertencia</span></div><div class="stock-count" style="color:#d97706;">8</div></div>
+                <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-empty"></div><span>Agotados</span></div><div class="stock-count" style="color:#dc2626;">3</div></div>
+            </div>
+            <a class="module-card" href="#"><div class="module-icon">📦</div><div class="module-title">Stock</div><div class="module-desc">Inventario y movimientos</div></a>
+            <a class="module-card" href="#"><div class="module-icon">🧾</div><div class="module-title">Facturas</div><div class="module-desc">Proveedores e ingresos</div></a>
+        </div>
+    </div>
+
+</div>
+
+<!-- CONFIG OVERLAY + PANEL -->
+<div class="config-overlay" id="config-overlay" onclick="toggleConfig()"></div>
+<div class="config-panel" id="config-panel">
+    <div class="config-header">
+        <h3>⚙️ Personalizar dashboard</h3>
+        <button class="config-close" onclick="toggleConfig()">✕</button>
+    </div>
+    <div class="config-body">
+        <div class="config-section-title">Bloques de widgets</div>
+        <p class="config-hint">Expandí cada bloque para configurarlo. Arrastrá ⠿ para reordenar.</p>
+
+        <!-- Bloque Stats -->
+        <div class="cblock">
+            <div class="cblock-header" onclick="toggleOpts(this)">
+                <span class="cblock-drag">⠿</span>
+                <span class="cblock-name">Resumen del día</span>
+                <span class="cblock-type-badge">Fila</span>
+                <label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label>
+            </div>
+            <div class="cblock-opts" style="display:none">
+                <div class="opt-row"><span>Layout</span>
+                    <div class="layout-btns">
+                        <button class="layout-btn active">— Fila</button>
+                        <button class="layout-btn">⊞ 6 col</button>
+                        <button class="layout-btn">⊟ 3 col</button>
+                    </div>
+                </div>
+                <div class="opt-row"><span style="font-size:11px;color:#9ca3af;">Datos de caja e historial de pedidos</span></div>
+            </div>
+        </div>
+
+        <!-- Bloque Reservas -->
+        <div class="cblock">
+            <div class="cblock-header" onclick="toggleOpts(this)">
+                <span class="cblock-drag">⠿</span>
+                <span class="cblock-name">Reservas del día</span>
+                <span class="cblock-type-badge">Grid 3</span>
+                <label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label>
+            </div>
+            <div class="cblock-opts" style="display:none">
+                <div class="opt-row"><span>Layout</span>
+                    <div class="layout-btns">
+                        <button class="layout-btn">— Fila</button>
+                        <button class="layout-btn">⊞ 6 col</button>
+                        <button class="layout-btn active">⊟ 3 col</button>
+                    </div>
+                </div>
+                <div class="opt-row"><span>Mini-grilla de reservas</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                <div class="sub-label">Módulos incluidos</div>
+                <div class="mi-list">
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">📅</span><span class="mi-name">Reservas</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bloque Accesos -->
+        <div class="cblock">
+            <div class="cblock-header" onclick="toggleOpts(this)">
+                <span class="cblock-drag">⠿</span>
+                <span class="cblock-name">Accesos rápidos</span>
+                <span class="cblock-type-badge">Grid 6</span>
+                <label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label>
+            </div>
+            <div class="cblock-opts" style="display:none">
+                <div class="opt-row"><span>Layout</span>
+                    <div class="layout-btns">
+                        <button class="layout-btn">— Fila</button>
+                        <button class="layout-btn active">⊞ 6 col</button>
+                        <button class="layout-btn">⊟ 3 col</button>
+                    </div>
+                </div>
+                <div class="sub-label">Módulos incluidos</div>
+                <div class="mi-list">
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">🪑</span><span class="mi-name">Mesas</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">🍽️</span><span class="mi-name">Productos</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">💰</span><span class="mi-name">Caja</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">🕐</span><span class="mi-name">Fichajes</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">📦</span><span class="mi-name">Stock</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">🧾</span><span class="mi-name">Facturas</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">👤</span><span class="mi-name">Usuarios</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox"><span class="toggle-sl"></span></label></div>
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">📅</span><span class="mi-name">Reservas</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox"><span class="toggle-sl"></span></label></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bloque Stock -->
+        <div class="cblock">
+            <div class="cblock-header" onclick="toggleOpts(this)">
+                <span class="cblock-drag">⠿</span>
+                <span class="cblock-name">Estado del stock</span>
+                <span class="cblock-type-badge">Grid 3</span>
+                <label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label>
+            </div>
+            <div class="cblock-opts" style="display:none">
+                <div class="opt-row"><span>Layout</span>
+                    <div class="layout-btns">
+                        <button class="layout-btn">— Fila</button>
+                        <button class="layout-btn">⊞ 6 col</button>
+                        <button class="layout-btn active">⊟ 3 col</button>
+                    </div>
+                </div>
+                <div class="opt-row"><span>Widget estado insumos</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                <div class="sub-label">Módulos incluidos</div>
+                <div class="mi-list">
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">📦</span><span class="mi-name">Stock</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                    <div class="mi-item"><span class="mi-drag">⠿</span><span class="mi-icon">🧾</span><span class="mi-name">Facturas</span><label class="toggle-sw" onclick="event.stopPropagation()"><input type="checkbox" checked><span class="toggle-sl"></span></label></div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;">
+            <button onclick="alert('✅ Configuración guardada en localStorage')" style="padding:12px;background:#4f46e5;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Guardar configuración</button>
+            <button onclick="alert('Configuración restablecida')" style="padding:10px;background:none;color:#9ca3af;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;cursor:pointer;">Restablecer por defecto</button>
+        </div>
+    </div>
+</div>
+
+<div class="preview-badge">👁 <span>PREVIEW</span> — Sin cambios reales</div>
+
+<script>
+// ── CONFIG PANEL ─────────────────────────────────────
+function toggleConfig() {
+    document.getElementById('config-overlay').classList.toggle('open');
+    document.getElementById('config-panel').classList.toggle('open');
+}
+
+function toggleOpts(header) {
+    const opts = header.nextElementSibling;
+    if (opts) opts.style.display = opts.style.display === 'none' ? 'block' : 'none';
+}
+
+// Layout buttons
+document.querySelectorAll('.layout-btns').forEach(group => {
+    group.querySelectorAll('.layout-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            group.querySelectorAll('.layout-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const names = {'— Fila':'Fila','⊞ 6 col':'Grid 6','⊟ 3 col':'Grid 3'};
+            const badge = btn.closest('.cblock')?.querySelector('.cblock-type-badge');
+            if (badge) badge.textContent = names[btn.textContent.trim()] || btn.textContent;
+        });
+    });
+});
+
+// ── DRAG & DROP BLOQUES ──────────────────────────────
+const container = document.getElementById('dashboard-content');
+let draggingBlock = null;
+
+document.querySelectorAll('.widget-block').forEach(block => {
+    // Solo iniciar drag desde el handle
+    block.addEventListener('dragstart', e => {
+        if (!e.target.classList.contains('drag-handle') && !e.target.closest('.drag-handle')) {
+            e.preventDefault();
+            return;
+        }
+        draggingBlock = block;
+        setTimeout(() => block.classList.add('dragging'), 0);
+        e.dataTransfer.effectAllowed = 'move';
+    });
+
+    block.addEventListener('dragend', () => {
+        block.classList.remove('dragging');
+        document.querySelectorAll('.widget-block').forEach(b => {
+            b.classList.remove('drag-over-top','drag-over-bottom');
+        });
+        draggingBlock = null;
+    });
+
+    block.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (!draggingBlock || draggingBlock === block) return;
+        const rect = block.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        document.querySelectorAll('.widget-block').forEach(b => b.classList.remove('drag-over-top','drag-over-bottom'));
+        if (e.clientY < mid) {
+            block.classList.add('drag-over-top');
+        } else {
+            block.classList.add('drag-over-bottom');
+        }
+    });
+
+    block.addEventListener('dragleave', () => {
+        block.classList.remove('drag-over-top','drag-over-bottom');
+    });
+
+    block.addEventListener('drop', e => {
+        e.preventDefault();
+        if (!draggingBlock || draggingBlock === block) return;
+        const rect = block.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        if (e.clientY < mid) {
+            container.insertBefore(draggingBlock, block);
+        } else {
+            container.insertBefore(draggingBlock, block.nextSibling);
+        }
+        block.classList.remove('drag-over-top','drag-over-bottom');
+    });
+});
+
+// Toggle bloques desde config panel
+document.querySelectorAll('.cblock .toggle-sw input').forEach((chk, i) => {
+    const blockIds = ['block-stats','block-reservas','block-accesos','block-stock'];
+    // Solo el primer toggle de cada cblock controla visibilidad
+    const cblock = chk.closest('.cblock');
+    const isFirst = chk.closest('.cblock-header');
+    if (isFirst) {
+        const idx = [...document.querySelectorAll('.cblock')].indexOf(cblock);
+        chk.addEventListener('change', () => {
+            const target = document.getElementById(blockIds[idx]);
+            if (target) target.style.display = chk.checked ? 'block' : 'none';
+        });
+    }
+});
+</script>
+</body>
+</html>
