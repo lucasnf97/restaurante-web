@@ -260,7 +260,7 @@ async function cargarDatos() {
 }
 
 // ── PAGINACIÓN RESERVAS ──────────────────────────────────────
-function ppag(span) { return span === 6 ? 6 : 4; }
+function ppag(span) { return span === 6 ? 8 : 4; }
 function totalPags(span) { return Math.max(1, Math.ceil(reservasHoy.length / ppag(span))); }
 function calcPaginaActual() {
     const b = config.blocks.find(b => b.type === "reservas");
@@ -380,7 +380,7 @@ function buildReservas(b) {
     if (!reservasHoy.length) {
         body = `<div class="reservas-slots"><div class="res-empty">Sin reservas para hoy</div></div>`;
     } else if (span === 6) {
-        const c1 = slots.slice(0,3), c2 = slots.slice(3,6);
+        const c1 = slots.slice(0,4), c2 = slots.slice(4,8);
         body = `<div class="reservas-book">
             <div class="reservas-col">${c1.map(slotHtml).join("")}</div>
             <div class="reservas-col">${c2.map(slotHtml).join("")}</div>
