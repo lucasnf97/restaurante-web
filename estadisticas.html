@@ -76,13 +76,23 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 }
 .section-title { font-size:17px; font-weight:700; color:#1a1a2e; }
 
+/* ── Gear button ── */
+.btn-gear {
+    background:none; border:1.5px solid #e0e0e0; border-radius:8px;
+    cursor:pointer; padding:5px 10px; font-size:16px; line-height:1;
+    color:#888; transition:background .15s, border-color .15s;
+}
+.btn-gear:hover { background:#f3f4f6; border-color:#bbb; }
+.btn-gear.active { background:#ede9fe; border-color:#7c3aed; color:#4f46e5; }
+
 /* ── Threshold config bar ── */
 .umbral-bar {
-    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    display:none; align-items:center; gap:16px; flex-wrap:wrap;
     background:white; padding:12px 18px; border-radius:10px;
     box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:16px;
     font-size:13px;
 }
+.umbral-bar.visible { display:flex; }
 .umbral-group { display:flex; align-items:center; gap:8px; }
 .umbral-group label { font-weight:600; color:#444; }
 .umbral-group input[type=number] {
@@ -115,11 +125,14 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 }
 .cost-table { width:100%; border-collapse:collapse; }
 .cost-table th {
-    background:#f8f9fa; padding:11px 16px; text-align:left;
+    background:#f8f9fa; padding:11px 16px; text-align:center;
     font-size:11px; font-weight:700; text-transform:uppercase;
     letter-spacing:.5px; color:#888; border-bottom:1px solid #f0f0f0;
 }
-.cost-table td { padding:11px 16px; border-bottom:1px solid #f7f7f7; font-size:13px; vertical-align:middle; }
+.cost-table th:nth-child(1) { text-align:center; width:30px; }
+.cost-table th:nth-child(2) { text-align:left; }
+.cost-table td { padding:11px 16px; border-bottom:1px solid #f7f7f7; font-size:13px; vertical-align:middle; text-align:center; }
+.cost-table td:nth-child(2) { text-align:left; }
 .cost-table tr:last-child td { border-bottom:none; }
 .cost-table tr.product-row { cursor:pointer; transition:background .12s; }
 .cost-table tr.product-row:hover { background:#fafafa; }
@@ -148,9 +161,11 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .ingredient-table th {
     background:transparent; padding:7px 24px; font-size:10px; color:#7c3aed;
     font-weight:700; text-transform:uppercase; letter-spacing:.4px;
-    border-bottom:1px solid #ede9fe;
+    border-bottom:1px solid #ede9fe; text-align:center;
 }
-.ingredient-table td { padding:7px 24px; color:#444; border-bottom:1px solid #f0eeff; }
+.ingredient-table th:first-child { text-align:left; }
+.ingredient-table td { padding:7px 24px; color:#444; border-bottom:1px solid #f0eeff; text-align:center; }
+.ingredient-table td:first-child { text-align:left; }
 .ingredient-table tr:last-child td { border-bottom:none; }
 .sin-precio { color:#f59e0b; font-style:italic; }
 .sin-receta { color:#9ca3af; font-style:italic; font-size:12px; }
@@ -228,10 +243,11 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     <!-- ═══════ SECCIÓN 2: COSTOS DE LA CARTA ═══════ -->
     <div class="section-header" style="margin-top:10px;">
         <span class="section-title">Costos de la carta</span>
+        <button class="btn-gear" id="btn-gear-umbrales" onclick="toggleUmbrales()" title="Configurar umbrales">⚙️</button>
     </div>
 
     <!-- Config de umbrales -->
-    <div class="umbral-bar">
+    <div class="umbral-bar" id="umbral-bar">
         <strong style="color:#555;font-size:13px;">Umbrales:</strong>
 
         <div class="umbral-group">
@@ -308,6 +324,13 @@ function getUmbrales() {
     try { return JSON.parse(localStorage.getItem(UMBRAL_KEY)) || UMBRALES_DEFAULT; }
     catch { return UMBRALES_DEFAULT; }
 }
+function toggleUmbrales() {
+    const bar  = document.getElementById("umbral-bar");
+    const btn  = document.getElementById("btn-gear-umbrales");
+    const open = bar.classList.toggle("visible");
+    btn.classList.toggle("active", open);
+}
+
 function guardarUmbrales() {
     const u = {
         azul:     parseInt(document.getElementById("umb-azul").value)     || 20,
@@ -316,6 +339,9 @@ function guardarUmbrales() {
     };
     localStorage.setItem(UMBRAL_KEY, JSON.stringify(u));
     renderTabla();
+    // Cerrar el panel al aplicar
+    document.getElementById("umbral-bar").classList.remove("visible");
+    document.getElementById("btn-gear-umbrales").classList.remove("active");
 }
 function cargarUmbralesUI() {
     const u = getUmbrales();
