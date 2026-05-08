@@ -150,14 +150,19 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .estado-sin      { background:#f3f4f6; color:#9ca3af; }
 
 /* Expand icon */
-.expand-icon { font-size:12px; color:#aaa; transition:transform .2s; }
-.expanded .expand-icon { transform:rotate(180deg); }
+.expand-icon { font-size:12px; color:#aaa; transition:transform .2s; display:inline-block; }
+.expanded .expand-icon { transform:rotate(90deg); }
 
 /* Ingredient sub-table */
 .ingredient-row td { background:#f9f7ff !important; padding:0 !important; border-bottom:1px solid #ede9fe; }
 .ingredient-table {
     width:100%; border-collapse:collapse; font-size:12px;
+    table-layout:fixed;
 }
+.ingredient-table col.col-nombre   { width:40%; }
+.ingredient-table col.col-cantidad { width:20%; }
+.ingredient-table col.col-precio   { width:20%; }
+.ingredient-table col.col-subtotal { width:20%; }
 .ingredient-table th {
     background:transparent; padding:7px 24px; font-size:10px; color:#7c3aed;
     font-weight:700; text-transform:uppercase; letter-spacing:.4px;
@@ -498,7 +503,7 @@ function renderTablaRows(lista) {
 
         const productRow = `
             <tr class="product-row${isExp?" expanded":""}" onclick="toggleRow(${p.id})">
-                <td><span class="expand-icon">${sinReceta?"":"▼"}</span></td>
+                <td><span class="expand-icon">${sinReceta?"":"▶"}</span></td>
                 <td><strong>${p.nombre}</strong>${sinReceta?` <span class="sin-receta">(sin receta)</span>`:""}</td>
                 <td>${fmt(p.precio)}</td>
                 <td>${sinReceta ? `<span class="sin-receta">—</span>` : fmt(p.costo_produccion)}</td>
@@ -536,6 +541,12 @@ function renderTablaRows(lista) {
                 <tr class="ingredient-row">
                     <td colspan="6">
                         <table class="ingredient-table">
+                            <colgroup>
+                                <col class="col-nombre">
+                                <col class="col-cantidad">
+                                <col class="col-precio">
+                                <col class="col-subtotal">
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Ingrediente</th>
