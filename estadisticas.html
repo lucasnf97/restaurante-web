@@ -235,6 +235,42 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 }
 .prog-no-data { color:#aaa; font-size:13px; padding:12px 0; }
 
+/* ── Bar chart (gastos vs ventas) ── */
+.chart-card {
+    background:white; border-radius:12px; padding:20px 24px 16px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:24px;
+}
+.chart-top {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px; flex-wrap:wrap; gap:8px;
+}
+.chart-legend { display:flex; gap:16px; align-items:center; }
+.legend-item  { display:flex; align-items:center; gap:6px; font-size:12px; color:#555; font-weight:500; }
+.legend-dot   { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+
+/* Chart canvas */
+.gchart    { display:flex; height:260px; }
+.g-yaxis   { width:58px; flex-shrink:0; position:relative; }
+.ytick     { position:absolute; right:8px; font-size:10px; color:#bbb;
+             transform:translateY(50%); white-space:nowrap; text-align:right; }
+.g-plot    { flex:1; position:relative; border-left:1.5px solid #e8e8e8; }
+.g-gridlines { position:absolute; top:0; left:0; right:0; bottom:28px; pointer-events:none; }
+.gridline  { position:absolute; left:0; right:0; border-top:1px dashed #f0f0f0; }
+.g-xline   { position:absolute; bottom:28px; left:0; right:0; height:1.5px; background:#e8e8e8; }
+.g-groups  { position:absolute; top:0; left:0; right:0; bottom:28px;
+             display:flex; align-items:stretch; padding:0 20px; gap:16px; }
+.bar-group { flex:1; display:flex; align-items:flex-end; justify-content:center; gap:4px; }
+.bar       { flex:1; max-width:38px; border-radius:4px 4px 0 0; min-height:0;
+             transition:height .45s cubic-bezier(.4,0,.2,1); cursor:default; }
+.bar:hover { filter:brightness(1.1); }
+.bar-g     { background:#ef4444; }
+.bar-v     { background:#22c55e; }
+.g-xlabels { position:absolute; bottom:0; left:0; right:0; height:28px;
+             display:flex; padding:0 20px; gap:16px; }
+.xlbl      { flex:1; display:flex; align-items:center; justify-content:center;
+             font-size:10px; color:#888; text-align:center; line-height:1.3; }
+.xlbl.cur  { color:#4f46e5; font-weight:700; }
+
 /* ── Sort arrows ── */
 .th-sort { cursor:pointer; user-select:none; }
 .th-sort:hover { background:#efefef; }
@@ -344,6 +380,27 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
 
         <div id="prog-wrap"><p class="prog-no-data">Cargando…</p></div>
+    </div>
+
+    <!-- ═══════ GRÁFICO GASTOS vs VENTAS ═══════ -->
+    <div class="chart-card">
+        <div class="chart-top">
+            <span class="section-title" style="font-size:15px;">📈 Gastos vs Ventas — últimos 4 meses</span>
+            <div class="chart-legend">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#ef4444;"></div>Gastos totales
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#22c55e;"></div>Ventas
+                </div>
+            </div>
+        </div>
+        <div class="gchart">
+            <div class="g-yaxis" id="g-yaxis"></div>
+            <div class="g-plot"  id="g-plot">
+                <p style="color:#aaa;padding:20px;text-align:center;">Cargando…</p>
+            </div>
+        </div>
     </div>
 
     <!-- ═══════ SECCIÓN 2: COSTOS DE LA CARTA ═══════ -->
@@ -478,12 +535,85 @@ const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
 let mesActual  = new Date().getMonth() + 1;
 let anioActual = new Date().getFullYear();
 
+// ── Gráfico Gastos vs Ventas ────────────────────────────────────
+const BAR_H       = 200;   // px de la barra máxima
+const MESES_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+function fmtK(n) {
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000)    return '$' + (n / 1000).toFixed(1) + 'k';
+    return '$' + Math.round(n);
+}
+
+async function cargarGrafico() {
+    const yaxis = document.getElementById("g-yaxis");
+    const plot  = document.getElementById("g-plot");
+    plot.innerHTML = '<p style="color:#aaa;padding:20px;text-align:center;">Cargando…</p>';
+    yaxis.innerHTML = '';
+
+    // Últimos 3 meses + mes actual
+    const meses = [];
+    for (let i = 3; i >= 0; i--) {
+        let y = anioActual, m = mesActual - i;
+        while (m < 1) { m += 12; y--; }
+        meses.push({ y, m });
+    }
+
+    const datos = await Promise.all(meses.map(async ({ y, m }) => {
+        try {
+            const d = await apiFetch(`/reportes/facturacion-mes?year=${y}&month=${m}`);
+            const gastos = d.costo_produccion
+                         + d.costo_insumos_facturados
+                         + d.costo_servicios_facturados;
+            return { y, m, ventas: d.ventas || 0, gastos: Math.max(0, gastos) };
+        } catch { return { y, m, ventas: 0, gastos: 0 }; }
+    }));
+
+    const allVals = datos.flatMap(d => [d.ventas, d.gastos]).filter(v => v > 0);
+    const maxVal  = allVals.length ? Math.max(...allVals) * 1.1 : 1000;
+    const toPx    = v => Math.max(Math.round((v / maxVal) * BAR_H), v > 0 ? 2 : 0);
+
+    // ── Y axis ticks (0 / 25 / 50 / 75 / 100 %)
+    const tPcts = [0, 0.25, 0.5, 0.75, 1.0];
+    yaxis.innerHTML = tPcts.map(t => {
+        const px = 28 + Math.round(t * BAR_H);
+        return `<div class="ytick" style="bottom:${px}px;">${fmtK(maxVal * t)}</div>`;
+    }).join('');
+
+    // ── Gridlines (excluye 0, que ya es la línea del eje X)
+    const gridHtml = tPcts.filter(t => t > 0).map(t => {
+        const px = Math.round(t * BAR_H);
+        return `<div class="gridline" style="bottom:${px}px;"></div>`;
+    }).join('');
+
+    // ── Barras + etiquetas X
+    const groupsHtml = datos.map(d => `
+        <div class="bar-group">
+            <div class="bar bar-g" style="height:${toPx(d.gastos)}px;"
+                 title="Gastos ${MESES_SHORT[d.m-1]} ${d.y}: ${fmt(d.gastos)}"></div>
+            <div class="bar bar-v" style="height:${toPx(d.ventas)}px;"
+                 title="Ventas ${MESES_SHORT[d.m-1]} ${d.y}: ${fmt(d.ventas)}"></div>
+        </div>`).join('');
+
+    const xlabelsHtml = datos.map((d, i) => `
+        <div class="xlbl${i === datos.length - 1 ? ' cur' : ''}">
+            ${MESES_SHORT[d.m - 1]}<br>${d.y}
+        </div>`).join('');
+
+    plot.innerHTML = `
+        <div class="g-gridlines">${gridHtml}</div>
+        <div class="g-xline"></div>
+        <div class="g-groups">${groupsHtml}</div>
+        <div class="g-xlabels">${xlabelsHtml}</div>`;
+}
+
 function cambiarMes(dir) {
     mesActual += dir;
     if (mesActual < 1)  { mesActual = 12; anioActual--; }
     if (mesActual > 12) { mesActual = 1;  anioActual++; }
     actualizarLblMes();
     cargarFacturacion();
+    cargarGrafico();
 }
 function actualizarLblMes() {
     document.getElementById("lbl-mes").textContent = `${MESES[mesActual-1]} ${anioActual}`;
@@ -890,6 +1020,7 @@ document.addEventListener("DOMContentLoaded", () => {
     cargarUmbralesUI();
     actualizarLblMes();
     cargarFacturacion();
+    cargarGrafico();
     cargarCostos();
 });
 </script>
