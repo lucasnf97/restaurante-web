@@ -236,13 +236,34 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .prog-no-data { color:#aaa; font-size:13px; padding:12px 0; }
 
 /* ── Bar chart (gastos vs ventas) ── */
+.chart-col {
+    width:50%; flex-shrink:0;
+}
+@media(max-width:800px){ .chart-col { width:100%; } }
+
 .chart-card {
     background:white; border-radius:12px; padding:20px 24px 16px;
     box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:24px;
+    height:100%;
 }
 .chart-top {
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:16px; flex-wrap:wrap; gap:8px;
+    margin-bottom:10px; flex-wrap:wrap; gap:8px;
+}
+/* nav arrows */
+.chart-nav {
+    display:flex; align-items:center; gap:8px; margin-bottom:12px;
+}
+.chart-nav button {
+    background:none; border:1.5px solid #e0e0e0; border-radius:6px;
+    width:28px; height:28px; cursor:pointer; font-size:16px; color:#4f46e5;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .15s;
+}
+.chart-nav button:hover:not(:disabled) { background:#ede9fe; }
+.chart-nav button:disabled { color:#ccc; border-color:#f0f0f0; cursor:default; }
+.chart-nav-period {
+    font-size:12px; font-weight:600; color:#555; min-width:130px; text-align:center;
 }
 .chart-legend { display:flex; gap:16px; align-items:center; }
 .legend-item  { display:flex; align-items:center; gap:6px; font-size:12px; color:#555; font-weight:500; }
@@ -383,17 +404,23 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     </div>
 
     <!-- ═══════ GRÁFICO GASTOS vs VENTAS ═══════ -->
+    <div class="chart-col">
     <div class="chart-card">
         <div class="chart-top">
-            <span class="section-title" style="font-size:15px;">📈 Gastos vs Ventas — últimos 4 meses</span>
+            <span class="section-title" style="font-size:15px;">📈 Gastos vs Ventas</span>
             <div class="chart-legend">
                 <div class="legend-item">
-                    <div class="legend-dot" style="background:#ef4444;"></div>Gastos totales
+                    <div class="legend-dot" style="background:#ef4444;"></div>Gastos
                 </div>
                 <div class="legend-item">
                     <div class="legend-dot" style="background:#22c55e;"></div>Ventas
                 </div>
             </div>
+        </div>
+        <div class="chart-nav">
+            <button id="btn-gprev" onclick="navGrafico(-1)" title="Mes anterior">‹</button>
+            <span class="chart-nav-period" id="grafico-periodo">—</span>
+            <button id="btn-gnext" onclick="navGrafico(1)"  title="Mes siguiente">›</button>
         </div>
         <div class="gchart">
             <div class="g-yaxis" id="g-yaxis"></div>
@@ -401,6 +428,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                 <p style="color:#aaa;padding:20px;text-align:center;">Cargando…</p>
             </div>
         </div>
+    </div>
     </div>
 
     <!-- ═══════ SECCIÓN 2: COSTOS DE LA CARTA ═══════ -->
@@ -536,8 +564,17 @@ let mesActual  = new Date().getMonth() + 1;
 let anioActual = new Date().getFullYear();
 
 // ── Gráfico Gastos vs Ventas ────────────────────────────────────
-const BAR_H       = 200;   // px de la barra máxima
-const MESES_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const BAR_H           = 200;
+const MESES_SHORT     = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const GRAFICO_MIN_OFF = -9;   // offset mínimo: 4 + 9 = ventana que empieza 12m atrás
+let   graficoOffset   = 0;    // 0 = termina en mesActual, negativo = hacia atrás
+
+function navGrafico(dir) {
+    const next = graficoOffset + dir;
+    if (next > 0 || next < GRAFICO_MIN_OFF) return;
+    graficoOffset = next;
+    cargarGrafico();
+}
 
 function fmtK(n) {
     if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
@@ -551,13 +588,25 @@ async function cargarGrafico() {
     plot.innerHTML = '<p style="color:#aaa;padding:20px;text-align:center;">Cargando…</p>';
     yaxis.innerHTML = '';
 
-    // Últimos 3 meses + mes actual
+    // Ventana de 4 meses según offset (0 = termina en mesActual)
     const meses = [];
     for (let i = 3; i >= 0; i--) {
-        let y = anioActual, m = mesActual - i;
-        while (m < 1) { m += 12; y--; }
+        let m = mesActual + graficoOffset - i;
+        let y = anioActual;
+        while (m < 1)  { m += 12; y--; }
+        while (m > 12) { m -= 12; y++; }
         meses.push({ y, m });
     }
+
+    // Período y botones de navegación
+    const first = meses[0], last = meses[meses.length - 1];
+    const periodoEl = document.getElementById("grafico-periodo");
+    const btnPrev   = document.getElementById("btn-gprev");
+    const btnNext   = document.getElementById("btn-gnext");
+    if (periodoEl) periodoEl.textContent =
+        `${MESES_SHORT[first.m-1]} ${first.y} – ${MESES_SHORT[last.m-1]} ${last.y}`;
+    if (btnPrev) btnPrev.disabled = graficoOffset <= GRAFICO_MIN_OFF;
+    if (btnNext) btnNext.disabled = graficoOffset >= 0;
 
     const datos = await Promise.all(meses.map(async ({ y, m }) => {
         try {
@@ -611,6 +660,7 @@ function cambiarMes(dir) {
     mesActual += dir;
     if (mesActual < 1)  { mesActual = 12; anioActual--; }
     if (mesActual > 12) { mesActual = 1;  anioActual++; }
+    graficoOffset = 0;
     actualizarLblMes();
     cargarFacturacion();
     cargarGrafico();
