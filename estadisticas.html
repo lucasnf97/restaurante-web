@@ -348,8 +348,7 @@ function actualizarLblMes() {
 
 // ── Facturación mensual ─────────────────────────────────────────
 async function cargarFacturacion() {
-    const token = getToken();
-    if (!token) { window.location.href = "index.html"; return; }
+    requireAuth();
 
     document.getElementById("billing-cards").innerHTML = `
         ${["ventas","produccion","insumos","servicios","balance"].map(c=>`
@@ -359,9 +358,7 @@ async function cargarFacturacion() {
         </div>`).join("")}`;
 
     try {
-        const res = await authFetch(`${API_URL}/reportes/facturacion-mes?year=${anioActual}&month=${mesActual}`);
-        if (!res.ok) throw new Error(res.status);
-        const d = await res.json();
+        const d = await apiFetch(`/reportes/facturacion-mes?year=${anioActual}&month=${mesActual}`);
         renderBillingCards(d);
     } catch(e) {
         document.getElementById("billing-cards").innerHTML =
@@ -418,12 +415,8 @@ let productosData = [];
 let expandedRows  = new Set();
 
 async function cargarCostos() {
-    const token = getToken();
-    if (!token) return;
     try {
-        const res = await authFetch(`${API_URL}/reportes/costos-carta`);
-        if (!res.ok) throw new Error(res.status);
-        productosData = await res.json();
+        productosData = await apiFetch(`/reportes/costos-carta`);
         renderTabla();
     } catch(e) {
         document.getElementById("cost-tbody").innerHTML =
@@ -543,8 +536,7 @@ function toggleRow(id) {
 
 // ── Init ────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-    const token = getToken();
-    if (!token) { window.location.href = "index.html"; return; }
+    requireAuth();
 
     cargarUmbralesUI();
     actualizarLblMes();
