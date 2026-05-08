@@ -189,6 +189,36 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 /* Sticky loading skeleton */
 .loading-card { animation:pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ── Sort arrows ── */
+.th-sort { cursor:pointer; user-select:none; }
+.th-sort:hover { background:#efefef; }
+.sort-arrow { margin-left:5px; font-size:11px; color:#ccc; transition:color .15s; }
+.sort-arrow.active { color:#4f46e5; }
+
+/* ── Resumen costos ── */
+.resumen-costos {
+    display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;
+}
+.res-pill {
+    display:flex; align-items:center; gap:6px;
+    padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600;
+}
+.res-verde    { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
+.res-azul     { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+.res-amarillo { background:#fffbeb; color:#d97706; border:1px solid #fde68a; }
+.res-rojo     { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+.res-sin      { background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; }
+
+/* ── Expand button ── */
+.btn-expandir-wrap { text-align:center; }
+.btn-expandir {
+    background:white; border:1.5px solid #e0e0e0; border-top:none;
+    border-radius:0 0 12px 12px; padding:10px 32px;
+    font-size:13px; color:#4f46e5; font-weight:600;
+    cursor:pointer; width:100%; transition:background .15s;
+}
+.btn-expandir:hover { background:#f5f3ff; }
 </style>
 </head>
 <body>
@@ -299,14 +329,21 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         <input type="text" id="buscar-producto" placeholder="🔍  Buscar producto…" oninput="filtrarTabla()">
     </div>
 
+    <!-- Resumen -->
+    <div class="resumen-costos" id="resumen-costos"></div>
+
     <!-- Tabla -->
     <div class="cost-table-wrap">
         <table class="cost-table">
             <thead>
                 <tr>
                     <th style="width:30px;"></th>
-                    <th>Producto</th>
-                    <th>Precio carta</th>
+                    <th class="th-sort" onclick="toggleSort('nombre')">
+                        Producto <span class="sort-arrow" id="sort-arrow-nombre">↕</span>
+                    </th>
+                    <th class="th-sort" onclick="toggleSort('precio')">
+                        Precio carta <span class="sort-arrow active" id="sort-arrow-precio">↓</span>
+                    </th>
                     <th>Costo producción</th>
                     <th>% sobre precio</th>
                     <th>Estado</th>
@@ -316,6 +353,9 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                 <tr><td colspan="6" class="tbl-loading">Cargando productos…</td></tr>
             </tbody>
         </table>
+    </div>
+    <div class="btn-expandir-wrap" id="btn-expandir-wrap" style="display:none;">
+        <button class="btn-expandir" id="btn-expandir" onclick="toggleExpandir()"></button>
     </div>
 
 </div>
@@ -345,6 +385,7 @@ function guardarUmbrales() {
         rojo:     parseInt(document.getElementById("umb-rojo").value)     || 85,
     };
     localStorage.setItem(UMBRAL_KEY, JSON.stringify(u));
+    renderResumen();
     renderTabla();
     // Cerrar el panel al aplicar
     document.getElementById("umbral-bar").classList.remove("visible");
@@ -446,10 +487,80 @@ function renderBillingCards(d) {
 // ── Costos de la carta ──────────────────────────────────────────
 let productosData = [];
 let expandedRows  = new Set();
+let expandida     = false;
+const FILAS_VISIBLES = 3;
+
+// Sort state
+let sortCampo = 'precio';
+let sortDirs  = { precio: 'desc', nombre: 'asc' };
+
+function sortProductos(lista) {
+    return [...lista].sort((a, b) => {
+        let cmp;
+        if (sortCampo === 'precio') {
+            cmp = (a.precio || 0) - (b.precio || 0);
+            if (cmp === 0) cmp = a.nombre.localeCompare(b.nombre, 'es');
+        } else {
+            cmp = a.nombre.localeCompare(b.nombre, 'es');
+        }
+        return sortDirs[sortCampo] === 'desc' ? -cmp : cmp;
+    });
+}
+
+function toggleSort(campo) {
+    if (sortCampo === campo) {
+        sortDirs[campo] = sortDirs[campo] === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortCampo = campo;
+    }
+    expandida = false;
+    renderTabla();
+}
+
+function updateSortArrows() {
+    ['nombre','precio'].forEach(campo => {
+        const el = document.getElementById(`sort-arrow-${campo}`);
+        if (!el) return;
+        if (campo === sortCampo) {
+            el.textContent = sortDirs[campo] === 'asc' ? '↑' : '↓';
+            el.classList.add('active');
+        } else {
+            el.textContent = '↕';
+            el.classList.remove('active');
+        }
+    });
+}
+
+function renderResumen() {
+    let enPrecio = 0, precioAlto = 0, margenAjustado = 0, sinGanancia = 0, sinDatos = 0;
+    productosData.forEach(p => {
+        const e = estadoProducto(p.porcentaje_costo);
+        if      (e.cls === 'verde')    enPrecio++;
+        else if (e.cls === 'azul')     precioAlto++;
+        else if (e.cls === 'amarillo') margenAjustado++;
+        else if (e.cls === 'rojo')     sinGanancia++;
+        else                           sinDatos++;
+    });
+    const pills = [
+        { cls:'res-verde',    icon:'🟢', label:'En precio',       n: enPrecio },
+        { cls:'res-azul',     icon:'🔵', label:'Precio alto',      n: precioAlto },
+        { cls:'res-amarillo', icon:'🟡', label:'Margen ajustado',  n: margenAjustado },
+        { cls:'res-rojo',     icon:'🔴', label:'Sin ganancia',     n: sinGanancia },
+        ...(sinDatos ? [{ cls:'res-sin', icon:'—', label:'Sin datos', n: sinDatos }] : []),
+    ];
+    document.getElementById('resumen-costos').innerHTML =
+        pills.map(p => `<span class="res-pill ${p.cls}">${p.icon} ${p.label} <strong>${p.n}</strong></span>`).join('');
+}
+
+function toggleExpandir() {
+    expandida = !expandida;
+    renderTabla();
+}
 
 async function cargarCostos() {
     try {
         productosData = await apiFetch(`/reportes/costos-carta`);
+        renderResumen();
         renderTabla();
     } catch(e) {
         document.getElementById("cost-tbody").innerHTML =
@@ -476,25 +587,43 @@ function pctColor(pct) {
 }
 
 function filtrarTabla() {
-    const q = document.getElementById("buscar-producto").value.toLowerCase();
-    const filtrado = productosData.filter(p => p.nombre.toLowerCase().includes(q));
-    renderTablaRows(filtrado);
+    expandida = false;
+    renderTabla();
 }
 
 function renderTabla() {
     const q = document.getElementById("buscar-producto").value.toLowerCase();
-    const filtrado = q ? productosData.filter(p => p.nombre.toLowerCase().includes(q)) : productosData;
+    const filtrado = sortProductos(
+        q ? productosData.filter(p => p.nombre.toLowerCase().includes(q)) : productosData
+    );
     renderTablaRows(filtrado);
+    updateSortArrows();
 }
 
 function renderTablaRows(lista) {
     const tbody = document.getElementById("cost-tbody");
+    const btnWrap = document.getElementById("btn-expandir-wrap");
+    const btnExp  = document.getElementById("btn-expandir");
+
     if (!lista.length) {
         tbody.innerHTML = `<tr><td colspan="6" class="tbl-empty">No se encontraron productos.</td></tr>`;
+        btnWrap.style.display = 'none';
         return;
     }
 
-    tbody.innerHTML = lista.map(p => {
+    const visible = expandida ? lista : lista.slice(0, FILAS_VISIBLES);
+
+    // Botón expandir
+    if (lista.length > FILAS_VISIBLES) {
+        btnWrap.style.display = 'block';
+        btnExp.textContent = expandida
+            ? 'Ver menos ↑'
+            : `Ver todos (${lista.length}) ↓`;
+    } else {
+        btnWrap.style.display = 'none';
+    }
+
+    tbody.innerHTML = visible.map(p => {
         const estado  = estadoProducto(p.porcentaje_costo);
         const pct     = p.porcentaje_costo;
         const pctDisp = pct !== null ? `${pct.toFixed(1)}%` : "—";
