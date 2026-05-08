@@ -107,7 +107,13 @@
         <div style="background:white;border-radius:12px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
             <h3 style="margin-bottom:8px;font-size:16px;color:#1a1a2e;">Procesar factura con IA</h3>
             <p style="font-size:13px;color:#888;margin-bottom:20px;">Subí una factura. Claude analizará automáticamente los ítems, cantidades y precios.</p>
-            <div class="dropzone" id="dropzone"
+            <div style="display:flex;gap:10px;margin-bottom:18px;">
+            <button class="btn btn-primary" onclick="document.getElementById('file-input-main').click()">🤖 Procesar con IA</button>
+            <input type="file" id="file-input-main" accept="image/*,.pdf" multiple style="display:none" onchange="agregarArchivos(this.files)">
+            <button class="btn btn-secondary" onclick="cargarManual()">✏️ Ingresar manualmente</button>
+        </div>
+
+        <div class="dropzone" id="dropzone"
                  ondragover="event.preventDefault();this.classList.add('drag-over')"
                  ondragleave="this.classList.remove('drag-over')"
                  ondrop="handleDrop(event)">
@@ -203,7 +209,7 @@
 <!-- Modal confirmación factura -->
 <div class="modal-overlay" id="modal-confirmacion">
     <div class="modal" style="max-width:860px;">
-        <h3>✅ Confirmar datos de la factura</h3>
+        <h3 id="modal-conf-titulo">✅ Confirmar datos de la factura</h3>
         <p style="font-size:13px;color:#888;margin-bottom:16px;">Revisá y corregí los datos. Cada ítem puede ser un insumo de stock, un servicio o puede omitirse.</p>
 
         <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:16px;margin-bottom:12px;">
@@ -230,7 +236,7 @@
         <button type="button" onclick="agregarItemConf()" style="width:100%;padding:10px;border:1.5px dashed #c4b5fd;border-radius:8px;background:#faf5ff;color:#7c3aed;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;">+ Agregar ítem manualmente</button>
 
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="previsualizarFactura()">👁 Ver factura</button>
+            <button class="btn btn-secondary" id="btn-ver-factura" onclick="previsualizarFactura()">👁 Ver factura</button>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-confirmacion')">Cancelar</button>
             <button class="btn btn-primary" onclick="confirmarFactura()">✓ Confirmar y registrar</button>
         </div>
@@ -472,7 +478,16 @@ async function procesarArchivo(id) {
 function abrirRevision(id) {
     _archivoActivo = id;
     const entrada = getEntrada(id);
+    document.getElementById("modal-conf-titulo").textContent = "✅ Confirmar datos de la factura";
+    document.getElementById("btn-ver-factura").style.display = "";
     abrirModalConfirmacion(entrada.datos);
+}
+
+function cargarManual() {
+    _archivoActivo = null;
+    document.getElementById("modal-conf-titulo").textContent = "✏️ Nueva factura manual";
+    document.getElementById("btn-ver-factura").style.display = "none";
+    abrirModalConfirmacion({ items: [{ tipo: "insumo", descripcion_factura: "" }] });
 }
 
 // ── CONFIRMACIÓN ──────────────────────────────────────────────
@@ -722,7 +737,9 @@ async function confirmarFactura() {
             archivo_url: facturaUrl, moneda, total_detectado: totalDetectado || null
         });
         const facturaId = facturaReg.id;
-        const referencia = `Factura IA — ${entradaActiva?.datos?.archivo || entradaActiva?.file?.name || ''}`;
+        const referencia = entradaActiva
+            ? `Factura IA — ${entradaActiva.datos?.archivo || entradaActiva.file?.name || ''}`
+            : "Factura manual";
 
         // Registrar recargas de insumos
         for (const item of itemsInsumo) {
