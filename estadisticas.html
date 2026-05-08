@@ -190,6 +190,51 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .loading-card { animation:pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
+/* ── Monthly progress bar ── */
+.progress-section {
+    background:white; border-radius:12px; padding:20px 24px 18px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:24px;
+}
+.progress-header {
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;
+}
+.prog-track {
+    position:relative; height:28px; background:#eef0f4; border-radius:14px;
+    overflow:visible; margin:44px 0 38px;
+}
+.prog-fill {
+    height:100%; border-radius:14px; overflow:hidden;
+    background:linear-gradient(90deg,#15803d 0%,#22c55e 100%);
+    transition:width .55s cubic-bezier(.4,0,.2,1);
+    max-width:100%; display:flex; align-items:center; justify-content:flex-end;
+}
+.prog-fill-lbl {
+    color:white; font-size:11px; font-weight:700; padding-right:10px;
+    white-space:nowrap; text-shadow:0 1px 3px rgba(0,0,0,.35);
+}
+.prog-mk {
+    position:absolute; top:0; height:100%; width:2px;
+    transform:translateX(-50%); border-radius:1px; z-index:3;
+}
+.prog-mk::before, .prog-mk::after {
+    content:''; position:absolute; left:0; width:2px;
+    border-radius:1px; background:inherit;
+}
+.prog-mk::before { bottom:100%; height:10px; }
+.prog-mk::after  { top:100%;    height:10px; }
+.prog-mk-lbl {
+    position:absolute; left:50%; transform:translateX(-50%);
+    white-space:nowrap; font-size:10px; font-weight:700;
+    line-height:1.4; text-align:center;
+}
+.prog-mk-lbl.up   { bottom:calc(100% + 14px); }
+.prog-mk-lbl.down { top:calc(100% + 14px); }
+.prog-scale {
+    display:flex; justify-content:space-between;
+    font-size:11px; color:#bbb; margin-top:-30px;
+}
+.prog-no-data { color:#aaa; font-size:13px; padding:12px 0; }
+
 /* ── Sort arrows ── */
 .th-sort { cursor:pointer; user-select:none; }
 .th-sort:hover { background:#efefef; }
@@ -278,6 +323,27 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
             <div class="bill-label">Balance mensual</div>
             <div class="bill-value">Cargando…</div>
         </div>
+    </div>
+
+    <!-- ═══════ BARRA DE PROGRESO MENSUAL ═══════ -->
+    <div class="progress-section">
+        <div class="progress-header">
+            <span class="section-title" style="font-size:15px;">Progreso del mes</span>
+            <button class="btn-gear" id="btn-gear-meta" onclick="toggleMetaConfig()" title="Configurar meta mensual">⚙️</button>
+        </div>
+
+        <!-- Config meta -->
+        <div class="umbral-bar" id="meta-config-bar">
+            <strong style="color:#555;font-size:13px;">Meta mensual:</strong>
+            <div class="umbral-group">
+                <label>Objetivo de ventas $</label>
+                <input type="number" id="meta-valor" min="0" step="100" style="width:130px;" placeholder="Auto (20% extra)">
+            </div>
+            <button onclick="guardarMeta()" style="background:#4f46e5;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Aplicar</button>
+            <button onclick="borrarMeta()" style="background:#f3f4f6;color:#666;border:1.5px solid #e0e0e0;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">Sin meta (auto)</button>
+        </div>
+
+        <div id="prog-wrap"><p class="prog-no-data">Cargando…</p></div>
     </div>
 
     <!-- ═══════ SECCIÓN 2: COSTOS DE LA CARTA ═══════ -->
@@ -423,6 +489,96 @@ function actualizarLblMes() {
     document.getElementById("lbl-mes").textContent = `${MESES[mesActual-1]} ${anioActual}`;
 }
 
+// ── Meta mensual (barra de progreso) ────────────────────────────
+const META_KEY = 'meta_mensual_v1';
+let datosMes         = null;
+let ventasMesAnterior = null;
+
+function getMeta() {
+    try { const v = JSON.parse(localStorage.getItem(META_KEY))?.meta; return v > 0 ? v : null; }
+    catch { return null; }
+}
+
+function toggleMetaConfig() {
+    const bar = document.getElementById("meta-config-bar");
+    const btn = document.getElementById("btn-gear-meta");
+    const open = bar.classList.toggle("visible");
+    btn.classList.toggle("active", open);
+    if (open) document.getElementById("meta-valor").value = getMeta() ?? '';
+}
+
+function guardarMeta() {
+    const v = parseFloat(document.getElementById("meta-valor").value);
+    if (v > 0) localStorage.setItem(META_KEY, JSON.stringify({ meta: v }));
+    document.getElementById("meta-config-bar").classList.remove("visible");
+    document.getElementById("btn-gear-meta").classList.remove("active");
+    renderProgressBar();
+}
+
+function borrarMeta() {
+    localStorage.removeItem(META_KEY);
+    document.getElementById("meta-valor").value = '';
+    document.getElementById("meta-config-bar").classList.remove("visible");
+    document.getElementById("btn-gear-meta").classList.remove("active");
+    renderProgressBar();
+}
+
+function prevMonthParams(y, m) {
+    return m === 1 ? { y: y - 1, m: 12 } : { y, m: m - 1 };
+}
+
+function renderProgressBar() {
+    const wrap = document.getElementById("prog-wrap");
+    if (!datosMes) { wrap.innerHTML = '<p class="prog-no-data">Sin datos</p>'; return; }
+
+    const ventas  = datosMes.ventas;
+    // break-even = punto donde balance = 0
+    const breakEven = datosMes.costo_produccion
+                    + datosMes.costo_insumos_facturados
+                    + datosMes.costo_servicios_facturados;
+    const ventasPrev = ventasMesAnterior ?? 0;
+    const meta       = getMeta();
+
+    // Máximo de la barra
+    let barMax;
+    if (meta && meta > 0) {
+        barMax = meta / 0.9;          // objetivo queda en el 90%
+    } else {
+        barMax = Math.max(breakEven, ventasPrev, ventas) * 1.2;
+        if (barMax <= 0) barMax = 1000;
+    }
+
+    const objetivoVal = meta ?? (barMax * 0.9);
+    const toPct = v => Math.min(Math.max((v / barMax) * 100, 0), 100);
+
+    // Markers: ordenados por posición → alternamos arriba/abajo para evitar superposición
+    const rawMarkers = [
+        breakEven > 0  ? { pct: toPct(breakEven),   color:'#dc2626', name:'Break-even',   val: breakEven   } : null,
+        ventasPrev > 0 ? { pct: toPct(ventasPrev),  color:'#2563eb', name:'Mes anterior', val: ventasPrev  } : null,
+        objetivoVal>0  ? { pct: toPct(objetivoVal), color:'#7c3aed', name:'Objetivo',     val: objetivoVal } : null,
+    ].filter(Boolean).sort((a,b) => a.pct - b.pct);
+
+    // Alternar arriba/abajo según posición
+    rawMarkers.forEach((m, i) => { m.side = i % 2 === 0 ? 'up' : 'down'; });
+
+    const ventasPct = toPct(ventas);
+    const fillLbl   = ventasPct > 10 ? `<span class="prog-fill-lbl">${fmt(ventas)}</span>` : '';
+
+    const mkHtml = rawMarkers.map(m => `
+        <div class="prog-mk" style="left:${m.pct}%;background:${m.color};">
+            <div class="prog-mk-lbl ${m.side}" style="color:${m.color};">
+                ${m.name}<br><strong>${fmt(m.val)}</strong>
+            </div>
+        </div>`).join('');
+
+    wrap.innerHTML = `
+        <div class="prog-track">
+            <div class="prog-fill" style="width:${ventasPct}%;">${fillLbl}</div>
+            ${mkHtml}
+        </div>
+        <div class="prog-scale"><span>$ 0</span><span>${fmt(Math.round(barMax))}</span></div>`;
+}
+
 // ── Facturación mensual ─────────────────────────────────────────
 async function cargarFacturacion() {
     requireAuth();
@@ -433,13 +589,25 @@ async function cargarFacturacion() {
             <div class="bill-icon">${{ventas:"💰",produccion:"🏭",insumos:"📦",servicios:"🔧",balance:"⚖️"}[c]}</div>
             <div class="bill-value" style="color:#ddd;background:#f0f0f0;border-radius:6px;width:80%;height:28px;margin-top:14px;"></div>
         </div>`).join("")}`;
+    document.getElementById("prog-wrap").innerHTML = '<p class="prog-no-data">Cargando…</p>';
 
     try {
         const d = await apiFetch(`/reportes/facturacion-mes?year=${anioActual}&month=${mesActual}`);
+        datosMes = d;
         renderBillingCards(d);
+
+        // Mes anterior para el marcador de la barra
+        const prev = prevMonthParams(anioActual, mesActual);
+        try {
+            const dp = await apiFetch(`/reportes/facturacion-mes?year=${prev.y}&month=${prev.m}`);
+            ventasMesAnterior = dp.ventas;
+        } catch { ventasMesAnterior = null; }
+
+        renderProgressBar();
     } catch(e) {
         document.getElementById("billing-cards").innerHTML =
             `<p style="color:#dc2626;padding:16px;">Error al cargar facturación: ${e.message}</p>`;
+        document.getElementById("prog-wrap").innerHTML = '';
     }
 }
 
