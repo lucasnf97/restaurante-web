@@ -203,12 +203,15 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .res-pill {
     display:flex; align-items:center; gap:6px;
     padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600;
+    cursor:pointer; transition:filter .15s, box-shadow .15s; user-select:none;
 }
+.res-pill:hover { filter:brightness(.95); }
 .res-verde    { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
 .res-azul     { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
 .res-amarillo { background:#fffbeb; color:#d97706; border:1px solid #fde68a; }
 .res-rojo     { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
 .res-sin      { background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; }
+.res-pill.pill-activo { box-shadow:0 0 0 3px currentColor; filter:brightness(.92); }
 
 /* ── Expand button ── */
 .btn-expandir-wrap { text-align:center; }
@@ -488,6 +491,7 @@ function renderBillingCards(d) {
 let productosData = [];
 let expandedRows  = new Set();
 let expandida     = false;
+let filtroEstado  = null;   // null = sin filtro, o 'verde'/'azul'/'amarillo'/'rojo'/'sin'
 const FILAS_VISIBLES = 3;
 
 // Sort state
@@ -531,6 +535,13 @@ function updateSortArrows() {
     });
 }
 
+function toggleFiltroEstado(cls) {
+    filtroEstado = filtroEstado === cls ? null : cls;
+    expandida = false;
+    renderResumen();
+    renderTabla();
+}
+
 function renderResumen() {
     let enPrecio = 0, precioAlto = 0, margenAjustado = 0, sinGanancia = 0, sinDatos = 0;
     productosData.forEach(p => {
@@ -542,14 +553,17 @@ function renderResumen() {
         else                           sinDatos++;
     });
     const pills = [
-        { cls:'res-verde',    icon:'🟢', label:'En precio',       n: enPrecio },
-        { cls:'res-azul',     icon:'🔵', label:'Precio alto',      n: precioAlto },
-        { cls:'res-amarillo', icon:'🟡', label:'Margen ajustado',  n: margenAjustado },
-        { cls:'res-rojo',     icon:'🔴', label:'Sin ganancia',     n: sinGanancia },
-        ...(sinDatos ? [{ cls:'res-sin', icon:'—', label:'Sin datos', n: sinDatos }] : []),
+        { key:'verde',    cls:'res-verde',    icon:'🟢', label:'En precio',      n: enPrecio },
+        { key:'azul',     cls:'res-azul',     icon:'🔵', label:'Precio alto',     n: precioAlto },
+        { key:'amarillo', cls:'res-amarillo', icon:'🟡', label:'Margen ajustado', n: margenAjustado },
+        { key:'rojo',     cls:'res-rojo',     icon:'🔴', label:'Sin ganancia',    n: sinGanancia },
+        ...(sinDatos ? [{ key:'sin', cls:'res-sin', icon:'—', label:'Sin datos', n: sinDatos }] : []),
     ];
-    document.getElementById('resumen-costos').innerHTML =
-        pills.map(p => `<span class="res-pill ${p.cls}">${p.icon} ${p.label} <strong>${p.n}</strong></span>`).join('');
+    document.getElementById('resumen-costos').innerHTML = pills.map(p => `
+        <span class="res-pill ${p.cls}${filtroEstado === p.key ? ' pill-activo' : ''}"
+              onclick="toggleFiltroEstado('${p.key}')">
+            ${p.icon} ${p.label} <strong>${p.n}</strong>
+        </span>`).join('');
 }
 
 function toggleExpandir() {
@@ -593,10 +607,9 @@ function filtrarTabla() {
 
 function renderTabla() {
     const q = document.getElementById("buscar-producto").value.toLowerCase();
-    const filtrado = sortProductos(
-        q ? productosData.filter(p => p.nombre.toLowerCase().includes(q)) : productosData
-    );
-    renderTablaRows(filtrado);
+    let lista = q ? productosData.filter(p => p.nombre.toLowerCase().includes(q)) : productosData;
+    if (filtroEstado) lista = lista.filter(p => estadoProducto(p.porcentaje_costo).cls === filtroEstado);
+    renderTablaRows(sortProductos(lista));
     updateSortArrows();
 }
 
