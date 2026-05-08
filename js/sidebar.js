@@ -6,8 +6,9 @@
         { href: "reservas.html",   icon: "📅", label: "Reservas" },
         { href: "productos.html",  icon: "🍽️", label: "Productos" },
         { href: "stock.html",      icon: "📦", label: "Stock" },
-        { href: "facturas.html",   icon: "🧾", label: "Facturas" },
-        { href: "caja.html",       icon: "💰", label: "Caja" },
+        { href: "facturas.html",      icon: "🧾", label: "Facturas" },
+        { href: "estadisticas.html", icon: "📊", label: "Facturación y Estadísticas" },
+        { href: "caja.html",         icon: "💰", label: "Caja" },
         { href: "fichajes.html",   icon: "🕐", label: "Fichajes" },
         { href: "usuarios.html",   icon: "👤", label: "Usuarios" },
     ];

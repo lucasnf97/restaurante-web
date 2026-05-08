@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurante — Facturación y Estadísticas</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+
+.navbar {
+    background:#1a1a2e; color:white; padding:0 32px; height:60px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:fixed; top:0; left:0; right:0; z-index:100;
+}
+.navbar-brand { font-size:18px; font-weight:700; }
+.navbar-links { display:flex; gap:16px; align-items:center; }
+.btn-logout {
+    background:transparent; border:1px solid #4f46e5; color:#a5b4fc;
+    padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px;
+}
+.btn-logout:hover { background:#4f46e5; color:white; }
+
+.content { margin-top:60px; padding:24px 32px; }
+
+/* ── Page header ── */
+.page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+.page-header h2 { font-size:22px; font-weight:700; color:#1a1a2e; }
+
+/* ── Month navigator ── */
+.mes-nav {
+    display:flex; align-items:center; gap:14px;
+    background:white; padding:10px 18px; border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:22px;
+    width:fit-content;
+}
+.mes-nav button {
+    background:none; border:none; cursor:pointer; font-size:18px;
+    color:#4f46e5; padding:2px 6px; border-radius:4px; transition:background .15s;
+}
+.mes-nav button:hover { background:#ede9fe; }
+.mes-nav span { font-size:16px; font-weight:700; color:#1a1a2e; min-width:140px; text-align:center; }
+
+/* ── Billing cards ── */
+.billing-cards {
+    display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:32px;
+}
+@media(max-width:1100px) { .billing-cards { grid-template-columns:repeat(3,1fr); } }
+@media(max-width:700px)  { .billing-cards { grid-template-columns:1fr 1fr; } }
+
+.bill-card {
+    background:white; border-radius:12px; padding:20px 22px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06); position:relative; overflow:hidden;
+}
+.bill-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    border-radius:12px 12px 0 0;
+}
+.bill-card.ventas::before    { background:#16a34a; }
+.bill-card.produccion::before { background:#f59e0b; }
+.bill-card.insumos::before   { background:#dc2626; }
+.bill-card.servicios::before { background:#6366f1; }
+.bill-card.balance::before   { background:#0ea5e9; }
+
+.bill-icon { font-size:26px; margin-bottom:10px; }
+.bill-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:#888; margin-bottom:6px; }
+.bill-value { font-size:22px; font-weight:800; color:#1a1a2e; }
+.bill-value.negativo { color:#dc2626; }
+.bill-value.positivo { color:#16a34a; }
+.bill-sub { font-size:11px; color:#aaa; margin-top:4px; }
+
+/* ── Section header ── */
+.section-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+}
+.section-title { font-size:17px; font-weight:700; color:#1a1a2e; }
+
+/* ── Threshold config bar ── */
+.umbral-bar {
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    background:white; padding:12px 18px; border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:16px;
+    font-size:13px;
+}
+.umbral-group { display:flex; align-items:center; gap:8px; }
+.umbral-group label { font-weight:600; color:#444; }
+.umbral-group input[type=number] {
+    width:60px; padding:4px 8px; border:1.5px solid #e0e0e0;
+    border-radius:6px; font-size:13px; text-align:center;
+    font-family:inherit;
+}
+.umbral-group input:focus { outline:none; border-color:#4f46e5; }
+.umbral-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.dot-verde   { background:#16a34a; }
+.dot-azul    { background:#2563eb; }
+.dot-amarillo{ background:#f59e0b; }
+.dot-rojo    { background:#dc2626; }
+.umbral-sep { color:#ddd; }
+
+/* ── Search bar ── */
+.search-bar {
+    display:flex; gap:10px; align-items:center; margin-bottom:14px;
+}
+.search-bar input {
+    flex:1; max-width:340px; padding:8px 14px; border:1.5px solid #e0e0e0;
+    border-radius:8px; font-size:14px; font-family:inherit;
+}
+.search-bar input:focus { outline:none; border-color:#4f46e5; }
+
+/* ── Product cost table ── */
+.cost-table-wrap {
+    background:white; border-radius:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06); overflow:hidden;
+}
+.cost-table { width:100%; border-collapse:collapse; }
+.cost-table th {
+    background:#f8f9fa; padding:11px 16px; text-align:left;
+    font-size:11px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.5px; color:#888; border-bottom:1px solid #f0f0f0;
+}
+.cost-table td { padding:11px 16px; border-bottom:1px solid #f7f7f7; font-size:13px; vertical-align:middle; }
+.cost-table tr:last-child td { border-bottom:none; }
+.cost-table tr.product-row { cursor:pointer; transition:background .12s; }
+.cost-table tr.product-row:hover { background:#fafafa; }
+.cost-table tr.product-row.expanded td { background:#f5f3ff; border-bottom:none; }
+
+/* Estado badge */
+.estado-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;
+}
+.estado-verde    { background:#f0fdf4; color:#16a34a; }
+.estado-azul     { background:#eff6ff; color:#2563eb; }
+.estado-amarillo { background:#fffbeb; color:#d97706; }
+.estado-rojo     { background:#fef2f2; color:#dc2626; }
+.estado-sin      { background:#f3f4f6; color:#9ca3af; }
+
+/* Expand icon */
+.expand-icon { font-size:12px; color:#aaa; transition:transform .2s; }
+.expanded .expand-icon { transform:rotate(180deg); }
+
+/* Ingredient sub-table */
+.ingredient-row td { background:#f9f7ff !important; padding:0 !important; border-bottom:1px solid #ede9fe; }
+.ingredient-table {
+    width:100%; border-collapse:collapse; font-size:12px;
+}
+.ingredient-table th {
+    background:transparent; padding:7px 24px; font-size:10px; color:#7c3aed;
+    font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    border-bottom:1px solid #ede9fe;
+}
+.ingredient-table td { padding:7px 24px; color:#444; border-bottom:1px solid #f0eeff; }
+.ingredient-table tr:last-child td { border-bottom:none; }
+.sin-precio { color:#f59e0b; font-style:italic; }
+.sin-receta { color:#9ca3af; font-style:italic; font-size:12px; }
+
+/* Totals / loading */
+.tbl-loading { text-align:center; padding:40px; color:#aaa; font-size:14px; }
+.tbl-empty   { text-align:center; padding:36px; color:#aaa; font-size:14px; }
+
+/* Pct bar */
+.pct-cell { display:flex; align-items:center; gap:8px; }
+.pct-bar-wrap { flex:1; background:#f0f0f0; border-radius:4px; height:6px; min-width:60px; max-width:120px; overflow:hidden; }
+.pct-bar { height:6px; border-radius:4px; transition:width .3s; }
+
+/* Sticky loading skeleton */
+.loading-card { animation:pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+
+    <div class="page-header">
+        <h2>📊 Facturación y Estadísticas</h2>
+    </div>
+
+    <!-- ═══════ SECCIÓN 1: FACTURACIÓN MENSUAL ═══════ -->
+    <div class="section-header">
+        <span class="section-title">Facturación del mes</span>
+    </div>
+
+    <!-- Navegador de mes -->
+    <div class="mes-nav">
+        <button onclick="cambiarMes(-1)">‹</button>
+        <span id="lbl-mes">—</span>
+        <button onclick="cambiarMes(1)">›</button>
+    </div>
+
+    <!-- Cards -->
+    <div class="billing-cards" id="billing-cards">
+        <div class="bill-card ventas loading-card">
+            <div class="bill-icon">💰</div>
+            <div class="bill-label">Ventas del mes</div>
+            <div class="bill-value">Cargando…</div>
+        </div>
+        <div class="bill-card produccion loading-card">
+            <div class="bill-icon">🏭</div>
+            <div class="bill-label">Costo de producción</div>
+            <div class="bill-value">Cargando…</div>
+        </div>
+        <div class="bill-card insumos loading-card">
+            <div class="bill-icon">📦</div>
+            <div class="bill-label">Insumos facturados</div>
+            <div class="bill-value">Cargando…</div>
+        </div>
+        <div class="bill-card servicios loading-card">
+            <div class="bill-icon">🔧</div>
+            <div class="bill-label">Servicios facturados</div>
+            <div class="bill-value">Cargando…</div>
+        </div>
+        <div class="bill-card balance loading-card">
+            <div class="bill-icon">⚖️</div>
+            <div class="bill-label">Balance mensual</div>
+            <div class="bill-value">Cargando…</div>
+        </div>
+    </div>
+
+    <!-- ═══════ SECCIÓN 2: COSTOS DE LA CARTA ═══════ -->
+    <div class="section-header" style="margin-top:10px;">
+        <span class="section-title">Costos de la carta</span>
+    </div>
+
+    <!-- Config de umbrales -->
+    <div class="umbral-bar">
+        <strong style="color:#555;font-size:13px;">Umbrales:</strong>
+
+        <div class="umbral-group">
+            <div class="umbral-dot dot-azul"></div>
+            <label>Precio alto si costo &lt;</label>
+            <input type="number" id="umb-azul" min="1" max="99" value="20">
+            <label>%</label>
+        </div>
+
+        <span class="umbral-sep">|</span>
+
+        <div class="umbral-group">
+            <div class="umbral-dot dot-verde"></div>
+            <label>Normal</label>
+        </div>
+
+        <span class="umbral-sep">|</span>
+
+        <div class="umbral-group">
+            <div class="umbral-dot dot-amarillo"></div>
+            <label>Margen ajustado si costo &gt;</label>
+            <input type="number" id="umb-amarillo" min="1" max="200" value="60">
+            <label>%</label>
+        </div>
+
+        <span class="umbral-sep">|</span>
+
+        <div class="umbral-group">
+            <div class="umbral-dot dot-rojo"></div>
+            <label>Sin ganancia si costo &gt;</label>
+            <input type="number" id="umb-rojo" min="1" max="500" value="85">
+            <label>%</label>
+        </div>
+
+        <button onclick="guardarUmbrales()" style="margin-left:auto;background:#4f46e5;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">
+            Aplicar
+        </button>
+    </div>
+
+    <!-- Buscador -->
+    <div class="search-bar">
+        <input type="text" id="buscar-producto" placeholder="🔍  Buscar producto…" oninput="filtrarTabla()">
+    </div>
+
+    <!-- Tabla -->
+    <div class="cost-table-wrap">
+        <table class="cost-table">
+            <thead>
+                <tr>
+                    <th style="width:30px;"></th>
+                    <th>Producto</th>
+                    <th>Precio carta</th>
+                    <th>Costo producción</th>
+                    <th>% sobre precio</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody id="cost-tbody">
+                <tr><td colspan="6" class="tbl-loading">Cargando productos…</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script>
+// ── Umbrales (localStorage) ─────────────────────────────────────
+const UMBRAL_KEY = "est_umbrales_v1";
+const UMBRALES_DEFAULT = { azul: 20, amarillo: 60, rojo: 85 };
+
+function getUmbrales() {
+    try { return JSON.parse(localStorage.getItem(UMBRAL_KEY)) || UMBRALES_DEFAULT; }
+    catch { return UMBRALES_DEFAULT; }
+}
+function guardarUmbrales() {
+    const u = {
+        azul:     parseInt(document.getElementById("umb-azul").value)     || 20,
+        amarillo: parseInt(document.getElementById("umb-amarillo").value) || 60,
+        rojo:     parseInt(document.getElementById("umb-rojo").value)     || 85,
+    };
+    localStorage.setItem(UMBRAL_KEY, JSON.stringify(u));
+    renderTabla();
+}
+function cargarUmbralesUI() {
+    const u = getUmbrales();
+    document.getElementById("umb-azul").value     = u.azul;
+    document.getElementById("umb-amarillo").value = u.amarillo;
+    document.getElementById("umb-rojo").value     = u.rojo;
+}
+
+// ── Formato moneda ──────────────────────────────────────────────
+const FMT = new Intl.NumberFormat("es-AR", { style:"currency", currency:"ARS", maximumFractionDigits:2 });
+function fmt(n) { return FMT.format(n); }
+
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+               "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+// ── Estado del mes actual ───────────────────────────────────────
+let mesActual  = new Date().getMonth() + 1;
+let anioActual = new Date().getFullYear();
+
+function cambiarMes(dir) {
+    mesActual += dir;
+    if (mesActual < 1)  { mesActual = 12; anioActual--; }
+    if (mesActual > 12) { mesActual = 1;  anioActual++; }
+    actualizarLblMes();
+    cargarFacturacion();
+}
+function actualizarLblMes() {
+    document.getElementById("lbl-mes").textContent = `${MESES[mesActual-1]} ${anioActual}`;
+}
+
+// ── Facturación mensual ─────────────────────────────────────────
+async function cargarFacturacion() {
+    const token = getToken();
+    if (!token) { window.location.href = "index.html"; return; }
+
+    document.getElementById("billing-cards").innerHTML = `
+        ${["ventas","produccion","insumos","servicios","balance"].map(c=>`
+        <div class="bill-card ${c} loading-card">
+            <div class="bill-icon">${{ventas:"💰",produccion:"🏭",insumos:"📦",servicios:"🔧",balance:"⚖️"}[c]}</div>
+            <div class="bill-value" style="color:#ddd;background:#f0f0f0;border-radius:6px;width:80%;height:28px;margin-top:14px;"></div>
+        </div>`).join("")}`;
+
+    try {
+        const res = await authFetch(`${API_URL}/reportes/facturacion-mes?year=${anioActual}&month=${mesActual}`);
+        if (!res.ok) throw new Error(res.status);
+        const d = await res.json();
+        renderBillingCards(d);
+    } catch(e) {
+        document.getElementById("billing-cards").innerHTML =
+            `<p style="color:#dc2626;padding:16px;">Error al cargar facturación: ${e.message}</p>`;
+    }
+}
+
+function renderBillingCards(d) {
+    const esMesActual = d.year === new Date().getFullYear() && d.month === new Date().getMonth()+1;
+    const sufijo = esMesActual ? " (parcial)" : "";
+
+    const cards = [
+        {
+            cls:"ventas", icon:"💰", label:"Ventas del mes",
+            value: fmt(d.ventas), extraCls: d.ventas >= 0 ? "" : "negativo",
+            sub: "Suma de cierres de caja"
+        },
+        {
+            cls:"produccion", icon:"🏭", label:"Costo de producción real",
+            value: fmt(d.costo_produccion), extraCls:"negativo",
+            sub: "Insumos consumidos × último precio"
+        },
+        {
+            cls:"insumos", icon:"📦", label:"Insumos facturados",
+            value: fmt(d.costo_insumos_facturados), extraCls:"negativo",
+            sub: "Compras de stock del mes"
+        },
+        {
+            cls:"servicios", icon:"🔧", label:"Servicios facturados",
+            value: fmt(d.costo_servicios_facturados),
+            extraCls: d.costo_servicios_facturados < 0 ? "positivo" : "negativo",
+            sub: d.costo_servicios_facturados < 0 ? "Crédito neto (notas de crédito)" : "Gasto neto de servicios"
+        },
+        {
+            cls:"balance", icon:"⚖️", label:`Balance mensual${sufijo}`,
+            value: fmt(d.balance),
+            extraCls: d.balance >= 0 ? "positivo" : "negativo",
+            sub: "Ventas − producción − insumos − servicios"
+        },
+    ];
+
+    document.getElementById("billing-cards").innerHTML = cards.map(c => `
+        <div class="bill-card ${c.cls}">
+            <div class="bill-icon">${c.icon}</div>
+            <div class="bill-label">${c.label}</div>
+            <div class="bill-value ${c.extraCls}">${c.value}</div>
+            <div class="bill-sub">${c.sub}</div>
+        </div>
+    `).join("");
+}
+
+// ── Costos de la carta ──────────────────────────────────────────
+let productosData = [];
+let expandedRows  = new Set();
+
+async function cargarCostos() {
+    const token = getToken();
+    if (!token) return;
+    try {
+        const res = await authFetch(`${API_URL}/reportes/costos-carta`);
+        if (!res.ok) throw new Error(res.status);
+        productosData = await res.json();
+        renderTabla();
+    } catch(e) {
+        document.getElementById("cost-tbody").innerHTML =
+            `<tr><td colspan="6" class="tbl-empty" style="color:#dc2626;">Error: ${e.message}</td></tr>`;
+    }
+}
+
+function estadoProducto(pct) {
+    if (pct === null || pct === undefined) return { cls:"sin", label:"Sin datos", icon:"—" };
+    const u = getUmbrales();
+    if (pct > u.rojo)     return { cls:"rojo",     label:"Sin ganancia",    icon:"🔴" };
+    if (pct > u.amarillo) return { cls:"amarillo",  label:"Margen ajustado", icon:"🟡" };
+    if (pct < u.azul)     return { cls:"azul",      label:"Precio alto",     icon:"🔵" };
+    return                       { cls:"verde",      label:"En precio",       icon:"🟢" };
+}
+
+function pctColor(pct) {
+    const u = getUmbrales();
+    if (pct === null) return "#d1d5db";
+    if (pct > u.rojo)     return "#dc2626";
+    if (pct > u.amarillo) return "#f59e0b";
+    if (pct < u.azul)     return "#2563eb";
+    return "#16a34a";
+}
+
+function filtrarTabla() {
+    const q = document.getElementById("buscar-producto").value.toLowerCase();
+    const filtrado = productosData.filter(p => p.nombre.toLowerCase().includes(q));
+    renderTablaRows(filtrado);
+}
+
+function renderTabla() {
+    const q = document.getElementById("buscar-producto").value.toLowerCase();
+    const filtrado = q ? productosData.filter(p => p.nombre.toLowerCase().includes(q)) : productosData;
+    renderTablaRows(filtrado);
+}
+
+function renderTablaRows(lista) {
+    const tbody = document.getElementById("cost-tbody");
+    if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="tbl-empty">No se encontraron productos.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = lista.map(p => {
+        const estado  = estadoProducto(p.porcentaje_costo);
+        const pct     = p.porcentaje_costo;
+        const pctDisp = pct !== null ? `${pct.toFixed(1)}%` : "—";
+        const barW    = pct !== null ? Math.min(pct, 150) : 0;
+        const color   = pctColor(pct);
+        const sinReceta = !p.ingredientes || p.ingredientes.length === 0;
+        const isExp   = expandedRows.has(p.id);
+
+        const productRow = `
+            <tr class="product-row${isExp?" expanded":""}" onclick="toggleRow(${p.id})">
+                <td><span class="expand-icon">${sinReceta?"":"▼"}</span></td>
+                <td><strong>${p.nombre}</strong>${sinReceta?` <span class="sin-receta">(sin receta)</span>`:""}</td>
+                <td>${fmt(p.precio)}</td>
+                <td>${sinReceta ? `<span class="sin-receta">—</span>` : fmt(p.costo_produccion)}</td>
+                <td>
+                    ${sinReceta ? `<span class="sin-receta">—</span>` : `
+                    <div class="pct-cell">
+                        <span style="font-weight:700;color:${color};min-width:42px;">${pctDisp}</span>
+                        <div class="pct-bar-wrap">
+                            <div class="pct-bar" style="width:${Math.min(barW/1.5,100)}%;background:${color};"></div>
+                        </div>
+                    </div>`}
+                </td>
+                <td>${sinReceta
+                    ? `<span class="estado-badge estado-sin">Sin receta</span>`
+                    : `<span class="estado-badge estado-${estado.cls}">${estado.icon} ${estado.label}</span>`}
+                </td>
+            </tr>`;
+
+        let ingredientRow = "";
+        if (isExp && !sinReceta) {
+            const rows = p.ingredientes.map(ing => {
+                const sinP = !ing.precio_promedio || ing.precio_promedio === 0;
+                return `
+                    <tr>
+                        <td>${ing.nombre}</td>
+                        <td>${ing.cantidad_receta} ${ing.unidad}</td>
+                        <td>${sinP
+                            ? `<span class="sin-precio">Sin precio (${ing.num_compras} compras)</span>`
+                            : fmt(ing.precio_promedio)}</td>
+                        <td>${sinP ? "—" : fmt(ing.subtotal)}</td>
+                    </tr>`;
+            }).join("");
+
+            ingredientRow = `
+                <tr class="ingredient-row">
+                    <td colspan="6">
+                        <table class="ingredient-table">
+                            <thead>
+                                <tr>
+                                    <th>Ingrediente</th>
+                                    <th>Cantidad receta</th>
+                                    <th>Precio prom. 3m</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </td>
+                </tr>`;
+        }
+
+        return productRow + ingredientRow;
+    }).join("");
+}
+
+function toggleRow(id) {
+    if (expandedRows.has(id)) expandedRows.delete(id);
+    else expandedRows.add(id);
+    renderTabla();
+}
+
+// ── Init ────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+    const token = getToken();
+    if (!token) { window.location.href = "index.html"; return; }
+
+    cargarUmbralesUI();
+    actualizarLblMes();
+    cargarFacturacion();
+    cargarCostos();
+});
+</script>
+</body>
+</html>
