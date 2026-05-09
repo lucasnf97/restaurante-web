@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurante — Históricos de Facturación</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+
+.navbar {
+    background:#1a1a2e; color:white; padding:0 32px; height:60px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:fixed; top:0; left:0; right:0; z-index:100;
+}
+.navbar-brand { font-size:18px; font-weight:700; }
+.navbar-links { display:flex; gap:16px; align-items:center; }
+.btn-logout {
+    background:transparent; border:1px solid #4f46e5; color:#a5b4fc;
+    padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px;
+}
+.btn-logout:hover { background:#4f46e5; color:white; }
+
+.content { margin-top:60px; padding:24px 32px; }
+
+/* ── Page header ── */
+.page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+.page-header h2 { font-size:22px; font-weight:700; color:#1a1a2e; }
+.btn-back {
+    background:white; border:1.5px solid #e0e0e0; border-radius:8px;
+    padding:7px 16px; font-size:13px; font-weight:600; color:#4f46e5;
+    cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+    transition:background .15s, border-color .15s;
+}
+.btn-back:hover { background:#f5f3ff; border-color:#c4b5fd; }
+
+/* ── Section title ── */
+.section-title { font-size:17px; font-weight:700; color:#1a1a2e; }
+
+/* ── Bar chart (gastos vs ventas) ── */
+.chart-col {
+    width:100%;
+}
+
+.chart-card {
+    background:white; border-radius:12px; padding:20px 24px 16px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:24px;
+}
+.chart-top {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px; flex-wrap:wrap; gap:8px;
+}
+/* nav arrows */
+.chart-nav {
+    display:flex; align-items:center; gap:8px; margin-bottom:12px;
+}
+.chart-nav button {
+    background:none; border:1.5px solid #e0e0e0; border-radius:6px;
+    width:28px; height:28px; cursor:pointer; font-size:16px; color:#4f46e5;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .15s;
+}
+.chart-nav button:hover:not(:disabled) { background:#ede9fe; }
+.chart-nav button:disabled { color:#ccc; border-color:#f0f0f0; cursor:default; }
+.chart-nav-period {
+    font-size:12px; font-weight:600; color:#555; min-width:130px; text-align:center;
+}
+.chart-legend { display:flex; gap:16px; align-items:center; }
+.legend-item  { display:flex; align-items:center; gap:6px; font-size:12px; color:#555; font-weight:500; }
+.legend-dot   { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+
+/* Chart canvas */
+.gchart    { display:flex; height:340px; }
+.g-yaxis   { width:58px; flex-shrink:0; position:relative; }
+.ytick     { position:absolute; right:8px; font-size:10px; color:#bbb;
+             transform:translateY(50%); white-space:nowrap; text-align:right; }
+.g-plot    { flex:1; position:relative; border-left:1.5px solid #e8e8e8; }
+.g-gridlines { position:absolute; top:0; left:0; right:0; bottom:28px; pointer-events:none; }
+.gridline  { position:absolute; left:0; right:0; border-top:1px dashed #f0f0f0; }
+.g-xline   { position:absolute; bottom:28px; left:0; right:0; height:1.5px; background:#e8e8e8; }
+.g-groups  { position:absolute; top:0; left:0; right:0; bottom:28px;
+             display:flex; align-items:stretch; padding:0 20px; gap:16px; }
+.bar-group { flex:1; display:flex; align-items:flex-end; justify-content:center; gap:4px; }
+.bar       { flex:1; max-width:38px; border-radius:4px 4px 0 0; min-height:0;
+             transition:height .45s cubic-bezier(.4,0,.2,1); cursor:default; }
+.bar:hover { filter:brightness(1.1); }
+.bar-g     { background:#ef4444; }
+.bar-v     { background:#22c55e; }
+.g-xlabels { position:absolute; bottom:0; left:0; right:0; height:28px;
+             display:flex; padding:0 20px; gap:16px; }
+.xlbl      { flex:1; display:flex; align-items:center; justify-content:center;
+             font-size:10px; color:#888; text-align:center; line-height:1.3; }
+.xlbl.cur  { color:#4f46e5; font-weight:700; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+
+    <div class="page-header">
+        <h2>📈 Históricos de Facturación</h2>
+        <a href="estadisticas.html" class="btn-back">← Volver a Estadísticas</a>
+    </div>
+
+    <!-- ═══════ GRÁFICO GASTOS vs VENTAS ═══════ -->
+    <div class="chart-col">
+    <div class="chart-card">
+        <div class="chart-top">
+            <span class="section-title" style="font-size:15px;">📈 Gastos vs Ventas</span>
+            <div class="chart-legend">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#ef4444;"></div>Gastos
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#22c55e;"></div>Ventas
+                </div>
+            </div>
+        </div>
+        <div class="chart-nav">
+            <button id="btn-gprev" onclick="navGrafico(-1)" title="Mes anterior">‹</button>
+            <span class="chart-nav-period" id="grafico-periodo">—</span>
+            <button id="btn-gnext" onclick="navGrafico(1)"  title="Mes siguiente">›</button>
+        </div>
+        <div class="gchart">
+            <div class="g-yaxis" id="g-yaxis"></div>
+            <div class="g-plot"  id="g-plot">
+                <p style="color:#aaa;padding:20px;text-align:center;">Cargando…</p>
+            </div>
+        </div>
+    </div>
+    </div>
+
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script>
+// ── Formato moneda ──────────────────────────────────────────────
+const FMT = new Intl.NumberFormat("es-AR", { style:"currency", currency:"ARS", maximumFractionDigits:2 });
+function fmt(n) { return FMT.format(n); }
+
+// ── Mes actual del sistema ──────────────────────────────────────
+const mesActual  = new Date().getMonth() + 1;
+const anioActual = new Date().getFullYear();
+
+// ── Gráfico Gastos vs Ventas ────────────────────────────────────
+const BAR_H           = 280;
+const MESES_SHORT     = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const GRAFICO_MIN_OFF = -9;
+let   graficoOffset   = 0;
+
+function navGrafico(dir) {
+    const next = graficoOffset + dir;
+    if (next > 0 || next < GRAFICO_MIN_OFF) return;
+    graficoOffset = next;
+    cargarGrafico();
+}
+
+function fmtK(n) {
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000)    return '$' + (n / 1000).toFixed(1) + 'k';
+    return '$' + Math.round(n);
+}
+
+async function cargarGrafico() {
+    const yaxis = document.getElementById("g-yaxis");
+    const plot  = document.getElementById("g-plot");
+    plot.innerHTML = '<p style="color:#aaa;padding:20px;text-align:center;">Cargando…</p>';
+    yaxis.innerHTML = '';
+
+    // Ventana de 4 meses según offset (0 = termina en mesActual)
+    const meses = [];
+    for (let i = 3; i >= 0; i--) {
+        let m = mesActual + graficoOffset - i;
+        let y = anioActual;
+        while (m < 1)  { m += 12; y--; }
+        while (m > 12) { m -= 12; y++; }
+        meses.push({ y, m });
+    }
+
+    // Período y botones de navegación
+    const first = meses[0], last = meses[meses.length - 1];
+    const periodoEl = document.getElementById("grafico-periodo");
+    const btnPrev   = document.getElementById("btn-gprev");
+    const btnNext   = document.getElementById("btn-gnext");
+    if (periodoEl) periodoEl.textContent =
+        `${MESES_SHORT[first.m-1]} ${first.y} – ${MESES_SHORT[last.m-1]} ${last.y}`;
+    if (btnPrev) btnPrev.disabled = graficoOffset <= GRAFICO_MIN_OFF;
+    if (btnNext) btnNext.disabled = graficoOffset >= 0;
+
+    const datos = await Promise.all(meses.map(async ({ y, m }) => {
+        try {
+            const d = await apiFetch(`/reportes/facturacion-mes?year=${y}&month=${m}`);
+            const gastos = d.costo_insumos_facturados
+                         + d.costo_servicios_facturados;
+            return { y, m, ventas: d.ventas || 0, gastos: Math.max(0, gastos) };
+        } catch { return { y, m, ventas: 0, gastos: 0 }; }
+    }));
+
+    const allVals = datos.flatMap(d => [d.ventas, d.gastos]).filter(v => v > 0);
+    const maxVal  = allVals.length ? Math.max(...allVals) * 1.1 : 1000;
+    const toPx    = v => Math.max(Math.round((v / maxVal) * BAR_H), v > 0 ? 2 : 0);
+
+    // ── Y axis ticks (0 / 25 / 50 / 75 / 100 %)
+    const tPcts = [0, 0.25, 0.5, 0.75, 1.0];
+    yaxis.innerHTML = tPcts.map(t => {
+        const px = 28 + Math.round(t * BAR_H);
+        return `<div class="ytick" style="bottom:${px}px;">${fmtK(maxVal * t)}</div>`;
+    }).join('');
+
+    // ── Gridlines (excluye 0, que ya es la línea del eje X)
+    const gridHtml = tPcts.filter(t => t > 0).map(t => {
+        const px = Math.round(t * BAR_H);
+        return `<div class="gridline" style="bottom:${px}px;"></div>`;
+    }).join('');
+
+    // ── Barras + etiquetas X
+    const groupsHtml = datos.map(d => `
+        <div class="bar-group">
+            <div class="bar bar-g" style="height:${toPx(d.gastos)}px;"
+                 title="Gastos ${MESES_SHORT[d.m-1]} ${d.y}: ${fmt(d.gastos)}"></div>
+            <div class="bar bar-v" style="height:${toPx(d.ventas)}px;"
+                 title="Ventas ${MESES_SHORT[d.m-1]} ${d.y}: ${fmt(d.ventas)}"></div>
+        </div>`).join('');
+
+    const xlabelsHtml = datos.map((d, i) => `
+        <div class="xlbl${i === datos.length - 1 && graficoOffset === 0 ? ' cur' : ''}">
+            ${MESES_SHORT[d.m - 1]}<br>${d.y}
+        </div>`).join('');
+
+    plot.innerHTML = `
+        <div class="g-gridlines">${gridHtml}</div>
+        <div class="g-xline"></div>
+        <div class="g-groups">${groupsHtml}</div>
+        <div class="g-xlabels">${xlabelsHtml}</div>`;
+}
+
+// ── Init ────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+    requireAuth();
+    cargarGrafico();
+});
+</script>
+</body>
+</html>
