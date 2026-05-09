@@ -40,6 +40,7 @@
                 { href: "cuadrante.html",  icon: "📋", label: "Cuadrante" },
             ]
         },
+        { href: "configuracion.html", icon: "⚙️", label: "Configuración" },
     ];
 
     const currentPage = window.location.pathname.split("/").pop() || "dashboard.html";
@@ -221,8 +222,17 @@
         .sidebar-child:hover { background:rgba(99,102,241,0.15); color:white; }
         .sidebar-child.active { background:rgba(79,70,229,.5); color:white; }
         .sidebar-child .si-icon { font-size:14px; width:20px; text-align:center; flex-shrink:0; }
+
+        /* ── Modo Edición: btn-config oculto por defecto ── */
+        .btn-config { display: none !important; }
+        html.edit-mode .btn-config { display: flex !important; }
     `;
     document.head.appendChild(style);
+
+    // Aplicar clase edit-mode según localStorage
+    if (localStorage.getItem('edit_mode') === 'true') {
+        document.documentElement.classList.add('edit-mode');
+    }
 
     // ── Helpers para grupos ──────────────────────────────────────
     function groupKey(p) {

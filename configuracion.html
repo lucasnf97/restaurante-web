@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurante — Configuración</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+
+.navbar {
+    background:#1a1a2e; color:white; padding:0 32px; height:60px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:fixed; top:0; left:0; right:0; z-index:100;
+}
+.navbar-brand { font-size:18px; font-weight:700; }
+.navbar-links  { display:flex; gap:16px; align-items:center; }
+.btn-logout {
+    background:transparent; border:1px solid #4f46e5; color:#a5b4fc;
+    padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px;
+}
+.btn-logout:hover { background:#4f46e5; color:white; }
+
+.content { margin-top:60px; padding:24px 32px; max-width:860px; }
+
+.page-header { margin-bottom:28px; }
+.page-header h2 { font-size:22px; font-weight:700; color:#1a1a2e; }
+.page-header p  { font-size:13px; color:#9ca3af; margin-top:4px; }
+
+/* ── Accordion ─────────────────────────────────────────────── */
+.cfg-section {
+    background:white; border-radius:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06);
+    margin-bottom:14px; overflow:hidden;
+}
+.cfg-section-head {
+    display:flex; align-items:center; gap:14px;
+    padding:18px 22px; cursor:pointer; user-select:none;
+    transition:background .15s;
+}
+.cfg-section-head:hover { background:#fafafa; }
+.cfg-section-icon  { font-size:22px; flex-shrink:0; }
+.cfg-section-title {
+    flex:1; font-size:15px; font-weight:700; color:#1a1a2e;
+    display:flex; align-items:center; gap:10px;
+}
+.cfg-section-badge {
+    font-size:11px; font-weight:700; padding:2px 9px;
+    border-radius:20px; white-space:nowrap;
+}
+.badge-on  { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
+.badge-off { background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; }
+.badge-hidden { background:#fff7ed; color:#d97706; border:1px solid #fde68a; }
+.cfg-section-arrow {
+    font-size:18px; color:#9ca3af;
+    transition:transform .22s; flex-shrink:0;
+}
+.cfg-section.open .cfg-section-arrow { transform:rotate(90deg); }
+
+.cfg-section-body {
+    display:none; padding:6px 22px 24px;
+    border-top:1px solid #f0f0f0;
+}
+.cfg-section.open .cfg-section-body { display:block; }
+
+/* ── Form fields ───────────────────────────────────────────── */
+.cfg-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+.cfg-grid.full { grid-template-columns:1fr; }
+@media(max-width:640px) { .cfg-grid { grid-template-columns:1fr; } }
+
+.cfg-field { display:flex; flex-direction:column; gap:6px; }
+.cfg-label {
+    font-size:11px; font-weight:700; color:#6b7280;
+    text-transform:uppercase; letter-spacing:.5px;
+}
+.cfg-input {
+    padding:10px 14px; border:1.5px solid #e0e0e0;
+    border-radius:8px; font-size:14px; font-family:inherit;
+    transition:border-color .15s;
+}
+.cfg-input:focus { outline:none; border-color:#4f46e5; }
+.cfg-hint { font-size:11px; color:#9ca3af; margin-top:2px; }
+
+.cfg-actions { margin-top:20px; display:flex; align-items:center; gap:12px; }
+.btn-save {
+    background:#4f46e5; color:white; border:none;
+    padding:9px 22px; border-radius:8px; font-size:13px;
+    font-weight:700; cursor:pointer; transition:background .15s;
+}
+.btn-save:hover { background:#4338ca; }
+.save-ok {
+    font-size:12px; color:#16a34a; font-weight:600;
+    display:none; align-items:center; gap:4px;
+}
+.save-ok.visible { display:flex; }
+
+/* ── Logo upload ───────────────────────────────────────────── */
+.logo-area { display:flex; align-items:center; gap:20px; margin-top:16px; }
+.logo-preview {
+    width:80px; height:80px; border-radius:10px;
+    border:2px dashed #e0e0e0; display:flex;
+    align-items:center; justify-content:center;
+    font-size:28px; background:#f9fafb; overflow:hidden;
+    flex-shrink:0;
+}
+.logo-preview img { width:100%; height:100%; object-fit:contain; }
+.logo-controls { display:flex; flex-direction:column; gap:8px; }
+.btn-upload {
+    background:#f5f3ff; color:#6d28d9; border:1.5px dashed #c4b5fd;
+    padding:8px 18px; border-radius:8px; font-size:13px;
+    font-weight:600; cursor:pointer; transition:all .15s;
+}
+.btn-upload:hover { background:#ede9fe; }
+.btn-remove-logo {
+    background:none; color:#dc2626; border:none;
+    font-size:12px; cursor:pointer; padding:0; text-align:left;
+    font-weight:600; display:none;
+}
+.btn-remove-logo.visible { display:block; }
+
+/* ── Modo Edición ──────────────────────────────────────────── */
+.edit-mode-info {
+    margin-top:16px; background:#f8f7ff;
+    border:1px solid #e0e7ff; border-radius:10px;
+    padding:14px 16px; font-size:13px; color:#4b5563; line-height:1.6;
+}
+.edit-mode-info ul { margin:8px 0 0 18px; }
+.edit-mode-info li { margin-bottom:4px; }
+
+.edit-mode-state {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:18px; padding:14px 16px; border-radius:10px;
+    border:1px solid #e5e7eb; background:#fafafa;
+}
+.edit-mode-state-label { font-size:14px; font-weight:600; color:#374151; }
+.edit-mode-state-sub   { font-size:12px; color:#9ca3af; margin-top:2px; }
+
+.btn-edit-activate {
+    background:#4f46e5; color:white; border:none;
+    padding:9px 20px; border-radius:8px; font-size:13px;
+    font-weight:700; cursor:pointer; transition:background .15s;
+}
+.btn-edit-activate:hover { background:#4338ca; }
+.btn-edit-deactivate {
+    background:#fef2f2; color:#dc2626;
+    border:1px solid #fecaca; padding:9px 20px;
+    border-radius:8px; font-size:13px; font-weight:700;
+    cursor:pointer; transition:all .15s;
+}
+.btn-edit-deactivate:hover { background:#fee2e2; }
+
+/* ── Base de datos ─────────────────────────────────────────── */
+.bkp-section {
+    margin-top:16px; padding:16px; border-radius:10px;
+    border:1px solid #e5e7eb; background:#fafafa;
+}
+.bkp-section + .bkp-section { margin-top:12px; }
+.bkp-title { font-size:13px; font-weight:700; color:#374151; margin-bottom:6px; }
+.bkp-desc  { font-size:12px; color:#9ca3af; margin-bottom:12px; line-height:1.5; }
+.bkp-row   { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+.btn-bkp {
+    background:#1a1a2e; color:white; border:none;
+    padding:9px 18px; border-radius:8px; font-size:13px;
+    font-weight:600; cursor:pointer; transition:background .15s;
+    display:flex; align-items:center; gap:6px;
+}
+.btn-bkp:hover { background:#2d2d4e; }
+.btn-bkp-danger {
+    background:#fef2f2; color:#dc2626; border:1px solid #fecaca;
+    padding:9px 18px; border-radius:8px; font-size:13px;
+    font-weight:600; cursor:pointer; transition:all .15s;
+}
+.btn-bkp-danger:hover { background:#fee2e2; }
+
+.file-input-label {
+    background:#f5f3ff; color:#6d28d9; border:1.5px dashed #c4b5fd;
+    padding:8px 16px; border-radius:8px; font-size:13px;
+    font-weight:600; cursor:pointer; transition:all .15s;
+}
+.file-input-label:hover { background:#ede9fe; }
+.file-chosen { font-size:12px; color:#6b7280; }
+
+/* ── Modal de verificación ─────────────────────────────────── */
+.modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.45); z-index:1000;
+    align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+    background:white; border-radius:14px; width:100%;
+    max-width:400px; box-shadow:0 20px 60px rgba(0,0,0,.2);
+    overflow:hidden;
+}
+.modal-head {
+    padding:18px 22px; border-bottom:1px solid #f0f0f0;
+    display:flex; align-items:center; justify-content:space-between;
+}
+.modal-head h3 { font-size:16px; font-weight:700; color:#1a1a2e; }
+.modal-close {
+    background:none; border:none; font-size:20px;
+    cursor:pointer; color:#888; line-height:1;
+}
+.modal-body { padding:20px 22px; display:flex; flex-direction:column; gap:14px; }
+.modal-desc { font-size:13px; color:#6b7280; line-height:1.5; }
+.modal-error {
+    font-size:12px; color:#dc2626; font-weight:600;
+    display:none; padding:8px 12px; background:#fef2f2;
+    border-radius:6px; border:1px solid #fecaca;
+}
+.modal-error.visible { display:block; }
+.modal-foot {
+    padding:14px 22px; border-top:1px solid #f0f0f0;
+    display:flex; gap:10px; justify-content:flex-end;
+}
+.btn-modal-confirm {
+    background:#4f46e5; color:white; border:none;
+    padding:9px 20px; border-radius:8px; font-size:13px;
+    font-weight:700; cursor:pointer;
+}
+.btn-modal-cancel {
+    background:#f3f4f6; color:#6b7280; border:none;
+    padding:9px 16px; border-radius:8px; font-size:13px;
+    cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header">
+        <h2>⚙️ Configuración</h2>
+        <p>Personalizá los datos y preferencias del sistema</p>
+    </div>
+
+    <!-- ═══ 1. DATOS DEL RESTAURANTE ═══════════════════════════ -->
+    <div class="cfg-section" id="sec-restaurante">
+        <div class="cfg-section-head" onclick="toggleSection('restaurante')">
+            <span class="cfg-section-icon">🏪</span>
+            <span class="cfg-section-title">Datos del Restaurante</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <div class="cfg-grid full">
+                <div class="cfg-field">
+                    <label class="cfg-label">Nombre del restaurante</label>
+                    <input class="cfg-input" type="text" id="r-nombre"
+                           placeholder="Ej: La Trattoria">
+                </div>
+            </div>
+
+            <div class="cfg-field" style="margin-top:16px;">
+                <label class="cfg-label">Logo del restaurante</label>
+                <div class="logo-area">
+                    <div class="logo-preview" id="logo-preview">🍽️</div>
+                    <div class="logo-controls">
+                        <input type="file" id="logo-file" accept="image/png,image/jpeg,image/svg+xml"
+                               style="display:none" onchange="previsualizarLogo(this)">
+                        <label for="logo-file" class="btn-upload">📁 Subir imagen</label>
+                        <span class="cfg-hint">PNG, JPG o SVG · Recomendado 200×200 px</span>
+                        <button class="btn-remove-logo" id="btn-remove-logo"
+                                onclick="eliminarLogo()">✕ Quitar logo</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cfg-actions">
+                <button class="btn-save" onclick="guardarRestaurante()">Guardar cambios</button>
+                <span class="save-ok" id="ok-restaurante">✓ Guardado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 2. INFORMACIÓN LEGAL ════════════════════════════════ -->
+    <div class="cfg-section" id="sec-legal">
+        <div class="cfg-section-head" onclick="toggleSection('legal')">
+            <span class="cfg-section-icon">📄</span>
+            <span class="cfg-section-title">Información Legal</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <div class="cfg-grid" style="margin-top:16px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Razón social</label>
+                    <input class="cfg-input" type="text" id="l-razon"
+                           placeholder="Nombre legal de la empresa">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">CUIT / CIF / NIF</label>
+                    <input class="cfg-input" type="text" id="l-cuit"
+                           placeholder="Ej: 20-12345678-9">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Dirección legal</label>
+                    <input class="cfg-input" type="text" id="l-dir-legal"
+                           placeholder="Domicilio fiscal registrado">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Dirección de facturación</label>
+                    <input class="cfg-input" type="text" id="l-dir-factura"
+                           placeholder="Igual a la legal si coincide">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Número de contacto</label>
+                    <input class="cfg-input" type="tel" id="l-telefono"
+                           placeholder="+54 11 1234-5678">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Correo electrónico</label>
+                    <input class="cfg-input" type="email" id="l-email"
+                           placeholder="contacto@restaurante.com">
+                </div>
+            </div>
+
+            <div class="cfg-actions">
+                <button class="btn-save" onclick="guardarLegal()">Guardar cambios</button>
+                <span class="save-ok" id="ok-legal">✓ Guardado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 3. MODO EDICIÓN ══════════════════════════════════════ -->
+    <div class="cfg-section" id="sec-edicion">
+        <div class="cfg-section-head" onclick="toggleSection('edicion')">
+            <span class="cfg-section-icon">🔐</span>
+            <span class="cfg-section-title">
+                Modo Edición
+                <span class="cfg-section-badge badge-off" id="badge-edicion">Inactivo</span>
+            </span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <div class="edit-mode-info">
+                Al activar el modo edición se habilitan las siguientes funciones:
+                <ul>
+                    <li>Botones de personalización de interfaz en todas las páginas</li>
+                    <li>Acceso a la sección <strong>Base de Datos</strong> en esta pantalla</li>
+                </ul>
+                Para activarlo se requiere volver a ingresar usuario y contraseña como medida de seguridad.
+            </div>
+
+            <div class="edit-mode-state" id="edit-mode-state">
+                <div>
+                    <div class="edit-mode-state-label" id="edit-state-label">Modo edición inactivo</div>
+                    <div class="edit-mode-state-sub"  id="edit-state-sub">
+                        Los botones de personalización están ocultos
+                    </div>
+                </div>
+                <div id="edit-mode-btns">
+                    <button class="btn-edit-activate" onclick="abrirModalEdicion()">
+                        🔓 Activar modo edición
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 4. BASE DE DATOS (oculta sin modo edición) ══════════ -->
+    <div class="cfg-section" id="sec-bbdd" style="display:none;">
+        <div class="cfg-section-head" onclick="toggleSection('bbdd')">
+            <span class="cfg-section-icon">🗄️</span>
+            <span class="cfg-section-title">
+                Base de Datos
+                <span class="cfg-section-badge badge-hidden">Solo modo edición</span>
+            </span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+
+            <div class="bkp-section">
+                <div class="bkp-title">📥 Crear copia de seguridad</div>
+                <div class="bkp-desc">
+                    Descargá una copia de los datos de configuración almacenados localmente.
+                    Para una copia completa de la base de datos del servidor, contactá al administrador del sistema.
+                </div>
+                <div class="bkp-row">
+                    <button class="btn-bkp" onclick="descargarBackup()">
+                        ⬇️ Descargar configuración local
+                    </button>
+                </div>
+            </div>
+
+            <div class="bkp-section">
+                <div class="bkp-title">📤 Restaurar configuración</div>
+                <div class="bkp-desc">
+                    Cargá un archivo de copia de seguridad para restaurar la configuración local.
+                    Esta acción reemplazará los datos actuales.
+                </div>
+                <div class="bkp-row">
+                    <input type="file" id="restore-file" accept=".json"
+                           style="display:none" onchange="mostrarArchivoRestore(this)">
+                    <label for="restore-file" class="file-input-label">📁 Seleccionar archivo .json</label>
+                    <span class="file-chosen" id="restore-filename">Sin archivo seleccionado</span>
+                    <button class="btn-bkp-danger" onclick="restaurarBackup()">
+                        ⚠️ Restaurar
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══ MODAL VERIFICACIÓN ════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+        <div class="modal-head">
+            <h3>🔐 Verificar identidad</h3>
+            <button class="modal-close" onclick="cerrarModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-desc">
+                Para activar el modo edición ingresá nuevamente tus credenciales.
+            </p>
+            <div class="cfg-field">
+                <label class="cfg-label">Usuario</label>
+                <input class="cfg-input" type="text" id="me-user"
+                       placeholder="Tu usuario" autocomplete="username">
+            </div>
+            <div class="cfg-field">
+                <label class="cfg-label">Contraseña</label>
+                <input class="cfg-input" type="password" id="me-pass"
+                       placeholder="Tu contraseña" autocomplete="current-password"
+                       onkeydown="if(event.key==='Enter') verificarEdicion()">
+            </div>
+            <div class="modal-error" id="me-error"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-modal-cancel" onclick="cerrarModal()">Cancelar</button>
+            <button class="btn-modal-confirm" onclick="verificarEdicion()">Verificar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+
+const CFG_REST_KEY  = 'restaurante_cfg';
+const CFG_LEGAL_KEY = 'legal_cfg';
+const EDIT_MODE_KEY = 'edit_mode';
+
+// ── Accordion ───────────────────────────────────────────────
+function toggleSection(id) {
+    const sec = document.getElementById('sec-' + id);
+    if (sec) sec.classList.toggle('open');
+}
+
+// ── Carga inicial de datos ──────────────────────────────────
+function cargarDatos() {
+    // Restaurante
+    try {
+        const r = JSON.parse(localStorage.getItem(CFG_REST_KEY) || '{}');
+        if (r.nombre) document.getElementById('r-nombre').value = r.nombre;
+        if (r.logo)   setLogoPreview(r.logo);
+    } catch {}
+
+    // Legal
+    try {
+        const l = JSON.parse(localStorage.getItem(CFG_LEGAL_KEY) || '{}');
+        if (l.razon)      document.getElementById('l-razon').value      = l.razon;
+        if (l.cuit)       document.getElementById('l-cuit').value       = l.cuit;
+        if (l.dirLegal)   document.getElementById('l-dir-legal').value  = l.dirLegal;
+        if (l.dirFactura) document.getElementById('l-dir-factura').value = l.dirFactura;
+        if (l.telefono)   document.getElementById('l-telefono').value   = l.telefono;
+        if (l.email)      document.getElementById('l-email').value      = l.email;
+    } catch {}
+
+    // Modo edición
+    actualizarEstadoEdicion();
+}
+
+// ── Guardar Restaurante ─────────────────────────────────────
+function guardarRestaurante() {
+    const logo = document.getElementById('logo-preview').dataset.logo || null;
+    const data = {
+        nombre: document.getElementById('r-nombre').value.trim(),
+        logo,
+    };
+    localStorage.setItem(CFG_REST_KEY, JSON.stringify(data));
+    mostrarOk('ok-restaurante');
+}
+
+// ── Logo ────────────────────────────────────────────────────
+function previsualizarLogo(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => setLogoPreview(e.target.result);
+    reader.readAsDataURL(file);
+}
+
+function setLogoPreview(src) {
+    const preview = document.getElementById('logo-preview');
+    preview.innerHTML = `<img src="${src}" alt="Logo">`;
+    preview.dataset.logo = src;
+    document.getElementById('btn-remove-logo').classList.add('visible');
+}
+
+function eliminarLogo() {
+    const preview = document.getElementById('logo-preview');
+    preview.innerHTML = '🍽️';
+    delete preview.dataset.logo;
+    document.getElementById('logo-file').value = '';
+    document.getElementById('btn-remove-logo').classList.remove('visible');
+}
+
+// ── Guardar Legal ───────────────────────────────────────────
+function guardarLegal() {
+    const data = {
+        razon:      document.getElementById('l-razon').value.trim(),
+        cuit:       document.getElementById('l-cuit').value.trim(),
+        dirLegal:   document.getElementById('l-dir-legal').value.trim(),
+        dirFactura: document.getElementById('l-dir-factura').value.trim(),
+        telefono:   document.getElementById('l-telefono').value.trim(),
+        email:      document.getElementById('l-email').value.trim(),
+    };
+    localStorage.setItem(CFG_LEGAL_KEY, JSON.stringify(data));
+    mostrarOk('ok-legal');
+}
+
+// ── Modo Edición ────────────────────────────────────────────
+function actualizarEstadoEdicion() {
+    const activo = localStorage.getItem(EDIT_MODE_KEY) === 'true';
+
+    const badge   = document.getElementById('badge-edicion');
+    const label   = document.getElementById('edit-state-label');
+    const sub     = document.getElementById('edit-state-sub');
+    const btns    = document.getElementById('edit-mode-btns');
+    const secBBDD = document.getElementById('sec-bbdd');
+
+    if (activo) {
+        badge.textContent = 'Activo';
+        badge.className   = 'cfg-section-badge badge-on';
+        label.textContent = 'Modo edición activo';
+        sub.textContent   = 'Los botones de personalización están habilitados en todas las páginas';
+        btns.innerHTML    = `<button class="btn-edit-deactivate" onclick="desactivarEdicion()">
+                                🔒 Desactivar modo edición
+                             </button>`;
+        secBBDD.style.display = '';
+        document.documentElement.classList.add('edit-mode');
+    } else {
+        badge.textContent = 'Inactivo';
+        badge.className   = 'cfg-section-badge badge-off';
+        label.textContent = 'Modo edición inactivo';
+        sub.textContent   = 'Los botones de personalización están ocultos';
+        btns.innerHTML    = `<button class="btn-edit-activate" onclick="abrirModalEdicion()">
+                                🔓 Activar modo edición
+                             </button>`;
+        secBBDD.style.display = 'none';
+        document.documentElement.classList.remove('edit-mode');
+    }
+}
+
+function abrirModalEdicion() {
+    document.getElementById('me-user').value = '';
+    document.getElementById('me-pass').value = '';
+    document.getElementById('me-error').classList.remove('visible');
+    document.getElementById('modal-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('me-user').focus(), 80);
+}
+
+function cerrarModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+}
+
+async function verificarEdicion() {
+    const username = document.getElementById('me-user').value.trim();
+    const password = document.getElementById('me-pass').value;
+    const errEl    = document.getElementById('me-error');
+
+    if (!username || !password) {
+        errEl.textContent = 'Completá usuario y contraseña.';
+        errEl.classList.add('visible');
+        return;
+    }
+
+    const formData = new URLSearchParams();
+    formData.append('username', username);
+    formData.append('password', password);
+
+    try {
+        const res = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData,
+        });
+
+        if (res.ok) {
+            localStorage.setItem(EDIT_MODE_KEY, 'true');
+            cerrarModal();
+            actualizarEstadoEdicion();
+        } else {
+            errEl.textContent = 'Credenciales incorrectas. Intentá de nuevo.';
+            errEl.classList.add('visible');
+            document.getElementById('me-pass').value = '';
+            document.getElementById('me-pass').focus();
+        }
+    } catch {
+        errEl.textContent = 'Error de conexión. Verificá la red.';
+        errEl.classList.add('visible');
+    }
+}
+
+function desactivarEdicion() {
+    if (!confirm('¿Desactivar el modo edición? Los botones de personalización quedarán ocultos.')) return;
+    localStorage.setItem(EDIT_MODE_KEY, 'false');
+    actualizarEstadoEdicion();
+}
+
+// ── Base de datos ───────────────────────────────────────────
+function descargarBackup() {
+    const keys = [CFG_REST_KEY, CFG_LEGAL_KEY];
+    const backup = { version: 1, fecha: new Date().toISOString(), datos: {} };
+    keys.forEach(k => {
+        try { backup.datos[k] = JSON.parse(localStorage.getItem(k) || 'null'); } catch {}
+    });
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `backup-config-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function mostrarArchivoRestore(input) {
+    const name = input.files[0]?.name || 'Sin archivo';
+    document.getElementById('restore-filename').textContent = name;
+}
+
+function restaurarBackup() {
+    const input = document.getElementById('restore-file');
+    if (!input.files[0]) { alert('Seleccioná un archivo primero.'); return; }
+    if (!confirm('⚠️ Esto reemplazará la configuración actual. ¿Continuás?')) return;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const backup = JSON.parse(e.target.result);
+            if (!backup.datos) throw new Error('Formato inválido');
+            Object.entries(backup.datos).forEach(([k, v]) => {
+                if (v !== null) localStorage.setItem(k, JSON.stringify(v));
+                else localStorage.removeItem(k);
+            });
+            alert('✓ Configuración restaurada correctamente.');
+            cargarDatos();
+        } catch {
+            alert('El archivo no es válido o está corrupto.');
+        }
+    };
+    reader.readAsText(input.files[0]);
+}
+
+// ── Cerrar modal con overlay click ──────────────────────────
+document.getElementById('modal-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-overlay')) cerrarModal();
+});
+
+// ── Feedback visual al guardar ──────────────────────────────
+function mostrarOk(id) {
+    const el = document.getElementById(id);
+    el.classList.add('visible');
+    setTimeout(() => el.classList.remove('visible'), 2500);
+}
+
+// ── Init ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', cargarDatos);
+</script>
+</body>
+</html>
