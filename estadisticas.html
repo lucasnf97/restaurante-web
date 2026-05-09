@@ -738,9 +738,8 @@ const CAT_DEFS = [
     { key:'ventas',    icon:'🛒', name:'Estadísticas de Ventas',    href:'ventas-estadisticas.html' },
 ];
 const WGT_DEFS = [
-    { key:'progreso',    icon:'📊', name:'Progreso del mes' },
-    { key:'grafico',     icon:'📈', name:'Gastos vs Ventas' },
-    { key:'costos',      icon:'🍽️', name:'Costos de la carta' },
+    { key:'progreso', icon:'📊', name:'Progreso del mes',    spans:[3,6] },
+    { key:'costos',   icon:'🍽️', name:'Costos de la carta', spans:[3,6] },
 ];
 const EST_CFG_DEFAULT = {
     cats: {
@@ -749,9 +748,8 @@ const EST_CFG_DEFAULT = {
         ventas:    { enabled:true, span:2 },
     },
     wgts: {
-        progreso:   { enabled:true, span:6 },
-        grafico:    { enabled:true, span:3 },
-        costos:     { enabled:true, span:6 },
+        progreso: { enabled:true, span:6 },
+        costos:   { enabled:true, span:6 },
     }
 };
 
@@ -774,12 +772,13 @@ function applyEstCfg(cfg) {
         el.style.display     = cc.enabled ? '' : 'none';
         el.style.gridColumn  = 'span ' + cc.span;
     });
-    // Facturación del mes: siempre visible, siempre 6 columnas
-    const facturacionEl = document.getElementById('wgt-facturacion');
-    if (facturacionEl) {
-        facturacionEl.style.display    = '';
-        facturacionEl.style.gridColumn = 'span 6';
-    }
+    // Widgets fijos (siempre visibles, siempre 6 columnas)
+    ['wgt-facturacion', 'wgt-grafico'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.display    = '';
+        el.style.gridColumn = 'span 6';
+    });
     // Widgets configurables
     WGT_DEFS.forEach(w => {
         const el = document.getElementById('wgt-' + w.key);
@@ -791,13 +790,13 @@ function applyEstCfg(cfg) {
 }
 
 function buildCfgPanel(cfg) {
-    // Helper: span buttons row
-    const spanBtns = (type, key, currentSpan) => [1,2,3,6].map(s =>
+    // Helper: span buttons row — recibe el array de opciones permitidas
+    const spanBtns = (type, key, currentSpan, spans) => spans.map(s =>
         `<button class="span-btn${s===currentSpan?' active':''}"
                  onclick="setPanelSpan('${type}','${key}',${s},this)">${s}</button>`
     ).join('');
 
-    // Category blocks
+    // Category blocks (opciones: 1, 2, 3, 6)
     document.getElementById('cfg-cats-list').innerHTML = CAT_DEFS.map(c => {
         const cc = cfg.cats[c.key] || EST_CFG_DEFAULT.cats[c.key];
         return `
@@ -814,21 +813,23 @@ function buildCfgPanel(cfg) {
             <div class="cblock-opts">
                 <div class="opt-row">
                     <span>Columnas</span>
-                    <div class="span-btns">${spanBtns('cat', c.key, cc.span)}</div>
+                    <div class="span-btns">${spanBtns('cat', c.key, cc.span, [1,2,3,6])}</div>
                 </div>
             </div>
         </div>`;
     }).join('');
 
-    // Widget blocks
+    // Widget blocks (opciones restringidas por w.spans)
     document.getElementById('cfg-wgts-list').innerHTML = WGT_DEFS.map(w => {
         const wc = cfg.wgts[w.key] || EST_CFG_DEFAULT.wgts[w.key];
+        // Asegurar que el span guardado sea una opción válida; si no, usar el máximo disponible
+        const activeSpan = w.spans.includes(wc.span) ? wc.span : w.spans[w.spans.length - 1];
         return `
         <div class="cblock">
             <div class="cblock-head">
                 <span style="font-size:16px;">${w.icon}</span>
                 <span class="cblock-name">${w.name}</span>
-                <span class="span-badge" id="span-badge-wgt-${w.key}">${wc.span} col${wc.span>1?'s':''}</span>
+                <span class="span-badge" id="span-badge-wgt-${w.key}">${activeSpan} col${activeSpan>1?'s':''}</span>
                 <label class="tsw">
                     <input type="checkbox" id="wgt-cb-${w.key}" ${wc.enabled?'checked':''}>
                     <span class="tsl"></span>
@@ -837,7 +838,7 @@ function buildCfgPanel(cfg) {
             <div class="cblock-opts">
                 <div class="opt-row">
                     <span>Columnas</span>
-                    <div class="span-btns">${spanBtns('wgt', w.key, wc.span)}</div>
+                    <div class="span-btns">${spanBtns('wgt', w.key, activeSpan, w.spans)}</div>
                 </div>
             </div>
         </div>`;
