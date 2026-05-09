@@ -476,6 +476,30 @@ input:checked + .tsl::before { transform:translateX(14px); }
     display:grid; grid-template-columns:repeat(6,1fr);
     gap:18px; align-items:start;
 }
+
+/* Drag handle en cada widget */
+.wgt-label {
+    font-size:10px; font-weight:700; color:#9ca3af;
+    text-transform:uppercase; letter-spacing:1px;
+    margin-bottom:6px; display:flex; align-items:center;
+    gap:6px; user-select:none; min-height:18px;
+}
+.wgt-drag {
+    cursor:grab; color:#c4b5fd; font-size:16px;
+    padding:2px 4px; border-radius:4px; line-height:1;
+    display:none;
+}
+.wgt-drag:active { cursor:grabbing; }
+.wgt-drag:hover  { background:rgba(196,181,253,.15); }
+body.config-open .wgt-drag { display:inline; }
+body.config-open .hub-wgt-grid {
+    outline:2px dashed #c4b5fd; outline-offset:8px; border-radius:8px;
+}
+
+/* Estados del drag */
+#hub-wgt-grid [id^="wgt-"].wgt-dragging { opacity:.35; pointer-events:none; }
+#hub-wgt-grid [id^="wgt-"].drop-before  { box-shadow:-4px 0 0 #4f46e5; }
+#hub-wgt-grid [id^="wgt-"].drop-after   { box-shadow: 4px 0 0 #4f46e5; }
 </style>
 </head>
 <body>
@@ -525,6 +549,7 @@ input:checked + .tsl::before { transform:translateX(14px); }
 
     <!-- ═══════ SECCIÓN 1: FACTURACIÓN MENSUAL ═══════ -->
     <div id="wgt-facturacion">
+    <div class="wgt-label"><span class="wgt-drag">⠿</span></div>
     <div class="section-header">
         <span class="section-title">Facturación del mes</span>
     </div>
@@ -568,6 +593,7 @@ input:checked + .tsl::before { transform:translateX(14px); }
 
     <!-- ═══════ BARRA DE PROGRESO MENSUAL ═══════ -->
     <div id="wgt-progreso">
+    <div class="wgt-label"><span class="wgt-drag">⠿</span></div>
     <div class="progress-section">
         <div class="progress-header">
             <span class="section-title" style="font-size:15px;">Progreso del mes</span>
@@ -591,6 +617,7 @@ input:checked + .tsl::before { transform:translateX(14px); }
 
     <!-- ═══════ GRÁFICO GASTOS vs VENTAS ═══════ -->
     <div id="wgt-grafico">
+    <div class="wgt-label"><span class="wgt-drag">⠿</span></div>
     <div class="chart-col">
     <div class="chart-card">
         <div class="chart-top">
@@ -621,6 +648,7 @@ input:checked + .tsl::before { transform:translateX(14px); }
 
     <!-- ═══════ SECCIÓN 2: COSTOS DE LA CARTA ═══════ -->
     <div id="wgt-costos">
+    <div class="wgt-label"><span class="wgt-drag">⠿</span></div>
     <div class="section-header" style="margin-top:10px;">
         <span class="section-title">Costos de la carta</span>
         <button class="btn-gear" id="btn-gear-umbrales" onclick="toggleUmbrales()" title="Configurar umbrales">⚙️</button>
@@ -738,8 +766,10 @@ const CAT_DEFS = [
     { key:'ventas',    icon:'🛒', name:'Estadísticas de Ventas',    href:'ventas-estadisticas.html' },
 ];
 const WGT_DEFS = [
-    { key:'progreso', icon:'📊', name:'Progreso del mes',    spans:[3,6] },
-    { key:'costos',   icon:'🍽️', name:'Costos de la carta', spans:[3,6] },
+    { key:'facturacion', icon:'📅', name:'Facturación del mes',  fixedSpan:true },
+    { key:'progreso',    icon:'📊', name:'Progreso del mes',      spans:[3,6] },
+    { key:'grafico',     icon:'📈', name:'Gastos vs Ventas',      fixedSpan:true },
+    { key:'costos',      icon:'🍽️', name:'Costos de la carta',  spans:[3,6] },
 ];
 const EST_CFG_DEFAULT = {
     cats: {
@@ -748,17 +778,21 @@ const EST_CFG_DEFAULT = {
         ventas:    { enabled:true, span:2 },
     },
     wgts: {
-        progreso: { enabled:true, span:6 },
-        costos:   { enabled:true, span:6 },
-    }
+        facturacion:{ enabled:true, span:6 },
+        progreso:   { enabled:true, span:6 },
+        grafico:    { enabled:true, span:6 },
+        costos:     { enabled:true, span:6 },
+    },
+    wgtOrder: ['facturacion','progreso','grafico','costos'],
 };
 
 function loadEstCfg() {
     try {
         const s = JSON.parse(localStorage.getItem(EST_CFG_KEY));
         return {
-            cats: { ...EST_CFG_DEFAULT.cats, ...(s?.cats||{}) },
-            wgts: { ...EST_CFG_DEFAULT.wgts, ...(s?.wgts||{}) },
+            cats:     { ...EST_CFG_DEFAULT.cats, ...(s?.cats||{}) },
+            wgts:     { ...EST_CFG_DEFAULT.wgts, ...(s?.wgts||{}) },
+            wgtOrder: s?.wgtOrder || [...EST_CFG_DEFAULT.wgtOrder],
         };
     } catch { return JSON.parse(JSON.stringify(EST_CFG_DEFAULT)); }
 }
@@ -769,24 +803,33 @@ function applyEstCfg(cfg) {
         const el = document.getElementById('cat-' + c.key);
         if (!el) return;
         const cc = cfg.cats[c.key] || EST_CFG_DEFAULT.cats[c.key];
-        el.style.display     = cc.enabled ? '' : 'none';
-        el.style.gridColumn  = 'span ' + cc.span;
+        el.style.display    = cc.enabled ? '' : 'none';
+        el.style.gridColumn = 'span ' + cc.span;
     });
-    // Widgets fijos (siempre visibles, siempre 6 columnas)
-    ['wgt-facturacion', 'wgt-grafico'].forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.style.display    = '';
-        el.style.gridColumn = 'span 6';
+
+    // Reordenar widgets según wgtOrder
+    const grid  = document.getElementById('hub-wgt-grid');
+    const order = cfg.wgtOrder || EST_CFG_DEFAULT.wgtOrder;
+    order.forEach(key => {
+        const el = document.getElementById('wgt-' + key);
+        if (el) grid.appendChild(el);
     });
-    // Widgets configurables
+
+    // Aplicar enabled + span a cada widget
     WGT_DEFS.forEach(w => {
         const el = document.getElementById('wgt-' + w.key);
         if (!el) return;
         const wc = cfg.wgts[w.key] || EST_CFG_DEFAULT.wgts[w.key];
         el.style.display    = wc.enabled ? '' : 'none';
-        el.style.gridColumn = 'span ' + wc.span;
+        if (w.fixedSpan) {
+            el.style.gridColumn = 'span 6';
+        } else {
+            const span = w.spans.includes(wc.span) ? wc.span : w.spans[w.spans.length - 1];
+            el.style.gridColumn = 'span ' + span;
+        }
     });
+
+    initWgtDrag();
 }
 
 function buildCfgPanel(cfg) {
@@ -819,14 +862,33 @@ function buildCfgPanel(cfg) {
         </div>`;
     }).join('');
 
-    // Widget blocks (opciones restringidas por w.spans)
+    // Widget blocks
     document.getElementById('cfg-wgts-list').innerHTML = WGT_DEFS.map(w => {
         const wc = cfg.wgts[w.key] || EST_CFG_DEFAULT.wgts[w.key];
-        // Asegurar que el span guardado sea una opción válida; si no, usar el máximo disponible
+
+        if (w.fixedSpan) {
+            // Sin selector de columnas — solo toggle
+            return `
+            <div class="cblock">
+                <div class="cblock-head">
+                    <span class="cblock-drag" style="color:#c4b5fd;font-size:15px;cursor:grab;">⠿</span>
+                    <span style="font-size:16px;">${w.icon}</span>
+                    <span class="cblock-name">${w.name}</span>
+                    <span class="span-badge">6 cols</span>
+                    <label class="tsw">
+                        <input type="checkbox" id="wgt-cb-${w.key}" ${wc.enabled?'checked':''}>
+                        <span class="tsl"></span>
+                    </label>
+                </div>
+            </div>`;
+        }
+
+        // Con selector de columnas restringido
         const activeSpan = w.spans.includes(wc.span) ? wc.span : w.spans[w.spans.length - 1];
         return `
         <div class="cblock">
             <div class="cblock-head">
+                <span class="cblock-drag" style="color:#c4b5fd;font-size:15px;cursor:grab;">⠿</span>
                 <span style="font-size:16px;">${w.icon}</span>
                 <span class="cblock-name">${w.name}</span>
                 <span class="span-badge" id="span-badge-wgt-${w.key}">${activeSpan} col${activeSpan>1?'s':''}</span>
@@ -869,7 +931,13 @@ function cerrarConfig() {
 }
 
 function guardarEstCfg() {
-    const cfg = { cats:{}, wgts:{} };
+    const cfg = { cats:{}, wgts:{}, wgtOrder:[] };
+
+    // Orden actual en la grilla
+    document.querySelectorAll('#hub-wgt-grid > [id^="wgt-"]').forEach(el => {
+        cfg.wgtOrder.push(el.id.replace('wgt-', ''));
+    });
+
     CAT_DEFS.forEach((c, i) => {
         const activeBtn = document.querySelector(`#cfg-cats-list .cblock:nth-child(${i+1}) .span-btn.active`);
         cfg.cats[c.key] = {
@@ -877,13 +945,17 @@ function guardarEstCfg() {
             span: parseInt(activeBtn?.textContent || '2'),
         };
     });
+
     WGT_DEFS.forEach((w, i) => {
-        const activeBtn = document.querySelector(`#cfg-wgts-list .cblock:nth-child(${i+1}) .span-btn.active`);
-        cfg.wgts[w.key] = {
-            enabled: document.getElementById(`wgt-cb-${w.key}`)?.checked ?? true,
-            span: parseInt(activeBtn?.textContent || '6'),
-        };
+        const enabled = document.getElementById(`wgt-cb-${w.key}`)?.checked ?? true;
+        let span = 6;
+        if (!w.fixedSpan) {
+            const activeBtn = document.querySelector(`#cfg-wgts-list .cblock:nth-child(${i+1}) .span-btn.active`);
+            span = parseInt(activeBtn?.textContent || String(w.spans[w.spans.length - 1]));
+        }
+        cfg.wgts[w.key] = { enabled, span };
     });
+
     localStorage.setItem(EST_CFG_KEY, JSON.stringify(cfg));
     applyEstCfg(cfg);
     cerrarConfig();
@@ -891,8 +963,9 @@ function guardarEstCfg() {
 
 function resetEstCfg() {
     localStorage.removeItem(EST_CFG_KEY);
-    applyEstCfg(JSON.parse(JSON.stringify(EST_CFG_DEFAULT)));
-    buildCfgPanel(JSON.parse(JSON.stringify(EST_CFG_DEFAULT)));
+    const def = JSON.parse(JSON.stringify(EST_CFG_DEFAULT));
+    applyEstCfg(def);
+    buildCfgPanel(def);
 }
 
 // ── Umbrales (localStorage) ─────────────────────────────────────
@@ -1439,11 +1512,74 @@ function toggleRow(id) {
     renderTabla();
 }
 
+// ── Drag & Drop de widgets ──────────────────────────────────────
+function initWgtDrag() {
+    const grid = document.getElementById('hub-wgt-grid');
+    let dragging = null;
+    let canDrag  = false;
+
+    // Re-bind: clonar para eliminar listeners viejos
+    grid.querySelectorAll('[id^="wgt-"]').forEach(block => {
+        const fresh = block.cloneNode(true);
+        block.parentNode.replaceChild(fresh, block);
+    });
+
+    grid.querySelectorAll('[id^="wgt-"]').forEach(block => {
+        block.setAttribute('draggable', 'false');
+
+        block.addEventListener('mousedown', e => {
+            canDrag = document.body.classList.contains('config-open')
+                   && !!e.target.closest('.wgt-drag');
+            block.setAttribute('draggable', canDrag ? 'true' : 'false');
+        });
+
+        block.addEventListener('dragstart', e => {
+            if (!canDrag) { e.preventDefault(); return; }
+            dragging = block;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', block.id);
+            setTimeout(() => { if (dragging) dragging.classList.add('wgt-dragging'); }, 0);
+        });
+
+        block.addEventListener('dragend', () => {
+            if (dragging) dragging.classList.remove('wgt-dragging');
+            dragging = null; canDrag = false;
+            grid.querySelectorAll('[id^="wgt-"]').forEach(b =>
+                b.classList.remove('drop-before','drop-after'));
+        });
+
+        block.addEventListener('dragover', e => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (!dragging || dragging === block) return;
+            const rect = block.getBoundingClientRect();
+            grid.querySelectorAll('[id^="wgt-"]').forEach(b =>
+                b.classList.remove('drop-before','drop-after'));
+            block.classList.add(
+                e.clientX < rect.left + rect.width / 2 ? 'drop-before' : 'drop-after'
+            );
+        });
+
+        block.addEventListener('dragleave', e => {
+            if (!block.contains(e.relatedTarget))
+                block.classList.remove('drop-before','drop-after');
+        });
+
+        block.addEventListener('drop', e => {
+            e.preventDefault();
+            if (!dragging || dragging === block) return;
+            const before = block.classList.contains('drop-before');
+            block.classList.remove('drop-before','drop-after');
+            grid.insertBefore(dragging, before ? block : block.nextSibling);
+        });
+    });
+}
+
 // ── Init ────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
     requireAuth();
 
-    // Hub config
+    // Hub config (applyEstCfg ya llama a initWgtDrag internamente)
     const estCfg = loadEstCfg();
     applyEstCfg(estCfg);
 
