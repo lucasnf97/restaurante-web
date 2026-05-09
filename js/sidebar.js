@@ -1,27 +1,44 @@
 (function () {
     // ── PÁGINAS DEL SISTEMA ─────────────────────────────────────
     const PAGES = [
-        { href: "dashboard.html",  icon: "🏠", label: "Panel principal" },
-        { href: "mesas.html",      icon: "🪑", label: "Mesas" },
-        { href: "reservas.html",   icon: "📅", label: "Reservas" },
-        { href: "productos.html",  icon: "🍽️", label: "Productos" },
-        { href: "stock.html",      icon: "📦", label: "Stock" },
-        { href: "facturas.html",   icon: "🧾", label: "Facturas" },
+        { href: "dashboard.html", icon: "🏠", label: "Panel principal" },
+        { href: "mesas.html",     icon: "🪑", label: "Mesas" },
+        { href: "caja.html",      icon: "💰", label: "Caja" },
         {
             group: true,
+            key: "estadisticas",
             href: "estadisticas.html",
             icon: "📊",
             label: "Facturación y Estadísticas",
             children: [
-                { href: "estadisticas.html",          icon: "📊", label: "Resumen" },
-                { href: "analisis-mes.html",           icon: "📅", label: "Análisis de mes" },
-                { href: "historicos.html",             icon: "📈", label: "Históricos" },
-                { href: "ventas-estadisticas.html",    icon: "🛒", label: "Est. de Ventas" },
+                { href: "estadisticas.html",         icon: "📊", label: "Resumen" },
+                { href: "analisis-mes.html",          icon: "📅", label: "Análisis de mes" },
+                { href: "historicos.html",            icon: "📈", label: "Históricos" },
+                { href: "ventas-estadisticas.html",   icon: "🛒", label: "Est. de Ventas" },
             ]
         },
-        { href: "caja.html",       icon: "💰", label: "Caja" },
-        { href: "fichajes.html",   icon: "🕐", label: "Fichajes" },
-        { href: "usuarios.html",   icon: "👤", label: "Usuarios" },
+        {
+            group: true,
+            key: "restaurante",
+            icon: "🍽️",
+            label: "Restaurante",
+            children: [
+                { href: "reservas.html",  icon: "📅", label: "Reservas" },
+                { href: "productos.html", icon: "🍽️", label: "Productos" },
+                { href: "stock.html",     icon: "📦", label: "Stock" },
+                { href: "facturas.html",  icon: "🧾", label: "Facturas" },
+            ]
+        },
+        {
+            group: true,
+            key: "personal",
+            icon: "👥",
+            label: "Personal",
+            children: [
+                { href: "fichajes.html", icon: "🕐", label: "Fichajes" },
+                { href: "usuarios.html", icon: "👤", label: "Usuarios" },
+            ]
+        },
     ];
 
     const currentPage = window.location.pathname.split("/").pop() || "dashboard.html";
@@ -208,12 +225,12 @@
 
     // ── Helpers para grupos ──────────────────────────────────────
     function groupKey(p) {
-        return p.href.replace('.html', '');
+        return p.key || (p.href ? p.href.replace('.html', '') : p.label);
     }
 
     function isInGroup(p) {
         if (!p.group) return false;
-        return p.href === currentPage || p.children.some(c => c.href === currentPage);
+        return (p.href && p.href === currentPage) || p.children.some(c => c.href === currentPage);
     }
 
     function renderNav() {
