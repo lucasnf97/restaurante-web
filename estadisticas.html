@@ -738,7 +738,6 @@ const CAT_DEFS = [
     { key:'ventas',    icon:'🛒', name:'Estadísticas de Ventas',    href:'ventas-estadisticas.html' },
 ];
 const WGT_DEFS = [
-    { key:'facturacion', icon:'📅', name:'Facturación del mes' },
     { key:'progreso',    icon:'📊', name:'Progreso del mes' },
     { key:'grafico',     icon:'📈', name:'Gastos vs Ventas' },
     { key:'costos',      icon:'🍽️', name:'Costos de la carta' },
@@ -750,7 +749,6 @@ const EST_CFG_DEFAULT = {
         ventas:    { enabled:true, span:2 },
     },
     wgts: {
-        facturacion:{ enabled:true, span:6 },
         progreso:   { enabled:true, span:6 },
         grafico:    { enabled:true, span:3 },
         costos:     { enabled:true, span:6 },
@@ -776,7 +774,13 @@ function applyEstCfg(cfg) {
         el.style.display     = cc.enabled ? '' : 'none';
         el.style.gridColumn  = 'span ' + cc.span;
     });
-    // Widgets
+    // Facturación del mes: siempre visible, siempre 6 columnas
+    const facturacionEl = document.getElementById('wgt-facturacion');
+    if (facturacionEl) {
+        facturacionEl.style.display    = '';
+        facturacionEl.style.gridColumn = 'span 6';
+    }
+    // Widgets configurables
     WGT_DEFS.forEach(w => {
         const el = document.getElementById('wgt-' + w.key);
         if (!el) return;
