@@ -237,9 +237,8 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
 /* ── Bar chart (gastos vs ventas) ── */
 .chart-col {
-    width:50%; flex-shrink:0;
+    width:100%;
 }
-@media(max-width:800px){ .chart-col { width:100%; } }
 
 .chart-card {
     background:white; border-radius:12px; padding:20px 24px 16px;
@@ -766,9 +765,9 @@ const CAT_DEFS = [
     { key:'ventas',    icon:'🛒', name:'Estadísticas de Ventas',    href:'ventas-estadisticas.html' },
 ];
 const WGT_DEFS = [
-    { key:'facturacion', icon:'📅', name:'Facturación del mes',  fixedSpan:true },
+    { key:'facturacion', icon:'📅', name:'Facturación del mes',  fixedSpan:6 },
     { key:'progreso',    icon:'📊', name:'Progreso del mes',      spans:[3,6] },
-    { key:'grafico',     icon:'📈', name:'Gastos vs Ventas',      fixedSpan:true },
+    { key:'grafico',     icon:'📈', name:'Gastos vs Ventas',      fixedSpan:3 },
     { key:'costos',      icon:'🍽️', name:'Costos de la carta',  spans:[3,6] },
 ];
 const EST_CFG_DEFAULT = {
@@ -780,7 +779,7 @@ const EST_CFG_DEFAULT = {
     wgts: {
         facturacion:{ enabled:true, span:6 },
         progreso:   { enabled:true, span:6 },
-        grafico:    { enabled:true, span:6 },
+        grafico:    { enabled:true, span:3 },
         costos:     { enabled:true, span:6 },
     },
     wgtOrder: ['facturacion','progreso','grafico','costos'],
@@ -822,7 +821,7 @@ function applyEstCfg(cfg) {
         const wc = cfg.wgts[w.key] || EST_CFG_DEFAULT.wgts[w.key];
         el.style.display    = wc.enabled ? '' : 'none';
         if (w.fixedSpan) {
-            el.style.gridColumn = 'span 6';
+            el.style.gridColumn = 'span ' + w.fixedSpan;
         } else {
             const span = w.spans.includes(wc.span) ? wc.span : w.spans[w.spans.length - 1];
             el.style.gridColumn = 'span ' + span;
@@ -874,7 +873,7 @@ function buildCfgPanel(cfg) {
                     <span class="cblock-drag" style="color:#c4b5fd;font-size:15px;cursor:grab;">⠿</span>
                     <span style="font-size:16px;">${w.icon}</span>
                     <span class="cblock-name">${w.name}</span>
-                    <span class="span-badge">6 cols</span>
+                    <span class="span-badge">${w.fixedSpan} col${w.fixedSpan > 1 ? 's' : ''}</span>
                     <label class="tsw">
                         <input type="checkbox" id="wgt-cb-${w.key}" ${wc.enabled?'checked':''}>
                         <span class="tsl"></span>
