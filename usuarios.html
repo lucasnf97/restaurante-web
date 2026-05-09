@@ -85,6 +85,26 @@
         .modal-footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
 
         .empty { text-align: center; padding: 48px; color: #888; }
+
+        .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+        .btn-danger:hover { background: #fecaca; }
+
+        /* Hard Reset: solo visible en modo edición */
+        .hard-reset-wrap { display: none; }
+        html.edit-mode .hard-reset-wrap { display: block; }
+
+        .hard-reset-box {
+            margin-top: 16px; padding: 14px 16px;
+            background: #fff7ed; border: 1px solid #fed7aa;
+            border-radius: 10px;
+        }
+        .hard-reset-box p {
+            font-size: 12px; color: #92400e; margin-bottom: 10px; line-height: 1.5;
+        }
+        .hard-reset-title {
+            font-size: 12px; font-weight: 700; color: #c2410c;
+            text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px;
+        }
     </style>
 </head>
 <body>
@@ -230,6 +250,42 @@
     </div>
 </div>
 
+<!-- Modal cambiar contraseña -->
+<div class="modal-overlay" id="modal-clave">
+    <div class="modal">
+        <h3>🔑 Cambiar contraseña — <span id="mc-username"></span></h3>
+        <div class="form-group">
+            <label>Contraseña actual del usuario</label>
+            <input type="password" id="mc-actual" placeholder="Contraseña actual">
+        </div>
+        <div class="form-group">
+            <label>Nueva contraseña</label>
+            <input type="password" id="mc-nueva" placeholder="Nueva contraseña">
+        </div>
+        <div class="form-group">
+            <label>Confirmar nueva contraseña</label>
+            <input type="password" id="mc-confirmar" placeholder="Repetir nueva contraseña"
+                   onkeydown="if(event.key==='Enter') guardarClave()">
+        </div>
+
+        <!-- Hard Reset: solo visible en modo edición -->
+        <div class="hard-reset-wrap">
+            <div class="hard-reset-box">
+                <div class="hard-reset-title">⚠️ Zona de modo edición</div>
+                <p>El Hard Reset restablece la contraseña a <strong>"1234"</strong> sin necesidad de conocer la actual. Usalo solo en caso de emergencia.</p>
+                <button class="btn btn-danger btn-sm" onclick="hardReset()">
+                    ⚠️ Hard Reset → "1234"
+                </button>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-clave')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarClave()">Guardar contraseña</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script>
@@ -266,6 +322,7 @@
                 <td>
                     <div class="acciones">
                         <button class="btn btn-secondary btn-sm" onclick="abrirModalEditar(${u.id})">Editar</button>
+                        <button class="btn btn-secondary btn-sm" onclick="abrirModalClave(${u.id})">🔑 Clave</button>
                         <button class="btn btn-warning btn-sm" onclick="toggleActivo(${u.id}, ${u.activo})">
                             ${u.activo ? 'Desactivar' : 'Activar'}
                         </button>
@@ -371,6 +428,55 @@
             cerrarModal("modal-permisos");
             await cargarUsuarios();
         } catch(err) { alert("Error: " + err.message); }
+    }
+
+    // ── Cambiar contraseña ──────────────────────────────────────
+    let editandoClaveId = null;
+
+    function abrirModalClave(id) {
+        editandoClaveId = id;
+        const u = usuarios.find(x => x.id === id);
+        document.getElementById('mc-username').textContent = u.username;
+        document.getElementById('mc-actual').value    = '';
+        document.getElementById('mc-nueva').value     = '';
+        document.getElementById('mc-confirmar').value = '';
+        document.getElementById('modal-clave').classList.add('active');
+        setTimeout(() => document.getElementById('mc-actual').focus(), 80);
+    }
+
+    async function guardarClave() {
+        const actual     = document.getElementById('mc-actual').value;
+        const nueva      = document.getElementById('mc-nueva').value;
+        const confirmar  = document.getElementById('mc-confirmar').value;
+
+        if (!actual || !nueva || !confirmar) {
+            alert('Completá todos los campos.'); return;
+        }
+        if (nueva !== confirmar) {
+            alert('La nueva contraseña y su confirmación no coinciden.'); return;
+        }
+        if (nueva.length < 4) {
+            alert('La nueva contraseña debe tener al menos 4 caracteres.'); return;
+        }
+
+        try {
+            await api.post(`/auth/usuarios/${editandoClaveId}/cambiar-password`, {
+                password_actual: actual,
+                password_nuevo:  nueva,
+            });
+            cerrarModal('modal-clave');
+            alert('✓ Contraseña actualizada correctamente.');
+        } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    async function hardReset() {
+        const u = usuarios.find(x => x.id === editandoClaveId);
+        if (!confirm(`¿Restablecer la contraseña de "${u.username}" a "1234"?\nEsta acción no se puede deshacer.`)) return;
+        try {
+            await api.post(`/auth/usuarios/${editandoClaveId}/reset-password`, {});
+            cerrarModal('modal-clave');
+            alert(`✓ Contraseña de "${u.username}" restablecida a "1234".`);
+        } catch (err) { alert('Error: ' + err.message); }
     }
 
     cargarUsuarios();
