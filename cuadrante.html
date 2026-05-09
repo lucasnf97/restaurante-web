@@ -421,13 +421,18 @@ function isToday(d) {
 }
 // JS getDay() (0=Dom) → API dia_semana (0=Lun…6=Dom)
 function jsDay2Api(d) { const j = d.getDay(); return j === 0 ? 6 : j - 1; }
-function timeToMins(t) {
-    if (!t) return 0;
-    const [h, m] = String(t).slice(0,5).split(':').map(Number);
-    return h * 60 + (m||0);
+// isEndTime=true: "00:00"–"05:59" se interpreta como pasada medianoche (ej: cierre a las 02:00)
+function timeToMins(t, isEndTime = false) {
+    if (!t) return isEndTime ? 24 * 60 : 0;
+    const [h, m] = String(t).slice(0, 5).split(':').map(Number);
+    const mins = h * 60 + (m || 0);
+    if (isEndTime && h < 6) return 24 * 60 + mins; // pasada medianoche
+    return mins;
 }
 function minsToTime(m) {
-    return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+    // Soporta tiempos >= 24h (ej: 25:30 → "01:30")
+    const m2 = m % (24 * 60);
+    return `${String(Math.floor(m2 / 60)).padStart(2,'0')}:${String(m2 % 60).padStart(2,'0')}`;
 }
 
 // ── Vista ───────────────────────────────────────────────────────
@@ -476,12 +481,12 @@ function getGridRange() {
     let mn = Infinity, mx = 0;
     activos.forEach(h => h.franjas.forEach(f => {
         mn = Math.min(mn, timeToMins(f.inicio));
-        mx = Math.max(mx, timeToMins(f.fin));
+        mx = Math.max(mx, timeToMins(f.fin, true)); // hora fin puede ser pasada medianoche
     }));
     if (mn === Infinity) return { start:8*60, end:24*60 };
     return {
-        start: Math.floor(mn/60)*60,
-        end:   mx === 0 ? 24*60 : Math.min(Math.ceil(mx/60)*60, 24*60)
+        start: Math.floor(mn / 60) * 60,
+        end:   Math.min(Math.ceil(mx / 60) * 60, 26 * 60) // máximo hasta las 02:00 del día siguiente
     };
 }
 
@@ -490,7 +495,7 @@ function isActiveSlot(date, mins) {
     const apiDay = jsDay2Api(date);
     const h = horarios.find(x => x.dia_semana === apiDay);
     if (!h || !h.activo || !h.franjas || !h.franjas.length) return false;
-    return h.franjas.some(f => mins >= timeToMins(f.inicio) && mins < timeToMins(f.fin));
+    return h.franjas.some(f => mins >= timeToMins(f.inicio) && mins < timeToMins(f.fin, true));
 }
 
 // ── Nav label ───────────────────────────────────────────────────
