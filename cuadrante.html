@@ -6,7 +6,7 @@
 <title>Restaurante — Cuadrante de Personal</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; overflow:hidden; }
 
 /* ── Navbar ─────────────────────────────────────────────────── */
 .navbar {
@@ -64,101 +64,162 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 }
 .btn-horarios:hover { background:rgba(99,102,241,.2); }
 
-/* ── Content / grid wrapper ─────────────────────────────────── */
-.content {
-    margin-top:156px; /* 60+50+46 */
-    padding:16px 20px;
+/* ── Main layout ────────────────────────────────────────────── */
+.main-layout {
+    position:fixed; top:156px; left:0; right:0; bottom:0;
+    display:flex; overflow:hidden;
 }
-.grid-wrap {
-    overflow:auto;
-    max-height:calc(100vh - 190px);
-    border-radius:12px;
-    border:1px solid #e5e7eb;
-    box-shadow:0 2px 8px rgba(0,0,0,.05);
-    background:white;
+
+/* ── User sidebar ───────────────────────────────────────────── */
+.user-sidebar {
+    width:210px; min-width:210px; flex-shrink:0;
+    background:white; border-right:1px solid #e5e7eb;
+    display:flex; flex-direction:column; overflow:hidden;
+}
+.us-header {
+    padding:10px 12px 6px;
+    border-bottom:1px solid #f3f4f6; flex-shrink:0;
+}
+.us-title {
+    font-size:11px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.8px; color:#6366f1; margin-bottom:4px;
+}
+.us-tip {
+    font-size:10px; color:#9ca3af; line-height:1.3;
+}
+.us-list { flex:1; overflow-y:auto; padding:6px 0; }
+
+/* Role section */
+.role-head {
+    padding:8px 12px 3px;
+    font-size:10px; font-weight:800; text-transform:uppercase;
+    letter-spacing:.6px; color:#9ca3af;
+}
+
+/* User entry */
+.u-entry {
+    display:flex; align-items:center; gap:8px;
+    padding:7px 12px; cursor:pointer; transition:background .12s;
+    position:relative; user-select:none;
+}
+.u-entry:hover { background:#f5f3ff; }
+.u-entry.selected { background:#ede9fe; }
+.u-entry.selected .u-name { color:#4f46e5; font-weight:700; }
+
+.u-avatar {
+    width:28px; height:28px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:700; color:white;
+    text-shadow:0 1px 2px rgba(0,0,0,.3);
+}
+.u-name {
+    flex:1; font-size:12px; font-weight:500; color:#374151;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.u-color-wrap {
+    flex-shrink:0; position:relative; cursor:pointer;
+    display:flex; align-items:center;
+}
+.u-color-dot {
+    width:16px; height:16px; border-radius:50%;
+    border:2px solid white; box-shadow:0 0 0 1px rgba(0,0,0,.2);
+    cursor:pointer; transition:transform .15s;
+}
+.u-color-dot:hover { transform:scale(1.2); }
+.u-color-inp {
+    position:absolute; opacity:0; width:0; height:0; cursor:pointer;
+}
+
+/* Deselect hint */
+.us-deselect {
+    padding:8px 12px; border-top:1px solid #f3f4f6;
+    font-size:11px; color:#9ca3af; text-align:center;
+    cursor:pointer; transition:color .12s; flex-shrink:0;
+}
+.us-deselect:hover { color:#6366f1; }
+.us-deselect.hidden { display:none; }
+
+/* ── Grid area ──────────────────────────────────────────────── */
+.grid-area {
+    flex:1; overflow:auto; background:#f0f2f5;
+    padding:10px;
+    /* Prevent text selection during drag paint */
+    user-select:none; -webkit-user-select:none;
 }
 
 /* ── Cuadrante table ────────────────────────────────────────── */
-.cq-table { border-collapse:collapse; }
+.cq-table {
+    border-collapse:collapse;
+    background:white;
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 1px 6px rgba(0,0,0,.07);
+}
+/* Semana: fill full width */
+body.view-semana .cq-table { width:100%; table-layout:fixed; }
 
-/* Sticky header row */
+/* Sticky header */
 .cq-table thead th {
     position:sticky; top:0; z-index:3;
     background:white; padding:0;
-    border:1px solid #e5e7eb;
-    white-space:nowrap;
+    border:1px solid #e5e7eb; white-space:nowrap;
 }
-
-/* Sticky time column */
+/* Sticky time col */
 .cq-table .tc {
     position:sticky; left:0; z-index:2;
     background:#f9fafb;
-    width:56px; min-width:56px; max-width:56px;
+    width:52px; min-width:52px; max-width:52px;
     font-size:10px; font-weight:600; color:#9ca3af;
     text-align:right; padding:0 6px 0 0;
-    border:1px solid #e5e7eb;
-    white-space:nowrap;
+    border:1px solid #e5e7eb; white-space:nowrap;
 }
-/* Corner cell: top-left, highest z */
 .cq-table thead th.tc { z-index:4; height:52px; }
 
-/* Day header content */
+/* Day header */
 .day-head {
-    padding:5px 4px; min-width:76px;
-    display:flex; flex-direction:column; align-items:center; gap:0;
+    padding:5px 4px; min-width:70px;
+    display:flex; flex-direction:column; align-items:center;
 }
 .day-head .dn { font-size:10px; font-weight:700; text-transform:uppercase; color:#9ca3af; letter-spacing:.4px; }
 .day-head .dd { font-size:16px; font-weight:800; color:#1a1a2e; line-height:1.2; }
 .day-head .dm { font-size:10px; color:#9ca3af; }
 
-/* Today column */
+/* Today */
 .col-hoy .day-head .dn { color:#6366f1; }
 .col-hoy .day-head .dd { color:#4f46e5; }
-.col-hoy.slot-active   { background:#fafafe; }
-.col-hoy.slot-inactive { background:#f0f2ff; }
+.col-hoy.slot-active   { background:#fafafe !important; }
 
-/* Weekend */
-.col-wknd { background:#fafafa !important; }
+/* Weekend header */
 .col-wknd .day-head .dd { color:#9ca3af; }
 
-/* Slot cells */
+/* Cells */
 .cq-table td {
     border:1px solid #efefef;
     height:26px; padding:0;
-    position:relative;
-    vertical-align:top;
+    position:relative; vertical-align:top;
 }
 .slot-inactive { background:#f3f4f6; }
-.slot-active   { background:white; cursor:pointer; }
-.slot-active:hover { background:#ede9fe; }
+.slot-active   { background:white; cursor:crosshair; }
+.slot-active:hover { background:#faf9ff; }
 
-/* Hour row separator */
+/* Hour row */
 tr.hr-row td { border-top:1px solid #d1d5db !important; }
 
-/* Blocked slot */
-.slot-blocked {
-    background:#fef2f2; cursor:pointer;
-}
-.slot-blocked:hover { background:#fee2e2; }
-.blk-bar {
-    position:absolute; left:0; top:0; bottom:0;
-    width:3px; background:#ef4444;
-}
-.blk-lbl {
-    font-size:9px; font-weight:600; color:#dc2626;
-    padding:2px 4px 0 6px; white-space:nowrap;
-    overflow:hidden; text-overflow:ellipsis;
-}
+/* 2-week / mes narrower columns */
+body.view-dos_semanas .day-head { min-width:64px; }
+body.view-dos_semanas .cq-table td { min-width:64px; }
+body.view-mes .day-head { min-width:46px; }
+body.view-mes .day-head .dn { font-size:9px; }
+body.view-mes .day-head .dd { font-size:13px; }
+body.view-mes .cq-table td { min-width:46px; }
 
-/* Month view: narrower columns */
-body.view-mes .day-head { min-width:44px; }
-body.view-mes .day-head .dn  { font-size:9px; }
-body.view-mes .day-head .dd  { font-size:13px; }
-body.view-mes .cq-table td { min-width:44px; }
-
-/* 2-week: slightly narrower */
-body.view-dos_semanas .day-head { min-width:62px; }
-body.view-dos_semanas .cq-table td { min-width:62px; }
+/* ── Cell color stripes ─────────────────────────────────────── */
+.cell-colors {
+    position:absolute; inset:0;
+    display:flex; flex-direction:row; gap:1px; padding:1px;
+    pointer-events:none;
+}
+.cell-colors > div { flex:1; border-radius:2px; }
 
 /* ── Horarios panel ─────────────────────────────────────────── */
 .hp-overlay {
@@ -177,8 +238,7 @@ body.view-dos_semanas .cq-table td { min-width:62px; }
 .horarios-panel.open { transform:translateX(0); }
 .hp-head {
     padding:16px 20px; border-bottom:1px solid #e5e7eb;
-    display:flex; align-items:center; justify-content:space-between;
-    flex-shrink:0;
+    display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
 }
 .hp-head h3 { font-size:15px; font-weight:700; color:#1a1a2e; }
 .hp-close { background:none; border:none; font-size:20px; cursor:pointer; color:#888; }
@@ -190,12 +250,8 @@ body.view-dos_semanas .cq-table td { min-width:62px; }
 }
 .btn-hp-save:hover { background:#4338ca; }
 
-/* Day config blocks */
 .dia-block { margin-bottom:10px; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
-.dia-head {
-    display:flex; align-items:center; gap:10px;
-    padding:10px 14px; background:#f9fafb;
-}
+.dia-head { display:flex; align-items:center; gap:10px; padding:10px 14px; background:#f9fafb; }
 .dia-nombre { flex:1; font-size:13px; font-weight:700; color:#374151; }
 .dia-body   { padding:8px 14px 12px; display:flex; flex-direction:column; gap:6px; }
 .franja-row { display:flex; align-items:center; gap:6px; }
@@ -216,51 +272,12 @@ body.view-dos_semanas .cq-table td { min-width:62px; }
 }
 .btn-add-franja:hover { background:#f5f3ff; }
 
-/* Toggle switch */
 .tsw { position:relative; width:34px; height:19px; flex-shrink:0; }
 .tsw input { opacity:0; width:0; height:0; }
 .tsl { position:absolute; inset:0; background:#d1d5db; border-radius:20px; cursor:pointer; transition:.2s; }
 .tsl::before { content:''; position:absolute; width:13px; height:13px; left:3px; top:3px; background:white; border-radius:50%; transition:.2s; }
 input:checked + .tsl { background:#4f46e5; }
 input:checked + .tsl::before { transform:translateX(14px); }
-
-/* ── Modals ─────────────────────────────────────────────────── */
-.modal-overlay {
-    position:fixed; inset:0; background:rgba(0,0,0,.45);
-    display:none; align-items:center; justify-content:center; z-index:500;
-}
-.modal-overlay.open { display:flex; }
-.modal {
-    background:white; border-radius:14px; width:100%;
-    max-width:400px; padding:28px;
-    box-shadow:0 20px 60px rgba(0,0,0,.2);
-}
-.modal h3 { font-size:16px; font-weight:700; color:#1a1a2e; margin-bottom:20px; }
-.form-group { margin-bottom:14px; }
-.form-group label {
-    display:block; font-size:11px; font-weight:700; color:#6b7280;
-    text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px;
-}
-.form-group input, .form-group select {
-    width:100%; padding:9px 13px; border:1.5px solid #e0e0e0;
-    border-radius:8px; font-size:14px; font-family:inherit;
-}
-.form-group input:focus, .form-group select:focus { outline:none; border-color:#4f46e5; }
-.form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
-.btn { padding:9px 18px; border-radius:8px; border:none; cursor:pointer; font-size:13px; font-weight:700; transition:all .15s; }
-.btn-primary   { background:#4f46e5; color:white; }
-.btn-primary:hover { background:#4338ca; }
-.btn-secondary { background:#f3f4f6; color:#6b7280; }
-.btn-danger    { background:#fee2e2; color:#dc2626; border:1px solid #fecaca; }
-.btn-danger:hover { background:#fecaca; }
-
-/* bloqueo info box */
-.blk-info {
-    background:#fef2f2; border:1px solid #fecaca;
-    border-radius:10px; padding:14px; margin-bottom:4px;
-    font-size:13px; color:#374151; line-height:1.8;
-}
 
 /* loading */
 .grid-loading { text-align:center; padding:60px; color:#9ca3af; font-size:14px; }
@@ -275,14 +292,12 @@ input:checked + .tsl::before { transform:translateX(14px); }
     </div>
 </nav>
 
-<!-- View mode tabs -->
 <div class="view-tabs">
     <button class="view-tab active" id="tab-semana"      onclick="setView('semana')">📅 Semana</button>
     <button class="view-tab"        id="tab-dos_semanas" onclick="setView('dos_semanas')">📅 2 Semanas</button>
     <button class="view-tab"        id="tab-mes"         onclick="setView('mes')">🗓️ Mes</button>
 </div>
 
-<!-- Navigator -->
 <div class="nav-bar">
     <button class="nav-btn" onclick="navDate(-1)">◀</button>
     <span class="nav-label" id="nav-label">—</span>
@@ -290,14 +305,30 @@ input:checked + .tsl::before { transform:translateX(14px); }
     <button class="btn-horarios" onclick="abrirHorarios()">⚙️ Horarios</button>
 </div>
 
-<!-- Grid -->
-<div class="content">
-    <div class="grid-wrap" id="grid-wrap">
-        <div class="grid-loading">Cargando cuadrante…</div>
+<div class="main-layout">
+    <!-- LEFT: User sidebar -->
+    <div class="user-sidebar" id="user-sidebar">
+        <div class="us-header">
+            <div class="us-title">👥 Personal</div>
+            <div class="us-tip">Selecciona un empleado y pinta la grilla</div>
+        </div>
+        <div class="us-list" id="us-list">
+            <div class="grid-loading" style="padding:20px;font-size:12px;">Cargando…</div>
+        </div>
+        <div class="us-deselect hidden" id="us-deselect" onclick="deseleccionarUsuario()">
+            ✕ Cancelar selección
+        </div>
+    </div>
+
+    <!-- RIGHT: Grid -->
+    <div class="grid-area" id="grid-area">
+        <div id="grid-wrap">
+            <div class="grid-loading">Cargando cuadrante…</div>
+        </div>
     </div>
 </div>
 
-<!-- Horarios config panel -->
+<!-- Horarios panel -->
 <div class="hp-overlay" id="hp-overlay" onclick="cerrarHorarios()"></div>
 <div class="horarios-panel" id="horarios-panel">
     <div class="hp-head">
@@ -307,55 +338,6 @@ input:checked + .tsl::before { transform:translateX(14px); }
     <div class="hp-body" id="hp-body"></div>
     <div class="hp-footer">
         <button class="btn-hp-save" onclick="guardarHorarios()">Guardar horarios</button>
-    </div>
-</div>
-
-<!-- Modal: nuevo bloqueo -->
-<div class="modal-overlay" id="modal-bloqueo">
-    <div class="modal">
-        <h3>🚫 Nuevo bloqueo</h3>
-        <div class="form-group">
-            <label>Fecha</label>
-            <input type="text" id="nb-fecha-lbl" readonly
-                   style="background:#f9fafb;color:#6b7280;cursor:default;">
-        </div>
-        <div class="form-group">
-            <label>Alcance</label>
-            <select id="nb-tipo" onchange="toggleNbTipo()">
-                <option value="parcial">Horario específico</option>
-                <option value="dia">Día completo</option>
-            </select>
-        </div>
-        <div class="form-row" id="nb-horas">
-            <div class="form-group">
-                <label>Desde</label>
-                <input type="time" id="nb-inicio" step="1800">
-            </div>
-            <div class="form-group">
-                <label>Hasta</label>
-                <input type="time" id="nb-fin" step="1800">
-            </div>
-        </div>
-        <div class="form-group">
-            <label>Motivo <span style="font-weight:400;color:#9ca3af;">(opcional)</span></label>
-            <input type="text" id="nb-motivo" placeholder="Ej: Evento privado, mantenimiento…">
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="cerrarModal('modal-bloqueo')">Cancelar</button>
-            <button class="btn btn-primary"   onclick="guardarBloqueo()">Crear bloqueo</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: ver bloqueo -->
-<div class="modal-overlay" id="modal-ver-bloqueo">
-    <div class="modal">
-        <h3>🚫 Bloqueo activo</h3>
-        <div class="blk-info" id="vb-info"></div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="cerrarModal('modal-ver-bloqueo')">Cerrar</button>
-            <button class="btn btn-danger"    onclick="eliminarBloqueoActual()">Eliminar bloqueo</button>
-        </div>
     </div>
 </div>
 
@@ -370,37 +352,75 @@ const DIAS_CORTO = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const MESES      = ['enero','febrero','marzo','abril','mayo','junio',
                     'julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const MESES_C    = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const ROL_CFG    = {
+    admin:   { label:'Administrador', icon:'👑' },
+    gerente: { label:'Gerente',       icon:'📊' },
+    empleado:{ label:'Personal',      icon:'👤' },
+};
+const PALETTE = ['#6366f1','#ef4444','#f59e0b','#10b981','#3b82f6',
+                 '#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
 
 // ── Estado ──────────────────────────────────────────────────────
-let viewMode   = 'semana';
-let anchorDate = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
-let horarios   = [];
-let bloqueos   = [];
-let bloqueoActualId = null;
-let nbFecha    = null; // fecha del modal nuevo bloqueo
+let viewMode      = 'semana';
+let anchorDate    = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+let horarios      = [];
+let asignaciones  = {};  // { "YYYY-MM-DD": { slot_mins: [{id, usuario_id}] } }
+let usuarios      = [];
+let userColors    = {};  // { userId: "#hex" }
+let selectedUserId = null;
+
+// Drag-paint state
+let isPainting  = false;
+let paintMode   = 'add'; // 'add' | 'remove'
+let painted     = new Set(); // keys painted in this gesture, to avoid re-painting same cell
+let pendingChanges = []; // batched API calls
+
+// ── Colores de usuario ──────────────────────────────────────────
+function loadUserColors() {
+    try { userColors = JSON.parse(localStorage.getItem('cq_user_colors') || '{}'); }
+    catch { userColors = {}; }
+}
+function saveUserColors() {
+    localStorage.setItem('cq_user_colors', JSON.stringify(userColors));
+}
+function getUserColor(uid) {
+    if (!userColors[uid]) {
+        userColors[uid] = PALETTE[(uid - 1) % PALETTE.length];
+        saveUserColors();
+    }
+    return userColors[uid];
+}
+function setUserColor(uid, hex) {
+    userColors[uid] = hex;
+    saveUserColors();
+    // Update avatar + dot in sidebar
+    const entry = document.querySelector(`.u-entry[data-uid="${uid}"]`);
+    if (entry) {
+        entry.querySelector('.u-avatar').style.background = hex;
+        entry.querySelector('.u-color-dot').style.background = hex;
+    }
+    // Re-render all cells for this user
+    refreshAllCells();
+}
 
 // ── Utilidades de fecha ─────────────────────────────────────────
 const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r; };
 
 function getMondayOf(d) {
     const r = new Date(d);
-    const j = r.getDay(); // 0=Dom
+    const j = r.getDay();
     r.setDate(r.getDate() - (j === 0 ? 6 : j - 1));
     return r;
 }
-
 function formatDate(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-
 function isToday(d) {
     const t = new Date(); t.setHours(0,0,0,0);
     return d.getTime() === t.getTime();
 }
-
-// JS getDay() → API dia_semana (0=Lun … 6=Dom)
+// JS getDay() (0=Dom) → API dia_semana (0=Lun…6=Dom)
 function jsDay2Api(d) { const j = d.getDay(); return j === 0 ? 6 : j - 1; }
-
 function timeToMins(t) {
     if (!t) return 0;
     const [h, m] = String(t).slice(0,5).split(':').map(Number);
@@ -415,9 +435,7 @@ function setView(mode) {
     viewMode = mode;
     document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
     document.getElementById(`tab-${mode}`).classList.add('active');
-    // Ajustar body class para CSS de columnas
-    document.body.className = document.body.className
-        .replace(/\bview-\S+/g,'').trim();
+    document.body.className = document.body.className.replace(/\bview-\S+/g,'').trim();
     document.body.classList.add(`view-${mode}`);
     renderGrid();
 }
@@ -434,7 +452,7 @@ function navDate(dir) {
     renderGrid();
 }
 
-// ── Rango de días a mostrar ─────────────────────────────────────
+// ── Rango de días ───────────────────────────────────────────────
 function getDays() {
     if (viewMode === 'semana') {
         const mon = getMondayOf(anchorDate);
@@ -444,10 +462,9 @@ function getDays() {
         const mon = getMondayOf(anchorDate);
         return Array.from({length:14}, (_,i) => addDays(mon, i));
     }
-    // Mes: todos los días del mes de anchorDate
     const first = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
     const last  = new Date(anchorDate.getFullYear(), anchorDate.getMonth()+1, 0);
-    const days = [];
+    const days  = [];
     for (let d = new Date(first); d <= last; d = addDays(d,1)) days.push(new Date(d));
     return days;
 }
@@ -455,36 +472,28 @@ function getDays() {
 // ── Rango horario del grid ──────────────────────────────────────
 function getGridRange() {
     const activos = horarios.filter(h => h.activo && h.franjas?.length);
-    if (!activos.length) return { start: 8*60, end: 24*60 };
+    if (!activos.length) return { start:8*60, end:24*60 };
     let mn = Infinity, mx = 0;
     activos.forEach(h => h.franjas.forEach(f => {
         mn = Math.min(mn, timeToMins(f.inicio));
         mx = Math.max(mx, timeToMins(f.fin));
     }));
-    if (mn === Infinity) return { start: 8*60, end: 24*60 };
+    if (mn === Infinity) return { start:8*60, end:24*60 };
     return {
         start: Math.floor(mn/60)*60,
         end:   mx === 0 ? 24*60 : Math.min(Math.ceil(mx/60)*60, 24*60)
     };
 }
 
-// ── Estado de cada slot ─────────────────────────────────────────
+// ── Slot activo ─────────────────────────────────────────────────
 function isActiveSlot(date, mins) {
-    const h = horarios.find(x => x.dia_semana === jsDay2Api(date));
-    if (!h?.activo || !h.franjas?.length) return false;
+    const apiDay = jsDay2Api(date);
+    const h = horarios.find(x => x.dia_semana === apiDay);
+    if (!h || !h.activo || !h.franjas || !h.franjas.length) return false;
     return h.franjas.some(f => mins >= timeToMins(f.inicio) && mins < timeToMins(f.fin));
 }
 
-function getBlock(date, mins) {
-    const ds = formatDate(date);
-    return bloqueos.find(b => {
-        if (b.fecha !== ds) return false;
-        if (!b.hora_inicio && !b.hora_fin) return true;   // día completo
-        return mins >= timeToMins(b.hora_inicio) && mins < timeToMins(b.hora_fin);
-    }) || null;
-}
-
-// ── Label del navegador ─────────────────────────────────────────
+// ── Nav label ───────────────────────────────────────────────────
 function updateNavLabel() {
     const days = getDays();
     const a = days[0], z = days[days.length-1];
@@ -492,134 +501,250 @@ function updateNavLabel() {
     if (viewMode === 'semana') {
         lbl = `Semana del ${a.getDate()} al ${z.getDate()} de ${MESES[z.getMonth()]} ${z.getFullYear()}`;
     } else if (viewMode === 'dos_semanas') {
-        const sameMon = a.getMonth() === z.getMonth();
-        lbl = sameMon
+        lbl = a.getMonth() === z.getMonth()
             ? `${a.getDate()} — ${z.getDate()} de ${MESES[z.getMonth()]} ${z.getFullYear()}`
             : `${a.getDate()} ${MESES_C[a.getMonth()]} — ${z.getDate()} ${MESES_C[z.getMonth()]} ${z.getFullYear()}`;
     } else {
-        lbl = `${MESES[anchorDate.getMonth()].charAt(0).toUpperCase() + MESES[anchorDate.getMonth()].slice(1)} ${anchorDate.getFullYear()}`;
+        const m = MESES[anchorDate.getMonth()];
+        lbl = m.charAt(0).toUpperCase() + m.slice(1) + ' ' + anchorDate.getFullYear();
     }
     document.getElementById('nav-label').textContent = lbl;
 }
 
-// ── Renderizado del grid ────────────────────────────────────────
-function renderGrid() {
+// ── Render cell colors HTML ─────────────────────────────────────
+function cellColorsHTML(dateStr, slotMins) {
+    const list = asignaciones[dateStr]?.[slotMins] || [];
+    if (!list.length) return '';
+    const strips = list.map(a =>
+        `<div style="background:${getUserColor(a.usuario_id)}"></div>`
+    ).join('');
+    return `<div class="cell-colors">${strips}</div>`;
+}
+
+// ── Render grid ─────────────────────────────────────────────────
+async function renderGrid() {
     updateNavLabel();
+    await cargarAsignaciones();
+
     const days  = getDays();
     const range = getGridRange();
     const slots = [];
     for (let t = range.start; t < range.end; t += 30) slots.push(t);
 
-    let html = '<table class="cq-table"><thead><tr>';
-    html += '<th class="tc"></th>';
+    let html = `<table class="cq-table"><thead><tr>`;
+    html += `<th class="tc"></th>`;
     days.forEach(d => {
         const apiDay = jsDay2Api(d);
         const wknd   = d.getDay() === 0 || d.getDay() === 6;
         const hoy    = isToday(d);
-        const cls    = [hoy ? 'col-hoy' : '', wknd ? 'col-wknd' : ''].filter(Boolean).join(' ');
-        html += `<th class="${cls}">
-            <div class="day-head">
-                <span class="dn">${DIAS_CORTO[apiDay]}</span>
-                <span class="dd">${d.getDate()}</span>
-                <span class="dm">${MESES_C[d.getMonth()]}</span>
-            </div></th>`;
+        const cls    = [hoy?'col-hoy':'', wknd?'col-wknd':''].filter(Boolean).join(' ');
+        html += `<th class="${cls}"><div class="day-head">
+            <span class="dn">${DIAS_CORTO[apiDay]}</span>
+            <span class="dd">${d.getDate()}</span>
+            <span class="dm">${MESES_C[d.getMonth()]}</span>
+        </div></th>`;
     });
-    html += '</tr></thead><tbody>';
+    html += `</tr></thead><tbody>`;
 
     slots.forEach(slot => {
-        const isHour  = slot % 60 === 0;
-        const timeLbl = isHour ? minsToTime(slot) : '';
+        const isHour = slot % 60 === 0;
         html += `<tr class="${isHour ? 'hr-row' : ''}">`;
-        html += `<td class="tc">${timeLbl}</td>`;
-
+        html += `<td class="tc">${isHour ? minsToTime(slot) : ''}</td>`;
         days.forEach(d => {
-            const hoy  = isToday(d);
-            const wknd = d.getDay() === 0 || d.getDay() === 6;
-            const act  = isActiveSlot(d, slot);
-            const blk  = act ? getBlock(d, slot) : null;
-            const ds   = formatDate(d);
-            const colCls = (hoy ? 'col-hoy ' : '') + (wknd ? 'col-wknd ' : '');
-
-            if (blk) {
-                const lbl = (blk.motivo && slot === timeToMins(blk.hora_inicio||'00:00'))
-                    ? `<span class="blk-lbl">${blk.motivo}</span>` : '';
-                html += `<td class="${colCls}slot-blocked" onclick="verBloqueo(${blk.id})"
-                             title="${blk.motivo||'Bloqueo'} · ${minsToTime(slot)}">
-                             <div class="blk-bar"></div>${lbl}</td>`;
-            } else if (act) {
-                html += `<td class="${colCls}slot-active"
-                             onclick="abrirNuevoBloqueo('${ds}',${slot})"
-                             title="Clic para bloquear · ${minsToTime(slot)}"></td>`;
+            const hoy    = isToday(d);
+            const wknd   = d.getDay() === 0 || d.getDay() === 6;
+            const active = isActiveSlot(d, slot);
+            const ds     = formatDate(d);
+            const colCls = [(hoy?'col-hoy':''), (wknd?'col-wknd':'')].filter(Boolean).join(' ');
+            if (active) {
+                html += `<td class="${colCls} slot-active" data-date="${ds}" data-slot="${slot}">
+                             ${cellColorsHTML(ds, slot)}</td>`;
             } else {
-                html += `<td class="${colCls}slot-inactive"></td>`;
+                html += `<td class="${colCls} slot-inactive"></td>`;
             }
         });
-        html += '</tr>';
+        html += `</tr>`;
     });
 
-    html += '</tbody></table>';
+    html += `</tbody></table>`;
     document.getElementById('grid-wrap').innerHTML = html;
 }
 
-// ── Modal nuevo bloqueo ─────────────────────────────────────────
-function abrirNuevoBloqueo(dateStr, slotMins) {
-    nbFecha = dateStr;
-    const d = new Date(dateStr + 'T00:00:00');
-    document.getElementById('nb-fecha-lbl').value =
-        `${DIAS_LARGO[jsDay2Api(d)]} ${d.getDate()} de ${MESES[d.getMonth()]} ${d.getFullYear()}`;
-    document.getElementById('nb-tipo').value    = 'parcial';
-    document.getElementById('nb-inicio').value  = minsToTime(slotMins);
-    document.getElementById('nb-fin').value     = minsToTime(Math.min(slotMins+30, 24*60));
-    document.getElementById('nb-motivo').value  = '';
-    document.getElementById('nb-horas').style.display = '';
-    document.getElementById('modal-bloqueo').classList.add('open');
-    setTimeout(() => document.getElementById('nb-motivo').focus(), 80);
+// ── Update single cell DOM ──────────────────────────────────────
+function updateCellDOM(dateStr, slotMins) {
+    const td = document.querySelector(`td[data-date="${dateStr}"][data-slot="${slotMins}"]`);
+    if (!td) return;
+    const list = asignaciones[dateStr]?.[slotMins] || [];
+    let colDiv = td.querySelector('.cell-colors');
+    if (list.length === 0) {
+        colDiv?.remove();
+    } else {
+        if (!colDiv) {
+            colDiv = document.createElement('div');
+            colDiv.className = 'cell-colors';
+            td.appendChild(colDiv);
+        }
+        colDiv.innerHTML = list.map(a =>
+            `<div style="background:${getUserColor(a.usuario_id)}"></div>`
+        ).join('');
+    }
 }
 
-function toggleNbTipo() {
-    document.getElementById('nb-horas').style.display =
-        document.getElementById('nb-tipo').value === 'dia' ? 'none' : '';
+function refreshAllCells() {
+    // Re-render all existing cell colors (e.g. after color change)
+    document.querySelectorAll('td[data-date][data-slot]').forEach(td => {
+        const dateStr  = td.dataset.date;
+        const slotMins = parseInt(td.dataset.slot);
+        const list = asignaciones[dateStr]?.[slotMins] || [];
+        let colDiv = td.querySelector('.cell-colors');
+        if (list.length === 0) {
+            colDiv?.remove();
+        } else {
+            if (!colDiv) { colDiv = document.createElement('div'); colDiv.className = 'cell-colors'; td.appendChild(colDiv); }
+            colDiv.innerHTML = list.map(a => `<div style="background:${getUserColor(a.usuario_id)}"></div>`).join('');
+        }
+    });
 }
 
-async function guardarBloqueo() {
-    const tipo = document.getElementById('nb-tipo').value;
-    const body = {
-        fecha:       nbFecha,
-        hora_inicio: tipo === 'dia' ? null : (document.getElementById('nb-inicio').value || null),
-        hora_fin:    tipo === 'dia' ? null : (document.getElementById('nb-fin').value    || null),
-        motivo:      document.getElementById('nb-motivo').value.trim() || null,
-    };
-    try {
-        await api.post('/horarios/bloqueos', body);
-        cerrarModal('modal-bloqueo');
-        await cargarBloqueos();
-        renderGrid();
-    } catch(e) { alert('Error: ' + e.message); }
+// ── Painting logic ──────────────────────────────────────────────
+function applyPaint(dateStr, slotMins) {
+    if (!selectedUserId) return;
+    const key = `${dateStr}_${slotMins}`;
+    if (painted.has(key)) return;
+    painted.add(key);
+
+    if (!asignaciones[dateStr]) asignaciones[dateStr] = {};
+    if (!asignaciones[dateStr][slotMins]) asignaciones[dateStr][slotMins] = [];
+
+    const list = asignaciones[dateStr][slotMins];
+    const idx  = list.findIndex(a => a.usuario_id === selectedUserId);
+
+    if (paintMode === 'add' && idx === -1) {
+        // Optimistic: add with temporary id -1
+        list.push({ id: -1, usuario_id: selectedUserId });
+        updateCellDOM(dateStr, slotMins);
+        pendingChanges.push({ action:'add', fecha:dateStr, slot_mins:slotMins, usuario_id:selectedUserId });
+    } else if (paintMode === 'remove' && idx !== -1) {
+        const removed = list.splice(idx, 1)[0];
+        updateCellDOM(dateStr, slotMins);
+        pendingChanges.push({ action:'remove', id:removed.id, fecha:dateStr, slot_mins:slotMins, usuario_id:selectedUserId });
+    }
 }
 
-// ── Modal ver bloqueo ───────────────────────────────────────────
-function verBloqueo(id) {
-    const b = bloqueos.find(x => x.id === id);
-    if (!b) return;
-    bloqueoActualId = id;
-    const d = new Date(b.fecha + 'T00:00:00');
-    let html = `<strong>📅 ${DIAS_LARGO[jsDay2Api(d)]}, ${d.getDate()} de ${MESES[d.getMonth()]} ${d.getFullYear()}</strong><br>`;
-    if (b.hora_inicio && b.hora_fin) html += `🕐 ${b.hora_inicio} — ${b.hora_fin}<br>`;
-    else html += `🕐 Día completo<br>`;
-    if (b.motivo)     html += `📝 ${b.motivo}<br>`;
-    if (b.creado_por) html += `👤 ${b.creado_por}`;
-    document.getElementById('vb-info').innerHTML = html;
-    document.getElementById('modal-ver-bloqueo').classList.add('open');
+async function flushPending() {
+    if (!pendingChanges.length) return;
+    const changes = [...pendingChanges];
+    pendingChanges = [];
+
+    for (const ch of changes) {
+        try {
+            if (ch.action === 'add') {
+                const res = await api.post('/cuadrante/asignaciones', {
+                    fecha: ch.fecha, slot_mins: ch.slot_mins, usuario_id: ch.usuario_id
+                });
+                // Update temp id with real id
+                const list = asignaciones[ch.fecha]?.[ch.slot_mins];
+                if (list) {
+                    const item = list.find(a => a.usuario_id === ch.usuario_id && a.id === -1);
+                    if (item && res.id) item.id = res.id;
+                }
+            } else if (ch.action === 'remove' && ch.id && ch.id !== -1) {
+                await api.delete(`/cuadrante/asignaciones/${ch.id}`);
+            } else if (ch.action === 'remove') {
+                // id was -1 (never saved), nothing to delete from API
+            }
+        } catch(e) {
+            console.error('Error sync:', e);
+        }
+    }
 }
 
-async function eliminarBloqueoActual() {
-    if (!confirm('¿Eliminar este bloqueo?')) return;
-    try {
-        await api.delete(`/horarios/bloqueos/${bloqueoActualId}`);
-        cerrarModal('modal-ver-bloqueo');
-        await cargarBloqueos();
-        renderGrid();
-    } catch(e) { alert('Error: ' + e.message); }
+// ── Grid events (event delegation) ──────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const gridArea = document.getElementById('grid-area');
+
+    gridArea.addEventListener('mousedown', e => {
+        const td = e.target.closest('td.slot-active[data-date]');
+        if (!td || !selectedUserId) return;
+        e.preventDefault();
+        isPainting = true;
+        painted.clear();
+        const dateStr  = td.dataset.date;
+        const slotMins = parseInt(td.dataset.slot);
+        const list = asignaciones[dateStr]?.[slotMins] || [];
+        paintMode = list.some(a => a.usuario_id === selectedUserId) ? 'remove' : 'add';
+        applyPaint(dateStr, slotMins);
+    });
+
+    gridArea.addEventListener('mousemove', e => {
+        if (!isPainting || !selectedUserId) return;
+        const td = e.target.closest('td.slot-active[data-date]');
+        if (!td) return;
+        applyPaint(td.dataset.date, parseInt(td.dataset.slot));
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isPainting) {
+            isPainting = false;
+            flushPending();
+        }
+    });
+});
+
+// ── Sidebar de usuarios ─────────────────────────────────────────
+function renderUserSidebar() {
+    const grouped = {};
+    usuarios.forEach(u => {
+        const rol = u.rol || 'empleado';
+        if (!grouped[rol]) grouped[rol] = [];
+        grouped[rol].push(u);
+    });
+
+    const rolOrder = ['admin','gerente','empleado'];
+    let html = '';
+    rolOrder.forEach(rol => {
+        if (!grouped[rol]?.length) return;
+        const cfg = ROL_CFG[rol] || { label: rol, icon: '👤' };
+        html += `<div class="role-head">${cfg.icon} ${cfg.label}</div>`;
+        grouped[rol].forEach(u => {
+            const color = getUserColor(u.id);
+            const ini   = u.iniciales || u.username.slice(0,2).toUpperCase();
+            const sel   = selectedUserId === u.id ? ' selected' : '';
+            html += `
+            <div class="u-entry${sel}" data-uid="${u.id}" onclick="selectUser(${u.id})">
+                <div class="u-avatar" style="background:${color}">${ini}</div>
+                <span class="u-name">${u.username}</span>
+                <label class="u-color-wrap" onclick="event.stopPropagation()" title="Cambiar color">
+                    <div class="u-color-dot" style="background:${color}"
+                         onclick="this.nextElementSibling.click()"></div>
+                    <input type="color" class="u-color-inp" value="${color}"
+                           oninput="setUserColor(${u.id}, this.value)">
+                </label>
+            </div>`;
+        });
+    });
+
+    document.getElementById('us-list').innerHTML = html || '<div style="padding:16px;font-size:12px;color:#9ca3af">Sin usuarios</div>';
+}
+
+function selectUser(uid) {
+    if (selectedUserId === uid) {
+        deseleccionarUsuario();
+        return;
+    }
+    selectedUserId = uid;
+    document.querySelectorAll('.u-entry').forEach(el => {
+        el.classList.toggle('selected', parseInt(el.dataset.uid) === uid);
+    });
+    document.getElementById('us-deselect').classList.remove('hidden');
+    document.getElementById('grid-area').style.cursor = 'crosshair';
+}
+
+function deseleccionarUsuario() {
+    selectedUserId = null;
+    document.querySelectorAll('.u-entry').forEach(el => el.classList.remove('selected'));
+    document.getElementById('us-deselect').classList.add('hidden');
+    document.getElementById('grid-area').style.cursor = '';
 }
 
 // ── Panel de horarios ───────────────────────────────────────────
@@ -628,7 +753,6 @@ function abrirHorarios() {
     document.getElementById('horarios-panel').classList.add('open');
     document.getElementById('hp-overlay').classList.add('open');
 }
-
 function cerrarHorarios() {
     document.getElementById('horarios-panel').classList.remove('open');
     document.getElementById('hp-overlay').classList.remove('open');
@@ -666,9 +790,8 @@ function toggleDia(i) {
     document.getElementById(`db-${i}`).style.display =
         document.getElementById(`da-${i}`).checked ? '' : 'none';
 }
-
 function addFranja(i) {
-    const c = document.getElementById(`franjas-${i}`);
+    const c  = document.getElementById(`franjas-${i}`);
     const fi = c.children.length;
     const div = document.createElement('div');
     div.className = 'franja-row'; div.id = `fr-${i}-${fi}`;
@@ -679,7 +802,6 @@ function addFranja(i) {
         <button class="btn-del-franja" onclick="delFranja(${i},${fi})">✕</button>`;
     c.appendChild(div);
 }
-
 function delFranja(i, fi) {
     document.getElementById(`fr-${i}-${fi}`)?.remove();
 }
@@ -709,34 +831,45 @@ async function guardarHorarios() {
     }
 }
 
-// ── Cerrar modales ──────────────────────────────────────────────
-function cerrarModal(id) {
-    document.getElementById(id).classList.remove('open');
-}
-document.querySelectorAll('.modal-overlay').forEach(m => {
-    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
-});
-
 // ── API ─────────────────────────────────────────────────────────
 async function cargarHorarios() {
     horarios = await api.get('/horarios/');
 }
 
-async function cargarBloqueos() {
-    const raw = await api.get('/horarios/bloqueos');
-    bloqueos = raw.map(b => ({
-        ...b,
-        fecha:       (b.fecha||'').split('T')[0],
-        hora_inicio: b.hora_inicio ? String(b.hora_inicio).slice(0,5) : null,
-        hora_fin:    b.hora_fin    ? String(b.hora_fin).slice(0,5)    : null,
-    }));
+async function cargarUsuarios() {
+    try {
+        usuarios = await api.get('/auth/usuarios');
+    } catch {
+        // Si no tiene permiso de admin/gerente, cargamos sólo el propio usuario
+        usuarios = [];
+    }
 }
 
-// ── Init ────────────────────────────────────────────────────────
+async function cargarAsignaciones() {
+    const days = getDays();
+    const desde = formatDate(days[0]);
+    const hasta  = formatDate(days[days.length-1]);
+    try {
+        const raw = await api.get(`/cuadrante/asignaciones?desde=${desde}&hasta=${hasta}`);
+        asignaciones = {};
+        raw.forEach(a => {
+            const fecha = (a.fecha||'').split('T')[0];
+            if (!asignaciones[fecha]) asignaciones[fecha] = {};
+            if (!asignaciones[fecha][a.slot_mins]) asignaciones[fecha][a.slot_mins] = [];
+            asignaciones[fecha][a.slot_mins].push({ id: a.id, usuario_id: a.usuario_id });
+        });
+    } catch(e) {
+        console.error('Error cargando asignaciones:', e);
+    }
+}
+
+// ── Init ─────────────────────────────────────────────────────────
 (async () => {
-    await Promise.all([cargarHorarios(), cargarBloqueos()]);
+    loadUserColors();
+    await Promise.all([cargarHorarios(), cargarUsuarios()]);
+    renderUserSidebar();
     document.body.classList.add('view-semana');
-    renderGrid();
+    await renderGrid();
 })();
 </script>
 </body>
