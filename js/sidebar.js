@@ -6,12 +6,20 @@
         { href: "reservas.html",   icon: "📅", label: "Reservas" },
         { href: "productos.html",  icon: "🍽️", label: "Productos" },
         { href: "stock.html",      icon: "📦", label: "Stock" },
-        { href: "facturas.html",      icon: "🧾", label: "Facturas" },
-        { href: "estadisticas.html",       icon: "📊", label: "Facturación y Estadísticas" },
-        { href: "analisis-mes.html",       icon: "📅", label: "↳ Análisis de mes en curso" },
-        { href: "historicos.html",         icon: "📈", label: "↳ Históricos de Facturación" },
-        { href: "ventas-estadisticas.html",icon: "🛒", label: "↳ Estadísticas de Ventas" },
-        { href: "caja.html",         icon: "💰", label: "Caja" },
+        { href: "facturas.html",   icon: "🧾", label: "Facturas" },
+        {
+            group: true,
+            href: "estadisticas.html",
+            icon: "📊",
+            label: "Facturación y Estadísticas",
+            children: [
+                { href: "estadisticas.html",          icon: "📊", label: "Resumen" },
+                { href: "analisis-mes.html",           icon: "📅", label: "Análisis de mes" },
+                { href: "historicos.html",             icon: "📈", label: "Históricos" },
+                { href: "ventas-estadisticas.html",    icon: "🛒", label: "Est. de Ventas" },
+            ]
+        },
+        { href: "caja.html",       icon: "💰", label: "Caja" },
         { href: "fichajes.html",   icon: "🕐", label: "Fichajes" },
         { href: "usuarios.html",   icon: "👤", label: "Usuarios" },
     ];
@@ -164,8 +172,92 @@
             text-align: center;
             flex-shrink: 0;
         }
+
+        /* Group head */
+        .sidebar-group-head {
+            display:flex; align-items:center; gap:12px;
+            padding:10px 12px; border-radius:8px;
+            color:#a5b4fc; font-size:14px; font-weight:500;
+            cursor:pointer; margin-bottom:2px;
+            transition:background .15s, color .15s; user-select:none;
+        }
+        .sidebar-group-head:hover { background:rgba(99,102,241,0.18); color:white; }
+        .sidebar-group-head.active { background:#4f46e5; color:white; }
+        .grp-arrow { font-size:13px; color:#a5b4fc; margin-left:auto; transition:transform .22s; flex-shrink:0; }
+        .sidebar-group-head.active .grp-arrow { color:white; }
+        .grp-arrow.open { transform:rotate(90deg); }
+
+        /* Group children */
+        .sidebar-children {
+            display:none; padding-left:12px; margin-bottom:4px;
+            border-left:2px solid rgba(99,102,241,.3); margin-left:18px;
+        }
+        .sidebar-children.open { display:block; }
+        .sidebar-child {
+            display:flex; align-items:center; gap:10px;
+            padding:7px 10px; border-radius:6px;
+            color:#c4b5fd; font-size:13px; font-weight:500;
+            text-decoration:none; margin-bottom:1px;
+            transition:background .15s, color .15s;
+        }
+        .sidebar-child:hover { background:rgba(99,102,241,0.15); color:white; }
+        .sidebar-child.active { background:rgba(79,70,229,.5); color:white; }
+        .sidebar-child .si-icon { font-size:14px; width:20px; text-align:center; flex-shrink:0; }
     `;
     document.head.appendChild(style);
+
+    // ── Helpers para grupos ──────────────────────────────────────
+    function groupKey(p) {
+        return p.href.replace('.html', '');
+    }
+
+    function isInGroup(p) {
+        if (!p.group) return false;
+        return p.href === currentPage || p.children.some(c => c.href === currentPage);
+    }
+
+    function renderNav() {
+        return PAGES.map(p => {
+            if (!p.group) {
+                return `
+                <a href="${p.href}" class="sidebar-link${currentPage === p.href ? " active" : ""}">
+                    <span class="si-icon">${p.icon}</span>
+                    ${p.label}
+                </a>`;
+            }
+
+            const key      = groupKey(p);
+            const inGroup  = isInGroup(p);
+            const isOpen   = inGroup;
+            const headActive = inGroup ? " active" : "";
+            const openCls    = isOpen  ? " open"   : "";
+
+            const childrenHtml = p.children.map(c => `
+                <a href="${c.href}" class="sidebar-child${currentPage === c.href ? " active" : ""}">
+                    <span class="si-icon">${c.icon}</span>${c.label}
+                </a>`).join("");
+
+            return `
+                <div class="sidebar-group-head${headActive}" onclick="toggleGroup('${key}')">
+                    <span class="si-icon">${p.icon}</span>
+                    ${p.label}
+                    <span class="grp-arrow${openCls}" id="grpa-${key}">›</span>
+                </div>
+                <div class="sidebar-children${openCls}" id="grpc-${key}">
+                    ${childrenHtml}
+                </div>`;
+        }).join("");
+    }
+
+    // ── toggleGroup (expuesto globalmente para onclick inline) ───
+    function toggleGroup(key) {
+        const children = document.getElementById('grpc-' + key);
+        const arrow    = document.getElementById('grpa-' + key);
+        if (!children) return;
+        const isOpen = children.classList.toggle('open');
+        if (arrow) arrow.classList.toggle('open', isOpen);
+    }
+    window.toggleGroup = toggleGroup;
 
     // ── HTML: overlay + panel ────────────────────────────────────
     const overlay = document.createElement("div");
@@ -178,12 +270,7 @@
     panel.innerHTML = `
         <div class="sidebar-title">Acceso rápido</div>
         <nav class="sidebar-nav">
-            ${PAGES.map(p => `
-                <a href="${p.href}" class="sidebar-link${currentPage === p.href ? " active" : ""}">
-                    <span class="si-icon">${p.icon}</span>
-                    ${p.label}
-                </a>
-            `).join("")}
+            ${renderNav()}
         </nav>
     `;
     document.body.appendChild(panel);
