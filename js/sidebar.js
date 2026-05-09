@@ -3,7 +3,6 @@
     const PAGES = [
         { href: "dashboard.html", icon: "🏠", label: "Panel principal" },
         { href: "mesas.html",     icon: "🪑", label: "Mesas" },
-        { href: "caja.html",      icon: "💰", label: "Caja" },
         {
             group: true,
             key: "estadisticas",
@@ -27,6 +26,7 @@
                 { href: "productos.html", icon: "🍽️", label: "Productos" },
                 { href: "stock.html",     icon: "📦", label: "Stock" },
                 { href: "facturas.html",  icon: "🧾", label: "Facturas" },
+                { href: "caja.html",      icon: "💰", label: "Caja" },
             ]
         },
         {
@@ -35,8 +35,9 @@
             icon: "👥",
             label: "Personal",
             children: [
-                { href: "fichajes.html", icon: "🕐", label: "Fichajes" },
-                { href: "usuarios.html", icon: "👤", label: "Usuarios" },
+                { href: "fichajes.html",   icon: "🕐", label: "Fichajes" },
+                { href: "usuarios.html",   icon: "👤", label: "Usuarios" },
+                { href: "cuadrante.html",  icon: "📋", label: "Cuadrante" },
             ]
         },
     ];
