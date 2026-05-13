@@ -375,39 +375,121 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
         <div class="cfg-section-body">
 
+            <!-- Configuración local (existente) -->
             <div class="bkp-section">
-                <div class="bkp-title">📥 Crear copia de seguridad</div>
+                <div class="bkp-title">💾 Configuración local</div>
                 <div class="bkp-desc">
-                    Descargá una copia de los datos de configuración almacenados localmente.
-                    Para una copia completa de la base de datos del servidor, contactá al administrador del sistema.
+                    Exporta e importa los ajustes guardados en este navegador (nombre del restaurante, logo, metas, etc.).
+                    No incluye datos del servidor.
                 </div>
                 <div class="bkp-row">
-                    <button class="btn-bkp" onclick="descargarBackup()">
-                        ⬇️ Descargar configuración local
-                    </button>
+                    <button class="btn-bkp" onclick="descargarBackup()">⬇️ Exportar configuración local</button>
+                    <input type="file" id="restore-file" accept=".json"
+                           style="display:none" onchange="mostrarArchivoRestore(this)">
+                    <label for="restore-file" class="file-input-label">📁 Seleccionar archivo</label>
+                    <span class="file-chosen" id="restore-filename">Sin archivo</span>
+                    <button class="btn-bkp-danger" onclick="restaurarBackup()">⚠️ Restaurar local</button>
                 </div>
             </div>
 
-            <div class="bkp-section">
-                <div class="bkp-title">📤 Restaurar configuración</div>
-                <div class="bkp-desc">
-                    Cargá un archivo de copia de seguridad para restaurar la configuración local.
-                    Esta acción reemplazará los datos actuales.
+            <!-- ── GESTIÓN SERVIDOR (solo admin) ── -->
+            <div style="margin-top:20px;padding-top:16px;border-top:2px solid #f3f4f6;">
+                <div style="font-size:12px;font-weight:800;color:#6366f1;text-transform:uppercase;
+                            letter-spacing:.6px;margin-bottom:14px;">
+                    🔐 Base de datos del servidor
                 </div>
-                <div class="bkp-row">
-                    <input type="file" id="restore-file" accept=".json"
-                           style="display:none" onchange="mostrarArchivoRestore(this)">
-                    <label for="restore-file" class="file-input-label">📁 Seleccionar archivo .json</label>
-                    <span class="file-chosen" id="restore-filename">Sin archivo seleccionado</span>
-                    <button class="btn-bkp-danger" onclick="restaurarBackup()">
-                        ⚠️ Restaurar
-                    </button>
+
+                <div class="bkp-section" style="border-color:#c7d2fe;background:#f5f3ff;">
+                    <div class="bkp-title">📦 Guardar copia completa</div>
+                    <div class="bkp-desc">
+                        Descarga un archivo JSON con <strong>todos los datos del servidor</strong>: usuarios, carta, historial de ventas, stock, reservas, etc.<br>
+                        Guardalo en un lugar seguro — puede usarse para restaurar el sistema completo.
+                    </div>
+                    <div class="bkp-row">
+                        <button class="btn-bkp" onclick="abrirModalDB('exportar')">
+                            📦 Descargar copia del servidor
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bkp-section" style="margin-top:12px;">
+                    <div class="bkp-title">📂 Cargar copia del servidor</div>
+                    <div class="bkp-desc">
+                        Restaura el servidor completo desde un archivo de copia previamente generado.<br>
+                        <strong>⚠️ Reemplazará todos los datos actuales del servidor.</strong>
+                    </div>
+                    <div class="bkp-row">
+                        <input type="file" id="srv-restore-file" accept=".json"
+                               style="display:none" onchange="mostrarArchivoSrv(this)">
+                        <label for="srv-restore-file" class="file-input-label">📁 Seleccionar copia .json</label>
+                        <span class="file-chosen" id="srv-restore-filename">Sin archivo seleccionado</span>
+                        <button class="btn-bkp-danger" onclick="abrirModalDB('importar')">
+                            ⚠️ Restaurar servidor
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bkp-section" style="margin-top:12px;border-color:#fecaca;background:#fff5f5;">
+                    <div class="bkp-title" style="color:#dc2626;">🗑️ Formatear base de datos</div>
+                    <div class="bkp-desc">
+                        Elimina <strong>todos los datos del servidor</strong> dejando el sistema en blanco.<br>
+                        Solo se conservará tu usuario de administrador. <strong>Esta acción es IRREVERSIBLE.</strong>
+                    </div>
+                    <div class="bkp-row">
+                        <button class="btn-bkp-danger" style="border-color:#dc2626;color:#dc2626;"
+                                onclick="abrirModalDB('formatear')">
+                            🗑️ Formatear base de datos
+                        </button>
+                    </div>
                 </div>
             </div>
 
         </div>
     </div>
 
+</div>
+
+<!-- ═══ MODAL ACCIONES DB ════════════════════════════════════ -->
+<div class="modal-overlay" id="db-modal-overlay">
+    <div class="modal" style="max-width:460px;">
+        <div class="modal-head">
+            <h3 id="db-modal-title">🔐 Confirmar acción</h3>
+            <button class="modal-close" onclick="cerrarModalDB()">✕</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-desc" id="db-modal-desc"></p>
+
+            <!-- Campo "escribí CONFIRMAR" solo para formatear -->
+            <div class="cfg-field" id="db-confirm-wrap" style="display:none;">
+                <label class="cfg-label" style="color:#dc2626;">
+                    Escribí <strong>CONFIRMAR</strong> para continuar
+                </label>
+                <input class="cfg-input" type="text" id="db-confirm-text"
+                       placeholder="CONFIRMAR" autocomplete="off"
+                       style="border-color:#fecaca;">
+            </div>
+
+            <div class="cfg-field">
+                <label class="cfg-label">Contraseña del administrador</label>
+                <input class="cfg-input" type="password" id="db-password"
+                       placeholder="Tu contraseña" autocomplete="current-password"
+                       onkeydown="if(event.key==='Enter') ejecutarAccionDB()">
+            </div>
+
+            <div class="modal-error" id="db-modal-error"></div>
+
+            <!-- Spinner de progreso -->
+            <div id="db-modal-progress" style="display:none;text-align:center;padding:12px 0;">
+                <div style="width:22px;height:22px;border:3px solid #e5e7eb;border-top-color:#6366f1;
+                            border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px;"></div>
+                <span id="db-modal-progress-txt" style="font-size:13px;color:#6b7280;">Procesando…</span>
+            </div>
+        </div>
+        <div class="modal-foot" id="db-modal-foot">
+            <button class="btn-modal-cancel" onclick="cerrarModalDB()">Cancelar</button>
+            <button class="btn-modal-confirm" id="db-confirm-btn" onclick="ejecutarAccionDB()">Confirmar</button>
+        </div>
+    </div>
 </div>
 
 <!-- ═══ MODAL VERIFICACIÓN ════════════════════════════════════ -->
@@ -662,9 +744,190 @@ function restaurarBackup() {
     reader.readAsText(input.files[0]);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ── Gestión de base de datos del servidor ───────────────────
+// ═══════════════════════════════════════════════════════════════
+
+let _dbAccion = null;  // 'exportar' | 'importar' | 'formatear'
+
+const DB_CFG = {
+    exportar: {
+        title:  '📦 Guardar copia del servidor',
+        desc:   'Se descargará un archivo JSON con todos los datos del servidor. Guardalo en un lugar seguro.',
+        btnTxt: 'Descargar copia',
+        btnCls: '',
+        confirm: false,
+    },
+    importar: {
+        title:  '📂 Restaurar base de datos',
+        desc:   '⚠️ Esta acción reemplazará TODOS los datos actuales del servidor con los del archivo seleccionado. Esta operación no se puede deshacer.',
+        btnTxt: 'Restaurar servidor',
+        btnCls: 'danger',
+        confirm: false,
+    },
+    formatear: {
+        title:  '🗑️ Formatear base de datos',
+        desc:   '⛔ ATENCIÓN: Esta acción eliminará TODOS los datos del servidor de forma permanente e irreversible. Solo se conservará tu usuario administrador. Asegurate de tener una copia de seguridad antes de continuar.',
+        btnTxt: 'Formatear',
+        btnCls: 'danger',
+        confirm: true,
+    },
+};
+
+function abrirModalDB(accion) {
+    const user = getUser();
+    if (!user || user.rol !== 'admin') {
+        alert('Solo el administrador del sistema puede realizar esta acción.');
+        return;
+    }
+
+    _dbAccion = accion;
+    const cfg = DB_CFG[accion];
+
+    document.getElementById('db-modal-title').textContent = cfg.title;
+    document.getElementById('db-modal-desc').textContent  = cfg.desc;
+    document.getElementById('db-password').value          = '';
+    document.getElementById('db-modal-error').textContent = '';
+    document.getElementById('db-modal-error').classList.remove('visible');
+    document.getElementById('db-modal-progress').style.display = 'none';
+    document.getElementById('db-modal-foot').style.display = '';
+
+    // Campo de confirmación de texto (solo para formatear)
+    const wrap = document.getElementById('db-confirm-wrap');
+    const txt  = document.getElementById('db-confirm-text');
+    if (cfg.confirm) {
+        wrap.style.display = '';
+        txt.value = '';
+    } else {
+        wrap.style.display = 'none';
+    }
+
+    // Botón de confirmar
+    const btn = document.getElementById('db-confirm-btn');
+    if (cfg.btnCls === 'danger') {
+        btn.style.background = '#dc2626';
+    } else {
+        btn.style.background = '';
+    }
+    btn.textContent = cfg.btnTxt;
+
+    document.getElementById('db-modal-overlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('db-password').focus(), 80);
+}
+
+function cerrarModalDB() {
+    document.getElementById('db-modal-overlay').style.display = 'none';
+    _dbAccion = null;
+}
+
+async function ejecutarAccionDB() {
+    if (!_dbAccion) return;
+
+    const errEl = document.getElementById('db-modal-error');
+    errEl.textContent = '';
+    errEl.classList.remove('visible');
+
+    const password = document.getElementById('db-password').value.trim();
+    if (!password) {
+        errEl.textContent = 'Ingresá tu contraseña de administrador.';
+        errEl.classList.add('visible');
+        return;
+    }
+
+    // Validar "CONFIRMAR" en formatear
+    if (DB_CFG[_dbAccion].confirm) {
+        const txt = document.getElementById('db-confirm-text').value.trim();
+        if (txt !== 'CONFIRMAR') {
+            errEl.textContent = 'Escribí exactamente "CONFIRMAR" para continuar.';
+            errEl.classList.add('visible');
+            return;
+        }
+    }
+
+    // Mostrar progreso
+    const foot = document.getElementById('db-modal-foot');
+    const prog = document.getElementById('db-modal-progress');
+    foot.style.display = 'none';
+    prog.style.display = '';
+
+    try {
+        if (_dbAccion === 'exportar') {
+            await _ejecutarExportar(password);
+        } else if (_dbAccion === 'importar') {
+            await _ejecutarImportar(password);
+        } else if (_dbAccion === 'formatear') {
+            await _ejecutarFormatear(password);
+        }
+    } catch(e) {
+        foot.style.display = '';
+        prog.style.display = 'none';
+        errEl.textContent = e.message || 'Error inesperado. Verificá la conexión.';
+        errEl.classList.add('visible');
+    }
+}
+
+async function _ejecutarExportar(password) {
+    document.getElementById('db-modal-progress-txt').textContent = 'Exportando base de datos…';
+    const data = await apiFetch('/admin/db/exportar', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+    });
+    // Descargar como archivo JSON
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `backup-servidor-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    cerrarModalDB();
+    alert('✅ Copia del servidor descargada correctamente.');
+}
+
+async function _ejecutarImportar(password) {
+    const input = document.getElementById('srv-restore-file');
+    if (!input.files[0]) {
+        throw new Error('Seleccioná un archivo de copia antes de continuar.');
+    }
+    document.getElementById('db-modal-progress-txt').textContent = 'Leyendo archivo…';
+    const text = await input.files[0].text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error('El archivo no es un JSON válido.'); }
+    if (!data.tables) throw new Error('El archivo no es una copia válida del servidor.');
+
+    document.getElementById('db-modal-progress-txt').textContent = 'Restaurando base de datos en el servidor…';
+    const res = await apiFetch('/admin/db/importar', {
+        method: 'POST',
+        body: JSON.stringify({ password, data }),
+    });
+    cerrarModalDB();
+    const aviso = res.advertencias?.length
+        ? `\n\nAdvertencias (${res.advertencias.length}):\n${res.advertencias.slice(0,5).join('\n')}`
+        : '';
+    alert('✅ ' + res.mensaje + aviso);
+}
+
+async function _ejecutarFormatear(password) {
+    document.getElementById('db-modal-progress-txt').textContent = 'Formateando base de datos…';
+    const res = await apiFetch('/admin/db/formatear', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+    });
+    cerrarModalDB();
+    alert('✅ ' + res.mensaje);
+}
+
+function mostrarArchivoSrv(input) {
+    const name = input.files[0]?.name || 'Sin archivo';
+    document.getElementById('srv-restore-filename').textContent = name;
+}
+
 // ── Cerrar modal con overlay click ──────────────────────────
 document.getElementById('modal-overlay').addEventListener('click', e => {
     if (e.target === document.getElementById('modal-overlay')) cerrarModal();
+});
+document.getElementById('db-modal-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('db-modal-overlay')) cerrarModalDB();
 });
 
 // ── Feedback visual al guardar ──────────────────────────────
