@@ -1032,12 +1032,16 @@ async function guardarCombosHab() {
 // ── RECETAS ──────────────────────────────────────────────
     let _recetas = [];
     let _insumos = [];
+    let _insumosProduccion = [];
     let _recetaProdId = null;
 
     async function cargarRecetas() {
         try {
-            _recetas = await api.get("/stock/recetas");
-            _insumos = await api.get("/stock/insumos");
+            [_recetas, _insumos, _insumosProduccion] = await Promise.all([
+                api.get("/stock/recetas"),
+                api.get("/stock/insumos"),
+                api.get("/stock/insumos-produccion"),
+            ]);
             filtrarRecetas();
         } catch(e) { console.error(e); }
     }
@@ -1069,7 +1073,7 @@ async function guardarCombosHab() {
             let ings = r.ingredientes;
             if (typeof ings === "string") ings = JSON.parse(ings);
             const ingTexto = ings.length
-                ? ings.map(i => `<span style="background:#f0fdf4;color:#15803d;border-radius:4px;padding:2px 7px;font-size:12px;margin:2px;display:inline-block;">${i.insumo_nombre} ×${i.cantidad} ${i.unidad}</span>`).join("")
+                ? ings.map(i => `<span style="background:${i.es_produccion ? '#ede9fe' : '#f0fdf4'};color:${i.es_produccion ? '#6d28d9' : '#15803d'};border-radius:4px;padding:2px 7px;font-size:12px;margin:2px;display:inline-block;">${i.es_produccion ? '🏭 ' : ''}${i.insumo_nombre} ×${i.cantidad} ${i.unidad}</span>`).join("")
                 : `<span style="color:#9ca3af;font-size:12px;">Sin ingredientes</span>`;
             return `<tr>
                 <td><strong>${r.producto_nombre}</strong></td>
@@ -1091,21 +1095,29 @@ async function guardarCombosHab() {
         const receta = _recetas.find(r => r.producto_id === prodId);
         let ings = receta ? receta.ingredientes : [];
         if (typeof ings === "string") ings = JSON.parse(ings);
-        ings.forEach(i => recetaAgregarFila(i.insumo_id, i.cantidad));
+        ings.forEach(i => {
+            const val = i.es_produccion ? `prod_${i.insumo_produccion_id}` : `stock_${i.insumo_id}`;
+            recetaAgregarFila(val, i.cantidad);
+        });
         if (!ings.length) recetaAgregarFila();
         document.getElementById("modal-receta").classList.add("active");
     }
 
-    function recetaAgregarFila(insumoId = "", cantidad = "") {
+    function recetaAgregarFila(val = "", cantidad = "") {
         const cont = document.getElementById("receta-items");
         const fila = document.createElement("div");
         fila.style.cssText = "display:flex;gap:8px;align-items:center;";
-        const opts = _insumos.map(i =>
-            `<option value="${i.id}" ${i.id == insumoId ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`
+        const optsStock = _insumos.map(i =>
+            `<option value="stock_${i.id}" ${`stock_${i.id}` === val ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`
+        ).join("");
+        const optsProd = _insumosProduccion.map(i =>
+            `<option value="prod_${i.id}" ${`prod_${i.id}` === val ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`
         ).join("");
         fila.innerHTML = `
             <select style="flex:1;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;">
-                <option value="">-- Insumo --</option>${opts}
+                <option value="">-- Insumo --</option>
+                ${optsStock.length ? `<optgroup label="📦 Insumos de Stock">${optsStock}</optgroup>` : ""}
+                ${optsProd.length  ? `<optgroup label="🏭 Insumos de Producción">${optsProd}</optgroup>` : ""}
             </select>
             <input type="number" min="0.001" step="0.001" value="${cantidad}"
                 placeholder="Cantidad"
@@ -1122,10 +1134,16 @@ async function guardarCombosHab() {
         for (const f of filas) {
             const sel  = f.querySelector("select");
             const inp  = f.querySelector("input");
-            const iid  = parseInt(sel.value);
+            const val  = sel.value; // "stock_5" | "prod_3" | ""
             const cant = parseFloat(inp.value);
-            if (!iid || !cant || cant <= 0) continue;
-            items.push({ insumo_id: iid, cantidad: cant });
+            if (!val || !cant || cant <= 0) continue;
+            const [tipo, idStr] = val.split("_");
+            const id = parseInt(idStr);
+            if (tipo === "prod") {
+                items.push({ insumo_produccion_id: id, cantidad: cant });
+            } else {
+                items.push({ insumo_id: id, cantidad: cant });
+            }
         }
         if (!items.length) { alert("Agregá al menos un ingrediente."); return; }
         try {
