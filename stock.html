@@ -267,15 +267,18 @@ function setTab(tab) {
 async function cargarInsumos() {
     const nombre = document.getElementById("filtro-ins-nombre").value.trim();
     const estado = document.getElementById("filtro-ins-estado").value;
-    let url = "/stock/insumos?";
-    if (nombre) url += `nombre=${encodeURIComponent(nombre)}&`;
     try {
-        let data = await api.get(url);
-        _insumos = data;
+        // Siempre traer TODOS los insumos; el filtro se aplica solo en la vista
+        _insumos = await api.get("/stock/insumos");
+
+        // Filtrar solo para mostrar en la tabla (nunca afecta _insumos)
+        let data = _insumos;
+        if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre.toLowerCase()));
         if (estado === "agotado")          data = data.filter(i => i.agotado);
         else if (estado === "advertencia") data = data.filter(i => i.en_advertencia && !i.agotado);
         else if (estado === "ok")          data = data.filter(i => !i.en_advertencia);
 
+        // Las estadísticas siempre reflejan el stock total, no el filtrado
         document.getElementById("stat-total").textContent = _insumos.length;
         document.getElementById("stat-agot").textContent  = _insumos.filter(i => i.agotado).length;
         document.getElementById("stat-adv").textContent   = _insumos.filter(i => i.en_advertencia && !i.agotado).length;
