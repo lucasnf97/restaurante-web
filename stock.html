@@ -23,10 +23,11 @@
         .btn-sm { padding: 5px 11px; font-size: 12px; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .stat-card { background: white; border-radius: 12px; padding: 18px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-        .stat-value { font-size: 26px; font-weight: 700; color: #1a1a2e; }
+        .stat-card { background: white; border-radius: 12px; padding: 14px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+        .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .stat-value { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.1; }
         .stat-value.green { color: #16a34a; } .stat-value.yellow { color: #ca8a04; } .stat-value.red { color: #dc2626; }
+        .stat-sub { font-size: 10.5px; color: #9ca3af; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .filtros { background: white; border-radius: 12px; padding: 14px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
         .filtros input, .filtros select { padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
         .filtros input:focus, .filtros select:focus { border-color: #4f46e5; }
@@ -72,10 +73,10 @@
     <div class="page-header"><h2>📦 Control de Stock</h2></div>
 
     <div class="stats">
-        <div class="stat-card"><div class="stat-label">Total insumos</div><div class="stat-value" id="stat-total">—</div></div>
-        <div class="stat-card"><div class="stat-label">En advertencia</div><div class="stat-value yellow" id="stat-adv">—</div></div>
-        <div class="stat-card"><div class="stat-label">Agotados</div><div class="stat-value red" id="stat-agot">—</div></div>
-        <div class="stat-card"><div class="stat-label">OK</div><div class="stat-value green" id="stat-ok">—</div></div>
+        <div class="stat-card"><div class="stat-label">Total insumos</div><div class="stat-value" id="stat-total">—</div><div class="stat-sub" id="stat-total-sub"></div></div>
+        <div class="stat-card"><div class="stat-label">En advertencia</div><div class="stat-value yellow" id="stat-adv">—</div><div class="stat-sub" id="stat-adv-sub"></div></div>
+        <div class="stat-card"><div class="stat-label">Agotados</div><div class="stat-value red" id="stat-agot">—</div><div class="stat-sub" id="stat-agot-sub"></div></div>
+        <div class="stat-card"><div class="stat-label">OK</div><div class="stat-value green" id="stat-ok">—</div><div class="stat-sub" id="stat-ok-sub"></div></div>
     </div>
 
     <div class="tabs">
@@ -279,10 +280,7 @@ async function cargarInsumos() {
         else if (estado === "ok")          data = data.filter(i => !i.en_advertencia);
 
         // Las estadísticas siempre reflejan el stock total, no el filtrado
-        document.getElementById("stat-total").textContent = _insumos.length;
-        document.getElementById("stat-agot").textContent  = _insumos.filter(i => i.agotado).length;
-        document.getElementById("stat-adv").textContent   = _insumos.filter(i => i.en_advertencia && !i.agotado).length;
-        document.getElementById("stat-ok").textContent    = _insumos.filter(i => !i.en_advertencia).length;
+        actualizarStats();
 
         const tbody = document.getElementById("tbody-insumos");
         if (!data.length) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Sin insumos</td></tr>`; return; }
@@ -472,6 +470,7 @@ async function cargarInsumosProduccion() {
                 </div></td>
             </tr>`;
         }).join("");
+        actualizarStats();
     } catch(e) { console.error(e); }
 }
 
@@ -800,7 +799,29 @@ async function confirmarProduccion() {
     }
 }
 
-cargarInsumos();
+function actualizarStats() {
+    const s = _insumos;
+    const p = _insumosProduccion;
+
+    const sAgot = s.filter(i => i.agotado).length;
+    const pAgot = p.filter(i => i.agotado).length;
+    const sAdv  = s.filter(i => i.en_advertencia && !i.agotado).length;
+    const pAdv  = p.filter(i => i.en_advertencia && !i.agotado).length;
+    const sOk   = s.filter(i => !i.en_advertencia).length;
+    const pOk   = p.filter(i => !i.en_advertencia).length;
+
+    document.getElementById("stat-total").textContent    = s.length + p.length;
+    document.getElementById("stat-total-sub").textContent = `${s.length} stock · ${p.length} prod`;
+    document.getElementById("stat-agot").textContent     = sAgot + pAgot;
+    document.getElementById("stat-agot-sub").textContent  = `${sAgot} stock · ${pAgot} prod`;
+    document.getElementById("stat-adv").textContent      = sAdv + pAdv;
+    document.getElementById("stat-adv-sub").textContent   = `${sAdv} stock · ${pAdv} prod`;
+    document.getElementById("stat-ok").textContent       = sOk + pOk;
+    document.getElementById("stat-ok-sub").textContent    = `${sOk} stock · ${pOk} prod`;
+}
+
+// Carga inicial: ambas listas en paralelo para tener las stats completas desde el arranque
+Promise.all([cargarInsumos(), cargarInsumosProduccion()]);
 </script>
 
 <!-- Dropdown del combobox: fuera del modal para no ser recortado por overflow -->
