@@ -761,12 +761,14 @@ async function cargarPreviewProduccion() {
     }
 
     const lineas = receta.map(r => {
-        const necesario = r.cantidad * cant;
-        const ins = _insumos.find(i => i.id === r.insumo_stock_id);
-        const disponible = ins ? ins.cantidad_actual : "?";
-        const ok = typeof disponible === "number" && disponible >= necesario;
-        const color = ok ? "#166534" : "#dc2626";
-        const aviso = !ok ? ` <span style="color:#dc2626;font-weight:700;">(insuficiente: hay ${disponible})</span>` : "";
+        const necesario  = r.cantidad * cant;
+        const ins        = _insumos.find(i => i.id === r.insumo_stock_id);
+        const disponible = ins ? parseFloat(ins.cantidad_actual) : null;
+        const negativo   = disponible !== null && disponible - necesario < 0;
+        const color      = negativo ? "#92400e" : "#166534";
+        const aviso      = negativo
+            ? ` <span style="color:#b45309;font-size:11px;">⚠ quedaría en ${fmtNum(disponible - necesario)} ${r.unidad}</span>`
+            : "";
         return `<div style="color:${color};">• ${r.insumo_nombre}: −${fmtNum(necesario)} ${r.unidad}${aviso}</div>`;
     }).join("");
 
