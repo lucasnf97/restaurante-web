@@ -323,7 +323,32 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-producto')">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarProducto()">Guardar</button>
+            <button class="btn btn-primary" id="btn-guardar-prod" onclick="guardarProducto()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── MODAL RECETA NUEVA (flujo creación) ── -->
+<div class="modal-overlay" id="modal-receta-nueva">
+    <div class="modal" style="max-width:560px">
+        <h3>Receta — <span id="rn-titulo"></span></h3>
+        <p style="color:#6b7280;font-size:13px;margin:0 0 12px;">Agregá los ingredientes. Si el producto no tiene receta podés saltearlo.</p>
+
+        <!-- Items seleccionados -->
+        <div id="rn-items" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+
+        <!-- Buscador para agregar -->
+        <div style="border:1.5px dashed #d1d5db;border-radius:10px;padding:12px;background:#fafafa;">
+            <input type="text" id="rn-buscar"
+                   placeholder="🔍 Buscar insumo para agregar..."
+                   oninput="filtrarInsumosNueva()"
+                   style="width:100%;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;">
+            <div id="rn-lista" style="max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;"></div>
+        </div>
+
+        <div class="modal-footer" style="margin-top:16px;">
+            <button class="btn btn-secondary" onclick="cancelarRecetaNueva()">Saltear</button>
+            <button class="btn btn-primary" onclick="guardarRecetaNueva()">Guardar receta</button>
         </div>
     </div>
 </div>
@@ -659,6 +684,7 @@ function abrirModalProducto(id = null) {
         document.getElementById('fp-agotado').checked = false;
         document.getElementById('fp-favorito').checked = false;
     }
+    document.getElementById('btn-guardar-prod').textContent = id ? 'Guardar' : 'Continuar';
     document.getElementById('modal-producto').classList.add('active');
 }
 
@@ -680,10 +706,17 @@ async function guardarProducto() {
     };
     if (!body.nombre || isNaN(body.precio)) { alert('Nombre y precio son obligatorios.'); return; }
     try {
-        if (editandoProdId) await api.patch(`/productos/${editandoProdId}`, body);
-        else await api.post('/productos/', body);
-        cerrarModal('modal-producto');
-        await cargarProductos();
+        if (editandoProdId) {
+            // Edición: guardar y cerrar como siempre
+            await api.patch(`/productos/${editandoProdId}`, body);
+            cerrarModal('modal-producto');
+            await cargarProductos();
+        } else {
+            // Creación: guardar y abrir paso de receta
+            const res = await api.post('/productos/', body);
+            cerrarModal('modal-producto');
+            await abrirModalRecetaNueva(res.id, body.nombre);
+        }
     } catch(err) { alert('Error: ' + err.message); }
 }
 
@@ -1034,6 +1067,136 @@ async function guardarCombosHab() {
     let _insumos = [];
     let _insumosProduccion = [];
     let _recetaProdId = null;
+
+    // ── RECETA NUEVA (flujo creación de producto) ─────────────
+    let _rnProdId = null;
+    let _rnItems  = [];   // [{tipo:'stock'|'prod', id, nombre, unidad, cantidad}]
+
+    async function abrirModalRecetaNueva(prodId, prodNombre) {
+        _rnProdId = prodId;
+        _rnItems  = [];
+        document.getElementById("rn-titulo").textContent = prodNombre;
+        document.getElementById("rn-buscar").value = "";
+        // Asegurar que los listados de insumos estén cargados
+        if (!_insumos.length && !_insumosProduccion.length) {
+            try {
+                [_insumos, _insumosProduccion] = await Promise.all([
+                    api.get("/stock/insumos"),
+                    api.get("/stock/insumos-produccion"),
+                ]);
+            } catch(e) { console.error("Error cargando insumos:", e); }
+        }
+        renderRnItems();
+        filtrarInsumosNueva();
+        document.getElementById("modal-receta-nueva").classList.add("active");
+    }
+
+    function renderRnItems() {
+        const cont = document.getElementById("rn-items");
+        if (!_rnItems.length) {
+            cont.innerHTML = `<div style="color:#9ca3af;font-size:13px;text-align:center;padding:6px 0;">Sin ingredientes agregados aún</div>`;
+            return;
+        }
+        cont.innerHTML = _rnItems.map((it, idx) => `
+            <div style="display:flex;align-items:center;gap:8px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px 12px;">
+                <span style="flex:1;font-size:13px;font-weight:500;">${it.nombre}</span>
+                <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;
+                             background:${it.tipo==='prod'?'#ede9fe':'#dbeafe'};
+                             color:${it.tipo==='prod'?'#6d28d9':'#1d4ed8'};">
+                    ${it.tipo==='prod'?'PROD':'STOCK'}
+                </span>
+                <input type="number" min="0.001" step="0.001" value="${it.cantidad||''}"
+                       placeholder="Cant."
+                       oninput="_rnItems[${idx}].cantidad=parseFloat(this.value)||0"
+                       style="width:88px;padding:5px 8px;border:1.5px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
+                <span style="color:#6b7280;font-size:12px;min-width:28px;">${it.unidad}</span>
+                <button onclick="_rnItems.splice(${idx},1);renderRnItems();filtrarInsumosNueva();"
+                        style="background:transparent;border:none;color:#dc2626;font-size:17px;cursor:pointer;padding:0 2px;line-height:1;">✕</button>
+            </div>
+        `).join("");
+    }
+
+    function filtrarInsumosNueva() {
+        const busq = document.getElementById("rn-buscar").value.toLowerCase().trim();
+        const usadosStock = new Set(_rnItems.filter(i=>i.tipo==='stock').map(i=>i.id));
+        const usadosProd  = new Set(_rnItems.filter(i=>i.tipo==='prod').map(i=>i.id));
+
+        const todos = [
+            ..._insumos.map(i => ({...i, tipo:'stock'})),
+            ..._insumosProduccion.map(i => ({...i, tipo:'prod'})),
+        ];
+
+        const filtrados = todos.filter(i => {
+            if (i.tipo==='stock' && usadosStock.has(i.id)) return false;
+            if (i.tipo==='prod'  && usadosProd.has(i.id))  return false;
+            if (busq && !i.nombre.toLowerCase().includes(busq)) return false;
+            return true;
+        });
+
+        const lista = document.getElementById("rn-lista");
+        if (!filtrados.length) {
+            lista.innerHTML = `<div style="color:#9ca3af;font-size:13px;text-align:center;padding:8px;">${busq ? 'Sin resultados para "'+busq+'"' : 'Todos los insumos ya fueron agregados'}</div>`;
+            return;
+        }
+        lista.innerHTML = filtrados.map(i => `
+            <div onclick="rnAgregarInsumo('${i.tipo}',${i.id},${JSON.stringify(i.nombre)},'${i.unidad}')"
+                 style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;"
+                 onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
+                <span style="flex:1;font-size:13px;">${i.nombre} <span style="color:#9ca3af;font-size:12px;">(${i.unidad})</span></span>
+                <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;
+                             background:${i.tipo==='prod'?'#ede9fe':'#dbeafe'};
+                             color:${i.tipo==='prod'?'#6d28d9':'#1d4ed8'};">
+                    ${i.tipo==='prod'?'PROD':'STOCK'}
+                </span>
+            </div>
+        `).join("");
+    }
+
+    function rnAgregarInsumo(tipo, id, nombre, unidad) {
+        _rnItems.push({ tipo, id, nombre, unidad, cantidad: 0 });
+        renderRnItems();
+        filtrarInsumosNueva();
+        // Enfocar el campo de cantidad del último ítem agregado
+        const inputs = document.querySelectorAll("#rn-items input[type=number]");
+        if (inputs.length) inputs[inputs.length - 1].focus();
+    }
+
+    async function guardarRecetaNueva() {
+        const itemsValidos = _rnItems.filter(i => i.cantidad > 0);
+
+        if (!itemsValidos.length) {
+            const ok = confirm("No agregaste ningún ingrediente.\n¿Querés guardar el producto sin receta?");
+            if (!ok) return;
+            cerrarModal("modal-receta-nueva");
+            await cargarProductos();
+            return;
+        }
+
+        const sinCantidad = _rnItems.filter(i => !i.cantidad || i.cantidad <= 0);
+        if (sinCantidad.length) {
+            alert(`Completá la cantidad de: ${sinCantidad.map(i=>i.nombre).join(", ")}`);
+            return;
+        }
+
+        const items = _rnItems.map(i =>
+            i.tipo === 'prod'
+                ? { insumo_produccion_id: i.id, cantidad: i.cantidad }
+                : { insumo_id: i.id, cantidad: i.cantidad }
+        );
+
+        try {
+            await api.post("/stock/receta", { producto_id: _rnProdId, items });
+            cerrarModal("modal-receta-nueva");
+            await cargarProductos();
+        } catch(e) {
+            alert("Error al guardar receta: " + e.message);
+        }
+    }
+
+    async function cancelarRecetaNueva() {
+        cerrarModal("modal-receta-nueva");
+        await cargarProductos();
+    }
 
     async function cargarRecetas() {
         try {
