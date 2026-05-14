@@ -451,7 +451,7 @@ async function verReceta(ipId, nombre) {
     } catch(e) { alert("Error al cargar la receta"); }
 }
 
-function abrirModalInsumoProduccion() {
+async function abrirModalInsumoProduccion() {
     _editandoIPId = null;
     _recetaItems = [];
     document.getElementById("ip-titulo").textContent = "Nuevo insumo de producción";
@@ -459,6 +459,8 @@ function abrirModalInsumoProduccion() {
         document.getElementById(id).value = id === "ip-nombre" ? "" : "0";
     });
     document.getElementById("ip-unidad").value = "unidad";
+    // Recargar lista completa de insumos de stock (sin filtro) para el combobox
+    try { _insumos = await api.get("/stock/insumos"); } catch(e) { console.error(e); }
     renderRecetaLista();
     document.getElementById("modal-insumo-produccion").classList.add("active");
 }
@@ -474,9 +476,13 @@ async function editarInsumoProduccion(id) {
     document.getElementById("ip-advertencia").value = ip.cantidad_advertencia;
     document.getElementById("ip-minima").value      = ip.cantidad_minima;
 
-    // Cargar receta actual
+    // Cargar receta actual e insumos completos en paralelo
     try {
-        const receta = await api.get(`/stock/insumos-produccion/${id}/receta`);
+        const [receta, todosInsumos] = await Promise.all([
+            api.get(`/stock/insumos-produccion/${id}/receta`),
+            api.get("/stock/insumos"),
+        ]);
+        _insumos = todosInsumos;
         _recetaItems = receta.map(r => ({
             insumo_stock_id: r.insumo_stock_id,
             nombre: r.insumo_nombre,
@@ -511,8 +517,11 @@ function renderRecetaLista() {
     `).join("");
 }
 
-function agregarItemReceta() {
-    if (!_insumos.length) { alert("No hay insumos de stock cargados."); return; }
+async function agregarItemReceta() {
+    // Si _insumos está vacío o desactualizado, recargarlo sin filtro
+    if (!_insumos.length) {
+        try { _insumos = await api.get("/stock/insumos"); } catch(e) { alert("No se pudieron cargar los insumos."); return; }
+    }
     _comboInsumosDisp = _insumos.filter(i => !_recetaItems.some(r => r.insumo_stock_id === i.id));
     if (!_comboInsumosDisp.length) { alert("Ya se agregaron todos los insumos disponibles."); return; }
     _comboSelId = null;
