@@ -390,9 +390,7 @@ async function cargarHistorial() {
 function cerrarModal(id) {
     document.getElementById(id).classList.remove("active");
 }
-document.querySelectorAll(".modal-overlay").forEach(m => {
-    m.addEventListener("click", function(e) { if (e.target === this) cerrarModal(this.id); });
-});
+// Los modales NO se cierran al hacer clic en el overlay (solo con el botón o la cruz)
 
 // ── INSUMOS DE PRODUCCIÓN ─────────────────────────────────────
 
@@ -522,7 +520,7 @@ function agregarItemReceta() {
     const fila = document.createElement("div");
     fila.style.cssText = "display:flex;gap:8px;align-items:center;padding:8px 10px;background:#ede9fe;border-radius:8px;";
     fila.innerHTML = `
-        <div style="position:relative;flex:1;">
+        <div style="flex:1;">
             <input type="text" id="new-receta-input" autocomplete="off"
                    placeholder="Buscar insumo..."
                    oninput="comboboxInput(event)"
@@ -530,10 +528,7 @@ function agregarItemReceta() {
                    onfocus="comboboxMostrar()"
                    onblur="setTimeout(()=>{const l=document.getElementById('combobox-lista');if(l)l.style.display='none'},150)"
                    style="width:100%;padding:6px 10px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;box-sizing:border-box;outline:none;">
-            <div id="combobox-lista"
-                 style="position:absolute;top:calc(100% + 2px);left:0;right:0;background:white;
-                        border:1.5px solid #c4b5fd;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,0.13);
-                        max-height:190px;overflow-y:auto;z-index:1000;display:none;"></div>
+            <!-- El dropdown se posiciona con position:fixed en comboboxRenderLista() -->
         </div>
         <input type="number" id="new-receta-cant" step="0.001" min="0.001" placeholder="Cantidad"
                style="width:100px;padding:6px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;">
@@ -579,8 +574,10 @@ function comboboxMostrar() {
 }
 
 function comboboxRenderLista(busq) {
-    const lista = document.getElementById("combobox-lista");
-    if (!lista) return;
+    const lista  = document.getElementById("combobox-lista");
+    const input  = document.getElementById("new-receta-input");
+    if (!lista || !input) return;
+
     const filtrados = (busq || "").trim()
         ? _comboInsumosDisp.filter(i => i.nombre.toLowerCase().includes(busq.toLowerCase()))
         : _comboInsumosDisp;
@@ -593,6 +590,12 @@ function comboboxRenderLista(busq) {
                 ${i.nombre} <span style="color:#9ca3af;font-size:12px;">(${i.unidad})</span>
             </div>`).join("")
         : `<div style="padding:8px 12px;color:#9ca3af;font-size:13px;">Sin resultados</div>`;
+
+    // Posicionar con fixed justo debajo del input (se sale del modal sin recortarse)
+    const rect = input.getBoundingClientRect();
+    lista.style.top   = (rect.bottom + 2) + "px";
+    lista.style.left  = rect.left + "px";
+    lista.style.width = rect.width + "px";
     lista.style.display = "";
 }
 
@@ -757,5 +760,11 @@ async function confirmarProduccion() {
 
 cargarInsumos();
 </script>
+
+<!-- Dropdown del combobox: fuera del modal para no ser recortado por overflow -->
+<div id="combobox-lista"
+     style="position:fixed;background:white;border:1.5px solid #c4b5fd;border-radius:8px;
+            box-shadow:0 4px 20px rgba(0,0,0,0.15);max-height:220px;overflow-y:auto;
+            z-index:9999;display:none;min-width:200px;"></div>
 </body>
 </html>
