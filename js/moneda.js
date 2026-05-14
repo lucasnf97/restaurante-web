@@ -16,10 +16,11 @@
 
 // Valores por defecto hasta que llegue la respuesta de la API
 window.SISTEMA_MONEDA = {
-    codigo:  'EUR',
-    simbolo: '€',
-    nombre:  'Euro',
-    tasas:   [],   // [{ codigo:'GBP', nombre:'Libra esterlina', tasa:0.87 }, …]
+    codigo:       'EUR',
+    simbolo:      '€',
+    nombre:       'Euro',
+    tasas:        [],   // [{ codigo:'GBP', nombre:'Libra esterlina', tasa:0.87 }, …]
+    impuesto_pct: 0,    // % IVA/VAT local (ej: 25 para Dinamarca)
 };
 
 // ── Carga desde API ───────────────────────────────────────────────
@@ -33,10 +34,11 @@ async function cargarMonedaSistema() {
     try {
         const cfg = await apiFetch('/config/sistema');
         window.SISTEMA_MONEDA = {
-            codigo:  cfg.moneda_codigo  || 'EUR',
-            simbolo: cfg.moneda_simbolo || '€',
-            nombre:  cfg.moneda_nombre  || 'Euro',
-            tasas:   cfg.tasas_cambio   || [],
+            codigo:       cfg.moneda_codigo  || 'EUR',
+            simbolo:      cfg.moneda_simbolo || '€',
+            nombre:       cfg.moneda_nombre  || 'Euro',
+            tasas:        cfg.tasas_cambio   || [],
+            impuesto_pct: parseFloat(cfg.impuesto_pct || 0),
         };
         localStorage.setItem('sistema_moneda', JSON.stringify(window.SISTEMA_MONEDA));
     } catch (e) {
@@ -85,6 +87,30 @@ function formatMonto(n, opciones = {}) {
         maximumFractionDigits: 2,
     });
     return `${simbolo} ${formatted}`;
+}
+
+/**
+ * Calcula el precio sin impuestos dado el precio con impuestos.
+ * Fórmula: sinIVA = conIVA * (1 - pct/100)
+ * Ejemplo: 200 kr con 25% → 200 * 0.75 = 150 kr s/IVA
+ */
+function precioSinIVA(conIVA, pct) {
+    const p = (pct !== undefined && pct !== null) ? pct : window.SISTEMA_MONEDA.impuesto_pct;
+    if (!p || p <= 0) return conIVA;
+    return Math.round(conIVA * (1 - p / 100) * 10000) / 10000;
+}
+
+/**
+ * Calcula el precio con impuestos dado el precio sin impuestos.
+ * Fórmula: conIVA = sinIVA / (1 - pct/100)
+ * Ejemplo: 150 kr s/IVA con 25% → 150 / 0.75 = 200 kr c/IVA
+ */
+function precioConIVA(sinIVA, pct) {
+    const p = (pct !== undefined && pct !== null) ? pct : window.SISTEMA_MONEDA.impuesto_pct;
+    if (!p || p <= 0) return sinIVA;
+    const factor = 1 - p / 100;
+    if (factor <= 0) return sinIVA;
+    return Math.round(sinIVA / factor * 10000) / 10000;
 }
 
 // Inicializar en cuanto el script se carga (requiere que api.js ya esté cargado)

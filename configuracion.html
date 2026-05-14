@@ -516,7 +516,58 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 4. MODO EDICIÓN ══════════════════════════════════════ -->
+    <!-- ═══ 4. IMPUESTOS ════════════════════════════════════════ -->
+    <div class="cfg-section" id="sec-impuestos">
+        <div class="cfg-section-head" onclick="toggleSection('impuestos')">
+            <span class="cfg-section-icon">🧾</span>
+            <span class="cfg-section-title">
+                Impuestos
+                <span class="cfg-section-badge badge-off" id="badge-impuestos">Sin configurar</span>
+            </span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
+                Configurá el porcentaje de impuestos vigente en tu país (IVA, VAT, MOMS, GST…).
+                Al cargar una factura el sistema mostrará automáticamente la equivalencia
+                entre el precio <strong>con</strong> y <strong>sin</strong> impuestos incluidos,
+                permitiéndote corregirlo si la IA lo interpretó mal.
+            </p>
+
+            <div class="cfg-grid" style="margin-top:18px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Nombre del impuesto</label>
+                    <input class="cfg-input" type="text" id="imp-nombre"
+                           placeholder="Ej: IVA, VAT, MOMS, GST…"
+                           style="text-transform:uppercase;">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Porcentaje (%)</label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input class="cfg-input" type="number" id="imp-pct"
+                               min="0" max="100" step="0.1"
+                               placeholder="Ej: 25"
+                               oninput="actualizarBadgeImpuesto()"
+                               style="max-width:120px;">
+                        <span style="font-size:20px;color:#9ca3af;">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ejemplo interactivo -->
+            <div id="imp-ejemplo" style="display:none;margin-top:16px;padding:14px 16px;
+                 background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;
+                 font-size:13px;color:#166534;line-height:1.8;">
+            </div>
+
+            <div class="cfg-actions" id="impuestos-actions">
+                <button class="btn-save" onclick="guardarImpuesto()">Guardar cambios</button>
+                <span class="save-ok" id="ok-impuestos">✓ Guardado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 5. MODO EDICIÓN ══════════════════════════════════════ -->
     <div class="cfg-section" id="sec-edicion">
         <div class="cfg-section-head" onclick="toggleSection('edicion')">
             <span class="cfg-section-icon">🔐</span>
@@ -552,7 +603,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 5. BASE DE DATOS (oculta sin modo edición) ══════════ -->
+    <!-- ═══ 6. BASE DE DATOS (oculta sin modo edición) ══════════ -->
     <div class="cfg-section" id="sec-bbdd" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('bbdd')">
             <span class="cfg-section-icon">🗄️</span>
@@ -1131,8 +1182,94 @@ function mostrarOk(id) {
 document.addEventListener('DOMContentLoaded', () => {
     cargarDatos();
     cargarSeccionMoneda();
+    cargarSeccionImpuestos();
 });
 
+
+// ═══════════════════════════════════════════════════════════════
+// ── Sección Impuestos ────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+async function cargarSeccionImpuestos() {
+    try {
+        const cfg = await apiFetch('/config/sistema');
+        const pct = parseFloat(cfg.impuesto_pct || 0);
+        if (pct > 0) {
+            document.getElementById('imp-pct').value = pct;
+            actualizarBadgeImpuesto();
+        }
+    } catch {}
+
+    const user = getUser();
+    if (!user || user.rol !== 'admin') {
+        document.getElementById('impuestos-actions').style.display = 'none';
+        document.querySelectorAll('#sec-impuestos input').forEach(el => el.disabled = true);
+    }
+}
+
+function actualizarBadgeImpuesto() {
+    const pct    = parseFloat(document.getElementById('imp-pct').value || 0);
+    const badge  = document.getElementById('badge-impuestos');
+    const ejemplo = document.getElementById('imp-ejemplo');
+
+    if (pct > 0) {
+        badge.textContent = `${pct}%`;
+        badge.className   = 'cfg-section-badge badge-on';
+
+        // Ejemplo interactivo
+        const factor = 1 - pct / 100;
+        const bruto  = 200;
+        const neto   = Math.round(bruto * factor * 100) / 100;
+        const neto2  = Math.round(bruto / factor * 100) / 100;
+
+        const simb = window.SISTEMA_MONEDA?.simbolo || '';
+        ejemplo.style.display = '';
+        ejemplo.innerHTML = `
+            <strong>Ejemplo con tus valores:</strong><br>
+            Factura de <strong>${simb} ${bruto}</strong> c/ impuestos incluidos
+            → <strong>${simb} ${neto}</strong> sin impuestos (${simb} ${bruto} × ${factor.toFixed(4)})<br>
+            Factura de <strong>${simb} ${bruto}</strong> sin impuestos
+            → <strong>${simb} ${neto2}</strong> con impuestos incluidos (${simb} ${bruto} ÷ ${factor.toFixed(4)})
+        `;
+    } else {
+        badge.textContent = 'Sin configurar';
+        badge.className   = 'cfg-section-badge badge-off';
+        ejemplo.style.display = 'none';
+    }
+}
+
+async function guardarImpuesto() {
+    const user = getUser();
+    if (!user || user.rol !== 'admin') {
+        alert('Solo el administrador puede cambiar esta configuración.'); return;
+    }
+
+    const pct = parseFloat(document.getElementById('imp-pct').value || 0);
+    if (pct < 0 || pct >= 100) {
+        alert('El porcentaje debe estar entre 0 y 99.9.'); return;
+    }
+
+    // Leer configuración actual de moneda para no pisarla
+    let cfgActual = { moneda_codigo: 'EUR', moneda_simbolo: '€', moneda_nombre: 'Euro', tasas_cambio: [] };
+    try { cfgActual = await apiFetch('/config/sistema'); } catch {}
+
+    try {
+        await apiFetch('/config/sistema', {
+            method: 'PUT',
+            body: JSON.stringify({
+                moneda_codigo:  cfgActual.moneda_codigo,
+                moneda_simbolo: cfgActual.moneda_simbolo,
+                moneda_nombre:  cfgActual.moneda_nombre,
+                tasas_cambio:   cfgActual.tasas_cambio || [],
+                impuesto_pct:   pct,
+            }),
+        });
+        mostrarOk('ok-impuestos');
+        if (typeof cargarMonedaSistema === 'function') cargarMonedaSistema();
+    } catch (e) {
+        alert('Error al guardar: ' + (e.message || e));
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // ── Sección Divisa del sistema ──────────────────────────────
@@ -1251,6 +1388,10 @@ async function guardarMoneda() {
     if (!codigo)  { alert('Seleccioná o ingresá una divisa.'); return; }
     if (!simbolo) { alert('Ingresá el símbolo de la divisa.'); return; }
 
+    // Preservar impuesto_pct actual para no pisarlo
+    let impActual = 0;
+    try { impActual = parseFloat((await apiFetch('/config/sistema')).impuesto_pct || 0); } catch {}
+
     try {
         await apiFetch('/config/sistema', {
             method: 'PUT',
@@ -1259,6 +1400,7 @@ async function guardarMoneda() {
                 moneda_simbolo: simbolo,
                 moneda_nombre:  nombre,
                 tasas_cambio:   _tasas,
+                impuesto_pct:   impActual,
             }),
         });
         actualizarBadgeMoneda(codigo, simbolo);

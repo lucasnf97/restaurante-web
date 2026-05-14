@@ -510,6 +510,46 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioU
     const claseRow   = esInsumo ? (insumoId ? 'ok' : 'pendiente') : esServicio ? 'servicio' : 'omitido';
     const icono      = esInsumo ? (insumoId ? '✅' : '⚠️') : esServicio ? '🔧' : '—';
 
+    // Campos de precio: con impuesto / sin impuesto (vinculados)
+    const impPct    = window.SISTEMA_MONEDA?.impuesto_pct || 0;
+    const tieneImp  = impPct > 0;
+    const factor    = 1 - impPct / 100;
+    // El campo principal ci-precio es el precio BRUTO (con impuestos, lo que muestra la factura)
+    // ci-precio-neto es el precio neto (sin impuestos, calculado automáticamente)
+    const precioNeto = (precioUnit !== null && precioUnit !== undefined && tieneImp)
+        ? Math.round(precioUnit * factor * 10000) / 10000
+        : null;
+
+    const campoPrecio = tieneImp ? `
+        <div class="item-field" style="grid-column:span 1;">
+            <label>Precio unit. c/ imp. *
+                <span style="font-size:10px;font-weight:600;background:#fef9c3;color:#854d0e;
+                             padding:1px 6px;border-radius:4px;margin-left:4px;">${impPct}%</span>
+            </label>
+            <input type="number" id="ci-precio-${idx}"
+                   value="${precioUnit !== null && precioUnit !== undefined ? precioUnit : ''}"
+                   step="0.01" placeholder="Con impuestos"
+                   oninput="sincPrecioConIVA('${idx}')">
+        </div>
+        <div class="item-field" style="grid-column:span 1;">
+            <label>Precio unit. s/ imp.
+                <span style="font-size:10px;color:#6b7280;">(w/o VAT)</span>
+            </label>
+            <input type="number" id="ci-precio-neto-${idx}"
+                   value="${precioNeto !== null ? precioNeto : ''}"
+                   step="0.01" placeholder="Sin impuestos"
+                   oninput="sincPrecioSinIVA('${idx}')"
+                   style="border-color:#86efac;">
+        </div>
+    ` : `
+        <div class="item-field">
+            <label>Precio unit. *</label>
+            <input type="number" id="ci-precio-${idx}"
+                   value="${precioUnit !== null && precioUnit !== undefined ? precioUnit : ''}"
+                   step="0.01">
+        </div>
+    `;
+
     const fieldsInsumo = `
         <div class="item-fields" id="fields-insumo-${idx}" style="${esServicio || esOmitido ? 'display:none' : ''}">
             <div class="item-field">
@@ -522,7 +562,7 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioU
                 </div>
             </div>
             <div class="item-field"><label>Cantidad *${cantidad < 0 ? ' <span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 6px;font-size:10px;">REINTEGRO</span>' : ''}</label><input type="number" id="ci-cant-${idx}" value="${cantidad !== null && cantidad !== undefined ? cantidad : ''}" step="0.001"></div>
-            <div class="item-field"><label>Precio unit. *</label><input type="number" id="ci-precio-${idx}" value="${precioUnit !== null && precioUnit !== undefined ? precioUnit : ''}" step="0.01"></div>
+            ${campoPrecio}
             <div class="item-field"><label>Total factura</label><input type="text" disabled value="${precioTotal ? monedaSimbolo+precioTotal : '—'}" style="background:#f9fafb;color:#888;"></div>
         </div>`;
 
@@ -998,6 +1038,40 @@ function cerrarModal(id) {
 document.querySelectorAll(".modal-overlay").forEach(m => {
     m.addEventListener("click", function(e) { if (e.target === this) cerrarModal(this.id); });
 });
+
+// ── Sincronización de precios con/sin impuesto ────────────────
+// El campo ci-precio es el precio BRUTO (con impuestos, lo que muestra la factura).
+// El campo ci-precio-neto es el precio NETO (sin impuestos).
+// Al editar uno, el otro se recalcula automáticamente.
+
+function sincPrecioConIVA(idx) {
+    const impPct = window.SISTEMA_MONEDA?.impuesto_pct || 0;
+    if (!impPct) return;
+    const bruto  = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value);
+    const netoEl = document.getElementById(`ci-precio-neto-${idx}`);
+    if (!netoEl) return;
+    if (!isNaN(bruto) && bruto > 0) {
+        const neto = Math.round(bruto * (1 - impPct / 100) * 10000) / 10000;
+        netoEl.value = neto;
+    } else {
+        netoEl.value = '';
+    }
+}
+
+function sincPrecioSinIVA(idx) {
+    const impPct = window.SISTEMA_MONEDA?.impuesto_pct || 0;
+    if (!impPct) return;
+    const neto   = parseFloat(document.getElementById(`ci-precio-neto-${idx}`)?.value);
+    const brutoEl = document.getElementById(`ci-precio-${idx}`);
+    if (!brutoEl) return;
+    if (!isNaN(neto) && neto > 0) {
+        const factor = 1 - impPct / 100;
+        const bruto  = Math.round(neto / factor * 10000) / 10000;
+        brutoEl.value = bruto;
+    } else {
+        brutoEl.value = '';
+    }
+}
 
 // ── Banner de conversión de divisa ───────────────────────────
 // Muestra un aviso informativo cuando la factura está en moneda distinta
