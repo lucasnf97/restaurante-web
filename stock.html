@@ -79,7 +79,8 @@
     </div>
 
     <div class="tabs">
-        <button class="tab active" id="tab-insumos" onclick="setTab('insumos')">Insumos</button>
+        <button class="tab active" id="tab-insumos" onclick="setTab('insumos')">📦 Insumos de Stock</button>
+        <button class="tab" id="tab-produccion" onclick="setTab('produccion')">🏭 Insumos de Producción</button>
         <button class="tab" id="tab-historial" onclick="setTab('historial')">📋 Historial</button>
     </div>
 
@@ -101,6 +102,29 @@
             <table>
                 <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Estándar</th><th>Advertencia</th><th>Mínimo</th><th>Estado</th><th>Acciones</th></tr></thead>
                 <tbody id="tbody-insumos"><tr><td colspan="8" class="empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PRODUCCIÓN -->
+    <div id="vista-produccion" style="display:none">
+        <div class="acciones-bar">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalInsumoProduccion()">+ Nuevo insumo de producción</button>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalRegistrarProduccion()" style="border-color:#7c3aed;color:#7c3aed;">📋 Registrar producción</button>
+        </div>
+        <div class="filtros">
+            <input type="text" id="filtro-prod-nombre" placeholder="Buscar por nombre..." oninput="cargarInsumosProduccion()">
+            <select id="filtro-prod-estado" onchange="cargarInsumosProduccion()">
+                <option value="">Todos los estados</option>
+                <option value="agotado">Agotados</option>
+                <option value="advertencia">En advertencia</option>
+                <option value="ok">OK</option>
+            </select>
+        </div>
+        <div class="tabla-wrapper">
+            <table>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Estándar</th><th>Advertencia</th><th>Mínimo</th><th>Estado</th><th>Receta</th><th>Acciones</th></tr></thead>
+                <tbody id="tbody-produccion"><tr><td colspan="9" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -147,6 +171,77 @@
     </div>
 </div>
 
+<!-- Modal insumo producción -->
+<div class="modal-overlay" id="modal-insumo-produccion">
+    <div class="modal" style="max-width:640px;">
+        <h3 id="ip-titulo">Nuevo insumo de producción</h3>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="ip-nombre" placeholder="Ej: Pan de hamburguesa"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Unidad *</label>
+                <select id="ip-unidad">
+                    <option value="unidad">unidad</option><option value="kg">kg</option><option value="g">g</option>
+                    <option value="l">l</option><option value="ml">ml</option><option value="docena">docena</option>
+                    <option value="porcion">porción</option><option value="paquete">paquete</option><option value="caja">caja</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Stock actual</label><input type="number" id="ip-actual" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Cantidad estándar</label><input type="number" id="ip-estandar" min="0" step="0.001" value="0"></div>
+            <div class="form-group"><label>Cantidad advertencia</label><input type="number" id="ip-advertencia" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="form-group"><label>Cantidad mínima (alarma agotado)</label><input type="number" id="ip-minima" min="0" step="0.001" value="0"></div>
+
+        <!-- Receta -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <label style="font-size:13px;font-weight:700;color:#444;">Receta (insumos de stock necesarios)</label>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="agregarItemReceta()">+ Agregar insumo</button>
+            </div>
+            <div id="ip-receta-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <div id="ip-receta-vacia" style="font-size:13px;color:#9ca3af;text-align:center;padding:12px 0;">Sin insumos en la receta</div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-insumo-produccion')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarInsumoProduccion()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal registrar producción -->
+<div class="modal-overlay" id="modal-registrar-produccion">
+    <div class="modal" style="max-width:500px;">
+        <h3>📋 Registrar producción</h3>
+        <div class="form-group">
+            <label>Insumo producido *</label>
+            <select id="rp-insumo" onchange="cargarPreviewProduccion()" style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;">
+                <option value="">— Seleccioná —</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Cantidad producida *</label>
+            <input type="number" id="rp-cantidad" min="0.001" step="0.001" placeholder="Ej: 20" oninput="cargarPreviewProduccion()">
+        </div>
+        <div class="form-group">
+            <label>Notas (opcional)</label>
+            <input type="text" id="rp-notas" placeholder="Ej: Producción del turno noche">
+        </div>
+
+        <!-- Preview de descuento -->
+        <div id="rp-preview" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:14px;margin-top:4px;">
+            <div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:8px;">📉 Se descontará del stock:</div>
+            <div id="rp-preview-lista" style="font-size:13px;color:#374151;"></div>
+        </div>
+        <div id="rp-error" style="display:none;background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;padding:10px;margin-top:8px;font-size:13px;color:#dc2626;"></div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-registrar-produccion')">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmarProduccion()" style="background:#7c3aed;">Registrar producción</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script>
@@ -156,11 +251,12 @@ let _insumos = [];
 let _editandoInsumoId = null;
 
 function setTab(tab) {
-    ["insumos","historial"].forEach(t => {
+    ["insumos","produccion","historial"].forEach(t => {
         document.getElementById(`tab-${t}`).classList.toggle("active", t === tab);
         document.getElementById(`vista-${t}`).style.display = t === tab ? "block" : "none";
     });
     if (tab === "historial") cargarHistorial();
+    if (tab === "produccion") cargarInsumosProduccion();
 }
 
 // ── INSUMOS ───────────────────────────────────────────────────
@@ -297,6 +393,271 @@ function cerrarModal(id) {
 document.querySelectorAll(".modal-overlay").forEach(m => {
     m.addEventListener("click", function(e) { if (e.target === this) cerrarModal(this.id); });
 });
+
+// ── INSUMOS DE PRODUCCIÓN ─────────────────────────────────────
+
+let _insumosProduccion = [];
+let _editandoIPId = null;
+let _recetaItems  = [];   // [{insumo_stock_id, cantidad, nombre, unidad}]
+
+async function cargarInsumosProduccion() {
+    const nombre = document.getElementById("filtro-prod-nombre").value.trim();
+    const estado = document.getElementById("filtro-prod-estado").value;
+    try {
+        let data = await api.get("/stock/insumos-produccion");
+        _insumosProduccion = data;
+        if (estado === "agotado")          data = data.filter(i => i.agotado);
+        else if (estado === "advertencia") data = data.filter(i => i.en_advertencia && !i.agotado);
+        else if (estado === "ok")          data = data.filter(i => !i.en_advertencia);
+        if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre.toLowerCase()));
+
+        const tbody = document.getElementById("tbody-produccion");
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin insumos de producción</td></tr>`; return; }
+        tbody.innerHTML = data.map(i => {
+            const actual = parseFloat(i.cantidad_actual);
+            const estand = parseFloat(i.cantidad_estandar) || 1;
+            const pct = Math.min(100, (actual / estand) * 100);
+            const fillColor = i.agotado ? "#dc2626" : i.en_advertencia ? "#ca8a04" : "#16a34a";
+            const badge = i.agotado ? `<span class="badge badge-alert">Agotado</span>`
+                : i.en_advertencia ? `<span class="badge badge-warn">Advertencia</span>`
+                : `<span class="badge badge-ok">OK</span>`;
+            return `<tr>
+                <td><strong>${i.nombre}</strong></td>
+                <td>${i.unidad}</td>
+                <td><div style="display:flex;align-items:center;gap:8px;">
+                    <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
+                    <div class="stock-bar" style="width:80px;"><div class="stock-bar-fill" style="width:${pct}%;background:${fillColor};"></div></div>
+                </div></td>
+                <td>${+parseFloat(i.cantidad_estandar)}</td>
+                <td>${+parseFloat(i.cantidad_advertencia)}</td>
+                <td>${+parseFloat(i.cantidad_minima)}</td>
+                <td>${badge}</td>
+                <td><button class="btn btn-secondary btn-sm" onclick="verReceta(${i.id}, '${i.nombre.replace(/'/g,"\\'")}')">Ver receta</button></td>
+                <td><div style="display:flex;gap:6px;">
+                    <button class="btn btn-secondary btn-sm" onclick="editarInsumoProduccion(${i.id})">Editar</button>
+                    <button class="btn btn-danger btn-sm" onclick="eliminarInsumoProduccion(${i.id})">✕</button>
+                </div></td>
+            </tr>`;
+        }).join("");
+    } catch(e) { console.error(e); }
+}
+
+async function verReceta(ipId, nombre) {
+    try {
+        const receta = await api.get(`/stock/insumos-produccion/${ipId}/receta`);
+        if (!receta.length) { alert(`${nombre} no tiene receta configurada.`); return; }
+        const lineas = receta.map(r => `• ${r.insumo_nombre}: ${r.cantidad} ${r.unidad} por unidad`).join("\n");
+        alert(`Receta de ${nombre}:\n\n${lineas}`);
+    } catch(e) { alert("Error al cargar la receta"); }
+}
+
+function abrirModalInsumoProduccion() {
+    _editandoIPId = null;
+    _recetaItems = [];
+    document.getElementById("ip-titulo").textContent = "Nuevo insumo de producción";
+    ["ip-nombre","ip-actual","ip-estandar","ip-advertencia","ip-minima"].forEach(id => {
+        document.getElementById(id).value = id === "ip-nombre" ? "" : "0";
+    });
+    document.getElementById("ip-unidad").value = "unidad";
+    renderRecetaLista();
+    document.getElementById("modal-insumo-produccion").classList.add("active");
+}
+
+async function editarInsumoProduccion(id) {
+    _editandoIPId = id;
+    const ip = _insumosProduccion.find(i => i.id === id);
+    document.getElementById("ip-titulo").textContent = `Editar — ${ip.nombre}`;
+    document.getElementById("ip-nombre").value      = ip.nombre;
+    document.getElementById("ip-unidad").value      = ip.unidad;
+    document.getElementById("ip-actual").value      = ip.cantidad_actual;
+    document.getElementById("ip-estandar").value    = ip.cantidad_estandar;
+    document.getElementById("ip-advertencia").value = ip.cantidad_advertencia;
+    document.getElementById("ip-minima").value      = ip.cantidad_minima;
+
+    // Cargar receta actual
+    try {
+        const receta = await api.get(`/stock/insumos-produccion/${id}/receta`);
+        _recetaItems = receta.map(r => ({
+            insumo_stock_id: r.insumo_stock_id,
+            nombre: r.insumo_nombre,
+            unidad: r.unidad,
+            cantidad: r.cantidad,
+        }));
+    } catch { _recetaItems = []; }
+    renderRecetaLista();
+    document.getElementById("modal-insumo-produccion").classList.add("active");
+}
+
+function renderRecetaLista() {
+    const lista = document.getElementById("ip-receta-lista");
+    const vacia = document.getElementById("ip-receta-vacia");
+    if (!_recetaItems.length) {
+        lista.innerHTML = "";
+        vacia.style.display = "";
+        return;
+    }
+    vacia.style.display = "none";
+    lista.innerHTML = _recetaItems.map((item, idx) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8f7ff;border-radius:8px;">
+            <div style="flex:1;font-size:13px;font-weight:600;">${item.nombre} <span style="color:#9ca3af;font-weight:400;">(${item.unidad})</span></div>
+            <input type="number" step="0.001" min="0.001" value="${item.cantidad}"
+                   style="width:100px;padding:5px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;"
+                   onchange="_recetaItems[${idx}].cantidad = parseFloat(this.value) || 0"
+                   placeholder="Cantidad">
+            <span style="font-size:12px;color:#6b7280;">por unidad</span>
+            <button type="button" onclick="_recetaItems.splice(${idx},1);renderRecetaLista()"
+                    style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;">✕</button>
+        </div>
+    `).join("");
+}
+
+function agregarItemReceta() {
+    // Mostrar selector de insumo de stock
+    if (!_insumos.length) { alert("No hay insumos de stock cargados."); return; }
+    const opts = _insumos
+        .filter(i => !_recetaItems.some(r => r.insumo_stock_id === i.id))
+        .map(i => `<option value="${i.id}" data-unidad="${i.unidad}">${i.nombre} (${i.unidad})</option>`)
+        .join("");
+    if (!opts) { alert("Ya se agregaron todos los insumos disponibles."); return; }
+
+    // Mini-modal inline: prompt con select
+    const sel = document.createElement("div");
+    sel.style.cssText = "display:flex;gap:8px;align-items:center;padding:8px 10px;background:#ede9fe;border-radius:8px;";
+    sel.innerHTML = `
+        <select id="new-receta-sel" style="flex:1;padding:6px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;">
+            <option value="">— Seleccioná insumo —</option>${opts}
+        </select>
+        <input type="number" id="new-receta-cant" step="0.001" min="0.001" placeholder="Cantidad"
+               style="width:100px;padding:6px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;">
+        <button type="button" onclick="confirmarItemReceta()"
+                style="background:#7c3aed;color:white;border:none;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700;">✓</button>
+        <button type="button" onclick="this.parentNode.remove()"
+                style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;">✕</button>
+    `;
+    document.getElementById("ip-receta-lista").appendChild(sel);
+    document.getElementById("ip-receta-vacia").style.display = "none";
+}
+
+function confirmarItemReceta() {
+    const selEl = document.getElementById("new-receta-sel");
+    const cantEl = document.getElementById("new-receta-cant");
+    if (!selEl || !cantEl) return;
+    const insId  = parseInt(selEl.value);
+    const cant   = parseFloat(cantEl.value);
+    const ins    = _insumos.find(i => i.id === insId);
+    if (!insId || !ins) { alert("Seleccioná un insumo."); return; }
+    if (!cant || cant <= 0) { alert("Ingresá una cantidad válida."); return; }
+    _recetaItems.push({ insumo_stock_id: insId, nombre: ins.nombre, unidad: ins.unidad, cantidad: cant });
+    renderRecetaLista();
+}
+
+async function guardarInsumoProduccion() {
+    const nombre = document.getElementById("ip-nombre").value.trim();
+    const unidad = document.getElementById("ip-unidad").value;
+    if (!nombre) { alert("El nombre es obligatorio."); return; }
+    if (!_recetaItems.length) { alert("Agregá al menos un insumo a la receta."); return; }
+
+    const body = {
+        nombre, unidad,
+        cantidad_actual:      parseFloat(document.getElementById("ip-actual").value)      || 0,
+        cantidad_estandar:    parseFloat(document.getElementById("ip-estandar").value)    || 0,
+        cantidad_advertencia: parseFloat(document.getElementById("ip-advertencia").value) || 0,
+        cantidad_minima:      parseFloat(document.getElementById("ip-minima").value)      || 0,
+        receta: _recetaItems.map(r => ({ insumo_stock_id: r.insumo_stock_id, cantidad: r.cantidad })),
+    };
+    try {
+        if (_editandoIPId) {
+            await api.patch(`/stock/insumos-produccion/${_editandoIPId}`, body);
+        } else {
+            await api.post("/stock/insumos-produccion", body);
+        }
+        cerrarModal("modal-insumo-produccion");
+        await cargarInsumosProduccion();
+    } catch(e) { alert("Error: " + (e.message || e)); }
+}
+
+async function eliminarInsumoProduccion(id) {
+    const ip = _insumosProduccion.find(i => i.id === id);
+    if (!confirm(`¿Eliminar "${ip?.nombre}"? Se eliminará también su receta.`)) return;
+    try { await api.delete(`/stock/insumos-produccion/${id}`); await cargarInsumosProduccion(); }
+    catch(e) { alert("Error: " + (e.message || e)); }
+}
+
+// ── REGISTRAR PRODUCCIÓN ─────────────────────────────────────
+
+let _recetaCache = {};   // ip_id → array de items de receta
+
+async function abrirModalRegistrarProduccion() {
+    if (!_insumosProduccion.length) await cargarInsumosProduccion();
+    const sel = document.getElementById("rp-insumo");
+    sel.innerHTML = `<option value="">— Seleccioná —</option>` +
+        _insumosProduccion.map(ip => `<option value="${ip.id}">${ip.nombre} (${ip.unidad})</option>`).join("");
+    document.getElementById("rp-cantidad").value = "";
+    document.getElementById("rp-notas").value    = "";
+    document.getElementById("rp-preview").style.display  = "none";
+    document.getElementById("rp-error").style.display    = "none";
+    document.getElementById("modal-registrar-produccion").classList.add("active");
+}
+
+async function cargarPreviewProduccion() {
+    const ipId   = parseInt(document.getElementById("rp-insumo").value);
+    const cant   = parseFloat(document.getElementById("rp-cantidad").value);
+    const prev   = document.getElementById("rp-preview");
+    const errEl  = document.getElementById("rp-error");
+    prev.style.display = "none";
+    errEl.style.display = "none";
+    if (!ipId || !cant || cant <= 0) return;
+
+    // Cargar receta (con cache)
+    if (!_recetaCache[ipId]) {
+        try { _recetaCache[ipId] = await api.get(`/stock/insumos-produccion/${ipId}/receta`); }
+        catch { return; }
+    }
+    const receta = _recetaCache[ipId];
+    if (!receta.length) {
+        errEl.textContent = "Este insumo no tiene receta configurada.";
+        errEl.style.display = "";
+        return;
+    }
+
+    const lineas = receta.map(r => {
+        const necesario = r.cantidad * cant;
+        const ins = _insumos.find(i => i.id === r.insumo_stock_id);
+        const disponible = ins ? ins.cantidad_actual : "?";
+        const ok = typeof disponible === "number" && disponible >= necesario;
+        const color = ok ? "#166534" : "#dc2626";
+        const aviso = !ok ? ` <span style="color:#dc2626;font-weight:700;">(insuficiente: hay ${disponible})</span>` : "";
+        return `<div style="color:${color};">• ${r.insumo_nombre}: −${necesario.toFixed(3)} ${r.unidad}${aviso}</div>`;
+    }).join("");
+
+    document.getElementById("rp-preview-lista").innerHTML = lineas;
+    prev.style.display = "";
+}
+
+async function confirmarProduccion() {
+    const ipId   = parseInt(document.getElementById("rp-insumo").value);
+    const cant   = parseFloat(document.getElementById("rp-cantidad").value);
+    const notas  = document.getElementById("rp-notas").value.trim();
+    const errEl  = document.getElementById("rp-error");
+    errEl.style.display = "none";
+
+    if (!ipId) { alert("Seleccioná un insumo de producción."); return; }
+    if (!cant || cant <= 0) { alert("Ingresá una cantidad válida."); return; }
+
+    try {
+        const res = await api.post("/stock/produccion/registrar", {
+            insumo_produccion_id: ipId, cantidad: cant, notas: notas || null
+        });
+        cerrarModal("modal-registrar-produccion");
+        _recetaCache = {};   // limpiar cache
+        await cargarInsumos();            // refrescar stock de insumos
+        await cargarInsumosProduccion();  // refrescar stock de producción
+        alert("✅ " + res.mensaje);
+    } catch(e) {
+        errEl.textContent = e.message || "Error al registrar producción.";
+        errEl.style.display = "";
+    }
+}
 
 cargarInsumos();
 </script>
