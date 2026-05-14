@@ -1,0 +1,98 @@
+/**
+ * moneda.js — Utilitario global de divisa del sistema
+ *
+ * Carga la configuración de divisa desde la API al iniciar y la
+ * expone como window.SISTEMA_MONEDA para cualquier página que lo incluya.
+ *
+ * Uso:
+ *   <script src="js/moneda.js"></script>   (después de api.js)
+ *
+ * API pública:
+ *   window.SISTEMA_MONEDA  → { codigo, simbolo, nombre, tasas }
+ *   formatMonto(n)         → "€ 1.234,50"
+ *   getTasaCambio(codigo)  → { codigo, nombre, tasa } | null
+ *   convertirASistema(monto, codigoForeign) → número | null
+ */
+
+// Valores por defecto hasta que llegue la respuesta de la API
+window.SISTEMA_MONEDA = {
+    codigo:  'EUR',
+    simbolo: '€',
+    nombre:  'Euro',
+    tasas:   [],   // [{ codigo:'GBP', nombre:'Libra esterlina', tasa:0.87 }, …]
+};
+
+// ── Carga desde API ───────────────────────────────────────────────
+async function cargarMonedaSistema() {
+    // Primero restaurar cache para no flashear el valor por defecto
+    try {
+        const cached = JSON.parse(localStorage.getItem('sistema_moneda') || 'null');
+        if (cached && cached.codigo) window.SISTEMA_MONEDA = cached;
+    } catch {}
+
+    try {
+        const cfg = await apiFetch('/config/sistema');
+        window.SISTEMA_MONEDA = {
+            codigo:  cfg.moneda_codigo  || 'EUR',
+            simbolo: cfg.moneda_simbolo || '€',
+            nombre:  cfg.moneda_nombre  || 'Euro',
+            tasas:   cfg.tasas_cambio   || [],
+        };
+        localStorage.setItem('sistema_moneda', JSON.stringify(window.SISTEMA_MONEDA));
+    } catch (e) {
+        // Sin conexión: se usa el cache ya restaurado arriba
+        console.warn('[moneda.js] No se pudo cargar config de moneda:', e);
+    }
+}
+
+// ── Helpers públicos ──────────────────────────────────────────────
+
+/**
+ * Devuelve la tasa configurada para una divisa extranjera, o null si no existe.
+ * La tasa expresa: 1 [sistema] = tasa [extranjero].
+ */
+function getTasaCambio(codigoForeign) {
+    if (!codigoForeign) return null;
+    return window.SISTEMA_MONEDA.tasas.find(
+        t => t.codigo.toUpperCase() === codigoForeign.toUpperCase()
+    ) || null;
+}
+
+/**
+ * Convierte un monto en divisa extranjera a la divisa del sistema.
+ * Devuelve null si no hay tasa configurada.
+ * Ejemplo: convertirASistema(87, 'GBP') con sistema=EUR y tasa 1EUR=0.87GBP → 100 EUR
+ */
+function convertirASistema(monto, codigoForeign) {
+    if (!codigoForeign) return monto;
+    if (codigoForeign.toUpperCase() === window.SISTEMA_MONEDA.codigo.toUpperCase()) {
+        return monto; // misma divisa
+    }
+    const tasa = getTasaCambio(codigoForeign);
+    if (!tasa || !tasa.tasa) return null;
+    return monto / tasa.tasa;
+}
+
+/**
+ * Formatea un número con el símbolo de la divisa del sistema.
+ * Ejemplo: formatMonto(1234.5) → "€ 1.234,50"
+ */
+function formatMonto(n, opciones = {}) {
+    const simbolo = opciones.simbolo || window.SISTEMA_MONEDA.simbolo;
+    const valor   = parseFloat(n || 0);
+    const formatted = valor.toLocaleString('es-AR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+    return `${simbolo} ${formatted}`;
+}
+
+// Inicializar en cuanto el script se carga (requiere que api.js ya esté cargado)
+if (typeof apiFetch === 'function') {
+    cargarMonedaSistema();
+} else {
+    // api.js todavía no cargó → esperar al DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof apiFetch === 'function') cargarMonedaSistema();
+    });
+}

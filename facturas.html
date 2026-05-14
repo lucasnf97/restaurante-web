@@ -232,6 +232,10 @@
             <input type="text" id="conf-moneda-codigo" placeholder="ARS, USD, EUR..." maxlength="10" style="padding:5px 10px;border:1.5px solid #93c5fd;border-radius:7px;font-size:13px;width:110px;outline:none;">
         </div>
 
+        <!-- Banner de conversión de divisa (visible solo cuando moneda ≠ sistema) -->
+        <div id="conf-conversion-banner" style="display:none;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#9a3412;line-height:1.6;">
+        </div>
+
         <div id="conf-items"></div>
         <button type="button" onclick="agregarItemConf()" style="width:100%;padding:10px;border:1.5px dashed #c4b5fd;border-radius:8px;background:#faf5ff;color:#7c3aed;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;">+ Agregar ítem manualmente</button>
 
@@ -318,6 +322,7 @@
 
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
 <script>
 requireAuth();
 
@@ -565,6 +570,9 @@ function abrirModalConfirmacion(datos) {
     const monedaSimbolo = datos.moneda_simbolo || (monedaCodigo ? monedaCodigo + " " : "$");
     document.getElementById("conf-moneda-badge").textContent = monedaCodigo || "—";
     document.getElementById("conf-moneda-codigo").value      = monedaCodigo;
+
+    // Banner de conversión: si la factura viene en divisa distinta a la del sistema
+    actualizarBannerConversion(monedaCodigo);
 
     const selProv = document.getElementById("conf-prov-existente");
     selProv.innerHTML = `<option value="">— O seleccioná uno ya registrado —</option>` +
@@ -989,6 +997,63 @@ function cerrarModal(id) {
 }
 document.querySelectorAll(".modal-overlay").forEach(m => {
     m.addEventListener("click", function(e) { if (e.target === this) cerrarModal(this.id); });
+});
+
+// ── Banner de conversión de divisa ───────────────────────────
+// Muestra un aviso informativo cuando la factura está en moneda distinta
+// a la configurada en el sistema, indicando la tasa que se aplicará.
+
+function actualizarBannerConversion(codigoFactura) {
+    const banner = document.getElementById('conf-conversion-banner');
+    if (!banner) return;
+
+    const monSistema = window.SISTEMA_MONEDA;
+    const codigoSis  = monSistema?.codigo || '';
+
+    // Ocultar si misma moneda o no hay código de factura
+    if (!codigoFactura || !codigoSis ||
+        codigoFactura.toUpperCase() === codigoSis.toUpperCase()) {
+        banner.style.display = 'none';
+        return;
+    }
+
+    const tasa = typeof getTasaCambio === 'function'
+        ? getTasaCambio(codigoFactura)
+        : null;
+
+    if (tasa) {
+        // Hay tasa configurada → mostrar equivalencia
+        banner.style.background = '#fff7ed';
+        banner.style.borderColor = '#fed7aa';
+        banner.style.color = '#9a3412';
+        banner.innerHTML = `
+            <strong>💱 Factura en ${codigoFactura}</strong><br>
+            Esta factura está en <strong>${codigoFactura}</strong>,
+            distinta a la moneda del sistema (<strong>${codigoSis}</strong>).<br>
+            Tasa configurada: <strong>1 ${codigoSis} = ${tasa.tasa} ${codigoFactura}</strong>
+            — los importes quedarán registrados en <strong>${codigoFactura}</strong>
+            y el equivalente en ${codigoSis} es
+            <strong>÷ ${tasa.tasa}</strong> por unidad.
+        `;
+    } else {
+        // No hay tasa configurada → aviso sin equivalencia
+        banner.style.background = '#fffbeb';
+        banner.style.borderColor = '#fde68a';
+        banner.style.color = '#92400e';
+        banner.innerHTML = `
+            <strong>⚠️ Factura en ${codigoFactura} — sin tasa configurada</strong><br>
+            Esta factura está en <strong>${codigoFactura}</strong>
+            pero no hay tasa de cambio configurada para esta divisa.<br>
+            Los importes se guardarán en <strong>${codigoFactura}</strong> sin conversión.
+            Podés configurar la tasa en <a href="configuracion.html" style="color:#b45309;font-weight:700;">Configuración → Divisa del sistema</a>.
+        `;
+    }
+    banner.style.display = '';
+}
+
+// Actualizar banner cuando el usuario cambia manualmente el código de moneda
+document.getElementById('conf-moneda-codigo')?.addEventListener('input', function() {
+    actualizarBannerConversion(this.value.trim().toUpperCase());
 });
 
 // Carga inicial

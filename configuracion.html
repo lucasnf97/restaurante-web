@@ -181,6 +181,66 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .file-input-label:hover { background:#ede9fe; }
 .file-chosen { font-size:12px; color:#6b7280; }
 
+/* ── Divisa / Tasas de cambio ──────────────────────────────── */
+.moneda-select {
+    padding:10px 14px; border:1.5px solid #e0e0e0;
+    border-radius:8px; font-size:14px; font-family:inherit;
+    background:white; cursor:pointer; width:100%;
+    transition:border-color .15s;
+}
+.moneda-select:focus { outline:none; border-color:#4f46e5; }
+
+.tasa-table {
+    width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;
+}
+.tasa-table th {
+    text-align:left; padding:8px 10px; font-size:11px;
+    font-weight:700; color:#9ca3af; text-transform:uppercase;
+    letter-spacing:.4px; border-bottom:1px solid #f0f0f0;
+}
+.tasa-table td { padding:10px 10px; border-bottom:1px solid #f9fafb; }
+.tasa-table tr:last-child td { border-bottom:none; }
+.tasa-eq {
+    font-size:13px; color:#4f46e5; font-weight:700;
+    background:#f0f4ff; padding:4px 10px; border-radius:20px;
+    display:inline-block;
+}
+.tasa-empty {
+    text-align:center; color:#9ca3af; font-size:13px;
+    padding:20px 0; font-style:italic;
+}
+.btn-tasa-del {
+    background:none; border:none; color:#ef4444;
+    cursor:pointer; font-size:16px; line-height:1;
+    padding:2px 6px; border-radius:4px; transition:background .15s;
+}
+.btn-tasa-del:hover { background:#fef2f2; }
+
+.tasa-add-row {
+    display:none; align-items:center; gap:8px;
+    padding:10px; background:#f8f7ff;
+    border-radius:8px; margin-top:10px; flex-wrap:wrap;
+}
+.tasa-add-row.open { display:flex; }
+.tasa-add-row input, .tasa-add-row select {
+    padding:8px 10px; border:1.5px solid #c4b5fd;
+    border-radius:7px; font-size:13px; font-family:inherit;
+    background:white;
+}
+.tasa-add-row input:focus, .tasa-add-row select:focus {
+    outline:none; border-color:#7c3aed;
+}
+.btn-tasa-ok {
+    background:#7c3aed; color:white; border:none;
+    padding:8px 16px; border-radius:7px; font-size:13px;
+    font-weight:700; cursor:pointer; white-space:nowrap;
+}
+.btn-tasa-ok:hover { background:#6d28d9; }
+.btn-tasa-cancel {
+    background:#f3f4f6; color:#6b7280; border:none;
+    padding:8px 12px; border-radius:7px; font-size:13px; cursor:pointer;
+}
+
 /* ── Modal de verificación ─────────────────────────────────── */
 .modal-overlay {
     display:none; position:fixed; inset:0;
@@ -327,7 +387,136 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 3. MODO EDICIÓN ══════════════════════════════════════ -->
+    <!-- ═══ 3. DIVISA DEL SISTEMA ═══════════════════════════════ -->
+    <div class="cfg-section" id="sec-moneda">
+        <div class="cfg-section-head" onclick="toggleSection('moneda')">
+            <span class="cfg-section-icon">💱</span>
+            <span class="cfg-section-title">
+                Divisa del sistema
+                <span class="cfg-section-badge badge-on" id="badge-moneda">€ EUR</span>
+            </span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
+                Todos los precios, estadísticas y reportes del sistema se mostrarán en esta divisa.
+                Cuando una factura venga en otra moneda, el sistema te mostrará la equivalencia
+                usando las tasas configuradas aquí.
+            </p>
+
+            <!-- Moneda predeterminada -->
+            <div class="cfg-grid" style="margin-top:18px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Moneda predeterminada</label>
+                    <select class="moneda-select" id="m-codigo" onchange="autocompletarMoneda()">
+                        <option value="">Seleccionar…</option>
+                        <option value="EUR|€|Euro">€ EUR — Euro</option>
+                        <option value="USD|$|Dólar americano">$ USD — Dólar americano</option>
+                        <option value="GBP|£|Libra esterlina">£ GBP — Libra esterlina</option>
+                        <option value="ARS|$|Peso argentino">$ ARS — Peso argentino</option>
+                        <option value="BRL|R$|Real brasileño">R$ BRL — Real brasileño</option>
+                        <option value="UYU|$U|Peso uruguayo">$U UYU — Peso uruguayo</option>
+                        <option value="DKK|kr|Corona danesa">kr DKK — Corona danesa</option>
+                        <option value="SEK|kr|Corona sueca">kr SEK — Corona sueca</option>
+                        <option value="NOK|kr|Corona noruega">kr NOK — Corona noruega</option>
+                        <option value="CHF|Fr|Franco suizo">Fr CHF — Franco suizo</option>
+                        <option value="MXN|$|Peso mexicano">$ MXN — Peso mexicano</option>
+                        <option value="COP|$|Peso colombiano">$ COP — Peso colombiano</option>
+                        <option value="CLP|$|Peso chileno">$ CLP — Peso chileno</option>
+                        <option value="PEN|S/|Sol peruano">S/ PEN — Sol peruano</option>
+                        <option value="otro||">Otra divisa…</option>
+                    </select>
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Símbolo</label>
+                    <input class="cfg-input" type="text" id="m-simbolo"
+                           placeholder="€, $, £, kr…" maxlength="5">
+                </div>
+            </div>
+            <!-- Campo manual para divisa no listada -->
+            <div class="cfg-grid full" id="m-otro-wrap" style="display:none;margin-top:12px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Código ISO de la divisa (ej: THB, MAD…)</label>
+                    <input class="cfg-input" type="text" id="m-otro-codigo"
+                           placeholder="USD, EUR, GBP…" maxlength="10"
+                           style="text-transform:uppercase;">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Nombre de la divisa</label>
+                    <input class="cfg-input" type="text" id="m-otro-nombre"
+                           placeholder="Ej: Baht tailandés">
+                </div>
+            </div>
+
+            <!-- Tasas de cambio -->
+            <div style="margin-top:26px;padding-top:20px;border-top:1px solid #f0f0f0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                    <div>
+                        <div style="font-size:13px;font-weight:700;color:#1a1a2e;">Tasas de cambio</div>
+                        <div style="font-size:12px;color:#9ca3af;margin-top:2px;">
+                            1 [moneda sistema] = X [moneda extranjera]
+                        </div>
+                    </div>
+                    <button class="btn-save" style="padding:7px 14px;font-size:12px;"
+                            onclick="abrirAddTasa()">+ Agregar tasa</button>
+                </div>
+
+                <table class="tasa-table" id="tasa-table">
+                    <thead>
+                        <tr>
+                            <th>Divisa extranjera</th>
+                            <th>Equivalencia</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tasa-tbody">
+                        <tr><td colspan="3" class="tasa-empty">Sin tasas configuradas</td></tr>
+                    </tbody>
+                </table>
+
+                <!-- Formulario inline para agregar tasa -->
+                <div class="tasa-add-row" id="tasa-add-row">
+                    <select id="ta-select" style="min-width:180px;" onchange="autocompletarAddTasa()">
+                        <option value="">Seleccionar divisa…</option>
+                        <option value="USD|Dólar americano">USD — Dólar americano</option>
+                        <option value="EUR|Euro">EUR — Euro</option>
+                        <option value="GBP|Libra esterlina">GBP — Libra esterlina</option>
+                        <option value="ARS|Peso argentino">ARS — Peso argentino</option>
+                        <option value="BRL|Real brasileño">BRL — Real brasileño</option>
+                        <option value="UYU|Peso uruguayo">UYU — Peso uruguayo</option>
+                        <option value="DKK|Corona danesa">DKK — Corona danesa</option>
+                        <option value="SEK|Corona sueca">SEK — Corona sueca</option>
+                        <option value="NOK|Corona noruega">NOK — Corona noruega</option>
+                        <option value="CHF|Franco suizo">CHF — Franco suizo</option>
+                        <option value="MXN|Peso mexicano">MXN — Peso mexicano</option>
+                        <option value="COP|Peso colombiano">COP — Peso colombiano</option>
+                        <option value="CLP|Peso chileno">CLP — Peso chileno</option>
+                        <option value="PEN|Sol peruano">PEN — Sol peruano</option>
+                        <option value="otro|">Otra…</option>
+                    </select>
+                    <input id="ta-codigo" type="text" placeholder="Código (ej: THB)"
+                           maxlength="10" style="width:90px;display:none;text-transform:uppercase;">
+                    <input id="ta-nombre" type="text" placeholder="Nombre"
+                           style="min-width:140px;display:none;">
+                    <span style="font-size:13px;color:#6b7280;white-space:nowrap;">
+                        1 <span id="ta-sistema-codigo">EUR</span> =
+                    </span>
+                    <input id="ta-tasa" type="number" step="0.0001" min="0.0001"
+                           placeholder="0.87" style="width:90px;">
+                    <span id="ta-foreign-codigo" style="font-size:13px;color:#6b7280;min-width:40px;"></span>
+                    <button class="btn-tasa-ok" onclick="confirmarAddTasa()">Agregar</button>
+                    <button class="btn-tasa-cancel" onclick="cerrarAddTasa()">✕</button>
+                </div>
+            </div>
+
+            <div class="cfg-actions" id="moneda-actions">
+                <button class="btn-save" onclick="guardarMoneda()">Guardar cambios</button>
+                <span class="save-ok" id="ok-moneda">✓ Guardado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 4. MODO EDICIÓN ══════════════════════════════════════ -->
     <div class="cfg-section" id="sec-edicion">
         <div class="cfg-section-head" onclick="toggleSection('edicion')">
             <span class="cfg-section-icon">🔐</span>
@@ -363,7 +552,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 4. BASE DE DATOS (oculta sin modo edición) ══════════ -->
+    <!-- ═══ 5. BASE DE DATOS (oculta sin modo edición) ══════════ -->
     <div class="cfg-section" id="sec-bbdd" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('bbdd')">
             <span class="cfg-section-icon">🗄️</span>
@@ -525,6 +714,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
 <script>
 requireAuth();
 
@@ -938,7 +1128,254 @@ function mostrarOk(id) {
 }
 
 // ── Init ─────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', cargarDatos);
+document.addEventListener('DOMContentLoaded', () => {
+    cargarDatos();
+    cargarSeccionMoneda();
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// ── Sección Divisa del sistema ──────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+// Mapa de divisas comunes: código → { simbolo, nombre }
+const DIVISAS_INFO = {
+    EUR: { simbolo: '€',  nombre: 'Euro' },
+    USD: { simbolo: '$',  nombre: 'Dólar americano' },
+    GBP: { simbolo: '£',  nombre: 'Libra esterlina' },
+    ARS: { simbolo: '$',  nombre: 'Peso argentino' },
+    BRL: { simbolo: 'R$', nombre: 'Real brasileño' },
+    UYU: { simbolo: '$U', nombre: 'Peso uruguayo' },
+    DKK: { simbolo: 'kr', nombre: 'Corona danesa' },
+    SEK: { simbolo: 'kr', nombre: 'Corona sueca' },
+    NOK: { simbolo: 'kr', nombre: 'Corona noruega' },
+    CHF: { simbolo: 'Fr', nombre: 'Franco suizo' },
+    MXN: { simbolo: '$',  nombre: 'Peso mexicano' },
+    COP: { simbolo: '$',  nombre: 'Peso colombiano' },
+    CLP: { simbolo: '$',  nombre: 'Peso chileno' },
+    PEN: { simbolo: 'S/', nombre: 'Sol peruano' },
+};
+
+let _tasas = [];   // array de { codigo, nombre, tasa }
+
+async function cargarSeccionMoneda() {
+    try {
+        const cfg = await apiFetch('/config/sistema');
+        _tasas = cfg.tasas_cambio || [];
+        _aplicarConfigMoneda(cfg.moneda_codigo, cfg.moneda_simbolo, cfg.moneda_nombre);
+        renderTasas();
+    } catch (e) {
+        console.warn('No se pudo cargar config moneda:', e);
+    }
+
+    // Solo admin puede editar
+    const user = getUser();
+    if (!user || user.rol !== 'admin') {
+        document.getElementById('moneda-actions').style.display = 'none';
+        document.querySelectorAll('#sec-moneda input, #sec-moneda select, #sec-moneda button')
+            .forEach(el => {
+                if (el.id !== 'badge-moneda') el.disabled = true;
+            });
+    }
+}
+
+function _aplicarConfigMoneda(codigo, simbolo, nombre) {
+    // Seleccionar en el dropdown principal
+    const sel = document.getElementById('m-codigo');
+    let found = false;
+    for (const opt of sel.options) {
+        if (opt.value.startsWith(codigo + '|')) {
+            opt.selected = true;
+            found = true;
+            break;
+        }
+    }
+    if (!found && codigo) {
+        // Divisa personalizada
+        for (const opt of sel.options) {
+            if (opt.value === 'otro|') { opt.selected = true; break; }
+        }
+        document.getElementById('m-otro-wrap').style.display = '';
+        document.getElementById('m-otro-codigo').value = codigo;
+        document.getElementById('m-otro-nombre').value = nombre;
+    }
+    document.getElementById('m-simbolo').value = simbolo;
+    actualizarBadgeMoneda(codigo, simbolo);
+}
+
+function autocompletarMoneda() {
+    const val = document.getElementById('m-codigo').value;
+    const otroWrap = document.getElementById('m-otro-wrap');
+    if (!val || val === 'otro|') {
+        otroWrap.style.display = val === 'otro|' ? '' : 'none';
+        if (val !== 'otro|') document.getElementById('m-simbolo').value = '';
+        return;
+    }
+    otroWrap.style.display = 'none';
+    const [codigo, simbolo] = val.split('|');
+    document.getElementById('m-simbolo').value = simbolo;
+    actualizarBadgeMoneda(codigo, simbolo);
+}
+
+function actualizarBadgeMoneda(codigo, simbolo) {
+    const badge = document.getElementById('badge-moneda');
+    if (codigo) {
+        badge.textContent = `${simbolo || ''} ${codigo}`.trim();
+        badge.className   = 'cfg-section-badge badge-on';
+    } else {
+        badge.textContent = 'Sin configurar';
+        badge.className   = 'cfg-section-badge badge-off';
+    }
+}
+
+async function guardarMoneda() {
+    const user = getUser();
+    if (!user || user.rol !== 'admin') {
+        alert('Solo el administrador puede cambiar esta configuración.'); return;
+    }
+
+    const selVal = document.getElementById('m-codigo').value;
+    let codigo, nombre;
+
+    if (!selVal || selVal === 'otro|') {
+        codigo = document.getElementById('m-otro-codigo').value.trim().toUpperCase();
+        nombre = document.getElementById('m-otro-nombre').value.trim();
+    } else {
+        const parts = selVal.split('|');
+        codigo = parts[0];
+        nombre = parts[2] || DIVISAS_INFO[parts[0]]?.nombre || parts[0];
+    }
+
+    const simbolo = document.getElementById('m-simbolo').value.trim();
+
+    if (!codigo)  { alert('Seleccioná o ingresá una divisa.'); return; }
+    if (!simbolo) { alert('Ingresá el símbolo de la divisa.'); return; }
+
+    try {
+        await apiFetch('/config/sistema', {
+            method: 'PUT',
+            body: JSON.stringify({
+                moneda_codigo:  codigo,
+                moneda_simbolo: simbolo,
+                moneda_nombre:  nombre,
+                tasas_cambio:   _tasas,
+            }),
+        });
+        actualizarBadgeMoneda(codigo, simbolo);
+        mostrarOk('ok-moneda');
+        // Refrescar cache global de moneda
+        if (typeof cargarMonedaSistema === 'function') cargarMonedaSistema();
+    } catch (e) {
+        alert('Error al guardar: ' + (e.message || e));
+    }
+}
+
+// ── Tasas de cambio ───────────────────────────────────────────
+
+function renderTasas() {
+    const tbody = document.getElementById('tasa-tbody');
+    const codigoSistema = (() => {
+        const v = document.getElementById('m-codigo').value;
+        if (v && v !== 'otro|') return v.split('|')[0];
+        return document.getElementById('m-otro-codigo').value.trim().toUpperCase() || '—';
+    })();
+
+    if (!_tasas.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="tasa-empty">Sin tasas configuradas</td></tr>';
+        return;
+    }
+    tbody.innerHTML = _tasas.map((t, i) => `
+        <tr>
+            <td><strong>${t.codigo}</strong> <span style="color:#9ca3af;font-size:12px;">— ${t.nombre}</span></td>
+            <td><span class="tasa-eq">1 ${codigoSistema} = ${t.tasa} ${t.codigo}</span></td>
+            <td><button class="btn-tasa-del" onclick="eliminarTasa(${i})" title="Eliminar tasa">✕</button></td>
+        </tr>
+    `).join('');
+}
+
+function eliminarTasa(idx) {
+    _tasas.splice(idx, 1);
+    renderTasas();
+}
+
+function abrirAddTasa() {
+    const row = document.getElementById('tasa-add-row');
+    row.classList.add('open');
+    document.getElementById('ta-select').value = '';
+    document.getElementById('ta-codigo').style.display = 'none';
+    document.getElementById('ta-nombre').style.display = 'none';
+    document.getElementById('ta-tasa').value  = '';
+    document.getElementById('ta-foreign-codigo').textContent = '';
+
+    // Mostrar código de la moneda sistema en el label
+    const codigoSistema = (() => {
+        const v = document.getElementById('m-codigo').value;
+        if (v && v !== 'otro|') return v.split('|')[0];
+        return document.getElementById('m-otro-codigo').value.trim().toUpperCase() || '—';
+    })();
+    document.getElementById('ta-sistema-codigo').textContent = codigoSistema;
+    document.getElementById('ta-tasa').focus();
+}
+
+function cerrarAddTasa() {
+    document.getElementById('tasa-add-row').classList.remove('open');
+}
+
+function autocompletarAddTasa() {
+    const val = document.getElementById('ta-select').value;
+    const codEl  = document.getElementById('ta-codigo');
+    const nomEl  = document.getElementById('ta-nombre');
+    const forEl  = document.getElementById('ta-foreign-codigo');
+
+    if (val === 'otro|') {
+        codEl.style.display = '';
+        nomEl.style.display = '';
+        codEl.value = '';
+        nomEl.value = '';
+        forEl.textContent = '';
+        return;
+    }
+    codEl.style.display = 'none';
+    nomEl.style.display = 'none';
+    if (val) {
+        const [codigo] = val.split('|');
+        forEl.textContent = codigo;
+    } else {
+        forEl.textContent = '';
+    }
+}
+
+function confirmarAddTasa() {
+    const val = document.getElementById('ta-select').value;
+    let codigo, nombre;
+
+    if (val === 'otro|') {
+        codigo = document.getElementById('ta-codigo').value.trim().toUpperCase();
+        nombre = document.getElementById('ta-nombre').value.trim();
+        if (!codigo) { alert('Ingresá el código de la divisa.'); return; }
+        if (!nombre) { alert('Ingresá el nombre de la divisa.'); return; }
+    } else if (val) {
+        const parts = val.split('|');
+        codigo = parts[0];
+        nombre = parts[1];
+    } else {
+        alert('Seleccioná una divisa.'); return;
+    }
+
+    const tasa = parseFloat(document.getElementById('ta-tasa').value);
+    if (!tasa || tasa <= 0 || isNaN(tasa)) {
+        alert('Ingresá un valor de tasa válido (mayor que 0).'); return;
+    }
+
+    // Verificar que no exista ya esa divisa
+    if (_tasas.some(t => t.codigo.toUpperCase() === codigo)) {
+        alert(`Ya existe una tasa para ${codigo}. Eliminala primero para reemplazarla.`); return;
+    }
+
+    _tasas.push({ codigo, nombre, tasa });
+    renderTasas();
+    cerrarAddTasa();
+}
 </script>
 </body>
 </html>
