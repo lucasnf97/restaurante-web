@@ -477,10 +477,80 @@ async function cargarInsumosProduccion() {
 async function verReceta(ipId, nombre) {
     try {
         const receta = await api.get(`/stock/insumos-produccion/${ipId}/receta`);
-        if (!receta.length) { alert(`${nombre} no tiene receta configurada.`); return; }
-        const lineas = receta.map(r => `• ${r.insumo_nombre}: ${fmtNum(r.cantidad)} ${r.unidad} por unidad`).join("\n");
-        alert(`Receta de ${nombre}:\n\n${lineas}`);
-    } catch(e) { alert("Error al cargar la receta"); }
+        document.getElementById("modal-receta-titulo").textContent = `Receta · ${nombre}`;
+
+        if (!receta.length) {
+            document.getElementById("modal-receta-contenido").innerHTML =
+                `<p style="color:#888;text-align:center;padding:24px;">Sin receta configurada.</p>`;
+        } else {
+            let totalCosto = 0;
+            let alguno_sin_precio = false;
+            let monedaComun = null;
+            let monedasMixtas = false;
+
+            const filas = receta.map(r => {
+                const precio = r.ultimo_precio != null ? parseFloat(r.ultimo_precio) : null;
+                const cant   = parseFloat(r.cantidad);
+                const costo  = precio !== null ? cant * precio : null;
+
+                if (costo !== null) totalCosto += costo;
+                else alguno_sin_precio = true;
+
+                if (precio !== null) {
+                    if (monedaComun === null) monedaComun = r.moneda_precio || null;
+                    else if (monedaComun !== r.moneda_precio) monedasMixtas = true;
+                }
+
+                const precioCell = precio !== null
+                    ? `${r.moneda_precio ? '<span style="color:#6b7280;font-size:11px;">' + r.moneda_precio + '</span> ' : ''}${precio.toFixed(2)} / ${r.unidad}`
+                    : `<span style="color:#9ca3af;font-style:italic;">Sin precio</span>`;
+
+                const costoCell = costo !== null
+                    ? `<strong>${costo.toFixed(2)}</strong>`
+                    : `<span style="color:#9ca3af;">—</span>`;
+
+                return `<tr>
+                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;"><strong>${r.insumo_nombre}</strong></td>
+                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;color:#555;">${fmtNum(cant)} ${r.unidad}</td>
+                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;">${precioCell}</td>
+                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;text-align:right;">${costoCell}</td>
+                </tr>`;
+            }).join("");
+
+            const monedaLabel = monedaComun ? `<span style="font-size:12px;color:#166534;font-weight:400;"> ${monedaComun}</span>` : "";
+            const totalLabel  = alguno_sin_precio
+                ? `${totalCosto.toFixed(2)} <span style="color:#ca8a04;font-size:11px;">(parcial)</span>`
+                : totalCosto.toFixed(2);
+
+            document.getElementById("modal-receta-contenido").innerHTML = `
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f8f9fa;">
+                            <th style="padding:8px 14px;font-size:11px;color:#666;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Ingrediente</th>
+                            <th style="padding:8px 14px;font-size:11px;color:#666;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Por unidad</th>
+                            <th style="padding:8px 14px;font-size:11px;color:#666;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Último precio</th>
+                            <th style="padding:8px 14px;font-size:11px;color:#666;text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Costo</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filas}</tbody>
+                    <tfoot>
+                        <tr style="background:#f0fdf4;">
+                            <td colspan="3" style="padding:12px 14px;font-size:13px;font-weight:700;color:#166534;border-top:2px solid #bbf7d0;">
+                                Costo por unidad producida${monedaLabel}
+                            </td>
+                            <td style="padding:12px 14px;font-size:15px;font-weight:700;color:#166534;border-top:2px solid #bbf7d0;text-align:right;">
+                                ${totalLabel}
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+                ${monedasMixtas ? '<p style="font-size:11px;color:#ca8a04;margin-top:10px;">⚠ Ingredientes con distintas monedas; el total puede no ser exacto.</p>' : ''}
+                ${alguno_sin_precio ? '<p style="font-size:11px;color:#9ca3af;margin-top:6px;">* Ingredientes sin precio registrado se cuentan como $0 en el total.</p>' : ''}
+            `;
+        }
+
+        document.getElementById("modal-ver-receta").classList.add("active");
+    } catch(e) { console.error(e); alert("Error al cargar la receta"); }
 }
 
 async function abrirModalInsumoProduccion() {
@@ -825,6 +895,17 @@ function actualizarStats() {
 // Carga inicial: ambas listas en paralelo para tener las stats completas desde el arranque
 Promise.all([cargarInsumos(), cargarInsumosProduccion()]);
 </script>
+
+<!-- Modal Ver Receta -->
+<div class="modal-overlay" id="modal-ver-receta">
+    <div class="modal" style="max-width:600px;">
+        <h3 id="modal-receta-titulo">Receta</h3>
+        <div id="modal-receta-contenido"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-ver-receta')">Cerrar</button>
+        </div>
+    </div>
+</div>
 
 <!-- Dropdown del combobox: fuera del modal para no ser recortado por overflow -->
 <div id="combobox-lista"
