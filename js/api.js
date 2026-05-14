@@ -21,6 +21,7 @@ function setUser(user) {
 function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("edit_mode");
     window.location.href = "index.html";
 }
 
