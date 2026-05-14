@@ -377,14 +377,13 @@ async function cargarHistorial() {
                 ? `<span style="color:#7c3aed;font-weight:600;">+${fmtNum(m.cantidad)} <span style="font-size:10px;background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-weight:700;">PROD</span></span>`
                 : `<span style="color:#16a34a;font-weight:600;">+${fmtNum(m.cantidad)}</span>`;
 
-            // Precio
-            // Para producción: precio_unitario = costo por unidad producida (calculado en el backend)
+            // Precio (solo el número, sin moneda)
             const precioStr = m.precio_unitario
-                ? `${m.moneda ? m.moneda + " " : ""}${parseFloat(m.precio_unitario).toFixed(2)}`
+                ? parseFloat(m.precio_unitario).toFixed(2)
                 : "—";
 
-            // Moneda
-            const monedaCell = (!esProduccion && m.moneda)
+            // Moneda (para todas las filas que tengan moneda, incluyendo producción)
+            const monedaCell = m.moneda
                 ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;">${m.moneda}</span>`
                 : "—";
 
