@@ -806,14 +806,16 @@ let paginas = [];
 let _menuEditId = null;
 let _menuPagId = null;
 let _menuLayout = null;
-let _menuLocalItems  = {};   // "f,c" → prodId
+let _menuLocalItems  = {};   // "f,c" → valor: >0 prodId, <0 -comboId
 let _menuLocalColors = {};   // "f,c" → color key
-let _menuProdColors  = {};   // prodId → color key seleccionado en sidebar
+let _menuProdColors  = {};   // prodId/comboKey → color key seleccionado en sidebar
 let _menuCeldaSel = null;
-let _menuDragProdId = null;
+let _menuDragProdId = null;   // >0 producto, <0 combo (-comboId)
 let _menuDragFromCell = null;
 let _menuProds = [];
 let _menuCats = [];
+let _menuCombos = [];         // lista de combos para el editor
+let _menuEsFavoritos = false; // true si la página seleccionada es la Favoritos fija
 
 // Paleta de 4 colores: key → {bg, border, text, swatch}
 const MENU_COLORS = {
@@ -836,13 +838,29 @@ async function cargarPaginas() {
 
 function renderPaginas() {
     const cont = document.getElementById('lista-paginas');
+    const normales = paginas.filter(p => !p.es_fijo);
     if (!paginas.length) { cont.innerHTML = '<div class="empty">No hay páginas de menú.</div>'; return; }
-    cont.innerHTML = paginas.map((p, idx) => `
-        <div class="pagina-item ${p.id === _menuPagId ? 'activa' : ''}"
+    cont.innerHTML = paginas.map((p, idx) => {
+        const activa = p.id === _menuPagId ? 'activa' : '';
+        if (p.es_fijo) {
+            // Página fija (Favoritos): sin arrastre ni botones de eliminar
+            return `
+            <div class="pagina-item ${activa}"
+                 onclick="seleccionarPagina(${p.id})"
+                 style="border-color:${p.id === _menuPagId ? '#4f46e5' : '#f59e0b'};background:${p.id === _menuPagId ? '#f5f3ff' : '#fffbeb'};">
+                <span style="color:#f59e0b;margin-right:8px;font-size:14px;">⭐</span>
+                <div class="sala-nombre">${p.nombre}</div>
+                <span style="color:#9ca3af;font-size:12px;cursor:default;" title="Página fija - no se puede eliminar">🔒</span>
+            </div>`;
+        }
+        // Encontrar el índice real entre páginas normales para el drag
+        const normIdx = normales.findIndex(n => n.id === p.id);
+        return `
+        <div class="pagina-item ${activa}"
              draggable="true"
-             ondragstart="onDragPagina(event,${idx})"
-             ondragover="onDragOverPagina(event,${idx})"
-             ondrop="onDropPagina(event,${idx})"
+             ondragstart="onDragPagina(event,${normIdx})"
+             ondragover="onDragOverPagina(event,${normIdx})"
+             ondrop="onDropPagina(event,${normIdx})"
              onclick="seleccionarPagina(${p.id})">
             <span style="cursor:grab;color:#9ca3af;margin-right:8px;font-size:16px;">≡</span>
             <div class="sala-nombre">${p.nombre}</div>
@@ -850,23 +868,25 @@ function renderPaginas() {
                 <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();abrirModalPagina(${p.id})">✏️</button>
                 <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarPagina(${p.id})">🗑️</button>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 // ── DRAG REORDER DE PÁGINAS ────────────────────────────────────
 let _dragPagIdx = null;
 
-function onDragPagina(e, idx) { _dragPagIdx = idx; e.dataTransfer.effectAllowed = 'move'; }
-function onDragOverPagina(e, idx) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
-async function onDropPagina(e, idx) {
+function onDragPagina(e, normIdx) { _dragPagIdx = normIdx; e.dataTransfer.effectAllowed = 'move'; }
+function onDragOverPagina(e, normIdx) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+async function onDropPagina(e, normIdx) {
     e.preventDefault();
-    if (_dragPagIdx === null || _dragPagIdx === idx) return;
-    const moved = paginas.splice(_dragPagIdx, 1)[0];
-    paginas.splice(idx, 0, moved);
-    paginas.forEach((p, i) => p.orden = i);
+    if (_dragPagIdx === null || _dragPagIdx === normIdx) return;
+    // Solo reordenar páginas normales (no fijas)
+    const normales = paginas.filter(p => !p.es_fijo);
+    const moved = normales.splice(_dragPagIdx, 1)[0];
+    normales.splice(normIdx, 0, moved);
+    normales.forEach((p, i) => p.orden = i);
     renderPaginas();
-    await api.put('/menu/paginas/ordenar', { paginas: paginas.map(p => ({id: p.id, orden: p.orden})) });
+    await api.put('/menu/paginas/ordenar', { paginas: normales.map(p => ({id: p.id, orden: p.orden})) });
     _dragPagIdx = null;
 }
 
@@ -874,11 +894,17 @@ async function seleccionarPagina(id) {
     _menuPagId = id;
     renderPaginas();
     _menuLayout = await api.get(`/menu/paginas/${id}/layout`);
+    _menuEsFavoritos = !!_menuLayout.es_fijo;
     _menuLocalItems  = {};
     _menuLocalColors = {};
     (_menuLayout.items || []).forEach(it => {
         const key = `${it.fila},${it.columna}`;
-        _menuLocalItems[key]  = it.producto_id;
+        // Valor positivo = producto, negativo = combo (-combo_id)
+        if (it.producto_id) {
+            _menuLocalItems[key] = it.producto_id;
+        } else if (it.combo_id) {
+            _menuLocalItems[key] = -it.combo_id;
+        }
         if (it.color) _menuLocalColors[key] = it.color;
     });
     if (_tabModo === 'config') renderMenuConfig();
@@ -930,9 +956,10 @@ async function guardarMenuConfig() {
 // ── MENÚ DISEÑO ────────────────────────────────────────────────
 async function cargarProductosMenu() {
     if (!_menuProds.length) {
-        [_menuProds, _menuCats] = await Promise.all([
+        [_menuProds, _menuCats, _menuCombos] = await Promise.all([
             api.get('/productos/?en_carta=true'),
-            api.get('/productos/categorias')
+            api.get('/productos/categorias'),
+            api.get('/productos/combos/lista')
         ]);
     }
     renderMenuSidebar();
@@ -959,11 +986,15 @@ function renderMenuGrid() {
             const esSel = _menuCeldaSel && _menuCeldaSel.fila === f && _menuCeldaSel.col === c;
             const borde = esSel ? '2px solid #4f46e5' : '2px solid #e0e0e0';
             if (prodId) {
-                const prod = _menuProds.find(p => p.id === prodId);
-                const nombre = prod ? prod.nombre : `#${prodId}`;
-                const agotado = prod?.agotado;
+                const esCombo = prodId < 0;
+                const obj = esCombo
+                    ? _menuCombos.find(c => c.id === -prodId)
+                    : _menuProds.find(p => p.id === prodId);
+                const nombre = obj ? obj.nombre : (esCombo ? `🍱#${-prodId}` : `#${prodId}`);
+                const agotado = obj?.agotado;
                 const colorKey = _menuLocalColors[key] || 'green';
-                const cl = MENU_COLORS[colorKey] || MENU_COLORS.green;
+                const cl = esCombo ? { bg:'#ede9fe', border:'#c4b5fd', text:'#5b21b6' }
+                                   : (MENU_COLORS[colorKey] || MENU_COLORS.green);
                 const bg = agotado ? '#f3f4f6' : cl.bg;
                 const borderColor = esSel ? '#4f46e5' : (agotado ? '#d1d5db' : cl.border);
                 const txtColor = agotado ? '#9ca3af' : cl.text;
@@ -994,51 +1025,68 @@ function renderMenuSidebar() {
     const q = (document.getElementById('menu-buscar')?.value || '').toLowerCase().trim();
     const catId = parseInt(document.getElementById('menu-cat-filter')?.value) || 0;
 
+    // Poblar filtro de categorías (solo en páginas normales)
     const catSel = document.getElementById('menu-cat-filter');
-    if (catSel && catSel.options.length <= 1) {
-        _menuCats.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id; opt.textContent = c.nombre;
-            catSel.appendChild(opt);
-        });
+    if (catSel) {
+        catSel.style.display = _menuEsFavoritos ? 'none' : '';
+        if (!_menuEsFavoritos && catSel.options.length <= 1) {
+            _menuCats.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id; opt.textContent = c.nombre;
+                catSel.appendChild(opt);
+            });
+        }
     }
 
-    let prods = _menuProds;
-    if (q) prods = prods.filter(p => p.nombre.toLowerCase().includes(q));
-    if (catId) prods = prods.filter(p => p.categoria_id === catId);
+    // Productos: solo favoritos si es la página Favoritos, todos si es normal
+    let prods = _menuEsFavoritos
+        ? _menuProds.filter(p => p.favorito)
+        : _menuProds;
+    if (q)     prods = prods.filter(p => p.nombre.toLowerCase().includes(q));
+    if (!_menuEsFavoritos && catId) prods = prods.filter(p => p.categoria_id === catId);
 
-    const lista = document.getElementById('menu-prod-lista');
-    lista.innerHTML = prods.map(p => {
-        const agotado  = p.agotado;
-        const selColor = _menuProdColors[p.id] || 'green';
-        const cl       = MENU_COLORS[selColor];
-        const bg       = agotado ? '#f3f4f6' : cl.bg;
-        const border   = agotado ? '#d1d5db' : cl.border;
-        const txt      = agotado ? '#9ca3af' : cl.text;
+    // Combos (siempre disponibles, NO en página Favoritos)
+    let combos = _menuEsFavoritos ? [] : _menuCombos;
+    if (q) combos = combos.filter(c => c.nombre.toLowerCase().includes(q));
 
-        // 2×2 color swatches: top-left=green, top-right=red, bottom-left=blue, bottom-right=yellow
+    function itemRow(id, nombre, precio, agotado, esCombo) {
+        const colorKey = _menuProdColors[id] || 'green';
+        const cl = esCombo
+            ? { bg:'#ede9fe', border:'#c4b5fd', text:'#5b21b6', swatch:'#7c3aed' }
+            : (MENU_COLORS[colorKey] || MENU_COLORS.green);
+        const bg     = agotado ? '#f3f4f6' : cl.bg;
+        const border = agotado ? '#d1d5db' : cl.border;
+        const txt    = agotado ? '#9ca3af' : cl.text;
+
         const swatches = [['green','red'],['blue','yellow']].map(row =>
             row.map(ck => {
-                const c = MENU_COLORS[ck];
-                const ring = selColor === ck ? `box-shadow:0 0 0 2px white,0 0 0 3.5px ${c.swatch};` : '';
-                return `<div onmousedown="event.preventDefault()" onclick="setProdColor(${p.id},'${ck}',event)"
-                    style="background:${c.swatch};border-radius:3px;cursor:pointer;${ring}"></div>`;
+                const sc = MENU_COLORS[ck];
+                const ring = (!esCombo && colorKey === ck)
+                    ? `box-shadow:0 0 0 2px white,0 0 0 3.5px ${sc.swatch};` : '';
+                return `<div onmousedown="event.preventDefault()" onclick="setProdColor(${id},'${ck}',event)"
+                    style="background:${sc.swatch};border-radius:3px;cursor:pointer;${ring}"></div>`;
             }).join('')
         ).join('');
 
+        const badge = esCombo ? `<div style="font-size:9px;color:#7c3aed;font-weight:700;">🍱 Combo</div>` : '';
         return `<div draggable="true"
             style="background:${bg};border:1.5px solid ${border};border-radius:8px;padding:7px 8px;cursor:grab;font-size:12px;font-weight:600;color:${txt};user-select:none;display:flex;align-items:center;gap:8px;"
-            ondragstart="onDragStartProd(event,${p.id})"
-            onclick="onClickProd(${p.id})">
+            ondragstart="onDragStartProd(event,${id})"
+            onclick="onClickProd(${id})">
             <div style="flex:1;min-width:0;">
-                <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.nombre}</div>
-                <div style="font-size:10px;color:${agotado?'#9ca3af':'#6b7280'};font-weight:400;">${p.precio != null ? '$'+parseFloat(p.precio).toFixed(2) : ''}</div>
+                <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nombre}</div>
+                <div style="font-size:10px;color:${agotado?'#9ca3af':'#6b7280'};font-weight:400;">${precio != null ? '$'+parseFloat(precio).toFixed(2) : ''}${badge}</div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;width:26px;height:26px;flex-shrink:0;">
                 ${swatches}
             </div>
         </div>`;
-    }).join('');
+    }
+
+    const lista = document.getElementById('menu-prod-lista');
+    const rowsProds  = prods.map(p => itemRow(p.id, p.nombre, p.precio, p.agotado, false));
+    const rowsCombos = combos.map(c => itemRow(-c.id, c.nombre, c.precio, c.agotado, true));
+    lista.innerHTML = [...rowsProds, ...rowsCombos].join('');
 }
 
 // ── DRAG & DROP productos → celdas / celda → celda ─────────────
@@ -1076,7 +1124,9 @@ function onDropCell(e, fila, col) {
     } else if (_menuDragProdId !== null) {
         // Drag desde sidebar → celda
         if (_menuLocalItems[destKey] && _menuLocalItems[destKey] !== _menuDragProdId) {
-            const actual = _menuProds.find(p => p.id === _menuLocalItems[destKey]);
+            const actual = _menuLocalItems[destKey] < 0
+                ? _menuCombos.find(c => c.id === -_menuLocalItems[destKey])
+                : _menuProds.find(p => p.id === _menuLocalItems[destKey]);
             if (!confirm(`Esta celda ya tiene "${actual?.nombre}". ¿Reemplazar?`)) { _menuDragProdId = null; return; }
         }
         _menuLocalItems[destKey]  = _menuDragProdId;
@@ -1100,16 +1150,19 @@ function onClickCell(fila, col) {
     renderMenuGrid();
 }
 
-function onClickProd(prodId) {
+function onClickProd(id) {
     if (!_menuCeldaSel) return;
     const { fila, col } = _menuCeldaSel;
     const key = `${fila},${col}`;
-    if (_menuLocalItems[key] && _menuLocalItems[key] !== prodId) {
-        const actual = _menuProds.find(p => p.id === _menuLocalItems[key]);
+    if (_menuLocalItems[key] && _menuLocalItems[key] !== id) {
+        const cur = _menuLocalItems[key];
+        const actual = cur < 0
+            ? _menuCombos.find(c => c.id === -cur)
+            : _menuProds.find(p => p.id === cur);
         if (!confirm(`Esta celda ya tiene "${actual?.nombre}". ¿Reemplazar?`)) return;
     }
-    _menuLocalItems[key]  = prodId;
-    _menuLocalColors[key] = _menuProdColors[prodId] || 'green';
+    _menuLocalItems[key]  = id;
+    _menuLocalColors[key] = _menuProdColors[id] || 'green';
     _menuCeldaSel = null;
     renderMenuGrid();
 }
@@ -1122,10 +1175,16 @@ function quitarDeCelda(fila, col) {
 async function guardarMenuDiseno() {
     if (!_menuPagId || !_menuLayout) { alert('Seleccioná una página de menú primero.'); return; }
     const items = Object.entries(_menuLocalItems)
-        .filter(([, prodId]) => prodId)
-        .map(([key, prodId]) => {
+        .filter(([, val]) => val)
+        .map(([key, val]) => {
             const [f, c] = key.split(',').map(Number);
-            return { fila: f, columna: c, producto_id: prodId, color: _menuLocalColors[key] || 'green' };
+            const color = _menuLocalColors[key] || 'green';
+            if (val < 0) {
+                // combo
+                return { fila: f, columna: c, producto_id: null, combo_id: -val, color };
+            } else {
+                return { fila: f, columna: c, producto_id: val, combo_id: null, color };
+            }
         });
     try {
         await api.put(`/menu/paginas/${_menuPagId}/layout`, {
