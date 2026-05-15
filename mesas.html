@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restaurante — Salas y mesas</title>
+    <title>Restaurante — Herramienta de Edición</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
@@ -15,7 +15,6 @@
         }
         .navbar-brand { font-size: 18px; font-weight: 700; }
         .navbar-links { display: flex; gap: 16px; align-items: center; }
-        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
         .btn-logout {
             background: transparent; border: 1px solid #4f46e5; color: #a5b4fc;
             padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
@@ -44,7 +43,7 @@
         .btn-sm { padding: 6px 12px; font-size: 12px; }
         .btn-active { background: #4f46e5; color: white; border-color: #4f46e5; }
 
-        /* ── TABS ── */
+        /* ── TABS PRINCIPALES ── */
         .tabs {
             display: flex; gap: 4px; background: white; border-radius: 10px;
             padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px;
@@ -61,7 +60,7 @@
         /* ── LAYOUT DOS COLUMNAS ── */
         .layout { display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
 
-        /* ── PANEL SALAS ── */
+        /* ── PANEL IZQUIERDO ── */
         .panel {
             background: white; border-radius: 12px; padding: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
@@ -71,20 +70,33 @@
         }
         .panel-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
 
-        .sala-item {
+        /* Sub-tabs del panel izquierdo */
+        .subtabs {
+            display: flex; gap: 3px; background: #f3f4f6; border-radius: 8px;
+            padding: 3px; margin-bottom: 14px;
+        }
+        .subtab {
+            flex: 1; padding: 6px 10px; border-radius: 6px; cursor: pointer;
+            font-size: 13px; font-weight: 600; color: #666; border: none;
+            background: transparent; transition: all 0.2s; text-align: center;
+        }
+        .subtab.active { background: white; color: #4f46e5; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .subtab:hover:not(.active) { color: #4f46e5; }
+
+        .sala-item, .pagina-item {
             padding: 11px 14px; border-radius: 8px; cursor: pointer;
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 6px; transition: all 0.15s; border: 2px solid transparent;
         }
-        .sala-item:hover { background: #f5f3ff; }
-        .sala-item.activa { background: #f5f3ff; border-color: #4f46e5; }
-        .sala-nombre { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+        .sala-item:hover, .pagina-item:hover { background: #f5f3ff; }
+        .sala-item.activa, .pagina-item.activa { background: #f5f3ff; border-color: #4f46e5; }
+        .sala-nombre { font-size: 14px; font-weight: 600; color: #1a1a2e; flex: 1; }
         .sala-acciones { display: flex; gap: 6px; }
 
         /* ── PANEL DERECHO ── */
         .panel-right { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 
-        /* ── VISTA CONFIGURAR ── */
+        /* ── VISTA CONFIGURAR SALAS ── */
         .mesas-header {
             display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
         }
@@ -108,11 +120,10 @@
 
         .empty { text-align: center; padding: 48px; color: #888; }
 
-        /* ── EDITOR VISUAL ── */
+        /* ── EDITOR VISUAL SALAS ── */
         #editor-container {
             display: none; flex-direction: column; height: calc(100vh - 260px);
         }
-        #editor-container.visible { display: flex; }
 
         .editor-toolbar {
             display: flex; gap: 12px; align-items: center; padding: 12px 0;
@@ -194,30 +205,48 @@
 
 <div class="content">
     <div class="page-header">
-        <h2>🪑 Salas y mesas</h2>
+        <h2>🗺️ Herramienta de Edición</h2>
     </div>
 
-    <!-- Tabs -->
+    <!-- Tabs principales -->
     <div class="tabs">
-        <button class="tab active" id="tab-config" onclick="setTab('config')">⚙️ Configurar</button>
-        <button class="tab" id="tab-diseño" onclick="setTab('disenio')">🗺️ Diseñar sala</button>
+        <button class="tab active" id="tab-config" onclick="setTabModo('config')">⚙️ Configuración</button>
+        <button class="tab" id="tab-diseno" onclick="setTabModo('diseno')">🎨 Diseño</button>
     </div>
 
     <div class="layout">
-        <!-- Panel salas -->
+        <!-- Panel izquierdo -->
         <div class="panel">
-            <div class="panel-header">
-                <h3>Salas</h3>
-                <button class="btn btn-primary btn-sm" onclick="abrirModalSala()">+ Nueva</button>
+            <!-- Sub-tabs -->
+            <div class="subtabs">
+                <button class="subtab active" id="subtab-salas" onclick="setTabPanel('salas')">🪑 Salas</button>
+                <button class="subtab" id="subtab-menus" onclick="setTabPanel('menus')">📄 Menús</button>
             </div>
-            <div id="lista-salas"><div class="empty">Cargando...</div></div>
+
+            <!-- Sub-panel Salas -->
+            <div id="subpanel-salas">
+                <div class="panel-header">
+                    <h3>Salas</h3>
+                    <button class="btn btn-primary btn-sm" onclick="abrirModalSala()">+ Nueva sala</button>
+                </div>
+                <div id="lista-salas"><div class="empty">Cargando...</div></div>
+            </div>
+
+            <!-- Sub-panel Menús -->
+            <div id="subpanel-menus" style="display:none">
+                <div class="panel-header">
+                    <h3>Páginas de menú</h3>
+                    <button class="btn btn-primary btn-sm" onclick="abrirModalPagina()">+ Nueva página</button>
+                </div>
+                <div id="lista-paginas"><div class="empty">Cargando...</div></div>
+            </div>
         </div>
 
         <!-- Panel derecho -->
         <div class="panel-right">
 
-            <!-- ── VISTA CONFIGURAR ── -->
-            <div id="vista-config">
+            <!-- ── SALAS + CONFIGURACIÓN ── -->
+            <div id="vista-salas-config">
                 <div class="mesas-header">
                     <h3 id="mesas-titulo">Seleccioná una sala</h3>
                     <button class="btn btn-primary btn-sm" id="btn-nueva-mesa"
@@ -228,43 +257,86 @@
                 </div>
             </div>
 
-            <!-- ── VISTA DISEÑO ── -->
+            <!-- ── SALAS + DISEÑO ── -->
             <div id="editor-container">
                 <div class="editor-toolbar">
                     <span id="editor-sala-label" style="font-weight:700;color:#1a1a2e;font-size:15px">—</span>
-
                     <div style="width:1px;height:28px;background:#e0e0e0;margin:0 4px"></div>
-
                     <label>Mesa seleccionada:</label>
                     <span id="lbl-mesa-sel" style="font-size:13px;color:#4f46e5;font-weight:700">ninguna</span>
-
                     <div style="width:1px;height:28px;background:#e0e0e0;margin:0 4px"></div>
-
                     <label>Forma:</label>
                     <button class="shape-btn sel" id="sh-rect" onclick="setForma('rect')">▭ Rect.</button>
                     <button class="shape-btn" id="sh-round" onclick="setForma('round')">⬭ Redon.</button>
                     <button class="shape-btn" id="sh-circle" onclick="setForma('circle')">● Círculo</button>
-
                     <div style="width:1px;height:28px;background:#e0e0e0;margin:0 4px"></div>
-
                     <label>Ancho:</label>
                     <div class="size-control">
-                        <input type="number" id="inp-w" value="120" min="60" max="400"
-                               oninput="aplicarTamano()">px
+                        <input type="number" id="inp-w" value="120" min="60" max="400" oninput="aplicarTamano()">px
                     </div>
                     <label>Alto:</label>
                     <div class="size-control">
-                        <input type="number" id="inp-h" value="90" min="60" max="400"
-                               oninput="aplicarTamano()">px
+                        <input type="number" id="inp-h" value="90" min="60" max="400" oninput="aplicarTamano()">px
                     </div>
                 </div>
-
                 <div id="canvas-editor"></div>
-
                 <div class="editor-footer">
                     <span class="editor-hint">💡 Arrastrá las mesas para reposicionarlas. Seleccioná una para cambiar su forma y tamaño.</span>
                     <button class="btn btn-secondary" onclick="resetLayout()">↩ Resetear posiciones</button>
                     <button class="btn btn-success" onclick="guardarLayout()">💾 Guardar diseño</button>
+                </div>
+            </div>
+
+            <!-- ── MENÚS + CONFIGURACIÓN ── -->
+            <div id="vista-menus-config" style="display:none;">
+                <div style="margin-bottom:14px;">
+                    <h3 id="menu-config-nombre" style="font-size:17px;font-weight:700;color:#1a1a2e;">Seleccioná una página</h3>
+                </div>
+                <div id="menu-config-contenido">
+                    <div class="empty">Seleccioná una página de menú en el panel izquierdo</div>
+                </div>
+                <div id="menu-config-form" style="display:none;">
+                    <div class="form-row" style="max-width:300px;margin-bottom:16px;">
+                        <div class="form-group">
+                            <label>Filas</label>
+                            <input type="number" id="mc-filas" min="1" max="12" value="4" oninput="renderMenuPreview()">
+                        </div>
+                        <div class="form-group">
+                            <label>Columnas</label>
+                            <input type="number" id="mc-cols" min="1" max="12" value="5" oninput="renderMenuPreview()">
+                        </div>
+                    </div>
+                    <div style="font-size:12px;color:#666;margin-bottom:8px;">Vista previa:</div>
+                    <div id="mc-preview" style="display:grid;gap:4px;margin-bottom:16px;max-width:500px;"></div>
+                    <button class="btn btn-primary btn-sm" onclick="guardarMenuConfig()">💾 Guardar configuración</button>
+                </div>
+            </div>
+
+            <!-- ── MENÚS + DISEÑO ── -->
+            <div id="vista-menus-diseno" style="display:none;flex-direction:column;gap:0;">
+                <div style="display:flex;gap:16px;flex:1;height:calc(100vh - 300px);">
+                    <!-- Grid -->
+                    <div style="flex:1;overflow:auto;background:#fafafa;border-radius:12px;padding:16px;border:2px dashed #e0e0e0;">
+                        <div id="menu-diseno-grid" style="display:grid;gap:8px;"></div>
+                    </div>
+                    <!-- Sidebar de productos -->
+                    <div style="width:260px;background:white;border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;flex-direction:column;gap:8px;overflow:hidden;">
+                        <div style="font-size:12px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.5px;">Productos</div>
+                        <input type="text" id="menu-buscar" placeholder="Buscar producto..."
+                               style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;"
+                               oninput="renderMenuSidebar()">
+                        <select id="menu-cat-filter"
+                                style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;"
+                                onchange="renderMenuSidebar()">
+                            <option value="">Todas las categorías</option>
+                        </select>
+                        <div id="menu-prod-lista" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
+                    </div>
+                </div>
+                <!-- Footer -->
+                <div style="display:flex;justify-content:flex-end;gap:10px;padding:12px 0 0;border-top:1px solid #e0e0e0;margin-top:12px;">
+                    <span style="flex:1;font-size:12px;color:#888;">💡 Arrastrá productos a las celdas o hacé clic en una celda y luego en el producto</span>
+                    <button class="btn btn-success" onclick="guardarMenuDiseno()">💾 Guardar diseño</button>
                 </div>
             </div>
 
@@ -316,38 +388,80 @@
     </div>
 </div>
 
+<!-- Modal página de menú -->
+<div class="modal-overlay" id="modal-pagina">
+    <div class="modal">
+        <h3 id="modal-pagina-titulo">Nueva página de menú</h3>
+        <div class="form-group">
+            <label>Nombre *</label>
+            <input type="text" id="fp-nombre" placeholder="Ej: Bebidas, Pizzas, Postres">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-pagina')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarPagina()">Guardar</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script>
 requireAuth();
 requireRol("admin", "gerente");
 
+// ── ESTADO GLOBAL ──────────────────────────────────────────────
 let salas = [], mesas = [], salaSelId = null;
 let editandoSalaId = null, editandoMesaId = null;
-let tabActual = 'config';
 
-// ── TABS ──────────────────────────────────────────────────────
-function setTab(tab) {
-    tabActual = tab;
-    document.getElementById('tab-config').classList.toggle('active', tab === 'config');
-    document.getElementById('tab-diseño').classList.toggle('active', tab === 'disenio');
-    document.getElementById('vista-config').style.display = tab === 'config' ? '' : 'none';
-    const ed = document.getElementById('editor-container');
-    if (tab === 'disenio') {
-        ed.classList.add('visible');
-        if (salaSelId) renderEditor();
-    } else {
-        ed.classList.remove('visible');
+let _tabModo  = 'config';   // 'config' | 'diseno'
+let _tabPanel = 'salas';    // 'salas' | 'menus'
+
+// ── TAB SYSTEM ─────────────────────────────────────────────────
+function setTabModo(modo) {
+    _tabModo = modo;
+    actualizarVista();
+}
+
+function setTabPanel(panel) {
+    _tabPanel = panel;
+    // Mostrar/ocultar sub-paneles izquierdos
+    document.getElementById('subpanel-salas').style.display = panel === 'salas' ? '' : 'none';
+    document.getElementById('subpanel-menus').style.display = panel === 'menus' ? '' : 'none';
+    actualizarVista();
+}
+
+function actualizarVista() {
+    // Ocultar todas las vistas derechas
+    ['vista-salas-config','editor-container','vista-menus-config','vista-menus-diseno'].forEach(id => {
+        const el = document.getElementById(id);
+        el.style.display = 'none';
+    });
+
+    if (_tabPanel === 'salas' && _tabModo === 'config') {
+        document.getElementById('vista-salas-config').style.display = '';
     }
+    if (_tabPanel === 'salas' && _tabModo === 'diseno') {
+        document.getElementById('editor-container').style.display = 'flex';
+        if (salaSelId) renderEditor();
+    }
+    if (_tabPanel === 'menus' && _tabModo === 'config') {
+        document.getElementById('vista-menus-config').style.display = '';
+        if (_menuPagId && _menuLayout) renderMenuConfig();
+    }
+    if (_tabPanel === 'menus' && _tabModo === 'diseno') {
+        document.getElementById('vista-menus-diseno').style.display = 'flex';
+        renderMenuDiseno();
+    }
+
+    // Sub-tabs
+    document.getElementById('subtab-salas').classList.toggle('active', _tabPanel === 'salas');
+    document.getElementById('subtab-menus').classList.toggle('active', _tabPanel === 'menus');
+    // Main tabs
+    document.getElementById('tab-config').classList.toggle('active', _tabModo === 'config');
+    document.getElementById('tab-diseno').classList.toggle('active', _tabModo === 'diseno');
 }
 
-// ── SALAS ─────────────────────────────────────────────────────
-async function init() {
-    salas = await api.get('/mesas/salas');
-    renderSalas();
-    if (salas.length) seleccionarSala(salas[0].id);
-}
-
+// ── SALAS ──────────────────────────────────────────────────────
 function renderSalas() {
     const cont = document.getElementById('lista-salas');
     if (!salas.length) { cont.innerHTML = '<div class="empty">No hay salas.</div>'; return; }
@@ -371,7 +485,7 @@ async function seleccionarSala(id) {
     document.getElementById('btn-nueva-mesa').style.display = 'block';
     document.getElementById('editor-sala-label').textContent = sala.nombre;
     renderMesasConfig();
-    if (tabActual === 'disenio') renderEditor();
+    if (_tabModo === 'diseno') renderEditor();
 }
 
 function renderMesasConfig() {
@@ -397,7 +511,7 @@ function estadoLabel(e) {
     return { libre:'Libre', ocupada:'Ocupada', reservada:'Reservada', pendiente_pago:'Pend. pago' }[e] || e;
 }
 
-// ── MODAL SALA ────────────────────────────────────────────────
+// ── MODAL SALA ─────────────────────────────────────────────────
 function abrirModalSala(id = null) {
     editandoSalaId = id;
     if (id) {
@@ -435,7 +549,7 @@ async function eliminarSala(id) {
     } catch (err) { alert('Error: ' + err.message); }
 }
 
-// ── MODAL MESA ────────────────────────────────────────────────
+// ── MODAL MESA ─────────────────────────────────────────────────
 function abrirModalMesa(id = null) {
     editandoMesaId = id;
     if (id) {
@@ -467,7 +581,7 @@ async function guardarMesa() {
         cerrarModal('modal-mesa');
         mesas = await api.get(`/mesas/?sala_id=${salaSelId}`);
         renderMesasConfig();
-        if (tabActual === 'disenio') renderEditor();
+        if (_tabModo === 'diseno') renderEditor();
     } catch (err) { alert('Error: ' + err.message); }
 }
 
@@ -477,20 +591,18 @@ async function eliminarMesa(id) {
         await api.delete(`/mesas/${id}`);
         mesas = await api.get(`/mesas/?sala_id=${salaSelId}`);
         renderMesasConfig();
-        if (tabActual === 'disenio') renderEditor();
+        if (_tabModo === 'diseno') renderEditor();
     } catch (err) { alert('Error: ' + err.message); }
 }
 
 function cerrarModal(id) { document.getElementById(id).classList.remove('active'); }
 // Los modales NO se cierran al hacer clic en el overlay (solo con el botón o la cruz)
 
-// ── EDITOR VISUAL ─────────────────────────────────────────────
+// ── EDITOR VISUAL SALAS ────────────────────────────────────────
 let mesaSelEditor = null;
 let dragging = null, dragOffX = 0, dragOffY = 0;
 let resizing = null, resStartX = 0, resStartY = 0, resStartW = 0, resStartH = 0;
-
-// Estado local del editor (cambios pendientes de guardar)
-let layoutLocal = {};  // { mesa_id: { x, y, w, h, forma } }
+let layoutLocal = {};
 
 const FORMAS = { rect: 8, round: 24, circle: 999 };
 
@@ -536,7 +648,6 @@ function renderEditor() {
             <div class="resize-handle" data-id="${m.id}"></div>
         `;
 
-        // Drag
         el.addEventListener('mousedown', e => {
             if (e.target.classList.contains('resize-handle')) return;
             seleccionarMesaEditor(m.id);
@@ -549,7 +660,6 @@ function renderEditor() {
             e.preventDefault();
         });
 
-        // Resize
         el.querySelector('.resize-handle').addEventListener('mousedown', e => {
             seleccionarMesaEditor(m.id);
             resizing = { el, id: m.id };
@@ -564,7 +674,6 @@ function renderEditor() {
         canvas.appendChild(el);
     });
 
-    // Mouse move / up en canvas
     canvas.addEventListener('mousemove', onMouseMove);
     canvas.addEventListener('mouseup', onMouseUp);
 }
@@ -599,10 +708,7 @@ function onMouseMove(e) {
     }
 }
 
-function onMouseUp() {
-    dragging = null;
-    resizing = null;
-}
+function onMouseUp() { dragging = null; resizing = null; }
 
 function seleccionarMesaEditor(id) {
     mesaSelEditor = id;
@@ -614,8 +720,6 @@ function seleccionarMesaEditor(id) {
     document.getElementById('lbl-mesa-sel').textContent = `Mesa ${m.numero}`;
     document.getElementById('inp-w').value = Math.round(lay.w);
     document.getElementById('inp-h').value = Math.round(lay.h);
-
-    // Actualizar botones de forma
     ['rect','round','circle'].forEach(f => {
         document.getElementById('sh-' + f).classList.toggle('sel', (lay.forma || 'rect') === f);
     });
@@ -626,12 +730,9 @@ function setForma(forma) {
     const m = mesas.find(x => x.id === mesaSelEditor);
     const lay = getLayout(m);
     layoutLocal[mesaSelEditor] = { ...lay, forma };
-
     ['rect','round','circle'].forEach(f => {
         document.getElementById('sh-' + f).classList.toggle('sel', f === forma);
     });
-
-    // Re-render solo esa mesa
     const el = document.querySelector(`.mesa-editor[data-id="${mesaSelEditor}"]`);
     if (el) {
         const rx = FORMAS[forma] || 8;
@@ -654,7 +755,6 @@ function aplicarTamano() {
     const isCircle = (lay.forma || 'rect') === 'circle';
     const w = isCircle ? newW : newW;
     const h = isCircle ? newW : newH;
-
     layoutLocal[mesaSelEditor] = { ...lay, w, h };
     const el = document.querySelector(`.mesa-editor[data-id="${mesaSelEditor}"]`);
     if (el) { el.style.width = w + 'px'; el.style.height = h + 'px'; }
@@ -664,7 +764,7 @@ function resetLayout() {
     if (!confirm('¿Resetear todas las posiciones al diseño automático?')) return;
     layoutLocal = {};
     let x = 20, y = 20;
-    mesas.forEach((m, i) => {
+    mesas.forEach((m) => {
         layoutLocal[m.id] = { x, y, w: 120, h: 90, forma: 'rect' };
         x += 150;
         if (x > 700) { x = 20; y += 120; }
@@ -693,6 +793,325 @@ async function guardarLayout() {
     } catch (err) {
         alert('Error al guardar: ' + err.message);
     }
+}
+
+// ── MENÚ PÁGINAS ───────────────────────────────────────────────
+let paginas = [];
+let _menuEditId = null;
+let _menuPagId = null;
+let _menuLayout = null;
+let _menuLocalItems = {};
+let _menuCeldaSel = null;
+let _menuDragProdId = null;
+let _menuProds = [];
+let _menuCats = [];
+
+async function cargarPaginas() {
+    paginas = await api.get('/menu/paginas');
+    renderPaginas();
+}
+
+function renderPaginas() {
+    const cont = document.getElementById('lista-paginas');
+    if (!paginas.length) { cont.innerHTML = '<div class="empty">No hay páginas de menú.</div>'; return; }
+    cont.innerHTML = paginas.map((p, idx) => `
+        <div class="pagina-item ${p.id === _menuPagId ? 'activa' : ''}"
+             draggable="true"
+             ondragstart="onDragPagina(event,${idx})"
+             ondragover="onDragOverPagina(event,${idx})"
+             ondrop="onDropPagina(event,${idx})"
+             onclick="seleccionarPagina(${p.id})">
+            <span style="cursor:grab;color:#9ca3af;margin-right:8px;font-size:16px;">≡</span>
+            <div class="sala-nombre">${p.nombre}</div>
+            <div class="sala-acciones">
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();abrirModalPagina(${p.id})">✏️</button>
+                <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarPagina(${p.id})">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ── DRAG REORDER DE PÁGINAS ────────────────────────────────────
+let _dragPagIdx = null;
+
+function onDragPagina(e, idx) { _dragPagIdx = idx; e.dataTransfer.effectAllowed = 'move'; }
+function onDragOverPagina(e, idx) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+async function onDropPagina(e, idx) {
+    e.preventDefault();
+    if (_dragPagIdx === null || _dragPagIdx === idx) return;
+    const moved = paginas.splice(_dragPagIdx, 1)[0];
+    paginas.splice(idx, 0, moved);
+    paginas.forEach((p, i) => p.orden = i);
+    renderPaginas();
+    await api.put('/menu/paginas/ordenar', { paginas: paginas.map(p => ({id: p.id, orden: p.orden})) });
+    _dragPagIdx = null;
+}
+
+async function seleccionarPagina(id) {
+    _menuPagId = id;
+    renderPaginas();
+    _menuLayout = await api.get(`/menu/paginas/${id}/layout`);
+    _menuLocalItems = {};
+    (_menuLayout.items || []).forEach(it => {
+        _menuLocalItems[`${it.fila},${it.columna}`] = it.producto_id;
+    });
+    if (_tabModo === 'config') renderMenuConfig();
+    if (_tabModo === 'diseno') renderMenuDiseno();
+}
+
+// ── MENÚ CONFIG ────────────────────────────────────────────────
+function renderMenuConfig() {
+    if (!_menuPagId || !_menuLayout) {
+        document.getElementById('menu-config-contenido').innerHTML = '<div class="empty">Seleccioná una página de menú</div>';
+        document.getElementById('menu-config-form').style.display = 'none';
+        document.getElementById('menu-config-nombre').textContent = 'Seleccioná una página';
+        return;
+    }
+    const p = _menuLayout;
+    document.getElementById('menu-config-nombre').textContent = p.nombre;
+    document.getElementById('menu-config-contenido').innerHTML = '';
+    document.getElementById('menu-config-form').style.display = '';
+    document.getElementById('mc-filas').value = p.filas;
+    document.getElementById('mc-cols').value = p.columnas;
+    renderMenuPreview();
+}
+
+function renderMenuPreview() {
+    const filas = parseInt(document.getElementById('mc-filas').value) || 4;
+    const cols = parseInt(document.getElementById('mc-cols').value) || 5;
+    const preview = document.getElementById('mc-preview');
+    preview.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    let html = '';
+    for (let f = 0; f < filas; f++) {
+        for (let c = 0; c < cols; c++) {
+            html += `<div style="background:#f3f4f6;border:1px solid #e0e0e0;border-radius:6px;height:50px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px;">${f+1}×${c+1}</div>`;
+        }
+    }
+    preview.innerHTML = html;
+}
+
+async function guardarMenuConfig() {
+    if (!_menuPagId) return;
+    const filas = parseInt(document.getElementById('mc-filas').value) || 4;
+    const cols = parseInt(document.getElementById('mc-cols').value) || 5;
+    const pag = paginas.find(p => p.id === _menuPagId);
+    await api.patch(`/menu/paginas/${_menuPagId}`, { nombre: pag.nombre, filas, columnas: cols });
+    _menuLayout.filas = filas;
+    _menuLayout.columnas = cols;
+    alert('✓ Configuración guardada');
+}
+
+// ── MENÚ DISEÑO ────────────────────────────────────────────────
+async function cargarProductosMenu() {
+    if (!_menuProds.length) {
+        [_menuProds, _menuCats] = await Promise.all([
+            api.get('/productos/?en_carta=true'),
+            api.get('/productos/categorias')
+        ]);
+    }
+    renderMenuSidebar();
+}
+
+function renderMenuDiseno() {
+    if (!_menuPagId || !_menuLayout) {
+        document.getElementById('menu-diseno-grid').innerHTML = '<div class="empty">Seleccioná una página de menú</div>';
+        return;
+    }
+    renderMenuGrid();
+    cargarProductosMenu();
+}
+
+function renderMenuGrid() {
+    const { filas, columnas } = _menuLayout;
+    const grid = document.getElementById('menu-diseno-grid');
+    grid.style.gridTemplateColumns = `repeat(${columnas}, 1fr)`;
+    let html = '';
+    for (let f = 0; f < filas; f++) {
+        for (let c = 0; c < columnas; c++) {
+            const key = `${f},${c}`;
+            const prodId = _menuLocalItems[key];
+            const esSel = _menuCeldaSel && _menuCeldaSel.fila === f && _menuCeldaSel.col === c;
+            const borde = esSel ? '2px solid #4f46e5' : '2px solid #e0e0e0';
+            if (prodId) {
+                const prod = _menuProds.find(p => p.id === prodId);
+                const nombre = prod ? prod.nombre : `#${prodId}`;
+                const agotado = prod?.agotado;
+                const bg = agotado ? '#f3f4f6' : '#dcfce7';
+                html += `<div class="menu-cell" data-fila="${f}" data-col="${c}"
+                    style="background:${bg};border:${borde};border-radius:8px;padding:8px;min-height:70px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:600;"
+                    ondragover="event.preventDefault()"
+                    ondrop="onDropCell(event,${f},${c})"
+                    onclick="onClickCell(${f},${c})">
+                    ${nombre}
+                    <button onclick="event.stopPropagation();quitarDeCelda(${f},${c})"
+                        style="position:absolute;top:3px;right:3px;background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;line-height:1;">✕</button>
+                </div>`;
+            } else {
+                html += `<div class="menu-cell" data-fila="${f}" data-col="${c}"
+                    style="background:#fafafa;border:${borde};border-radius:8px;min-height:70px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#d1d5db;font-size:24px;"
+                    ondragover="event.preventDefault()"
+                    ondrop="onDropCell(event,${f},${c})"
+                    onclick="onClickCell(${f},${c})">+</div>`;
+            }
+        }
+    }
+    grid.innerHTML = html;
+}
+
+function renderMenuSidebar() {
+    const q = (document.getElementById('menu-buscar')?.value || '').toLowerCase().trim();
+    const catId = parseInt(document.getElementById('menu-cat-filter')?.value) || 0;
+
+    const catSel = document.getElementById('menu-cat-filter');
+    if (catSel && catSel.options.length <= 1) {
+        _menuCats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id; opt.textContent = c.nombre;
+            catSel.appendChild(opt);
+        });
+    }
+
+    let prods = _menuProds;
+    if (q) prods = prods.filter(p => p.nombre.toLowerCase().includes(q));
+    if (catId) prods = prods.filter(p => p.categoria_id === catId);
+
+    const lista = document.getElementById('menu-prod-lista');
+    lista.innerHTML = prods.map(p => {
+        const agotado = p.agotado;
+        const bg = agotado ? '#f3f4f6' : '#f0fdf4';
+        const border = agotado ? '#d1d5db' : '#86efac';
+        return `<div draggable="true"
+            style="background:${bg};border:1.5px solid ${border};border-radius:8px;padding:8px 10px;cursor:grab;font-size:12px;font-weight:600;color:${agotado?'#9ca3af':'#1a1a2e'};user-select:none;"
+            ondragstart="onDragStartProd(event,${p.id})"
+            onclick="onClickProd(${p.id})">
+            ${p.nombre}
+            <div style="font-size:10px;color:#6b7280;font-weight:400;">${p.precio != null ? '$'+parseFloat(p.precio).toFixed(2) : ''}</div>
+        </div>`;
+    }).join('');
+}
+
+// ── DRAG & DROP productos → celdas ─────────────────────────────
+function onDragStartProd(e, prodId) {
+    _menuDragProdId = prodId;
+    e.dataTransfer.effectAllowed = 'copy';
+}
+
+function onDropCell(e, fila, col) {
+    e.preventDefault();
+    if (_menuDragProdId === null) return;
+    const key = `${fila},${col}`;
+    if (_menuLocalItems[key] && _menuLocalItems[key] !== _menuDragProdId) {
+        const actual = _menuProds.find(p => p.id === _menuLocalItems[key]);
+        if (!confirm(`Esta celda ya tiene "${actual?.nombre}". ¿Reemplazar?`)) return;
+    }
+    _menuLocalItems[key] = _menuDragProdId;
+    _menuDragProdId = null;
+    _menuCeldaSel = null;
+    renderMenuGrid();
+}
+
+// ── CLICK CELDA → luego CLICK PRODUCTO ────────────────────────
+function onClickCell(fila, col) {
+    if (_menuCeldaSel && _menuCeldaSel.fila === fila && _menuCeldaSel.col === col) {
+        _menuCeldaSel = null;
+    } else {
+        _menuCeldaSel = { fila, col };
+    }
+    renderMenuGrid();
+}
+
+function onClickProd(prodId) {
+    if (!_menuCeldaSel) return;
+    const { fila, col } = _menuCeldaSel;
+    const key = `${fila},${col}`;
+    if (_menuLocalItems[key] && _menuLocalItems[key] !== prodId) {
+        const actual = _menuProds.find(p => p.id === _menuLocalItems[key]);
+        if (!confirm(`Esta celda ya tiene "${actual?.nombre}". ¿Reemplazar?`)) return;
+    }
+    _menuLocalItems[key] = prodId;
+    _menuCeldaSel = null;
+    renderMenuGrid();
+}
+
+function quitarDeCelda(fila, col) {
+    delete _menuLocalItems[`${fila},${col}`];
+    renderMenuGrid();
+}
+
+async function guardarMenuDiseno() {
+    if (!_menuPagId || !_menuLayout) return;
+    const items = Object.entries(_menuLocalItems)
+        .filter(([, prodId]) => prodId)
+        .map(([key, prodId]) => {
+            const [f, c] = key.split(',').map(Number);
+            return { fila: f, columna: c, producto_id: prodId };
+        });
+    await api.put(`/menu/paginas/${_menuPagId}/layout`, {
+        filas: _menuLayout.filas,
+        columnas: _menuLayout.columnas,
+        items
+    });
+    alert('✓ Diseño guardado');
+}
+
+// ── MODAL PÁGINA DE MENÚ ───────────────────────────────────────
+function abrirModalPagina(id = null) {
+    _menuEditId = id;
+    if (id) {
+        const p = paginas.find(x => x.id === id);
+        document.getElementById('modal-pagina-titulo').textContent = 'Editar página';
+        document.getElementById('fp-nombre').value = p.nombre;
+    } else {
+        document.getElementById('modal-pagina-titulo').textContent = 'Nueva página de menú';
+        document.getElementById('fp-nombre').value = '';
+    }
+    document.getElementById('modal-pagina').classList.add('active');
+}
+
+async function guardarPagina() {
+    const nombre = document.getElementById('fp-nombre').value.trim();
+    if (!nombre) { alert('El nombre es obligatorio.'); return; }
+    try {
+        if (_menuEditId) {
+            const p = paginas.find(x => x.id === _menuEditId);
+            await api.patch(`/menu/paginas/${_menuEditId}`, { nombre, filas: p.filas, columnas: p.columnas });
+        } else {
+            await api.post('/menu/paginas', { nombre, orden: paginas.length });
+        }
+        cerrarModal('modal-pagina');
+        await cargarPaginas();
+        if (_menuEditId && _menuPagId === _menuEditId && _menuLayout) {
+            _menuLayout.nombre = nombre;
+            const pag = paginas.find(p => p.id === _menuEditId);
+            if (pag) pag.nombre = nombre;
+            document.getElementById('menu-config-nombre').textContent = nombre;
+        }
+    } catch(err) { alert('Error: ' + err.message); }
+}
+
+async function eliminarPagina(id) {
+    if (!confirm('¿Eliminar esta página? Se perderá el diseño.')) return;
+    await api.delete(`/menu/paginas/${id}`);
+    if (_menuPagId === id) {
+        _menuPagId = null; _menuLayout = null; _menuLocalItems = {};
+        _menuCeldaSel = null;
+        document.getElementById('menu-config-nombre').textContent = 'Seleccioná una página';
+        document.getElementById('menu-config-contenido').innerHTML = '<div class="empty">Seleccioná una página de menú en el panel izquierdo</div>';
+        document.getElementById('menu-config-form').style.display = 'none';
+    }
+    await cargarPaginas();
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+async function init() {
+    await Promise.all([
+        (async () => {
+            salas = await api.get('/mesas/salas');
+            renderSalas();
+            if (salas.length) seleccionarSala(salas[0].id);
+        })(),
+        cargarPaginas()
+    ]);
 }
 
 init();

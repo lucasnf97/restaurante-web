@@ -213,11 +213,10 @@
                         <th>Promo</th>
                         <th>En carta</th>
                         <th>Agotado</th>
-                        <th>Orden</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-productos">
-                    <tr><td colspan="9" class="empty">Cargando...</td></tr>
+                    <tr><td colspan="8" class="empty">Cargando...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -260,7 +259,6 @@
                 <thead>
                     <tr>
                         <th>Nombre</th>
-                        <th>Orden</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -300,15 +298,9 @@
                 <select id="fp-area"></select>
             </div>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Descuento % en carta</label>
-                <input type="number" id="fp-descuento" min="0" max="100" step="0.1" value="0">
-            </div>
-            <div class="form-group">
-                <label>Orden de visualización</label>
-                <input type="number" id="fp-orden" min="0" value="0">
-            </div>
+        <div class="form-group">
+            <label>Descuento % en carta</label>
+            <input type="number" id="fp-descuento" min="0" max="100" step="0.1" value="0">
         </div>
         <div class="checkbox-row" style="margin-top:8px">
             <label class="checkbox-item">
@@ -514,10 +506,6 @@
             <label>Nombre *</label>
             <input type="text" id="fcat-nombre" placeholder="Ej: Entradas">
         </div>
-        <div class="form-group">
-            <label>Orden</label>
-            <input type="number" id="fcat-orden" value="0" min="0">
-        </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-categoria')">Cancelar</button>
             <button class="btn btn-primary" onclick="guardarCategoria()">Guardar</button>
@@ -613,7 +601,7 @@ function filtrarLocal() {
 
 function renderProductos(lista) {
     const tbody = document.getElementById('tbody-productos');
-    if (!lista.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">No hay productos</td></tr>`; return; }
+    if (!lista.length) { tbody.innerHTML = `<tr><td colspan="8" class="empty">No hay productos</td></tr>`; return; }
     tbody.innerHTML = lista.map(p => `
         <tr class="${prodSel && prodSel.id === p.id ? 'sel' : ''}" onclick="selProducto(${p.id})">
             <td>${p.favorito ? '<span class="fav-star">★</span>' : ''}</td>
@@ -624,7 +612,6 @@ function renderProductos(lista) {
             <td id="promo-cell-${p.id}"><span class="badge badge-gray">—</span></td>
             <td><span class="badge ${p.en_carta ? 'badge-green' : 'badge-gray'}">${p.en_carta ? 'Sí' : 'No'}</span></td>
             <td><span class="badge ${p.agotado ? 'badge-orange' : 'badge-gray'}">${p.agotado ? 'Agotado' : 'No'}</span></td>
-            <td>${p.orden}</td>
         </tr>
     `).join('');
     // Cargar promociones
@@ -671,7 +658,6 @@ function abrirModalProducto(id = null) {
         document.getElementById('fp-descuento').value = prodSel.descuento_pct || 0;
         document.getElementById('fp-categoria').value = prodSel.categoria_id || '';
         document.getElementById('fp-area').value = prodSel.area_id || '';
-        document.getElementById('fp-orden').value = prodSel.orden || 0;
         document.getElementById('fp-encarta').checked = prodSel.en_carta;
         document.getElementById('fp-agotado').checked = prodSel.agotado;
         document.getElementById('fp-favorito').checked = prodSel.favorito;
@@ -679,7 +665,6 @@ function abrirModalProducto(id = null) {
         ['fp-nombre','fp-descripcion'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('fp-precio').value = '';
         document.getElementById('fp-descuento').value = '0';
-        document.getElementById('fp-orden').value = '0';
         document.getElementById('fp-encarta').checked = true;
         document.getElementById('fp-agotado').checked = false;
         document.getElementById('fp-favorito').checked = false;
@@ -698,7 +683,6 @@ async function guardarProducto() {
         descuento_pct: parseFloat(document.getElementById('fp-descuento').value) || 0,
         categoria_id: parseInt(document.getElementById('fp-categoria').value) || null,
         area_id: parseInt(document.getElementById('fp-area').value) || null,
-        orden: parseInt(document.getElementById('fp-orden').value) || 0,
         en_carta: document.getElementById('fp-encarta').checked,
         agotado: document.getElementById('fp-agotado').checked,
         favorito: document.getElementById('fp-favorito').checked,
@@ -756,7 +740,6 @@ async function importarCSV(input) {
                 nombre: row.nombre, precio: parseFloat(row.precio) || 0,
                 descripcion: row.descripcion || null,
                 descuento_pct: parseFloat(row.descuento_pct) || 0,
-                orden: parseInt(row.orden) || 0,
                 en_carta: row.en_carta !== 'false',
                 agotado: row.agotado === 'true',
                 favorito: row.favorito === 'true',
@@ -972,7 +955,6 @@ function renderCategorias() {
     tbody.innerHTML = categorias.map(c => `
         <tr>
             <td><strong>${c.nombre}</strong></td>
-            <td>${c.orden}</td>
             <td>
                 <button class="btn btn-secondary btn-sm" onclick="abrirModalCategoria(${c.id})">Editar</button>
                 <button class="btn btn-danger btn-sm" onclick="eliminarCategoria(${c.id})">Eliminar</button>
@@ -987,19 +969,16 @@ function abrirModalCategoria(id = null) {
         const c = categorias.find(x => x.id === id);
         document.getElementById('modal-cat-titulo').textContent = 'Editar categoría';
         document.getElementById('fcat-nombre').value = c.nombre;
-        document.getElementById('fcat-orden').value = c.orden;
     } else {
         document.getElementById('modal-cat-titulo').textContent = 'Nueva categoría';
         document.getElementById('fcat-nombre').value = '';
-        document.getElementById('fcat-orden').value = '0';
     }
     document.getElementById('modal-categoria').classList.add('active');
 }
 
 async function guardarCategoria() {
     const body = {
-        nombre: document.getElementById('fcat-nombre').value.trim(),
-        orden: parseInt(document.getElementById('fcat-orden').value) || 0
+        nombre: document.getElementById('fcat-nombre').value.trim()
     };
     if (!body.nombre) { alert('El nombre es obligatorio.'); return; }
     try {

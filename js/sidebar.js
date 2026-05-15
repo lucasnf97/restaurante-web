@@ -2,7 +2,6 @@
     // ── PÁGINAS DEL SISTEMA ─────────────────────────────────────
     const PAGES = [
         { href: "dashboard.html", icon: "🏠", label: "Panel principal" },
-        { href: "mesas.html",     icon: "🪑", label: "Mesas" },
         {
             group: true,
             key: "estadisticas",
@@ -24,6 +23,7 @@
             children: [
                 { href: "reservas.html",  icon: "📅", label: "Reservas" },
                 { href: "productos.html", icon: "🍽️", label: "Productos" },
+                { href: "mesas.html",     icon: "🗺️", label: "Herramienta de Edición" },
                 { href: "stock.html",     icon: "📦", label: "Stock" },
                 { href: "facturas.html",  icon: "🧾", label: "Facturas" },
                 { href: "caja.html",      icon: "💰", label: "Caja" },
