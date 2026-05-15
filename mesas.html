@@ -881,10 +881,13 @@ async function onDropPagina(e, normIdx) {
     e.preventDefault();
     if (_dragPagIdx === null || _dragPagIdx === normIdx) return;
     // Solo reordenar páginas normales (no fijas)
+    const fijas   = paginas.filter(p =>  p.es_fijo);
     const normales = paginas.filter(p => !p.es_fijo);
     const moved = normales.splice(_dragPagIdx, 1)[0];
     normales.splice(normIdx, 0, moved);
     normales.forEach((p, i) => p.orden = i);
+    // Reconstruir el array global con el nuevo orden
+    paginas = [...fijas, ...normales];
     renderPaginas();
     await api.put('/menu/paginas/ordenar', { paginas: normales.map(p => ({id: p.id, orden: p.orden})) });
     _dragPagIdx = null;
