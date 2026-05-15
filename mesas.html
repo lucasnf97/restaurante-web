@@ -800,11 +800,28 @@ let paginas = [];
 let _menuEditId = null;
 let _menuPagId = null;
 let _menuLayout = null;
-let _menuLocalItems = {};
+let _menuLocalItems  = {};   // "f,c" → prodId
+let _menuLocalColors = {};   // "f,c" → color key
+let _menuProdColors  = {};   // prodId → color key seleccionado en sidebar
 let _menuCeldaSel = null;
 let _menuDragProdId = null;
+let _menuDragFromCell = null;
 let _menuProds = [];
 let _menuCats = [];
+
+// Paleta de 4 colores: key → {bg, border, text, swatch}
+const MENU_COLORS = {
+    green:  { bg: '#dcfce7', border: '#86efac', text: '#166534', swatch: '#16a34a' },
+    red:    { bg: '#fee2e2', border: '#fecaca', text: '#991b1b', swatch: '#dc2626' },
+    blue:   { bg: '#dbeafe', border: '#bfdbfe', text: '#1e40af', swatch: '#2563eb' },
+    yellow: { bg: '#fef9c3', border: '#fde68a', text: '#92400e', swatch: '#ca8a04' },
+};
+
+function setProdColor(prodId, colorKey, e) {
+    if (e) e.stopPropagation();
+    _menuProdColors[prodId] = colorKey;
+    renderMenuSidebar();
+}
 
 async function cargarPaginas() {
     paginas = await api.get('/menu/paginas');
@@ -851,9 +868,12 @@ async function seleccionarPagina(id) {
     _menuPagId = id;
     renderPaginas();
     _menuLayout = await api.get(`/menu/paginas/${id}/layout`);
-    _menuLocalItems = {};
+    _menuLocalItems  = {};
+    _menuLocalColors = {};
     (_menuLayout.items || []).forEach(it => {
-        _menuLocalItems[`${it.fila},${it.columna}`] = it.producto_id;
+        const key = `${it.fila},${it.columna}`;
+        _menuLocalItems[key]  = it.producto_id;
+        if (it.color) _menuLocalColors[key] = it.color;
     });
     if (_tabModo === 'config') renderMenuConfig();
     if (_tabModo === 'diseno') renderMenuDiseno();
@@ -936,10 +956,14 @@ function renderMenuGrid() {
                 const prod = _menuProds.find(p => p.id === prodId);
                 const nombre = prod ? prod.nombre : `#${prodId}`;
                 const agotado = prod?.agotado;
-                const bg = agotado ? '#f3f4f6' : '#dcfce7';
+                const colorKey = _menuLocalColors[key] || 'green';
+                const cl = MENU_COLORS[colorKey] || MENU_COLORS.green;
+                const bg = agotado ? '#f3f4f6' : cl.bg;
+                const borderColor = esSel ? '#4f46e5' : (agotado ? '#d1d5db' : cl.border);
+                const txtColor = agotado ? '#9ca3af' : cl.text;
                 html += `<div class="menu-cell" data-fila="${f}" data-col="${c}"
                     draggable="true"
-                    style="background:${bg};border:${borde};border-radius:8px;padding:8px;min-height:70px;cursor:grab;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:600;"
+                    style="background:${bg};border:2px solid ${borderColor};border-radius:8px;padding:8px;min-height:70px;cursor:grab;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:600;color:${txtColor};"
                     ondragstart="onDragStartCell(event,${f},${c})"
                     ondragover="event.preventDefault()"
                     ondrop="onDropCell(event,${f},${c})"
@@ -979,15 +1003,34 @@ function renderMenuSidebar() {
 
     const lista = document.getElementById('menu-prod-lista');
     lista.innerHTML = prods.map(p => {
-        const agotado = p.agotado;
-        const bg = agotado ? '#f3f4f6' : '#f0fdf4';
-        const border = agotado ? '#d1d5db' : '#86efac';
+        const agotado  = p.agotado;
+        const selColor = _menuProdColors[p.id] || 'green';
+        const cl       = MENU_COLORS[selColor];
+        const bg       = agotado ? '#f3f4f6' : cl.bg;
+        const border   = agotado ? '#d1d5db' : cl.border;
+        const txt      = agotado ? '#9ca3af' : cl.text;
+
+        // 2×2 color swatches: top-left=green, top-right=red, bottom-left=blue, bottom-right=yellow
+        const swatches = [['green','red'],['blue','yellow']].map(row =>
+            row.map(ck => {
+                const c = MENU_COLORS[ck];
+                const ring = selColor === ck ? `box-shadow:0 0 0 2px white,0 0 0 3.5px ${c.swatch};` : '';
+                return `<div onmousedown="event.preventDefault()" onclick="setProdColor(${p.id},'${ck}',event)"
+                    style="background:${c.swatch};border-radius:3px;cursor:pointer;${ring}"></div>`;
+            }).join('')
+        ).join('');
+
         return `<div draggable="true"
-            style="background:${bg};border:1.5px solid ${border};border-radius:8px;padding:8px 10px;cursor:grab;font-size:12px;font-weight:600;color:${agotado?'#9ca3af':'#1a1a2e'};user-select:none;"
+            style="background:${bg};border:1.5px solid ${border};border-radius:8px;padding:7px 8px;cursor:grab;font-size:12px;font-weight:600;color:${txt};user-select:none;display:flex;align-items:center;gap:8px;"
             ondragstart="onDragStartProd(event,${p.id})"
             onclick="onClickProd(${p.id})">
-            ${p.nombre}
-            <div style="font-size:10px;color:#6b7280;font-weight:400;">${p.precio != null ? '$'+parseFloat(p.precio).toFixed(2) : ''}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.nombre}</div>
+                <div style="font-size:10px;color:${agotado?'#9ca3af':'#6b7280'};font-weight:400;">${p.precio != null ? '$'+parseFloat(p.precio).toFixed(2) : ''}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;width:26px;height:26px;flex-shrink:0;">
+                ${swatches}
+            </div>
         </div>`;
     }).join('');
 }
@@ -1013,14 +1056,17 @@ function onDropCell(e, fila, col) {
     const destKey = `${fila},${col}`;
 
     if (_menuDragFromCell !== null) {
-        // Drag celda → celda: intercambiar contenido
+        // Drag celda → celda: intercambiar contenido y colores
         const srcKey = `${_menuDragFromCell.fila},${_menuDragFromCell.col}`;
         if (srcKey === destKey) { _menuDragFromCell = null; return; }
-        const srcProd = _menuLocalItems[srcKey] ?? null;
-        const dstProd = _menuLocalItems[destKey] ?? null;
-        // Intercambio sin confirmación (es drag explícito del usuario)
-        if (srcProd) _menuLocalItems[destKey] = srcProd; else delete _menuLocalItems[destKey];
-        if (dstProd) _menuLocalItems[srcKey]  = dstProd; else delete _menuLocalItems[srcKey];
+        const srcProd  = _menuLocalItems[srcKey]  ?? null;
+        const dstProd  = _menuLocalItems[destKey] ?? null;
+        const srcColor = _menuLocalColors[srcKey]  || 'green';
+        const dstColor = _menuLocalColors[destKey] || 'green';
+        if (srcProd) { _menuLocalItems[destKey] = srcProd; _menuLocalColors[destKey] = srcColor; }
+        else         { delete _menuLocalItems[destKey]; delete _menuLocalColors[destKey]; }
+        if (dstProd) { _menuLocalItems[srcKey]  = dstProd; _menuLocalColors[srcKey]  = dstColor; }
+        else         { delete _menuLocalItems[srcKey];  delete _menuLocalColors[srcKey]; }
         _menuDragFromCell = null;
     } else if (_menuDragProdId !== null) {
         // Drag desde sidebar → celda
@@ -1028,7 +1074,8 @@ function onDropCell(e, fila, col) {
             const actual = _menuProds.find(p => p.id === _menuLocalItems[destKey]);
             if (!confirm(`Esta celda ya tiene "${actual?.nombre}". ¿Reemplazar?`)) { _menuDragProdId = null; return; }
         }
-        _menuLocalItems[destKey] = _menuDragProdId;
+        _menuLocalItems[destKey]  = _menuDragProdId;
+        _menuLocalColors[destKey] = _menuProdColors[_menuDragProdId] || 'green';
         _menuDragProdId = null;
     } else {
         return;
@@ -1056,7 +1103,8 @@ function onClickProd(prodId) {
         const actual = _menuProds.find(p => p.id === _menuLocalItems[key]);
         if (!confirm(`Esta celda ya tiene "${actual?.nombre}". ¿Reemplazar?`)) return;
     }
-    _menuLocalItems[key] = prodId;
+    _menuLocalItems[key]  = prodId;
+    _menuLocalColors[key] = _menuProdColors[prodId] || 'green';
     _menuCeldaSel = null;
     renderMenuGrid();
 }
@@ -1072,7 +1120,7 @@ async function guardarMenuDiseno() {
         .filter(([, prodId]) => prodId)
         .map(([key, prodId]) => {
             const [f, c] = key.split(',').map(Number);
-            return { fila: f, columna: c, producto_id: prodId };
+            return { fila: f, columna: c, producto_id: prodId, color: _menuLocalColors[key] || 'green' };
         });
     try {
         await api.put(`/menu/paginas/${_menuPagId}/layout`, {
