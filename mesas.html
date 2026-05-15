@@ -938,7 +938,9 @@ function renderMenuGrid() {
                 const agotado = prod?.agotado;
                 const bg = agotado ? '#f3f4f6' : '#dcfce7';
                 html += `<div class="menu-cell" data-fila="${f}" data-col="${c}"
-                    style="background:${bg};border:${borde};border-radius:8px;padding:8px;min-height:70px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:600;"
+                    draggable="true"
+                    style="background:${bg};border:${borde};border-radius:8px;padding:8px;min-height:70px;cursor:grab;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:600;"
+                    ondragstart="onDragStartCell(event,${f},${c})"
                     ondragover="event.preventDefault()"
                     ondrop="onDropCell(event,${f},${c})"
                     onclick="onClickCell(${f},${c})">
@@ -990,22 +992,48 @@ function renderMenuSidebar() {
     }).join('');
 }
 
-// ── DRAG & DROP productos → celdas ─────────────────────────────
+// ── DRAG & DROP productos → celdas / celda → celda ─────────────
+let _menuDragFromCell = null;   // {fila, col} si el drag viene de una celda
+
 function onDragStartProd(e, prodId) {
-    _menuDragProdId = prodId;
+    _menuDragProdId  = prodId;
+    _menuDragFromCell = null;
     e.dataTransfer.effectAllowed = 'copy';
+}
+
+function onDragStartCell(e, fila, col) {
+    _menuDragFromCell = { fila, col };
+    _menuDragProdId   = null;
+    e.dataTransfer.effectAllowed = 'move';
+    e.stopPropagation();
 }
 
 function onDropCell(e, fila, col) {
     e.preventDefault();
-    if (_menuDragProdId === null) return;
-    const key = `${fila},${col}`;
-    if (_menuLocalItems[key] && _menuLocalItems[key] !== _menuDragProdId) {
-        const actual = _menuProds.find(p => p.id === _menuLocalItems[key]);
-        if (!confirm(`Esta celda ya tiene "${actual?.nombre}". ¿Reemplazar?`)) return;
+    const destKey = `${fila},${col}`;
+
+    if (_menuDragFromCell !== null) {
+        // Drag celda → celda: intercambiar contenido
+        const srcKey = `${_menuDragFromCell.fila},${_menuDragFromCell.col}`;
+        if (srcKey === destKey) { _menuDragFromCell = null; return; }
+        const srcProd = _menuLocalItems[srcKey] ?? null;
+        const dstProd = _menuLocalItems[destKey] ?? null;
+        // Intercambio sin confirmación (es drag explícito del usuario)
+        if (srcProd) _menuLocalItems[destKey] = srcProd; else delete _menuLocalItems[destKey];
+        if (dstProd) _menuLocalItems[srcKey]  = dstProd; else delete _menuLocalItems[srcKey];
+        _menuDragFromCell = null;
+    } else if (_menuDragProdId !== null) {
+        // Drag desde sidebar → celda
+        if (_menuLocalItems[destKey] && _menuLocalItems[destKey] !== _menuDragProdId) {
+            const actual = _menuProds.find(p => p.id === _menuLocalItems[destKey]);
+            if (!confirm(`Esta celda ya tiene "${actual?.nombre}". ¿Reemplazar?`)) { _menuDragProdId = null; return; }
+        }
+        _menuLocalItems[destKey] = _menuDragProdId;
+        _menuDragProdId = null;
+    } else {
+        return;
     }
-    _menuLocalItems[key] = _menuDragProdId;
-    _menuDragProdId = null;
+
     _menuCeldaSel = null;
     renderMenuGrid();
 }
@@ -1039,19 +1067,23 @@ function quitarDeCelda(fila, col) {
 }
 
 async function guardarMenuDiseno() {
-    if (!_menuPagId || !_menuLayout) return;
+    if (!_menuPagId || !_menuLayout) { alert('Seleccioná una página de menú primero.'); return; }
     const items = Object.entries(_menuLocalItems)
         .filter(([, prodId]) => prodId)
         .map(([key, prodId]) => {
             const [f, c] = key.split(',').map(Number);
             return { fila: f, columna: c, producto_id: prodId };
         });
-    await api.put(`/menu/paginas/${_menuPagId}/layout`, {
-        filas: _menuLayout.filas,
-        columnas: _menuLayout.columnas,
-        items
-    });
-    alert('✓ Diseño guardado');
+    try {
+        await api.put(`/menu/paginas/${_menuPagId}/layout`, {
+            filas: _menuLayout.filas,
+            columnas: _menuLayout.columnas,
+            items
+        });
+        alert('✓ Diseño guardado correctamente.');
+    } catch(err) {
+        alert('Error al guardar: ' + (err.message || err));
+    }
 }
 
 // ── MODAL PÁGINA DE MENÚ ───────────────────────────────────────
