@@ -153,14 +153,8 @@
             errorDiv.style.display = "none";
 
             try {
-                const data = await login(username, password);
-                // Redirigir según rol
-                if (["admin", "gerente"].includes(data.rol)) {
-                    window.location.href = "dashboard.html";
-                } else {
-                    mostrarError("Este panel es solo para gerentes y administradores.");
-                    logout();
-                }
+                await login(username, password);
+                window.location.href = "dashboard.html";
             } catch (err) {
                 mostrarError(err.message);
             } finally {
