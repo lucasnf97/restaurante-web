@@ -429,24 +429,34 @@ const DIAS_CORTO = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const MESES      = ['enero','febrero','marzo','abril','mayo','junio',
                     'julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const MESES_C    = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-// Colores y etiquetas por rol
-const ROL_COLORS = {
-    admin:    '#6366f1',
-    gerente:  '#f59e0b',
-    empleado: '#10b981',
-};
+// Paleta de colores visualmente distintos (en orden de asignación)
+const COLOR_PALETTE = [
+    '#10b981', // esmeralda
+    '#3b82f6', // azul
+    '#f59e0b', // ámbar
+    '#ec4899', // rosa
+    '#14b8a6', // teal
+    '#f97316', // naranja
+    '#8b5cf6', // violeta
+    '#84cc16', // lima
+    '#ef4444', // rojo
+    '#06b6d4', // cian
+    '#a78bfa', // lavanda
+    '#fb923c', // melocotón
+];
 const ROL_LABELS = {
-    admin:    'Administración',
     gerente:  'Gerencia',
     empleado: 'Personal',
+    bartender:'Bartender',
+    cocinero: 'Cocina',
+    camarero: 'Sala',
 };
-const ROL_PALETTE = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
+
+// Asignación dinámica rol → color (se construye en initRoles)
+let rolColorMap = {};
 
 function getRolColor(rol) {
-    if (ROL_COLORS[rol]) return ROL_COLORS[rol];
-    // Color consistente para roles personalizados
-    const idx = Math.abs([...(rol||'')].reduce((a,c) => a * 31 + c.charCodeAt(0), 0)) % ROL_PALETTE.length;
-    return ROL_PALETTE[idx];
+    return rolColorMap[rol] || '#9ca3af';
 }
 function getRolLabel(rol) {
     return ROL_LABELS[rol] || (rol ? rol.charAt(0).toUpperCase() + rol.slice(1) : 'Sin rol');
@@ -562,6 +572,8 @@ function updateNavLabel() {
 // ── Filtros ─────────────────────────────────────────────────────
 function getVisibleUsers() {
     return usuarios.filter(u => {
+        // Admin nunca aparece en la grilla
+        if (u.rol === 'admin') return false;
         // Rol: null = sin filtro → mostrar todos; set vacío → mostrar todos
         if (rolesActivos !== null && rolesActivos.size > 0) {
             if (!rolesActivos.has(u.rol || '')) return false;
@@ -579,14 +591,19 @@ function onFiltroNombre(val) {
 
 // ── Roles (chips de filtro) ──────────────────────────────────────
 function initRoles() {
-    // Extraer roles únicos del listado de usuarios cargado
-    const set = new Set(usuarios.map(u => u.rol).filter(Boolean));
-    const orden = ['admin', 'gerente', 'empleado'];
+    // Admin nunca aparece en la grilla de horarios
+    const set = new Set(usuarios.filter(u => u.rol !== 'admin').map(u => u.rol).filter(Boolean));
+    const orden = ['gerente', 'empleado', 'bartender', 'cocinero', 'camarero'];
     rolesDisponibles = [
         ...orden.filter(r => set.has(r)),
-        ...[...set].filter(r => !orden.includes(r)),
+        ...[...set].filter(r => !orden.includes(r)).sort(),
     ];
-    rolesActivos = null; // sin filtro por defecto
+    // Asignar un color único a cada rol en orden — nunca dos iguales
+    rolColorMap = {};
+    rolesDisponibles.forEach((rol, i) => {
+        rolColorMap[rol] = COLOR_PALETTE[i % COLOR_PALETTE.length];
+    });
+    rolesActivos = null;
     renderRolChips();
     renderLeyenda();
 }
