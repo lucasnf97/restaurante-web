@@ -280,6 +280,7 @@
                         <button class="btn btn-warning btn-sm" onclick="toggleActivo(${u.id}, ${u.activo})">
                             ${u.activo ? 'Desactivar' : 'Activar'}
                         </button>
+                        <button class="btn btn-danger btn-sm" onclick="eliminarUsuario(${u.id}, '${u.username}')">🗑</button>
                     </div>
                 </td>
             </tr>
@@ -344,6 +345,14 @@
             await api.patch(`/auth/usuarios/${id}`, { activo: !actual });
             await cargarUsuarios();
         } catch (err) { alert("Error: " + err.message); }
+    }
+
+    async function eliminarUsuario(id, username) {
+        if (!confirm(`¿Eliminar al usuario "${username}"? Esta acción no se puede deshacer.`)) return;
+        try {
+            await api.delete(`/auth/usuarios/${id}`);
+            await cargarUsuarios();
+        } catch (err) { alert("No se pudo eliminar: " + err.message); }
     }
 
 
