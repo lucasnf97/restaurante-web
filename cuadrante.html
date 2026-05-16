@@ -321,6 +321,112 @@ body.view-mes         .th-day { min-width:58px; }
 .ms-btn-save:hover { background:#4338ca; }
 .ms-btn-save:disabled { background:#a5b4fc; cursor:not-allowed; }
 
+/* ── Sidebar horarios restaurante ───────────────────────────── */
+.hr-backdrop {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.25); z-index:600;
+}
+.hr-backdrop.open { display:block; }
+.hr-sidebar {
+    position:fixed; top:0; right:0; bottom:0; z-index:601;
+    width:340px; max-width:95vw;
+    background:white; box-shadow:-4px 0 24px rgba(0,0,0,.14);
+    display:flex; flex-direction:column;
+    transform:translateX(100%); transition:transform .25s ease;
+}
+.hr-sidebar.open { transform:translateX(0); }
+.hr-sidebar-head {
+    padding:16px 18px 12px;
+    border-bottom:1px solid #f3f4f6;
+    display:flex; align-items:center; justify-content:space-between;
+    flex-shrink:0;
+}
+.hr-sidebar-title { font-size:15px; font-weight:700; color:#1a1a2e; }
+.hr-sidebar-close {
+    background:none; border:none; font-size:20px; cursor:pointer; color:#9ca3af;
+    padding:0 4px;
+}
+.hr-sidebar-close:hover { color:#374151; }
+.hr-sidebar-body {
+    flex:1; overflow-y:auto; padding:12px 16px;
+    display:flex; flex-direction:column; gap:10px;
+}
+.hr-day-card {
+    border:1.5px solid #f3f4f6; border-radius:10px;
+    padding:10px 12px;
+    background:#fafafa;
+}
+.hr-day-card.activo { background:#f0fdf4; border-color:#bbf7d0; }
+.hr-day-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:8px;
+}
+.hr-day-name { font-size:13px; font-weight:700; color:#374151; }
+.hr-toggle {
+    position:relative; display:inline-block; width:36px; height:20px; flex-shrink:0;
+}
+.hr-toggle input { opacity:0; width:0; height:0; }
+.hr-slider {
+    position:absolute; inset:0; background:#d1d5db; border-radius:20px;
+    cursor:pointer; transition:background .2s;
+}
+.hr-slider:before {
+    content:''; position:absolute; width:14px; height:14px;
+    left:3px; top:3px; background:white; border-radius:50%;
+    transition:transform .2s;
+}
+.hr-toggle input:checked + .hr-slider { background:#10b981; }
+.hr-toggle input:checked + .hr-slider:before { transform:translateX(16px); }
+.hr-franja-row {
+    display:flex; align-items:center; gap:6px; margin-bottom:5px;
+}
+.hr-time {
+    flex:1; padding:4px 6px;
+    border:1.5px solid #e0e0e0; border-radius:6px;
+    font-size:12px; min-width:0; outline:none;
+    transition:border-color .15s;
+}
+.hr-time:focus { border-color:#10b981; }
+.hr-time:disabled { background:#f9fafb; color:#9ca3af; border-color:#f3f4f6; cursor:default; }
+.hr-sep { color:#9ca3af; font-size:11px; flex-shrink:0; }
+.hr-del {
+    background:none; border:none; color:#fca5a5; cursor:pointer;
+    font-size:14px; padding:0 2px; flex-shrink:0;
+}
+.hr-del:hover { color:#ef4444; }
+.hr-add {
+    background:none; border:1.5px dashed #bbf7d0; border-radius:6px;
+    color:#059669; font-size:11px; font-weight:600;
+    padding:3px 10px; cursor:pointer; margin-top:2px;
+    transition:background .15s;
+}
+.hr-add:hover { background:#f0fdf4; }
+.hr-save {
+    margin-top:8px; width:100%;
+    background:#10b981; color:white; border:none;
+    padding:6px; border-radius:7px; font-size:12px; font-weight:700;
+    cursor:pointer; transition:background .15s;
+}
+.hr-save:hover { background:#059669; }
+.hr-save:disabled { background:#a7f3d0; cursor:not-allowed; }
+.hr-readonly { font-size:12px; color:#6b7280; }
+
+/* ── Modal referencia restaurante ───────────────────────────── */
+.ms-rest-ref {
+    background:#f8f9fa; border-radius:7px;
+    padding:7px 10px; margin-bottom:2px;
+    font-size:11px; color:#6b7280;
+}
+.ms-rest-ref strong { color:#374151; font-weight:700; }
+.ms-rest-chip {
+    display:inline-block; background:#dcfce7; color:#059669;
+    border-radius:4px; padding:1px 6px; font-weight:600; margin:2px 2px 0 0;
+}
+.ms-rest-closed {
+    display:inline-block; background:#fef2f2; color:#ef4444;
+    border-radius:4px; padding:1px 6px; font-weight:600;
+}
+
 /* ── Leyenda de colores ─────────────────────────────────────── */
 .leyenda-panel {
     display:none; position:fixed; z-index:501;
@@ -362,7 +468,7 @@ body.view-mes         .th-day { min-width:58px; }
     <button class="nav-btn" onclick="navDate(1)">▶</button>
     <div class="nav-right">
         <button class="btn-publicar" id="btn-publicar" onclick="publicarHorarios()">📤 Publicar horarios</button>
-        <a class="btn-horarios-rest" href="horarios.html">🕐 Horarios restaurante</a>
+        <button class="btn-horarios-rest" onclick="toggleSidebarHorarios()">🕐 Horarios restaurante</button>
         <button class="btn-leyenda" onclick="toggleLeyenda()">🎨 Leyenda</button>
     </div>
 </div>
@@ -389,6 +495,7 @@ body.view-mes         .th-day { min-width:58px; }
         <button class="ms-close" onclick="cerrarModal()">✕</button>
     </div>
     <div class="ms-body" id="ms-body">
+        <div id="ms-rest-ref" class="ms-rest-ref" style="display:none"></div>
         <div id="ms-franjas"></div>
         <button class="ms-add-btn" onclick="msAddFranja()">+ Agregar franja</button>
     </div>
@@ -398,6 +505,18 @@ body.view-mes         .th-day { min-width:58px; }
             <button class="ms-btn-elim" id="ms-btn-elim" style="display:none" onclick="msEliminar()">🗑 Eliminar</button>
             <button class="ms-btn-save" id="ms-btn-save" onclick="msGuardar()">Guardar</button>
         </div>
+    </div>
+</div>
+
+<!-- Sidebar horarios restaurante -->
+<div class="hr-backdrop" id="hr-backdrop" onclick="toggleSidebarHorarios()"></div>
+<div class="hr-sidebar" id="hr-sidebar">
+    <div class="hr-sidebar-head">
+        <span class="hr-sidebar-title">🕐 Horarios del restaurante</span>
+        <button class="hr-sidebar-close" onclick="toggleSidebarHorarios()">✕</button>
+    </div>
+    <div class="hr-sidebar-body" id="hr-sidebar-body">
+        <div style="text-align:center;padding:30px;color:#9ca3af;font-size:13px;">Cargando…</div>
     </div>
 </div>
 
@@ -467,18 +586,19 @@ function hexToRgba(hex, alpha) {
 }
 
 // ── Estado ──────────────────────────────────────────────────────
-let viewMode       = 'semana';
-let anchorDate     = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
-let usuarios       = [];
-let rolesDisponibles = [];   // roles únicos extraídos de usuarios
-let horariosCeldas = [];
-let canEdit        = false;
-let meUser         = {};
-let filtroNombre   = '';
-let rolesActivos   = null;   // null = todos visibles; Set<string> = filtrar por esos roles
+let viewMode         = 'semana';
+let anchorDate       = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+let usuarios         = [];
+let rolesDisponibles = [];
+let horariosCeldas   = [];
+let horariosRest     = [];   // horarios del restaurante por día
+let canEdit          = false;
+let meUser           = {};
+let filtroNombre     = '';
+let rolesActivos     = null;
 
 // Modal state
-let modalState = { userId: null, fecha: null, entryId: null };
+let modalState = { userId: null, fecha: null, entryId: null, diaSemana: null };
 
 // ── Fechas ──────────────────────────────────────────────────────
 const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r; };
@@ -782,13 +902,17 @@ function abrirModal(userId, dateStr) {
         h.usuario_id === userId && (h.fecha||'').split('T')[0] === dateStr
     );
 
-    modalState = { userId, fecha: dateStr, entryId: entry?.id ?? null };
+    const d       = new Date(dateStr + 'T00:00:00');
+    const diaSem  = jsDay2Api(d);
+    modalState = { userId, fecha: dateStr, entryId: entry?.id ?? null, diaSemana: diaSem };
 
     // Title
-    const d  = new Date(dateStr + 'T00:00:00');
-    const dn = DIAS_LARGO[jsDay2Api(d)];
+    const dn = DIAS_LARGO[diaSem];
     document.getElementById('ms-title').textContent =
         `${u.username} — ${dn} ${d.getDate()} ${MESES[d.getMonth()]}`;
+
+    // Referencia horario restaurante
+    renderModalRestRef(diaSem);
 
     // Franjas
     renderModalFranjas(entry?.franjas || [{ inicio:'09:00', fin:'17:00' }]);
@@ -907,6 +1031,117 @@ async function publicarHorarios() {
     }
 }
 
+// ── Horarios restaurante (sidebar) ───────────────────────────────
+function toggleSidebarHorarios() {
+    const sidebar  = document.getElementById('hr-sidebar');
+    const backdrop = document.getElementById('hr-backdrop');
+    const open     = sidebar.classList.toggle('open');
+    backdrop.classList.toggle('open', open);
+    if (open) renderSidebarHorarios();
+}
+
+function getRestDia(dia) {
+    return horariosRest.find(h => h.dia_semana === dia) || { activo: false, franjas: [] };
+}
+
+function renderSidebarHorarios() {
+    const body = document.getElementById('hr-sidebar-body');
+    if (!horariosRest.length) {
+        body.innerHTML = '<div style="text-align:center;padding:30px;color:#9ca3af;font-size:13px;">Sin datos de horarios</div>';
+        return;
+    }
+    body.innerHTML = DIAS_LARGO.map((nombre, idx) => {
+        const h      = getRestDia(idx);
+        const activo = h.activo;
+        const franjas = h.franjas || [];
+        const franjasHtml = franjas.map((f, fi) => `
+            <div class="hr-franja-row" id="hrf-${idx}-${fi}">
+                <input type="time" class="hr-time" value="${f.inicio||''}" ${canEdit?'':'disabled'}>
+                <span class="hr-sep">—</span>
+                <input type="time" class="hr-time" value="${f.fin||''}"   ${canEdit?'':'disabled'}>
+                ${canEdit ? `<button class="hr-del" onclick="hrDelFranja(${idx},${fi})">✕</button>` : ''}
+            </div>`).join('');
+        return `
+        <div class="hr-day-card${activo?' activo':''}" id="hr-card-${idx}">
+            <div class="hr-day-head">
+                <span class="hr-day-name">${nombre}</span>
+                <label class="hr-toggle">
+                    <input type="checkbox" ${activo?'checked':''} ${canEdit?'':'disabled'}
+                           onchange="hrToggleDia(${idx},this.checked)">
+                    <span class="hr-slider"></span>
+                </label>
+            </div>
+            <div id="hr-franjas-${idx}">
+                ${activo ? franjasHtml : (canEdit ? '' : '<span class="hr-readonly">Cerrado</span>')}
+            </div>
+            ${activo && canEdit ? `<button class="hr-add" onclick="hrAddFranja(${idx})">+ Franja</button>` : ''}
+            ${canEdit ? `<button class="hr-save" id="hr-save-${idx}" onclick="hrGuardarDia(${idx})">Guardar</button>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function hrToggleDia(dia, activo) {
+    const card = document.getElementById(`hr-card-${dia}`);
+    card.classList.toggle('activo', activo);
+    renderSidebarHorarios();   // re-render to show/hide franjas
+}
+
+function hrAddFranja(dia) {
+    const cont = document.getElementById(`hr-franjas-${dia}`);
+    const fi   = cont.querySelectorAll('.hr-franja-row').length;
+    const div  = document.createElement('div');
+    div.className = 'hr-franja-row';
+    div.id = `hrf-${dia}-${fi}`;
+    div.innerHTML = `
+        <input type="time" class="hr-time" value="09:00">
+        <span class="hr-sep">—</span>
+        <input type="time" class="hr-time" value="17:00">
+        <button class="hr-del" onclick="this.closest('.hr-franja-row').remove()">✕</button>`;
+    cont.appendChild(div);
+}
+
+function hrDelFranja(dia, fi) {
+    document.getElementById(`hrf-${dia}-${fi}`)?.remove();
+}
+
+async function hrGuardarDia(dia) {
+    const card    = document.getElementById(`hr-card-${dia}`);
+    const activo  = card.querySelector('input[type=checkbox]').checked;
+    const franjas = [];
+    card.querySelectorAll('.hr-franja-row').forEach(row => {
+        const inputs = row.querySelectorAll('.hr-time');
+        const inicio = inputs[0]?.value;
+        const fin    = inputs[1]?.value;
+        if (inicio && fin) franjas.push({ inicio, fin });
+    });
+    const btn = document.getElementById(`hr-save-${dia}`);
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+        await api.patch(`/horarios/${dia}`, { activo, franjas });
+        horariosRest = await api.get('/horarios/');
+        renderSidebarHorarios();
+    } catch(e) {
+        alert('Error al guardar: ' + (e.message || e));
+        btn.disabled = false; btn.textContent = 'Guardar';
+    }
+}
+
+// ── Referencia de restaurante en el modal ────────────────────────
+function renderModalRestRef(diaSemana) {
+    const el  = document.getElementById('ms-rest-ref');
+    if (!el) return;
+    const h   = getRestDia(diaSemana);
+    if (!h.activo || !h.franjas || h.franjas.length === 0) {
+        el.innerHTML = `<strong>Restaurante:</strong> <span class="ms-rest-closed">Cerrado</span>`;
+    } else {
+        const chips = h.franjas.map(f =>
+            `<span class="ms-rest-chip">${(f.inicio||'').slice(0,5)} – ${(f.fin||'').slice(0,5)}</span>`
+        ).join('');
+        el.innerHTML = `<strong>Restaurante:</strong> ${chips}`;
+    }
+    el.style.display = '';
+}
+
 // ── Init ─────────────────────────────────────────────────────────
 (async () => {
     try {
@@ -919,6 +1154,8 @@ async function publicarHorarios() {
 
     await api.get('/auth/usuarios').then(u => { usuarios = u; }).catch(() => { usuarios = []; });
     initRoles();
+
+    horariosRest = await api.get('/horarios/').catch(() => []);
 
     document.body.classList.add('view-semana');
     await cargarYRenderizar();
