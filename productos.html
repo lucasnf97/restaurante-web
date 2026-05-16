@@ -330,7 +330,9 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-producto')">Cancelar</button>
-            <button class="btn btn-primary" id="btn-guardar-prod" onclick="guardarProducto()">Guardar</button>
+            <button class="btn btn-danger btn-sm" id="btn-elim-en-modal" style="display:none;margin-right:auto"
+                    onclick="eliminarProductoDesdeModal()">🗑 Eliminar producto</button>
+            <button class="btn btn-primary" id="btn-guardar-prod" onclick="guardarProducto()">Continuar</button>
         </div>
     </div>
 </div>
@@ -833,8 +835,19 @@ function abrirModalProducto(id = null) {
         document.getElementById('fp-agotado').checked = false;
         document.getElementById('fp-favorito').checked = false;
     }
-    document.getElementById('btn-guardar-prod').textContent = id ? 'Guardar' : 'Continuar';
+    document.getElementById('btn-guardar-prod').textContent = 'Continuar';
+    document.getElementById('btn-elim-en-modal').style.display = id ? '' : 'none';
     document.getElementById('modal-producto').classList.add('active');
+}
+
+async function eliminarProductoDesdeModal() {
+    const prod = productos.find(p => p.id === editandoProdId);
+    if (!prod || !confirm(`¿Eliminar "${prod.nombre}"? Esta acción no se puede deshacer.`)) return;
+    try {
+        await api.delete(`/productos/${editandoProdId}`);
+        cerrarModal('modal-producto');
+        await cargarProductos();
+    } catch(err) { alert('Error: ' + err.message); }
 }
 
 async function guardarProducto() {
@@ -853,12 +866,10 @@ async function guardarProducto() {
     if (!body.nombre || isNaN(body.precio)) { alert('Nombre y precio son obligatorios.'); return; }
     try {
         if (editandoProdId) {
-            // Edición: guardar y cerrar como siempre
             await api.patch(`/productos/${editandoProdId}`, body);
             cerrarModal('modal-producto');
-            await cargarProductos();
+            await abrirModalRecetaNueva(editandoProdId, body.nombre);
         } else {
-            // Creación: guardar y abrir paso de receta
             const res = await api.post('/productos/', body);
             cerrarModal('modal-producto');
             await abrirModalRecetaNueva(res.id, body.nombre);
@@ -1211,6 +1222,19 @@ async function guardarCombosHab() {
         _rnItems  = [];
         document.getElementById("rn-titulo").textContent = prodNombre;
         document.getElementById("rn-buscar").value = "";
+        // Pre-cargar ingredientes existentes si ya tiene receta
+        const recetaExistente = _recetas.find(r => r.producto_id === prodId);
+        if (recetaExistente && recetaExistente.tiene_receta) {
+            let ings = recetaExistente.ingredientes;
+            if (typeof ings === "string") ings = JSON.parse(ings);
+            _rnItems = ings.map(i => ({
+                tipo:     i.es_produccion ? "prod" : "stock",
+                id:       i.es_produccion ? i.insumo_produccion_id : i.insumo_id,
+                nombre:   i.insumo_nombre,
+                unidad:   i.unidad,
+                cantidad: i.cantidad
+            }));
+        }
         // Asegurar que los listados de insumos estén cargados
         if (!_insumos.length && !_insumosProduccion.length) {
             try {
@@ -1273,7 +1297,8 @@ async function guardarCombosHab() {
             return;
         }
         lista.innerHTML = filtrados.map(i => `
-            <div onclick="rnAgregarInsumo('${i.tipo}',${i.id},${JSON.stringify(i.nombre)},'${i.unidad}')"
+            <div class="rn-ins-item"
+                 data-tipo="${i.tipo}" data-id="${i.id}"
                  style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;"
                  onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
                 <span style="flex:1;font-size:13px;">${i.nombre} <span style="color:#9ca3af;font-size:12px;">(${i.unidad})</span></span>
@@ -1284,6 +1309,13 @@ async function guardarCombosHab() {
                 </span>
             </div>
         `).join("");
+        // Attach click handlers safely (avoids double-quote escaping issues in onclick attrs)
+        lista.querySelectorAll('.rn-ins-item').forEach(el => {
+            const tipo   = el.dataset.tipo;
+            const id     = parseInt(el.dataset.id);
+            const insumo = todos.find(x => x.tipo === tipo && x.id === id);
+            if (insumo) el.addEventListener('click', () => rnAgregarInsumo(tipo, id, insumo.nombre, insumo.unidad));
+        });
     }
 
     function rnAgregarInsumo(tipo, id, nombre, unidad) {
