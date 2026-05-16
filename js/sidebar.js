@@ -37,7 +37,7 @@
             children: [
                 { href: "fichajes.html",   icon: "🕐", label: "Fichajes" },
                 { href: "usuarios.html",   icon: "👤", label: "Usuarios" },
-                { href: "cuadrante.html",  icon: "📋", label: "Cuadrante" },
+                { href: "cuadrante.html",  icon: "📋", label: "Horarios" },
             ]
         },
         { href: "configuracion.html", icon: "⚙️", label: "Configuración" },
