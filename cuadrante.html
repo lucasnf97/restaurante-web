@@ -52,13 +52,13 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .area-chips { display:flex; gap:6px; overflow-x:auto; align-items:center; flex:1; scrollbar-width:none; }
 .area-chips::-webkit-scrollbar { display:none; }
 .area-chip {
-    padding:3px 12px; border-radius:20px; border:1.5px solid #e0e0e0; background:white;
+    padding:3px 12px; border-radius:20px; border:1.5px dashed #d1d5db; background:white;
     font-size:11px; font-weight:600; color:#6b7280;
     cursor:pointer; white-space:nowrap; flex-shrink:0;
     transition:all .15s; user-select:none;
 }
-.area-chip:hover  { border-color:#a5b4fc; color:#4f46e5; }
-.area-chip.active { background:#4f46e5; color:white; border-color:#4f46e5; }
+.area-chip:hover  { opacity:.85; }
+.area-chip.active { border-style:solid; color:white; }
 
 /* ── Nav bar ────────────────────────────────────────────────── */
 .nav-bar {
@@ -692,8 +692,8 @@ function getVisibleUsers() {
     return usuarios.filter(u => {
         // Admin nunca aparece en la grilla
         if (u.rol === 'admin') return false;
-        // Rol: null = sin filtro → mostrar todos; set vacío → mostrar todos
-        if (rolesActivos !== null && rolesActivos.size > 0) {
+        // Rol: set vacío = sin filtro (mostrar todos); con roles = mostrar solo esos
+        if (rolesActivos.size > 0) {
             if (!rolesActivos.has(u.rol || '')) return false;
         }
         // Nombre: vacío = mostrar todos; con texto = filtrar
@@ -721,7 +721,7 @@ function initRoles() {
     rolesDisponibles.forEach((rol, i) => {
         rolColorMap[rol] = COLOR_PALETTE[i % COLOR_PALETTE.length];
     });
-    rolesActivos = null;
+    rolesActivos = new Set();   // vacío = sin filtro (mostrar todos)
     renderRolChips();
     renderLeyenda();
 }
@@ -729,11 +729,14 @@ function initRoles() {
 function renderRolChips() {
     const c = document.getElementById('area-chips');
     if (!c) return;
-    const todasActivas = rolesActivos === null;
     const html = rolesDisponibles.map(rol => {
-        const active = todasActivas || rolesActivos.has(rol);
+        const active = rolesActivos.has(rol);
         const col    = getRolColor(rol);
-        const style  = active ? `background:${col};border-color:${col};color:white;` : '';
+        // activo  → fondo sólido en color del rol
+        // inactivo → borde punteado en color del rol, texto en color del rol
+        const style = active
+            ? `background:${col};border-color:${col};color:white;`
+            : `border-color:${col};color:${col};`;
         return `<span class="area-chip${active?' active':''}" onclick="toggleRol('${rol}')"
                       style="${style}">${getRolLabel(rol)}</span>`;
     }).join('');
@@ -741,14 +744,9 @@ function renderRolChips() {
 }
 
 function toggleRol(rol) {
-    if (rolesActivos === null) {
-        // Partir de todos seleccionados, quitar el clickeado
-        rolesActivos = new Set(rolesDisponibles);
-    }
     if (rolesActivos.has(rol)) rolesActivos.delete(rol);
     else rolesActivos.add(rol);
-    // Si quedan 0 seleccionados → volver a "sin filtro" (mostrar todos)
-    if (rolesActivos.size === 0) rolesActivos = null;
+    // Conjunto vacío → sin filtro (mostrar todos)
     renderRolChips();
     renderGrid();
 }
