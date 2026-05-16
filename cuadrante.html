@@ -429,30 +429,27 @@ const DIAS_CORTO = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const MESES      = ['enero','febrero','marzo','abril','mayo','junio',
                     'julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const MESES_C    = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-const AREA_PALETTE = [
-    '#6366f1','#ef4444','#f59e0b','#10b981','#3b82f6',
-    '#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'
-];
-const COLOR_SIN_AREA = '#9ca3af';
+// Colores y etiquetas por rol
+const ROL_COLORS = {
+    admin:    '#6366f1',
+    gerente:  '#f59e0b',
+    empleado: '#10b981',
+};
+const ROL_LABELS = {
+    admin:    'Administración',
+    gerente:  'Gerencia',
+    empleado: 'Personal',
+};
+const ROL_PALETTE = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
 
-// ── Estado ──────────────────────────────────────────────────────
-let viewMode       = 'semana';
-let anchorDate     = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
-let usuarios       = [];
-let areas          = [];
-let horariosCeldas = [];  // entries from /horarios-personal
-let canEdit        = false;
-let meUser         = {};
-let filtroNombre   = '';
-let areasActivas   = null;  // null = all visible
-
-// Modal state
-let modalState = { userId: null, fecha: null, entryId: null };
-
-// ── Colores de área ─────────────────────────────────────────────
-function getAreaColor(u) {
-    if (!u || !u.area_id) return COLOR_SIN_AREA;
-    return AREA_PALETTE[(u.area_id - 1) % AREA_PALETTE.length];
+function getRolColor(rol) {
+    if (ROL_COLORS[rol]) return ROL_COLORS[rol];
+    // Color consistente para roles personalizados
+    const idx = Math.abs([...(rol||'')].reduce((a,c) => a * 31 + c.charCodeAt(0), 0)) % ROL_PALETTE.length;
+    return ROL_PALETTE[idx];
+}
+function getRolLabel(rol) {
+    return ROL_LABELS[rol] || (rol ? rol.charAt(0).toUpperCase() + rol.slice(1) : 'Sin rol');
 }
 function hexToRgba(hex, alpha) {
     const r = parseInt(hex.slice(1,3), 16);
@@ -460,6 +457,20 @@ function hexToRgba(hex, alpha) {
     const b = parseInt(hex.slice(5,7), 16);
     return `rgba(${r},${g},${b},${alpha})`;
 }
+
+// ── Estado ──────────────────────────────────────────────────────
+let viewMode       = 'semana';
+let anchorDate     = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+let usuarios       = [];
+let rolesDisponibles = [];   // roles únicos extraídos de usuarios
+let horariosCeldas = [];
+let canEdit        = false;
+let meUser         = {};
+let filtroNombre   = '';
+let rolesActivos   = null;   // null = todos visibles; Set<string> = filtrar por esos roles
+
+// Modal state
+let modalState = { userId: null, fecha: null, entryId: null };
 
 // ── Fechas ──────────────────────────────────────────────────────
 const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r; };
@@ -551,12 +562,11 @@ function updateNavLabel() {
 // ── Filtros ─────────────────────────────────────────────────────
 function getVisibleUsers() {
     return usuarios.filter(u => {
-        // Área: si no hay ninguna seleccionada (set vacío o null) → mostrar todos
-        if (areasActivas !== null && areasActivas.size > 0) {
-            const aId = u.area_id ?? null;
-            if (!areasActivas.has(aId)) return false;
+        // Rol: null = sin filtro → mostrar todos; set vacío → mostrar todos
+        if (rolesActivos !== null && rolesActivos.size > 0) {
+            if (!rolesActivos.has(u.rol || '')) return false;
         }
-        // Nombre: si hay texto escrito filtra; si está vacío muestra todos
+        // Nombre: vacío = mostrar todos; con texto = filtrar
         if (filtroNombre && !u.username.toLowerCase().includes(filtroNombre.toLowerCase())) return false;
         return true;
     });
@@ -567,86 +577,58 @@ function onFiltroNombre(val) {
     renderGrid();
 }
 
-// ── Áreas ────────────────────────────────────────────────────────
-async function cargarAreas() {
-    try {
-        areas = await api.get('/productos/areas');
-    } catch(e) {
-        areas = [];
-    }
-    // null = sin filtro de área (mostrar todos siempre por defecto)
-    areasActivas = null;
-    renderAreaChips();
+// ── Roles (chips de filtro) ──────────────────────────────────────
+function initRoles() {
+    // Extraer roles únicos del listado de usuarios cargado
+    const set = new Set(usuarios.map(u => u.rol).filter(Boolean));
+    const orden = ['admin', 'gerente', 'empleado'];
+    rolesDisponibles = [
+        ...orden.filter(r => set.has(r)),
+        ...[...set].filter(r => !orden.includes(r)),
+    ];
+    rolesActivos = null; // sin filtro por defecto
+    renderRolChips();
     renderLeyenda();
 }
 
-function renderAreaChips() {
+function renderRolChips() {
     const c = document.getElementById('area-chips');
     if (!c) return;
-
-    // null = todas activas; Set vacío = ninguna activa
-    const todasActivas = areasActivas === null;
-
-    let html = '';
-
-    // Chips de área (solo si hay áreas configuradas)
-    areas.forEach(a => {
-        const active = todasActivas || areasActivas.has(a.id);
-        const col    = AREA_PALETTE[(a.id - 1) % AREA_PALETTE.length];
+    const todasActivas = rolesActivos === null;
+    const html = rolesDisponibles.map(rol => {
+        const active = todasActivas || rolesActivos.has(rol);
+        const col    = getRolColor(rol);
         const style  = active ? `background:${col};border-color:${col};color:white;` : '';
-        html += `<span class="area-chip ${active?'active':''}" onclick="toggleArea(${a.id})"
-                       style="${style}">${a.nombre}</span>`;
-    });
-
-    // Chip "Sin área" — usuarios sin área asignada
-    const sinAreaActive = todasActivas || areasActivas.has(null);
-    html += `<span class="area-chip ${sinAreaActive?'active':''}" onclick="toggleArea(null)">Sin área</span>`;
-
-    // Si no hay áreas, mostrar mensaje informativo
-    if (areas.length === 0) {
-        html = `<span style="font-size:11px;color:#9ca3af;margin-left:4px;">
-                    No hay áreas configuradas — se muestran todos los usuarios
-                </span>`;
-    }
-
-    c.innerHTML = html;
+        return `<span class="area-chip${active?' active':''}" onclick="toggleRol('${rol}')"
+                      style="${style}">${getRolLabel(rol)}</span>`;
+    }).join('');
+    c.innerHTML = html || '<span style="font-size:11px;color:#9ca3af;">Sin roles</span>';
 }
 
-function toggleArea(areaId) {
-    // Si era "sin filtro" (null), inicializar con todo seleccionado
-    if (areasActivas === null) {
-        areasActivas = new Set([null, ...areas.map(a => a.id)]);
+function toggleRol(rol) {
+    if (rolesActivos === null) {
+        // Partir de todos seleccionados, quitar el clickeado
+        rolesActivos = new Set(rolesDisponibles);
     }
-    if (areasActivas.has(areaId)) {
-        areasActivas.delete(areaId);
-    } else {
-        areasActivas.add(areaId);
-    }
-    // Set vacío = sin filtro = mostrar todos (equivalente a null)
-    if (areasActivas.size === 0) areasActivas = null;
-    renderAreaChips();
+    if (rolesActivos.has(rol)) rolesActivos.delete(rol);
+    else rolesActivos.add(rol);
+    // Si quedan 0 seleccionados → volver a "sin filtro" (mostrar todos)
+    if (rolesActivos.size === 0) rolesActivos = null;
+    renderRolChips();
     renderGrid();
 }
 
 function renderLeyenda() {
     const c = document.getElementById('leyenda-areas');
     if (!c) return;
-    let html = '';
-    if (areas.length === 0) {
-        html = `<div class="leyenda-row"><span class="leyenda-label" style="color:#9ca3af">Sin áreas configuradas</span></div>`;
-    }
-    areas.forEach(a => {
-        const col = AREA_PALETTE[(a.id - 1) % AREA_PALETTE.length];
-        html += `<div class="leyenda-row">
+    const html = rolesDisponibles.map(rol => {
+        const col = getRolColor(rol);
+        return `<div class="leyenda-row">
             <div class="leyenda-chip" style="background:${hexToRgba(col,.15)};border:2px solid ${col};border-radius:3px;"></div>
-            <span class="leyenda-label">${a.nombre}</span>
+            <span class="leyenda-label">${getRolLabel(rol)}</span>
         </div>`;
-    });
-    html += `<div class="leyenda-row">
-        <div class="leyenda-chip" style="background:${hexToRgba(COLOR_SIN_AREA,.12)};border:2px solid ${COLOR_SIN_AREA};border-radius:3px;"></div>
-        <span class="leyenda-label">Sin área asignada</span>
-    </div>`;
-    c.innerHTML = html;
+    }).join('');
+    c.innerHTML = html || '<div class="leyenda-row"><span class="leyenda-label" style="color:#9ca3af">Sin usuarios cargados</span></div>';
 }
 
 function toggleLeyenda() {
@@ -679,7 +661,7 @@ function renderGrid() {
 
     if (!visibles.length) {
         document.getElementById('grid-wrap').innerHTML =
-            '<div class="grid-empty">No hay usuarios que mostrar.<br><small>Ajusta los filtros de área o nombre.</small></div>';
+            '<div class="grid-empty">No hay usuarios que mostrar.<br><small>Ajusta los filtros de rol o nombre.</small></div>';
         return;
     }
 
@@ -703,12 +685,12 @@ function renderGrid() {
     // ── User rows ─────────────────────────────────────────────
     const dateSet = new Set(days.map(formatDate));
     visibles.forEach(u => {
-        const color    = getAreaColor(u);
+        const color    = getRolColor(u.rol);
         const colorBg  = hexToRgba(color, 0.08);
         const ini      = u.iniciales || u.username.slice(0,2).toUpperCase();
         const periodMins = calcUserPeriodMins(u.id, dateSet);
         const periodH    = formatHours(periodMins);
-        const areaLabel  = u.area_nombre || 'Sin área';
+        const rolLabel   = getRolLabel(u.rol);
 
         html += `<tr data-uid="${u.id}">`;
         html += `<td class="td-user">
@@ -717,7 +699,7 @@ function renderGrid() {
                 <div class="u-info-col">
                     <span class="u-name-sm">${u.username}</span>
                     ${periodH ? `<span class="u-period-h">${periodH} / período</span>` : ''}
-                    <span class="u-area-tag">${areaLabel}</span>
+                    <span class="u-area-tag">${rolLabel}</span>
                 </div>
             </div></td>`;
 
@@ -933,10 +915,8 @@ async function publicarHorarios() {
     // Show publish button only for editors
     if (!canEdit) document.getElementById('btn-publicar').style.display = 'none';
 
-    await Promise.all([
-        api.get('/auth/usuarios').then(u => { usuarios = u; }).catch(() => { usuarios = []; }),
-        cargarAreas(),
-    ]);
+    await api.get('/auth/usuarios').then(u => { usuarios = u; }).catch(() => { usuarios = []; });
+    initRoles();
 
     document.body.classList.add('view-semana');
     await cargarYRenderizar();
