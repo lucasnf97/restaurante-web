@@ -22,19 +22,19 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 }
 .btn-logout:hover { background:#4f46e5; color:white; }
 
-/* ── Filter bar ─────────────────────────────────────────────── */
-.filter-bar {
-    position:fixed; top:60px; left:0; right:0; z-index:160;
-    background:white; border-bottom:1px solid #e5e7eb;
-    display:flex; align-items:center; gap:10px; height:46px; padding:0 16px;
-}
-
 /* ── View tabs ──────────────────────────────────────────────── */
 .view-tabs {
-    position:fixed; top:106px; left:0; right:0; z-index:155;
+    position:fixed; top:60px; left:0; right:0; z-index:160;
     background:white; border-bottom:1px solid #e5e7eb;
     display:flex; justify-content:center; align-items:center;
     gap:6px; height:44px; padding:0 16px;
+}
+
+/* ── Filter bar ─────────────────────────────────────────────── */
+.filter-bar {
+    position:fixed; top:150px; left:0; right:0; z-index:150;
+    background:white; border-bottom:1px solid #e5e7eb;
+    display:flex; align-items:center; gap:10px; height:46px; padding:0 16px;
 }
 .view-tab {
     background:none; border:1.5px solid #e0e0e0; border-radius:8px;
@@ -62,7 +62,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
 /* ── Nav bar ────────────────────────────────────────────────── */
 .nav-bar {
-    position:fixed; top:150px; left:0; right:0; z-index:150;
+    position:fixed; top:104px; left:0; right:0; z-index:155;
     background:#f8f9fa; border-bottom:1px solid #e5e7eb;
     display:flex; align-items:center; justify-content:center;
     gap:14px; height:46px; padding:0 16px;
@@ -97,6 +97,14 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     transition:all .15s;
 }
 .btn-leyenda:hover { background:rgba(99,102,241,.2); }
+.btn-horarios-rest {
+    background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.3);
+    color:#059669; padding:5px 13px; border-radius:6px;
+    cursor:pointer; font-size:12px; font-weight:600;
+    text-decoration:none; display:inline-flex; align-items:center; gap:4px;
+    transition:all .15s;
+}
+.btn-horarios-rest:hover { background:rgba(16,185,129,.2); }
 
 /* ── Grid area ──────────────────────────────────────────────── */
 .grid-area {
@@ -158,7 +166,8 @@ body.view-semana .cq-table { width:100%; table-layout:fixed; }
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .u-period-h {
-    font-size:11px; color:#6366f1; font-weight:700; margin-top:1px;
+    font-size:11px; color:#6366f1; font-weight:700; margin-top:2px;
+    white-space:nowrap;
 }
 .u-area-tag {
     font-size:9px; color:#9ca3af; margin-top:1px;
@@ -227,18 +236,6 @@ body.view-mes         .th-day { min-width:58px; }
     border-color:#a5b4fc; color:#a5b4fc; background:#f5f3ff;
 }
 
-/* Summary row */
-.tr-summary .td-user {
-    padding:6px 12px;
-    font-size:10px; font-weight:800; text-transform:uppercase;
-    letter-spacing:.5px; color:#9ca3af;
-}
-.td-summary {
-    border:1px solid #f3f4f6; border-top:2px solid #e5e7eb;
-    text-align:center; padding:4px;
-    font-size:11px; font-weight:700; color:#6b7280;
-    background:#f9fafb;
-}
 
 /* Empty state */
 .grid-empty {
@@ -359,21 +356,22 @@ body.view-mes         .th-day { min-width:58px; }
     <button class="view-tab"        id="tab-mes"         onclick="setView('mes')">🗓️ Mes</button>
 </div>
 
-<div class="filter-bar">
-    <input type="text" id="filtro-nombre" placeholder="🔍 Buscar empleado…"
-           oninput="onFiltroNombre(this.value)">
-    <div class="area-chips" id="area-chips">
-        <span style="font-size:11px;color:#9ca3af;">Cargando áreas…</span>
-    </div>
-</div>
-
 <div class="nav-bar">
     <button class="nav-btn" onclick="navDate(-1)">◀</button>
     <span class="nav-label" id="nav-label">—</span>
     <button class="nav-btn" onclick="navDate(1)">▶</button>
     <div class="nav-right">
         <button class="btn-publicar" id="btn-publicar" onclick="publicarHorarios()">📤 Publicar horarios</button>
+        <a class="btn-horarios-rest" href="horarios.html">🕐 Horarios restaurante</a>
         <button class="btn-leyenda" onclick="toggleLeyenda()">🎨 Leyenda</button>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <input type="text" id="filtro-nombre" placeholder="🔍 Buscar empleado…"
+           oninput="onFiltroNombre(this.value)">
+    <div class="area-chips" id="area-chips">
+        <span style="font-size:11px;color:#9ca3af;">Cargando roles…</span>
     </div>
 </div>
 
@@ -715,8 +713,8 @@ function renderGrid() {
                 <div class="u-avatar-sm" style="background:${color}">${ini}</div>
                 <div class="u-info-col">
                     <span class="u-name-sm">${u.username}</span>
-                    ${periodH ? `<span class="u-period-h">${periodH} / período</span>` : ''}
                     <span class="u-area-tag">${rolLabel}</span>
+                    ${periodH ? `<span class="u-period-h">⏱ ${periodH}</span>` : '<span class="u-period-h" style="color:#d1d5db">Sin horas</span>'}
                 </div>
             </div></td>`;
 
@@ -749,19 +747,6 @@ function renderGrid() {
         });
         html += `</tr>`;
     });
-
-    // ── Summary row ───────────────────────────────────────────
-    html += `<tr class="tr-summary">
-        <td class="td-user tr-summary"><div class="td-user-inner" style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;">Total por día</div></td>`;
-    days.forEach(d => {
-        const dateStr = formatDate(d);
-        const dayTotal = visibles.reduce((acc, u) => {
-            const entry = horariosCeldas.find(h => h.usuario_id === u.id && (h.fecha||'').split('T')[0] === dateStr);
-            return acc + (entry ? calcTotalMins(entry.franjas) : 0);
-        }, 0);
-        html += `<td class="td-summary">${formatHours(dayTotal) || '—'}</td>`;
-    });
-    html += `</tr>`;
 
     html += `</tbody></table>`;
     document.getElementById('grid-wrap').innerHTML = html;
