@@ -1,5 +1,7 @@
 (function () {
     // ── PÁGINAS DEL SISTEMA ─────────────────────────────────────
+    // perm: string o array de strings — basta con tener UNO para ver el ítem.
+    // Sin perm → siempre visible para cualquier usuario autenticado.
     const PAGES = [
         { href: "dashboard.html", icon: "🏠", label: "Panel principal" },
         {
@@ -8,6 +10,7 @@
             href: "estadisticas.html",
             icon: "📊",
             label: "Facturación y Estadísticas",
+            perm: "acceso_estadisticas",
             children: [
                 { href: "estadisticas.html",         icon: "📊", label: "Resumen" },
                 { href: "analisis-mes.html",          icon: "📅", label: "Análisis de mes" },
@@ -21,12 +24,12 @@
             icon: "🍽️",
             label: "Restaurante",
             children: [
-                { href: "reservas.html",  icon: "📅", label: "Reservas" },
-                { href: "productos.html", icon: "🍽️", label: "Productos" },
-                { href: "mesas.html",     icon: "🗺️", label: "Herramienta de Edición" },
-                { href: "stock.html",     icon: "📦", label: "Stock" },
-                { href: "facturas.html",  icon: "🧾", label: "Facturas" },
-                { href: "caja.html",      icon: "💰", label: "Caja" },
+                { href: "reservas.html",  icon: "📅", label: "Reservas",               perm: ["gestion_reservas","ver_reservas"] },
+                { href: "productos.html", icon: "🍽️", label: "Productos",              perm: ["edicion_carta","ver_carta"] },
+                { href: "mesas.html",     icon: "🗺️", label: "Herramienta de Edición", perm: "edicion_sala" },
+                { href: "stock.html",     icon: "📦", label: "Stock",                  perm: ["gestion_stock","gestion_produccion"] },
+                { href: "facturas.html",  icon: "🧾", label: "Facturas",               perm: "acceso_facturacion" },
+                { href: "caja.html",      icon: "💰", label: "Caja",                   perm: "gestion_caja" },
             ]
         },
         {
@@ -35,15 +38,28 @@
             icon: "👥",
             label: "Personal",
             children: [
-                { href: "fichajes.html",   icon: "🕐", label: "Fichajes" },
-                { href: "usuarios.html",   icon: "👤", label: "Usuarios" },
-                { href: "cuadrante.html",  icon: "📋", label: "Horarios" },
+                { href: "fichajes.html",   icon: "🕐", label: "Fichajes",  perm: "ver_fichajes" },
+                { href: "usuarios.html",   icon: "👤", label: "Usuarios",  perm: "acceso_usuarios" },
+                { href: "cuadrante.html",  icon: "📋", label: "Horarios",  perm: ["edicion_agenda","edicion_horarios","ver_horarios"] },
             ]
         },
-        { href: "configuracion.html", icon: "⚙️", label: "Configuración" },
+        { href: "configuracion.html", icon: "⚙️", label: "Configuración", perm: "acceso_configuracion" },
     ];
 
     const currentPage = window.location.pathname.split("/").pop() || "dashboard.html";
+
+    // ── Helpers de permisos ──────────────────────────────────────
+    function _getUser() {
+        try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
+    }
+    function _canSee(perm) {
+        if (!perm) return true;   // sin restricción
+        const u = _getUser();
+        if (!u) return false;
+        if (u.rol === "admin" || u.rol === "gerente") return true;
+        const perms = Array.isArray(perm) ? perm : [perm];
+        return perms.some(p => !!u[p]);
+    }
 
     // ── CSS ──────────────────────────────────────────────────────
     const style = document.createElement("style");
@@ -246,7 +262,9 @@
 
     function renderNav() {
         return PAGES.map(p => {
+            // Ítem simple
             if (!p.group) {
+                if (!_canSee(p.perm)) return "";
                 return `
                 <a href="${p.href}" class="sidebar-link${currentPage === p.href ? " active" : ""}">
                     <span class="si-icon">${p.icon}</span>
@@ -254,13 +272,20 @@
                 </a>`;
             }
 
-            const key      = groupKey(p);
-            const inGroup  = isInGroup(p);
-            const isOpen   = inGroup;
+            // Grupo: filtrar hijos visibles
+            const visibleChildren = p.children.filter(c => _canSee(c.perm));
+
+            // Si el grupo tiene perm propio, verificarlo; si no, mostrar solo si hay hijos visibles
+            if (p.perm && !_canSee(p.perm)) return "";
+            if (!p.perm && visibleChildren.length === 0) return "";
+
+            const key        = groupKey(p);
+            const inGroup    = isInGroup(p);
+            const isOpen     = inGroup;
             const headActive = inGroup ? " active" : "";
             const openCls    = isOpen  ? " open"   : "";
 
-            const childrenHtml = p.children.map(c => `
+            const childrenHtml = visibleChildren.map(c => `
                 <a href="${c.href}" class="sidebar-child${currentPage === c.href ? " active" : ""}">
                     <span class="si-icon">${c.icon}</span>${c.label}
                 </a>`).join("");

@@ -162,6 +162,23 @@
         }
         .combo-item-row select { flex: 1; }
         .combo-item-row input { width: 60px; }
+        /* Modo solo-vista: oculta todos los controles de edición */
+        body.solo-vista .btn-primary,
+        body.solo-vista .btn-danger,
+        body.solo-vista .btn-warning,
+        body.solo-vista #btn-modo-edicion,
+        body.solo-vista #bar-exportar,
+        body.solo-vista #bar-importar,
+        body.solo-vista .btn-editar,
+        body.solo-vista [onclick*="abrirModalProducto"],
+        body.solo-vista [onclick*="abrirModalCombo"],
+        body.solo-vista [onclick*="abrirModalCategoria"],
+        body.solo-vista [onclick*="gcAgregarCategoria"],
+        body.solo-vista [onclick*="eliminar"],
+        body.solo-vista [onclick*="Eliminar"],
+        body.solo-vista [onclick*="editar"],
+        body.solo-vista [onclick*="guardar"],
+        body.solo-vista [onclick*="Guardar"] { display: none !important; }
     </style>
 </head>
 <body>
@@ -643,7 +660,8 @@
 <script src="js/api.js"></script>
 <script>
 requireAuth();
-requireRol("admin", "gerente");
+requirePermiso('edicion_carta', 'ver_carta');
+if (!hasPermiso('edicion_carta')) document.body.classList.add('solo-vista');
 
 let productos = [], combos = [], categorias = [], areas = [];
 let prodSel = null, comboSel = null;

@@ -187,7 +187,6 @@ input:checked + .tsl::before { transform:translateX(14px); }
 <script src="js/api.js"></script>
 <script>
 requireAuth();
-requireRol("admin","gerente");
 
 const user = getUser();
 document.getElementById("nav-username").textContent = user.username;
@@ -195,17 +194,17 @@ document.getElementById("welcome-msg").textContent = `Bienvenido, ${user.usernam
 
 // ── MÓDULOS DISPONIBLES ──────────────────────────────────────
 const ALL_MODULES = [
-    { id:"mesas",              icon:"🪑", title:"Salas y mesas",       desc:"Distribución del local",        href:"mesas.html" },
-    { id:"reservas",           icon:"📅", title:"Reservas",             desc:"Asignación de mesas",           href:"reservas.html" },
-    { id:"productos",          icon:"🍕", title:"Carta y productos",    desc:"Menú, precios y categorías",    href:"productos.html" },
-    { id:"caja",               icon:"💰", title:"Caja e historial",     desc:"Abrí y cerrá caja",             href:"caja.html" },
-    { id:"fichajes",           icon:"🕐", title:"Fichajes",             desc:"Entrada y salida del personal",  href:"fichajes.html" },
-    { id:"usuarios",           icon:"👥", title:"Usuarios",             desc:"Personal y roles de acceso",    href:"usuarios.html" },
-    { id:"stock",              icon:"📦", title:"Stock",                desc:"Control de insumos",            href:"stock.html" },
-    { id:"facturas",           icon:"📄", title:"Facturas",             desc:"Carga con IA y proveedores",    href:"facturas.html" },
-    { id:"estadisticas",       icon:"📊", title:"Facturación",          desc:"Costos, balance y gráficos",    href:"estadisticas.html" },
-    { id:"ventas-estadisticas",icon:"🛒", title:"Est. de Ventas",       desc:"Top productos y demanda",       href:"ventas-estadisticas.html" },
-    { id:"cuadrante",          icon:"📋", title:"Cuadrante de turnos",  desc:"Planificación del personal",    href:"cuadrante.html" },
+    { id:"mesas",              icon:"🪑", title:"Salas y mesas",       desc:"Distribución del local",        href:"mesas.html",                perm:"edicion_sala" },
+    { id:"reservas",           icon:"📅", title:"Reservas",             desc:"Asignación de mesas",           href:"reservas.html",             perm:["gestion_reservas","ver_reservas"] },
+    { id:"productos",          icon:"🍕", title:"Carta y productos",    desc:"Menú, precios y categorías",    href:"productos.html",            perm:["edicion_carta","ver_carta"] },
+    { id:"caja",               icon:"💰", title:"Caja e historial",     desc:"Abrí y cerrá caja",             href:"caja.html",                 perm:"gestion_caja" },
+    { id:"fichajes",           icon:"🕐", title:"Fichajes",             desc:"Entrada y salida del personal",  href:"fichajes.html",            perm:"ver_fichajes" },
+    { id:"usuarios",           icon:"👥", title:"Usuarios",             desc:"Personal y roles de acceso",    href:"usuarios.html",             perm:"acceso_usuarios" },
+    { id:"stock",              icon:"📦", title:"Stock",                desc:"Control de insumos",            href:"stock.html",                perm:["gestion_stock","gestion_produccion"] },
+    { id:"facturas",           icon:"📄", title:"Facturas",             desc:"Carga con IA y proveedores",    href:"facturas.html",             perm:"acceso_facturacion" },
+    { id:"estadisticas",       icon:"📊", title:"Facturación",          desc:"Costos, balance y gráficos",    href:"estadisticas.html",         perm:"acceso_estadisticas" },
+    { id:"ventas-estadisticas",icon:"🛒", title:"Est. de Ventas",       desc:"Top productos y demanda",       href:"ventas-estadisticas.html",  perm:"acceso_estadisticas" },
+    { id:"cuadrante",          icon:"📋", title:"Cuadrante de turnos",  desc:"Planificación del personal",    href:"cuadrante.html",            perm:["edicion_agenda","edicion_horarios","ver_horarios"] },
 ];
 function getMod(id) { return ALL_MODULES.find(m => m.id === id); }
 
@@ -412,8 +411,14 @@ function buildReservas(b) {
     </div>`;
 }
 
+function _canSeeMod(m) {
+    if (!m.perm) return true;
+    const perms = Array.isArray(m.perm) ? m.perm : [m.perm];
+    return hasAlgunPermiso(...perms);
+}
+
 function buildAccesos(b) {
-    const mods = (b.modules||[]).map(getMod).filter(Boolean);
+    const mods = (b.modules||[]).map(getMod).filter(Boolean).filter(_canSeeMod);
     const cn   = span2cols(b.span);
     const cards = mods.map(m => `
         <a href="${m.href}" class="module-card">

@@ -39,6 +39,37 @@ function requireRol(...roles) {
     }
 }
 
+/**
+ * Exige que el usuario tenga al menos uno de los permisos indicados.
+ * Admin y gerente siempre pasan. Si no cumple, redirige al dashboard.
+ */
+function requirePermiso(...perms) {
+    const user = getUser();
+    if (!user) { window.location.href = "index.html"; return; }
+    if (user.rol === "admin" || user.rol === "gerente") return;
+    if (perms.some(p => user[p])) return;
+    alert("No tenés permiso para acceder a esta sección.");
+    window.location.href = "dashboard.html";
+}
+
+/**
+ * Devuelve true si el usuario tiene el permiso dado.
+ * Admin y gerente siempre devuelven true.
+ */
+function hasPermiso(perm) {
+    const user = getUser();
+    if (!user) return false;
+    if (user.rol === "admin" || user.rol === "gerente") return true;
+    return !!user[perm];
+}
+
+/**
+ * Devuelve true si el usuario tiene al menos uno de los permisos dados.
+ */
+function hasAlgunPermiso(...perms) {
+    return perms.some(p => hasPermiso(p));
+}
+
 // ── FETCH BASE ────────────────────────────────────────────────
 async function apiFetch(endpoint, options = {}) {
     const token = getToken();
@@ -94,6 +125,8 @@ async function login(username, password) {
 
     const data = await res.json();
     setToken(data.access_token);
-    setUser({ username: data.username, rol: data.rol });
+    // Guardar todos los campos del token (username, rol + todos los permisos)
+    const { access_token, token_type, ...userFields } = data;
+    setUser(userFields);
     return data;
 }

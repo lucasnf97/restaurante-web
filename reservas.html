@@ -255,7 +255,20 @@
 <script src="js/api.js"></script>
 <script>
 requireAuth();
-requireRol('admin','gerente');
+requirePermiso('gestion_reservas', 'ver_reservas');
+
+// Ocultar acciones de edición si el usuario solo puede ver
+(function() {
+    if (!hasPermiso('gestion_reservas')) {
+        document.addEventListener('DOMContentLoaded', () => {
+            // Botón "Nueva reserva"
+            document.querySelectorAll('[onclick="abrirModalNuevo(null,null)"]').forEach(el => el.style.display = 'none');
+            // Context menu de edición/cancelación
+            const ctx = document.getElementById('ctx-menu');
+            if (ctx) ctx.style.display = 'none';
+        });
+    }
+})();
 
 // ── Constantes base ────────────────────────────────────────────
 const SLOT_MIN = 15;
