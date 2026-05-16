@@ -32,7 +32,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .view-tab {
     background:none; border:1.5px solid #e0e0e0; border-radius:8px;
     padding:6px 18px; cursor:pointer; font-size:13px; font-weight:600;
-    color:#6b7280; transition:all .15s; display:flex; align-items:center; gap:6px;
+    color:#6b7280; transition:all .15s;
 }
 .view-tab:hover  { background:#f5f3ff; border-color:#c4b5fd; color:#6d28d9; }
 .view-tab.active { background:#4f46e5; color:white; border-color:#4f46e5; }
@@ -50,27 +50,23 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     transition:border-color .15s;
 }
 #filtro-nombre:focus { border-color:#6366f1; }
-.area-chips {
-    display:flex; gap:6px; overflow-x:auto; align-items:center; flex:1;
-    scrollbar-width:none;
-}
+.area-chips { display:flex; gap:6px; overflow-x:auto; align-items:center; flex:1; scrollbar-width:none; }
 .area-chips::-webkit-scrollbar { display:none; }
 .area-chip {
-    padding:3px 12px; border-radius:20px;
-    border:1.5px solid #e0e0e0; background:white;
+    padding:3px 12px; border-radius:20px; border:1.5px solid #e0e0e0; background:white;
     font-size:11px; font-weight:600; color:#6b7280;
     cursor:pointer; white-space:nowrap; flex-shrink:0;
     transition:all .15s; user-select:none;
 }
-.area-chip:hover { border-color:#a5b4fc; color:#4f46e5; }
+.area-chip:hover  { border-color:#a5b4fc; color:#4f46e5; }
 .area-chip.active { background:#4f46e5; color:white; border-color:#4f46e5; }
 
-/* ── Navigator bar ──────────────────────────────────────────── */
+/* ── Nav bar ────────────────────────────────────────────────── */
 .nav-bar {
     position:fixed; top:156px; left:0; right:0; z-index:150;
     background:#f8f9fa; border-bottom:1px solid #e5e7eb;
     display:flex; align-items:center; justify-content:center;
-    gap:14px; height:46px; padding:0 60px;
+    gap:14px; height:46px; padding:0 16px;
 }
 .nav-btn {
     background:white; border:1.5px solid #e0e0e0; border-radius:6px;
@@ -83,253 +79,270 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     font-size:14px; font-weight:700; color:#1a1a2e;
     min-width:260px; text-align:center;
 }
-.btn-horarios {
+.nav-right {
     position:absolute; right:16px;
+    display:flex; gap:8px; align-items:center;
+}
+.btn-publicar {
+    background:#10b981; border:none; color:white;
+    padding:5px 13px; border-radius:6px;
+    cursor:pointer; font-size:12px; font-weight:600;
+    transition:background .15s; display:none;
+}
+.btn-publicar:hover { background:#059669; }
+.btn-publicar.has-draft { display:flex; align-items:center; gap:5px; }
+.btn-leyenda {
     background:rgba(99,102,241,.1); border:1px solid rgba(99,102,241,.3);
     color:#6366f1; padding:5px 13px; border-radius:6px;
     cursor:pointer; font-size:12px; font-weight:600;
-    transition:all .15s; display:flex; align-items:center; gap:5px;
+    transition:all .15s;
 }
-.btn-horarios:hover { background:rgba(99,102,241,.2); }
-
-/* Edit mode toggle */
-.btn-edit-mode {
-    position:absolute; left:16px;
-    background:white; border:1.5px solid #e0e0e0; color:#6b7280;
-    padding:5px 13px; border-radius:6px;
-    cursor:pointer; font-size:12px; font-weight:600;
-    transition:all .15s; display:flex; align-items:center; gap:5px;
-}
-.btn-edit-mode:hover { border-color:#a5b4fc; color:#4f46e5; }
-.btn-edit-mode.active { background:#4f46e5; color:white; border-color:#4f46e5; }
-
-/* ── Main layout ────────────────────────────────────────────── */
-.main-layout {
-    position:fixed; top:202px; left:0; right:0; bottom:0;
-    display:flex; overflow:hidden;
-}
-
-/* ── View-mode: block painting, neutral cursor ──────────────── */
-body.view-mode .slot-active { cursor:default !important; }
-body.view-mode .slot-active:hover { background:white !important; }
-body.view-mode .u-entry { cursor:default !important; }
-body.view-mode .u-entry:hover { background:transparent !important; }
-body.view-mode .u-entry.selected { background:transparent !important; }
-body.view-mode .us-deselect { display:none !important; }
-
-/* ── User sidebar ───────────────────────────────────────────── */
-.user-sidebar {
-    width:210px; min-width:210px; flex-shrink:0;
-    background:white; border-right:1px solid #e5e7eb;
-    display:flex; flex-direction:column; overflow:hidden;
-}
-.us-header {
-    padding:10px 12px 6px;
-    border-bottom:1px solid #f3f4f6; flex-shrink:0;
-}
-.us-title {
-    font-size:11px; font-weight:700; text-transform:uppercase;
-    letter-spacing:.8px; color:#6366f1; margin-bottom:4px;
-}
-.us-tip {
-    font-size:10px; color:#9ca3af; line-height:1.3;
-}
-.us-list { flex:1; overflow-y:auto; padding:6px 0; }
-
-/* Role section */
-.role-head {
-    padding:8px 12px 3px;
-    font-size:10px; font-weight:800; text-transform:uppercase;
-    letter-spacing:.6px; color:#9ca3af;
-}
-
-/* User entry */
-.u-entry {
-    display:flex; align-items:center; gap:8px;
-    padding:7px 12px; cursor:pointer; transition:background .12s;
-    position:relative; user-select:none;
-}
-.u-entry:hover { background:#f5f3ff; }
-.u-entry.selected { background:#ede9fe; }
-.u-entry.selected .u-name { color:#4f46e5; font-weight:700; }
-
-.u-avatar {
-    width:28px; height:28px; border-radius:50%; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    font-size:10px; font-weight:700; color:white;
-    text-shadow:0 1px 2px rgba(0,0,0,.3);
-}
-.u-name {
-    flex:1; font-size:12px; font-weight:500; color:#374151;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.u-color-wrap {
-    flex-shrink:0; position:relative; cursor:pointer;
-    display:flex; align-items:center;
-}
-.u-color-dot {
-    width:16px; height:16px; border-radius:50%;
-    border:2px solid white; box-shadow:0 0 0 1px rgba(0,0,0,.2);
-    cursor:pointer; transition:transform .15s;
-}
-.u-color-dot:hover { transform:scale(1.2); }
-.u-color-inp {
-    position:absolute; opacity:0; width:0; height:0; cursor:pointer;
-}
-
-/* Deselect hint */
-.us-deselect {
-    padding:8px 12px; border-top:1px solid #f3f4f6;
-    font-size:11px; color:#9ca3af; text-align:center;
-    cursor:pointer; transition:color .12s; flex-shrink:0;
-}
-.us-deselect:hover { color:#6366f1; }
-.us-deselect.hidden { display:none; }
+.btn-leyenda:hover { background:rgba(99,102,241,.2); }
 
 /* ── Grid area ──────────────────────────────────────────────── */
 .grid-area {
-    flex:1; overflow:auto; background:#f0f2f5;
+    position:fixed; top:202px; left:0; right:0; bottom:0;
+    overflow:auto; background:#f0f2f5;
     padding:10px;
-    /* Prevent text selection during drag paint */
-    user-select:none; -webkit-user-select:none;
 }
 
-/* ── Cuadrante table ────────────────────────────────────────── */
+/* ── Table ──────────────────────────────────────────────────── */
 .cq-table {
     border-collapse:collapse;
     background:white;
     border-radius:10px;
     overflow:hidden;
     box-shadow:0 1px 6px rgba(0,0,0,.07);
+    min-width:100%;
 }
-/* All views fill full width */
-body.view-semana     .cq-table { width:100%; table-layout:fixed; }
-body.view-dos_semanas .cq-table { width:100%; table-layout:fixed; }
-body.view-mes         .cq-table { width:100%; table-layout:fixed; }
+body.view-semana .cq-table { width:100%; table-layout:fixed; }
 
 /* Sticky header */
 .cq-table thead th {
     position:sticky; top:0; z-index:3;
-    background:white; padding:0;
-    border:1px solid #e5e7eb; white-space:nowrap;
+    background:white;
+    border:1px solid #e5e7eb;
+    padding:0;
 }
-/* Sticky time col */
-.cq-table .tc {
+/* Sticky user column */
+.th-user {
+    position:sticky; left:0; z-index:5 !important;
+    background:white;
+    width:180px; min-width:180px;
+}
+.th-user-inner {
+    padding:10px 12px;
+    font-size:10px; font-weight:800; text-transform:uppercase;
+    letter-spacing:.8px; color:#6366f1;
+}
+.td-user {
     position:sticky; left:0; z-index:2;
-    background:#f9fafb;
-    width:52px; min-width:52px; max-width:52px;
-    font-size:10px; font-weight:600; color:#9ca3af;
-    text-align:right; padding:0 6px 0 0;
-    border:1px solid #e5e7eb; white-space:nowrap;
+    background:white;
+    width:180px; min-width:180px;
+    border-right:2px solid #e5e7eb;
+    border-bottom:1px solid #f3f4f6;
+    vertical-align:middle;
 }
-.cq-table thead th.tc { z-index:4; height:52px; }
+.td-user-inner {
+    padding:8px 12px;
+    display:flex; align-items:center; gap:8px;
+}
+.u-avatar-sm {
+    width:30px; height:30px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:700; color:white;
+    text-shadow:0 1px 2px rgba(0,0,0,.3);
+}
+.u-info-col { display:flex; flex-direction:column; min-width:0; }
+.u-name-sm {
+    font-size:12px; font-weight:600; color:#1a1a2e;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.u-period-h {
+    font-size:11px; color:#6366f1; font-weight:700; margin-top:1px;
+}
+.u-area-tag {
+    font-size:9px; color:#9ca3af; margin-top:1px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 
 /* Day header */
-.day-head {
-    padding:5px 4px; min-width:70px;
-    display:flex; flex-direction:column; align-items:center;
-}
-.day-head .dn { font-size:10px; font-weight:700; text-transform:uppercase; color:#9ca3af; letter-spacing:.4px; }
-.day-head .dd { font-size:16px; font-weight:800; color:#1a1a2e; line-height:1.2; }
-.day-head .dm { font-size:10px; color:#9ca3af; }
+.th-day { min-width:90px; }
+body.view-dos_semanas .th-day { min-width:70px; }
+body.view-mes         .th-day { min-width:58px; }
 
-/* Today */
-.col-hoy .day-head .dn { color:#6366f1; }
-.col-hoy .day-head .dd { color:#4f46e5; }
-.col-hoy.slot-active   { background:#fafafe !important; }
+.day-head-inner {
+    padding:6px 4px;
+    display:flex; flex-direction:column; align-items:center; gap:1px;
+}
+.dh-dn { font-size:9px; font-weight:700; text-transform:uppercase; color:#9ca3af; letter-spacing:.4px; }
+.dh-dd { font-size:15px; font-weight:800; color:#1a1a2e; line-height:1.2; }
+.dh-dm { font-size:9px; color:#9ca3af; }
+.th-day.col-hoy .dh-dn { color:#6366f1; }
+.th-day.col-hoy .dh-dd { color:#4f46e5; }
+.th-day.col-hoy { background:#fafafe !important; }
+.th-day.col-wknd .dh-dd { color:#9ca3af; }
 
-/* Weekend header */
-.col-wknd .day-head .dd { color:#9ca3af; }
+/* Day cells */
+.td-day {
+    border:1px solid #f3f4f6;
+    vertical-align:top;
+    min-height:52px;
+    padding:4px;
+    position:relative;
+}
+.td-day.col-hoy { background:#fafafe; }
+.td-day.col-wknd { background:#fafafa; }
 
-/* Cells */
-.cq-table td {
-    border:1px solid #efefef;
-    height:26px; padding:0;
-    position:relative; vertical-align:top;
+/* Cell content */
+.cell-content {
+    width:100%; height:100%; min-height:44px;
+    border-radius:6px; padding:4px 6px;
+    display:flex; flex-direction:column; gap:2px;
+    cursor:pointer;
+    transition:filter .15s;
 }
-.slot-inactive { background:#f3f4f6; }
-.slot-active   { background:white; cursor:crosshair; }
-.slot-active:hover { background:#faf9ff; }
+.cell-content:hover { filter:brightness(.96); }
+.cell-content.draft { border-style:dashed !important; border-width:2px !important; }
+.cell-content.published { border-style:solid !important; border-width:2px !important; }
 
-/* Hour row */
-tr.hr-row td { border-top:1px solid #d1d5db !important; }
+.franja-tag {
+    font-size:10px; font-weight:700; color:inherit;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    line-height:1.4;
+}
+.cell-total-h {
+    font-size:10px; font-weight:600; opacity:.75;
+    margin-top:2px;
+}
 
-/* 2-week / mes: smaller text so columns fit */
-body.view-dos_semanas .day-head { min-width:0; }
-body.view-dos_semanas .cq-table td { min-width:0; }
-body.view-mes .day-head { min-width:0; }
-body.view-mes .day-head .dn { font-size:9px; }
-body.view-mes .day-head .dd { font-size:13px; }
-body.view-mes .cq-table td { min-width:0; }
+/* Empty cell add button (editors only) */
+.cell-add {
+    width:100%; height:100%; min-height:44px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:6px; border:1.5px dashed #e0e0e0;
+    color:#d1d5db; font-size:18px; cursor:pointer;
+    transition:all .15s;
+}
+.cell-add:hover {
+    border-color:#a5b4fc; color:#a5b4fc; background:#f5f3ff;
+}
 
-/* ── Cell color stripes ─────────────────────────────────────── */
-.cell-colors {
-    position:absolute; inset:0;
-    display:flex; flex-direction:row; gap:1px; padding:1px;
-    pointer-events:none;
+/* Summary row */
+.tr-summary .td-user {
+    padding:6px 12px;
+    font-size:10px; font-weight:800; text-transform:uppercase;
+    letter-spacing:.5px; color:#9ca3af;
 }
-.cell-colors > div { flex:1; border-radius:2px; }
+.td-summary {
+    border:1px solid #f3f4f6; border-top:2px solid #e5e7eb;
+    text-align:center; padding:4px;
+    font-size:11px; font-weight:700; color:#6b7280;
+    background:#f9fafb;
+}
 
-/* ── Horarios panel ─────────────────────────────────────────── */
-.hp-overlay {
-    display:none; position:fixed; inset:0;
-    background:rgba(0,0,0,.2); z-index:400;
+/* Empty state */
+.grid-empty {
+    text-align:center; padding:60px;
+    color:#9ca3af; font-size:14px;
+    background:white; border-radius:10px;
 }
-.hp-overlay.open { display:block; }
-.horarios-panel {
-    position:fixed; top:0; right:0; width:400px; height:100%;
-    background:white; z-index:401;
-    box-shadow:-4px 0 24px rgba(0,0,0,.15);
-    display:flex; flex-direction:column;
-    transform:translateX(100%);
-    transition:transform .3s cubic-bezier(.4,0,.2,1);
-}
-.horarios-panel.open { transform:translateX(0); }
-.hp-head {
-    padding:16px 20px; border-bottom:1px solid #e5e7eb;
-    display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
-}
-.hp-head h3 { font-size:15px; font-weight:700; color:#1a1a2e; }
-.hp-close { background:none; border:none; font-size:20px; cursor:pointer; color:#888; }
-.hp-body  { flex:1; overflow-y:auto; padding:12px 20px; }
-.hp-footer { padding:14px 20px; border-top:1px solid #e5e7eb; flex-shrink:0; }
-.btn-hp-save {
-    width:100%; padding:10px; background:#4f46e5; color:white;
-    border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer;
-}
-.btn-hp-save:hover { background:#4338ca; }
-
-.dia-block { margin-bottom:10px; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
-.dia-head { display:flex; align-items:center; gap:10px; padding:10px 14px; background:#f9fafb; }
-.dia-nombre { flex:1; font-size:13px; font-weight:700; color:#374151; }
-.dia-body   { padding:8px 14px 12px; display:flex; flex-direction:column; gap:6px; }
-.franja-row { display:flex; align-items:center; gap:6px; }
-.franja-row input[type=time] {
-    padding:5px 8px; border:1.5px solid #e0e0e0; border-radius:6px;
-    font-size:13px; font-family:inherit; flex:1; min-width:0;
-}
-.franja-row input[type=time]:focus { outline:none; border-color:#4f46e5; }
-.franja-sep { color:#9ca3af; font-size:12px; flex-shrink:0; }
-.btn-del-franja {
-    background:none; border:none; color:#ef4444; cursor:pointer;
-    font-size:16px; line-height:1; padding:0 2px; flex-shrink:0;
-}
-.btn-add-franja {
-    background:none; border:1.5px dashed #c4b5fd; border-radius:6px;
-    color:#7c3aed; font-size:12px; font-weight:600;
-    padding:4px 10px; cursor:pointer; width:fit-content; margin-top:2px;
-}
-.btn-add-franja:hover { background:#f5f3ff; }
-
-.tsw { position:relative; width:34px; height:19px; flex-shrink:0; }
-.tsw input { opacity:0; width:0; height:0; }
-.tsl { position:absolute; inset:0; background:#d1d5db; border-radius:20px; cursor:pointer; transition:.2s; }
-.tsl::before { content:''; position:absolute; width:13px; height:13px; left:3px; top:3px; background:white; border-radius:50%; transition:.2s; }
-input:checked + .tsl { background:#4f46e5; }
-input:checked + .tsl::before { transform:translateX(14px); }
 
 /* loading */
 .grid-loading { text-align:center; padding:60px; color:#9ca3af; font-size:14px; }
+
+/* ── Schedule modal ─────────────────────────────────────────── */
+.modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.35); z-index:500;
+}
+.modal-overlay.open { display:block; }
+.modal-sched {
+    display:none; position:fixed; z-index:501;
+    top:50%; left:50%; transform:translate(-50%,-50%);
+    background:white; border-radius:14px;
+    box-shadow:0 8px 40px rgba(0,0,0,.22);
+    width:360px; max-width:96vw;
+    flex-direction:column; overflow:hidden;
+}
+.modal-sched.open { display:flex; }
+.ms-head {
+    padding:16px 20px 12px;
+    border-bottom:1px solid #f3f4f6;
+    display:flex; align-items:center; justify-content:space-between;
+}
+.ms-title {
+    font-size:14px; font-weight:700; color:#1a1a2e;
+    max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ms-close {
+    background:none; border:none; font-size:20px; cursor:pointer; color:#9ca3af;
+    flex-shrink:0; padding:0 4px;
+}
+.ms-close:hover { color:#374151; }
+.ms-body { padding:14px 20px; display:flex; flex-direction:column; gap:8px; }
+.ms-franja-row {
+    display:flex; align-items:center; gap:8px;
+}
+.ms-time {
+    flex:1; padding:6px 8px;
+    border:1.5px solid #e0e0e0; border-radius:7px;
+    font-size:13px; font-family:inherit; min-width:0;
+    outline:none; transition:border-color .15s;
+}
+.ms-time:focus { border-color:#4f46e5; }
+.ms-sep { color:#9ca3af; font-size:12px; flex-shrink:0; }
+.ms-del-franja {
+    background:none; border:none; color:#ef4444;
+    cursor:pointer; font-size:16px; flex-shrink:0;
+    padding:0 2px; line-height:1;
+}
+.ms-add-btn {
+    background:none; border:1.5px dashed #c4b5fd; border-radius:7px;
+    color:#7c3aed; font-size:12px; font-weight:600;
+    padding:5px 12px; cursor:pointer; align-self:flex-start;
+    transition:background .15s;
+}
+.ms-add-btn:hover { background:#f5f3ff; }
+.ms-footer {
+    padding:12px 20px 16px;
+    border-top:1px solid #f3f4f6;
+    display:flex; align-items:center; justify-content:space-between;
+}
+.ms-total { font-size:13px; font-weight:700; color:#6366f1; }
+.ms-actions { display:flex; gap:8px; }
+.ms-btn-elim {
+    background:none; border:1.5px solid #fca5a5; color:#ef4444;
+    padding:7px 14px; border-radius:7px; font-size:13px; font-weight:600;
+    cursor:pointer; transition:all .15s;
+}
+.ms-btn-elim:hover { background:#fef2f2; }
+.ms-btn-save {
+    background:#4f46e5; color:white; border:none;
+    padding:7px 18px; border-radius:7px; font-size:13px; font-weight:700;
+    cursor:pointer; transition:background .15s;
+}
+.ms-btn-save:hover { background:#4338ca; }
+.ms-btn-save:disabled { background:#a5b4fc; cursor:not-allowed; }
+
+/* ── Leyenda de colores ─────────────────────────────────────── */
+.leyenda-panel {
+    display:none; position:fixed; z-index:501;
+    bottom:20px; right:20px;
+    background:white; border-radius:12px;
+    box-shadow:0 4px 24px rgba(0,0,0,.16);
+    padding:14px 18px; min-width:200px;
+}
+.leyenda-panel.open { display:block; }
+.leyenda-title { font-size:11px; font-weight:800; text-transform:uppercase; color:#6366f1; letter-spacing:.8px; margin-bottom:10px; }
+.leyenda-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.leyenda-chip {
+    width:22px; height:14px; border-radius:3px; flex-shrink:0;
+}
+.leyenda-label { font-size:12px; color:#374151; }
+.leyenda-sep { width:100%; height:1px; background:#f3f4f6; margin:6px 0; }
+.leyenda-draft   { border:2px dashed #6b7280; background:transparent; }
+.leyenda-pub     { border:2px solid #6b7280; background:transparent; }
 </style>
 </head>
 <body>
@@ -347,7 +360,7 @@ input:checked + .tsl::before { transform:translateX(14px); }
     <button class="view-tab"        id="tab-mes"         onclick="setView('mes')">🗓️ Mes</button>
 </div>
 
-<div class="filter-bar" id="filter-bar">
+<div class="filter-bar">
     <input type="text" id="filtro-nombre" placeholder="🔍 Buscar empleado…"
            oninput="onFiltroNombre(this.value)">
     <div class="area-chips" id="area-chips">
@@ -356,46 +369,53 @@ input:checked + .tsl::before { transform:translateX(14px); }
 </div>
 
 <div class="nav-bar">
-    <button class="btn-edit-mode active" id="btn-edit-mode" onclick="toggleModoEdicion()">✏️ Edición</button>
     <button class="nav-btn" onclick="navDate(-1)">◀</button>
     <span class="nav-label" id="nav-label">—</span>
     <button class="nav-btn" onclick="navDate(1)">▶</button>
-    <button class="btn-horarios" onclick="abrirHorarios()">⚙️ Horarios</button>
-</div>
-
-<div class="main-layout">
-    <!-- LEFT: User sidebar -->
-    <div class="user-sidebar" id="user-sidebar">
-        <div class="us-header">
-            <div class="us-title">👥 Personal</div>
-            <div class="us-tip">Selecciona un empleado y pinta la grilla</div>
-        </div>
-        <div class="us-list" id="us-list">
-            <div class="grid-loading" style="padding:20px;font-size:12px;">Cargando…</div>
-        </div>
-        <div class="us-deselect hidden" id="us-deselect" onclick="deseleccionarUsuario()">
-            ✕ Cancelar selección
-        </div>
-    </div>
-
-    <!-- RIGHT: Grid -->
-    <div class="grid-area" id="grid-area">
-        <div id="grid-wrap">
-            <div class="grid-loading">Cargando horarios…</div>
-        </div>
+    <div class="nav-right">
+        <button class="btn-publicar" id="btn-publicar" onclick="publicarHorarios()">📤 Publicar horarios</button>
+        <button class="btn-leyenda" onclick="toggleLeyenda()">🎨 Leyenda</button>
     </div>
 </div>
 
-<!-- Horarios panel -->
-<div class="hp-overlay" id="hp-overlay" onclick="cerrarHorarios()"></div>
-<div class="horarios-panel" id="horarios-panel">
-    <div class="hp-head">
-        <h3>⚙️ Horarios del restaurante</h3>
-        <button class="hp-close" onclick="cerrarHorarios()">✕</button>
+<div class="grid-area" id="grid-area">
+    <div id="grid-wrap">
+        <div class="grid-loading">Cargando horarios…</div>
     </div>
-    <div class="hp-body" id="hp-body"></div>
-    <div class="hp-footer">
-        <button class="btn-hp-save" onclick="guardarHorarios()">Guardar horarios</button>
+</div>
+
+<!-- Schedule modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="cerrarModal()"></div>
+<div class="modal-sched" id="modal-sched">
+    <div class="ms-head">
+        <span class="ms-title" id="ms-title">Horario</span>
+        <button class="ms-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="ms-body" id="ms-body">
+        <div id="ms-franjas"></div>
+        <button class="ms-add-btn" onclick="msAddFranja()">+ Agregar franja</button>
+    </div>
+    <div class="ms-footer">
+        <span class="ms-total" id="ms-total"></span>
+        <div class="ms-actions">
+            <button class="ms-btn-elim" id="ms-btn-elim" style="display:none" onclick="msEliminar()">🗑 Eliminar</button>
+            <button class="ms-btn-save" id="ms-btn-save" onclick="msGuardar()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Color legend -->
+<div class="leyenda-panel" id="leyenda-panel">
+    <div class="leyenda-title">Leyenda</div>
+    <div id="leyenda-areas"></div>
+    <div class="leyenda-sep"></div>
+    <div class="leyenda-row">
+        <div class="leyenda-chip leyenda-draft"></div>
+        <span class="leyenda-label">Borrador (no publicado)</span>
+    </div>
+    <div class="leyenda-row">
+        <div class="leyenda-chip leyenda-pub"></div>
+        <span class="leyenda-label">Publicado</span>
     </div>
 </div>
 
@@ -410,93 +430,69 @@ const DIAS_CORTO = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const MESES      = ['enero','febrero','marzo','abril','mayo','junio',
                     'julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const MESES_C    = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-const ROL_CFG    = {
-    admin:   { label:'Administrador', icon:'👑' },
-    gerente: { label:'Gerente',       icon:'📊' },
-    empleado:{ label:'Personal',      icon:'👤' },
-};
-const PALETTE = ['#6366f1','#ef4444','#f59e0b','#10b981','#3b82f6',
-                 '#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
+const AREA_PALETTE = [
+    '#6366f1','#ef4444','#f59e0b','#10b981','#3b82f6',
+    '#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'
+];
+const COLOR_SIN_AREA = '#9ca3af';
 
 // ── Estado ──────────────────────────────────────────────────────
-let viewMode      = 'semana';
-let anchorDate    = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
-let horarios      = [];
-let asignaciones  = {};  // { "YYYY-MM-DD": { slot_mins: [{id, usuario_id}] } }
-let usuarios      = [];
-let userColors    = {};  // { userId: "#hex" }
-let selectedUserId = null;
+let viewMode       = 'semana';
+let anchorDate     = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+let usuarios       = [];
+let areas          = [];
+let horariosCeldas = [];  // entries from /horarios-personal
+let canEdit        = false;
+let meUser         = {};
+let filtroNombre   = '';
+let areasActivas   = null;  // null = all visible
 
-// ── Filtro & modo edición ────────────────────────────────────────
-let modoEdicion  = true;     // true = pintar turnos; false = solo ver/filtrar
-let filtroNombre = '';
-let areas        = [];        // [{id, nombre}]
-let areasActivas = null;      // null = sin filtro; Set<id|null> = filtro activo
+// Modal state
+let modalState = { userId: null, fecha: null, entryId: null };
 
-// Drag-paint state
-let isPainting  = false;
-let paintMode   = 'add'; // 'add' | 'remove'
-let painted     = new Set(); // keys painted in this gesture, to avoid re-painting same cell
-let pendingChanges = []; // batched API calls
-
-// ── Colores de usuario ──────────────────────────────────────────
-function loadUserColors() {
-    try { userColors = JSON.parse(localStorage.getItem('cq_user_colors') || '{}'); }
-    catch { userColors = {}; }
+// ── Colores de área ─────────────────────────────────────────────
+function getAreaColor(u) {
+    if (!u || !u.area_id) return COLOR_SIN_AREA;
+    return AREA_PALETTE[(u.area_id - 1) % AREA_PALETTE.length];
 }
-function saveUserColors() {
-    localStorage.setItem('cq_user_colors', JSON.stringify(userColors));
-}
-function getUserColor(uid) {
-    if (!userColors[uid]) {
-        userColors[uid] = PALETTE[(uid - 1) % PALETTE.length];
-        saveUserColors();
-    }
-    return userColors[uid];
-}
-function setUserColor(uid, hex) {
-    userColors[uid] = hex;
-    saveUserColors();
-    // Update avatar + dot in sidebar
-    const entry = document.querySelector(`.u-entry[data-uid="${uid}"]`);
-    if (entry) {
-        entry.querySelector('.u-avatar').style.background = hex;
-        entry.querySelector('.u-color-dot').style.background = hex;
-    }
-    // Re-render all cells for this user
-    refreshAllCells();
+function hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1,3), 16);
+    const g = parseInt(hex.slice(3,5), 16);
+    const b = parseInt(hex.slice(5,7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
 }
 
-// ── Utilidades de fecha ─────────────────────────────────────────
+// ── Fechas ──────────────────────────────────────────────────────
 const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r; };
-
 function getMondayOf(d) {
-    const r = new Date(d);
-    const j = r.getDay();
-    r.setDate(r.getDate() - (j === 0 ? 6 : j - 1));
-    return r;
+    const r = new Date(d); const j = r.getDay();
+    r.setDate(r.getDate() - (j === 0 ? 6 : j - 1)); return r;
 }
 function formatDate(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function isToday(d) {
-    const t = new Date(); t.setHours(0,0,0,0);
-    return d.getTime() === t.getTime();
-}
-// JS getDay() (0=Dom) → API dia_semana (0=Lun…6=Dom)
+function isToday(d) { const t = new Date(); t.setHours(0,0,0,0); return d.getTime() === t.getTime(); }
 function jsDay2Api(d) { const j = d.getDay(); return j === 0 ? 6 : j - 1; }
-// isEndTime=true: "00:00"–"05:59" se interpreta como pasada medianoche (ej: cierre a las 02:00)
-function timeToMins(t, isEndTime = false) {
-    if (!t) return isEndTime ? 24 * 60 : 0;
-    const [h, m] = String(t).slice(0, 5).split(':').map(Number);
-    const mins = h * 60 + (m || 0);
-    if (isEndTime && h < 6) return 24 * 60 + mins; // pasada medianoche
-    return mins;
+
+// ── Horas ───────────────────────────────────────────────────────
+function timeToMins(t) {
+    if (!t) return 0;
+    const [h, m] = String(t).slice(0,5).split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
 }
-function minsToTime(m) {
-    // Soporta tiempos >= 24h (ej: 25:30 → "01:30")
-    const m2 = m % (24 * 60);
-    return `${String(Math.floor(m2 / 60)).padStart(2,'0')}:${String(m2 % 60).padStart(2,'0')}`;
+function calcTotalMins(franjas) {
+    let total = 0;
+    (franjas || []).forEach(f => {
+        let s = timeToMins(f.inicio), e = timeToMins(f.fin);
+        if (e <= s) e += 24 * 60;
+        if (e > s) total += e - s;
+    });
+    return total;
+}
+function formatHours(mins) {
+    if (!mins || mins <= 0) return '';
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return m ? `${h}h ${m}m` : `${h}h`;
 }
 
 // ── Vista ───────────────────────────────────────────────────────
@@ -506,22 +502,20 @@ function setView(mode) {
     document.getElementById(`tab-${mode}`).classList.add('active');
     document.body.className = document.body.className.replace(/\bview-\S+/g,'').trim();
     document.body.classList.add(`view-${mode}`);
-    renderGrid();
+    cargarYRenderizar();
 }
 
-// ── Navegación ──────────────────────────────────────────────────
 function navDate(dir) {
     if (viewMode === 'mes') {
         anchorDate = new Date(anchorDate.getFullYear(), anchorDate.getMonth() + dir, 1);
     } else if (viewMode === 'dos_semanas') {
         anchorDate = addDays(anchorDate, dir * 7);
     } else {
-        anchorDate = addDays(anchorDate, dir);
+        anchorDate = addDays(anchorDate, dir * 7);
     }
-    renderGrid();
+    cargarYRenderizar();
 }
 
-// ── Rango de días ───────────────────────────────────────────────
 function getDays() {
     if (viewMode === 'semana') {
         const mon = getMondayOf(anchorDate);
@@ -538,31 +532,6 @@ function getDays() {
     return days;
 }
 
-// ── Rango horario del grid ──────────────────────────────────────
-function getGridRange() {
-    const activos = horarios.filter(h => h.activo && h.franjas?.length);
-    if (!activos.length) return { start:8*60, end:24*60 };
-    let mn = Infinity, mx = 0;
-    activos.forEach(h => h.franjas.forEach(f => {
-        mn = Math.min(mn, timeToMins(f.inicio));
-        mx = Math.max(mx, timeToMins(f.fin, true)); // hora fin puede ser pasada medianoche
-    }));
-    if (mn === Infinity) return { start:8*60, end:24*60 };
-    return {
-        start: Math.floor(mn / 60) * 60,
-        end:   Math.min(Math.ceil(mx / 60) * 60, 26 * 60) // máximo hasta las 02:00 del día siguiente
-    };
-}
-
-// ── Slot activo ─────────────────────────────────────────────────
-function isActiveSlot(date, mins) {
-    const apiDay = jsDay2Api(date);
-    const h = horarios.find(x => x.dia_semana === apiDay);
-    if (!h || !h.activo || !h.franjas || !h.franjas.length) return false;
-    return h.franjas.some(f => mins >= timeToMins(f.inicio) && mins < timeToMins(f.fin, true));
-}
-
-// ── Nav label ───────────────────────────────────────────────────
 function updateNavLabel() {
     const days = getDays();
     const a = days[0], z = days[days.length-1];
@@ -580,478 +549,373 @@ function updateNavLabel() {
     document.getElementById('nav-label').textContent = lbl;
 }
 
-// ── Filter helpers ──────────────────────────────────────────────
-function isUserMatchingFilter(uid) {
-    const u = usuarios.find(x => x.id === uid);
-    if (!u) return false;
-    // Name filter
-    if (filtroNombre && !u.username.toLowerCase().includes(filtroNombre.toLowerCase())) return false;
-    // Area filter
-    if (areasActivas !== null) {
-        const aId = u.area_id ?? null;
-        if (!areasActivas.has(aId)) return false;
-    }
-    return true;
-}
-
-function isUserVisibleInSidebar(u) {
-    if (areasActivas !== null) {
-        const aId = u.area_id ?? null;
-        if (!areasActivas.has(aId)) return false;
-    }
-    return true;
-}
-
-// ── Render cell colors HTML ─────────────────────────────────────
-function cellColorsHTML(dateStr, slotMins) {
-    const list = asignaciones[dateStr]?.[slotMins] || [];
-    if (!list.length) return '';
-    const strips = list.map(a => {
-        const matched = modoEdicion || isUserMatchingFilter(a.usuario_id);
-        const opacity = matched ? 1 : 0.15;
-        return `<div style="background:${getUserColor(a.usuario_id)};opacity:${opacity}"></div>`;
-    }).join('');
-    return `<div class="cell-colors">${strips}</div>`;
-}
-
-// ── Render grid ─────────────────────────────────────────────────
-async function renderGrid() {
-    updateNavLabel();
-    await cargarAsignaciones();
-
-    const days  = getDays();
-    const range = getGridRange();
-    const slots = [];
-    for (let t = range.start; t < range.end; t += 30) slots.push(t);
-
-    let html = `<table class="cq-table"><thead><tr>`;
-    html += `<th class="tc"></th>`;
-    days.forEach(d => {
-        const apiDay = jsDay2Api(d);
-        const wknd   = d.getDay() === 0 || d.getDay() === 6;
-        const hoy    = isToday(d);
-        const cls    = [hoy?'col-hoy':'', wknd?'col-wknd':''].filter(Boolean).join(' ');
-        html += `<th class="${cls}"><div class="day-head">
-            <span class="dn">${DIAS_CORTO[apiDay]}</span>
-            <span class="dd">${d.getDate()}</span>
-            <span class="dm">${MESES_C[d.getMonth()]}</span>
-        </div></th>`;
-    });
-    html += `</tr></thead><tbody>`;
-
-    slots.forEach(slot => {
-        const isHour = slot % 60 === 0;
-        html += `<tr class="${isHour ? 'hr-row' : ''}">`;
-        html += `<td class="tc">${isHour ? minsToTime(slot) : ''}</td>`;
-        days.forEach(d => {
-            const hoy    = isToday(d);
-            const wknd   = d.getDay() === 0 || d.getDay() === 6;
-            const active = isActiveSlot(d, slot);
-            const ds     = formatDate(d);
-            const colCls = [(hoy?'col-hoy':''), (wknd?'col-wknd':'')].filter(Boolean).join(' ');
-            if (active) {
-                html += `<td class="${colCls} slot-active" data-date="${ds}" data-slot="${slot}">
-                             ${cellColorsHTML(ds, slot)}</td>`;
-            } else {
-                html += `<td class="${colCls} slot-inactive"></td>`;
-            }
-        });
-        html += `</tr>`;
-    });
-
-    html += `</tbody></table>`;
-    document.getElementById('grid-wrap').innerHTML = html;
-}
-
-// ── Update single cell DOM ──────────────────────────────────────
-function updateCellDOM(dateStr, slotMins) {
-    const td = document.querySelector(`td[data-date="${dateStr}"][data-slot="${slotMins}"]`);
-    if (!td) return;
-    const list = asignaciones[dateStr]?.[slotMins] || [];
-    let colDiv = td.querySelector('.cell-colors');
-    if (list.length === 0) {
-        colDiv?.remove();
-    } else {
-        if (!colDiv) {
-            colDiv = document.createElement('div');
-            colDiv.className = 'cell-colors';
-            td.appendChild(colDiv);
+// ── Filtros ─────────────────────────────────────────────────────
+function getVisibleUsers() {
+    return usuarios.filter(u => {
+        if (areasActivas !== null) {
+            const aId = u.area_id ?? null;
+            if (!areasActivas.has(aId)) return false;
         }
-        colDiv.innerHTML = list.map(a =>
-            `<div style="background:${getUserColor(a.usuario_id)}"></div>`
-        ).join('');
-    }
-}
-
-function refreshAllCells() {
-    // Re-render all existing cell colors (e.g. after color change or filter change)
-    document.querySelectorAll('td[data-date][data-slot]').forEach(td => {
-        const dateStr  = td.dataset.date;
-        const slotMins = parseInt(td.dataset.slot);
-        const list = asignaciones[dateStr]?.[slotMins] || [];
-        let colDiv = td.querySelector('.cell-colors');
-        if (list.length === 0) {
-            colDiv?.remove();
-        } else {
-            if (!colDiv) { colDiv = document.createElement('div'); colDiv.className = 'cell-colors'; td.appendChild(colDiv); }
-            colDiv.innerHTML = list.map(a => {
-                const matched = modoEdicion || isUserMatchingFilter(a.usuario_id);
-                const opacity = matched ? 1 : 0.15;
-                return `<div style="background:${getUserColor(a.usuario_id)};opacity:${opacity}"></div>`;
-            }).join('');
-        }
+        if (filtroNombre && !u.username.toLowerCase().includes(filtroNombre.toLowerCase())) return false;
+        return true;
     });
 }
 
-// ── Painting logic ──────────────────────────────────────────────
-function applyPaint(dateStr, slotMins) {
-    if (!selectedUserId) return;
-    const key = `${dateStr}_${slotMins}`;
-    if (painted.has(key)) return;
-    painted.add(key);
-
-    if (!asignaciones[dateStr]) asignaciones[dateStr] = {};
-    if (!asignaciones[dateStr][slotMins]) asignaciones[dateStr][slotMins] = [];
-
-    const list = asignaciones[dateStr][slotMins];
-    const idx  = list.findIndex(a => a.usuario_id === selectedUserId);
-
-    if (paintMode === 'add' && idx === -1) {
-        // Optimistic: add with temporary id -1
-        list.push({ id: -1, usuario_id: selectedUserId });
-        updateCellDOM(dateStr, slotMins);
-        pendingChanges.push({ action:'add', fecha:dateStr, slot_mins:slotMins, usuario_id:selectedUserId });
-    } else if (paintMode === 'remove' && idx !== -1) {
-        const removed = list.splice(idx, 1)[0];
-        updateCellDOM(dateStr, slotMins);
-        pendingChanges.push({ action:'remove', id:removed.id, fecha:dateStr, slot_mins:slotMins, usuario_id:selectedUserId });
-    }
-}
-
-async function flushPending() {
-    if (!pendingChanges.length) return;
-    const changes = [...pendingChanges];
-    pendingChanges = [];
-
-    for (const ch of changes) {
-        try {
-            if (ch.action === 'add') {
-                const res = await api.post('/cuadrante/asignaciones', {
-                    fecha: ch.fecha, slot_mins: ch.slot_mins, usuario_id: ch.usuario_id
-                });
-                // Update temp id with real id
-                const list = asignaciones[ch.fecha]?.[ch.slot_mins];
-                if (list) {
-                    const item = list.find(a => a.usuario_id === ch.usuario_id && a.id === -1);
-                    if (item && res.id) item.id = res.id;
-                }
-            } else if (ch.action === 'remove' && ch.id && ch.id !== -1) {
-                await api.delete(`/cuadrante/asignaciones/${ch.id}`);
-            } else if (ch.action === 'remove') {
-                // id was -1 (never saved), nothing to delete from API
-            }
-        } catch(e) {
-            console.error('Error sync:', e);
-        }
-    }
-}
-
-// ── Grid events (event delegation) ──────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-    const gridArea = document.getElementById('grid-area');
-
-    gridArea.addEventListener('mousedown', e => {
-        if (!modoEdicion) return;
-        const td = e.target.closest('td.slot-active[data-date]');
-        if (!td || !selectedUserId) return;
-        e.preventDefault();
-        isPainting = true;
-        painted.clear();
-        const dateStr  = td.dataset.date;
-        const slotMins = parseInt(td.dataset.slot);
-        const list = asignaciones[dateStr]?.[slotMins] || [];
-        paintMode = list.some(a => a.usuario_id === selectedUserId) ? 'remove' : 'add';
-        applyPaint(dateStr, slotMins);
-    });
-
-    gridArea.addEventListener('mousemove', e => {
-        if (!modoEdicion || !isPainting || !selectedUserId) return;
-        const td = e.target.closest('td.slot-active[data-date]');
-        if (!td) return;
-        applyPaint(td.dataset.date, parseInt(td.dataset.slot));
-    });
-
-    document.addEventListener('mouseup', () => {
-        if (isPainting) {
-            isPainting = false;
-            flushPending();
-        }
-    });
-});
-
-// ── Sidebar de usuarios ─────────────────────────────────────────
-function renderUserSidebar() {
-    // Filter by area
-    const visibles = usuarios.filter(isUserVisibleInSidebar);
-
-    const grouped = {};
-    visibles.forEach(u => {
-        const rol = u.rol || 'empleado';
-        if (!grouped[rol]) grouped[rol] = [];
-        grouped[rol].push(u);
-    });
-
-    // Show known roles first, then any other roles
-    const knownRoles = ['admin', 'gerente', 'empleado'];
-    const extraRoles  = Object.keys(grouped).filter(r => !knownRoles.includes(r));
-    const rolOrder    = [...knownRoles, ...extraRoles];
-
-    let html = '';
-    rolOrder.forEach(rol => {
-        if (!grouped[rol]?.length) return;
-        const cfg = ROL_CFG[rol] || { label: rol.charAt(0).toUpperCase() + rol.slice(1), icon: '👤' };
-        html += `<div class="role-head">${cfg.icon} ${cfg.label}</div>`;
-        grouped[rol].forEach(u => {
-            const color = getUserColor(u.id);
-            const ini   = u.iniciales || u.username.slice(0,2).toUpperCase();
-            const sel   = selectedUserId === u.id ? ' selected' : '';
-            html += `
-            <div class="u-entry${sel}" data-uid="${u.id}" onclick="selectUser(${u.id})">
-                <div class="u-avatar" style="background:${color}">${ini}</div>
-                <span class="u-name">${u.username}</span>
-                <label class="u-color-wrap" onclick="event.stopPropagation()" title="Cambiar color">
-                    <div class="u-color-dot" style="background:${color}"
-                         onclick="this.nextElementSibling.click()"></div>
-                    <input type="color" class="u-color-inp" value="${color}"
-                           oninput="setUserColor(${u.id}, this.value)">
-                </label>
-            </div>`;
-        });
-    });
-
-    document.getElementById('us-list').innerHTML = html ||
-        '<div style="padding:16px;font-size:12px;color:#9ca3af">Sin usuarios</div>';
-}
-
-function selectUser(uid) {
-    if (!modoEdicion) return;
-    if (selectedUserId === uid) {
-        deseleccionarUsuario();
-        return;
-    }
-    selectedUserId = uid;
-    document.querySelectorAll('.u-entry').forEach(el => {
-        el.classList.toggle('selected', parseInt(el.dataset.uid) === uid);
-    });
-    document.getElementById('us-deselect').classList.remove('hidden');
-    document.getElementById('grid-area').style.cursor = 'crosshair';
-}
-
-function deseleccionarUsuario() {
-    selectedUserId = null;
-    document.querySelectorAll('.u-entry').forEach(el => el.classList.remove('selected'));
-    document.getElementById('us-deselect').classList.add('hidden');
-    document.getElementById('grid-area').style.cursor = '';
-}
-
-// ── Panel de horarios ───────────────────────────────────────────
-function abrirHorarios() {
-    renderHorariosPanel();
-    document.getElementById('horarios-panel').classList.add('open');
-    document.getElementById('hp-overlay').classList.add('open');
-}
-function cerrarHorarios() {
-    document.getElementById('horarios-panel').classList.remove('open');
-    document.getElementById('hp-overlay').classList.remove('open');
-}
-
-function renderHorariosPanel() {
-    document.getElementById('hp-body').innerHTML = DIAS_LARGO.map((nombre, i) => {
-        const h = horarios.find(x => x.dia_semana === i) || { dia_semana:i, activo:false, franjas:[] };
-        const franjasHtml = (h.franjas||[]).map((f, fi) => `
-            <div class="franja-row" id="fr-${i}-${fi}">
-                <input type="time" value="${f.inicio}" id="fi-${i}-${fi}" step="1800">
-                <span class="franja-sep">—</span>
-                <input type="time" value="${f.fin}"    id="ff-${i}-${fi}" step="1800">
-                <button class="btn-del-franja" onclick="delFranja(${i},${fi})">✕</button>
-            </div>`).join('');
-        return `
-        <div class="dia-block">
-            <div class="dia-head">
-                <span class="dia-nombre">${nombre}</span>
-                <label class="tsw">
-                    <input type="checkbox" id="da-${i}" ${h.activo?'checked':''}
-                           onchange="toggleDia(${i})">
-                    <span class="tsl"></span>
-                </label>
-            </div>
-            <div class="dia-body" id="db-${i}" style="${h.activo?'':'display:none'}">
-                <div id="franjas-${i}">${franjasHtml}</div>
-                <button class="btn-add-franja" onclick="addFranja(${i})">+ Agregar franja</button>
-            </div>
-        </div>`;
-    }).join('');
-}
-
-function toggleDia(i) {
-    document.getElementById(`db-${i}`).style.display =
-        document.getElementById(`da-${i}`).checked ? '' : 'none';
-}
-function addFranja(i) {
-    const c  = document.getElementById(`franjas-${i}`);
-    const fi = c.children.length;
-    const div = document.createElement('div');
-    div.className = 'franja-row'; div.id = `fr-${i}-${fi}`;
-    div.innerHTML = `
-        <input type="time" value="09:00" id="fi-${i}-${fi}" step="1800">
-        <span class="franja-sep">—</span>
-        <input type="time" value="17:00" id="ff-${i}-${fi}" step="1800">
-        <button class="btn-del-franja" onclick="delFranja(${i},${fi})">✕</button>`;
-    c.appendChild(div);
-}
-function delFranja(i, fi) {
-    document.getElementById(`fr-${i}-${fi}`)?.remove();
-}
-
-async function guardarHorarios() {
-    const btn = document.querySelector('.btn-hp-save');
-    btn.disabled = true; btn.textContent = 'Guardando…';
-    try {
-        for (let i = 0; i < 7; i++) {
-            const activo = document.getElementById(`da-${i}`)?.checked ?? false;
-            const c = document.getElementById(`franjas-${i}`);
-            const franjas = [];
-            if (c) [...c.children].forEach(row => {
-                const ins = row.querySelectorAll('input[type=time]');
-                if (ins.length === 2 && ins[0].value && ins[1].value)
-                    franjas.push({ inicio: ins[0].value, fin: ins[1].value });
-            });
-            await api.patch(`/horarios/${i}`, { activo, franjas });
-        }
-        await cargarHorarios();
-        renderGrid();
-        cerrarHorarios();
-    } catch(e) {
-        alert('Error al guardar: ' + e.message);
-    } finally {
-        btn.disabled = false; btn.textContent = 'Guardar horarios';
-    }
-}
-
-// ── Modo edición ─────────────────────────────────────────────────
-function toggleModoEdicion() {
-    modoEdicion = !modoEdicion;
-    const btn = document.getElementById('btn-edit-mode');
-    if (modoEdicion) {
-        btn.textContent = '✏️ Edición';
-        btn.classList.add('active');
-        document.getElementById('us-tip').textContent = 'Selecciona un empleado y pinta la grilla';
-        document.body.classList.remove('view-mode');
-    } else {
-        btn.textContent = '👁 Ver';
-        btn.classList.remove('active');
-        document.getElementById('us-tip').textContent = 'Filtra para resaltar horarios';
-        document.body.classList.add('view-mode');
-        deseleccionarUsuario();
-    }
-    refreshAllCells();
-}
-
-// ── Filtro de nombre ─────────────────────────────────────────────
 function onFiltroNombre(val) {
     filtroNombre = val.trim();
-    renderUserSidebar();
-    refreshAllCells();
+    renderGrid();
 }
 
 // ── Áreas ────────────────────────────────────────────────────────
 async function cargarAreas() {
     try {
         areas = await api.get('/productos/areas');
-        // Start with all areas + null (sin área) active
         areasActivas = new Set([null, ...areas.map(a => a.id)]);
         renderAreaChips();
+        renderLeyenda();
     } catch(e) {
-        console.warn('No se pudieron cargar las áreas:', e);
         areas = [];
         areasActivas = null;
-        const el = document.getElementById('area-chips');
-        if (el) el.innerHTML = '';
+        document.getElementById('area-chips').innerHTML = '';
     }
 }
 
 function renderAreaChips() {
-    const container = document.getElementById('area-chips');
-    if (!container) return;
-    let html = '';
-    // "Sin área" chip for users without assigned area
+    const c = document.getElementById('area-chips');
+    if (!c) return;
     const sinAreaActive = areasActivas === null || areasActivas.has(null);
-    html += `<span class="area-chip ${sinAreaActive ? 'active' : ''}"
-                   onclick="toggleArea(null)">Sin área</span>`;
+    let html = `<span class="area-chip ${sinAreaActive?'active':''}" onclick="toggleArea(null)">Sin área</span>`;
     areas.forEach(a => {
         const active = areasActivas === null || areasActivas.has(a.id);
-        html += `<span class="area-chip ${active ? 'active' : ''}"
-                       onclick="toggleArea(${a.id})">${a.nombre}</span>`;
+        const col = AREA_PALETTE[(a.id - 1) % AREA_PALETTE.length];
+        html += `<span class="area-chip ${active?'active':''}" onclick="toggleArea(${a.id})"
+                       style="${active?`background:${col};border-color:${col};`:''}">${a.nombre}</span>`;
     });
-    container.innerHTML = html;
+    c.innerHTML = html;
 }
 
 function toggleArea(areaId) {
     if (areasActivas === null) {
-        // Initialize set with all minus this one
         areasActivas = new Set([null, ...areas.map(a => a.id)]);
-        areasActivas.delete(areaId);
-    } else {
-        if (areasActivas.has(areaId)) {
-            areasActivas.delete(areaId);
-        } else {
-            areasActivas.add(areaId);
-        }
     }
+    if (areasActivas.has(areaId)) areasActivas.delete(areaId);
+    else areasActivas.add(areaId);
     renderAreaChips();
-    renderUserSidebar();
-    refreshAllCells();
+    renderGrid();
 }
 
-// ── API ─────────────────────────────────────────────────────────
-async function cargarHorarios() {
-    horarios = await api.get('/horarios/');
-}
-
-async function cargarUsuarios() {
-    try {
-        usuarios = await api.get('/auth/usuarios');
-    } catch {
-        // Si no tiene permiso de admin/gerente, cargamos sólo el propio usuario
-        usuarios = [];
+function renderLeyenda() {
+    const c = document.getElementById('leyenda-areas');
+    if (!c) return;
+    let html = '';
+    if (areas.length === 0) {
+        html = `<div class="leyenda-row"><span class="leyenda-label" style="color:#9ca3af">Sin áreas configuradas</span></div>`;
     }
+    areas.forEach(a => {
+        const col = AREA_PALETTE[(a.id - 1) % AREA_PALETTE.length];
+        html += `<div class="leyenda-row">
+            <div class="leyenda-chip" style="background:${hexToRgba(col,.15)};border:2px solid ${col};border-radius:3px;"></div>
+            <span class="leyenda-label">${a.nombre}</span>
+        </div>`;
+    });
+    html += `<div class="leyenda-row">
+        <div class="leyenda-chip" style="background:${hexToRgba(COLOR_SIN_AREA,.12)};border:2px solid ${COLOR_SIN_AREA};border-radius:3px;"></div>
+        <span class="leyenda-label">Sin área asignada</span>
+    </div>`;
+    c.innerHTML = html;
 }
 
-async function cargarAsignaciones() {
+function toggleLeyenda() {
+    document.getElementById('leyenda-panel').classList.toggle('open');
+}
+
+// ── Render grid ─────────────────────────────────────────────────
+async function cargarYRenderizar() {
+    updateNavLabel();
     const days = getDays();
     const desde = formatDate(days[0]);
-    const hasta  = formatDate(days[days.length-1]);
+    const hasta  = formatDate(days[days.length - 1]);
     try {
-        const raw = await api.get(`/cuadrante/asignaciones?desde=${desde}&hasta=${hasta}`);
-        asignaciones = {};
-        raw.forEach(a => {
-            const fecha = (a.fecha||'').split('T')[0];
-            if (!asignaciones[fecha]) asignaciones[fecha] = {};
-            if (!asignaciones[fecha][a.slot_mins]) asignaciones[fecha][a.slot_mins] = [];
-            asignaciones[fecha][a.slot_mins].push({ id: a.id, usuario_id: a.usuario_id });
-        });
+        horariosCeldas = await api.get(`/horarios-personal?desde=${desde}&hasta=${hasta}`);
     } catch(e) {
-        console.error('Error cargando asignaciones:', e);
+        horariosCeldas = [];
+    }
+    // Update publish button visibility
+    if (canEdit) {
+        const hasDraft = horariosCeldas.some(h => !h.publicado);
+        const btn = document.getElementById('btn-publicar');
+        btn.classList.toggle('has-draft', hasDraft);
+    }
+    renderGrid();
+}
+
+function renderGrid() {
+    const days     = getDays();
+    const visibles = getVisibleUsers();
+
+    if (!visibles.length) {
+        document.getElementById('grid-wrap').innerHTML =
+            '<div class="grid-empty">No hay usuarios que mostrar.<br><small>Ajusta los filtros de área o nombre.</small></div>';
+        return;
+    }
+
+    // ── Header ────────────────────────────────────────────────
+    let html = `<table class="cq-table"><thead><tr>`;
+    html += `<th class="th-user"><div class="th-user-inner">👥 Personal</div></th>`;
+    days.forEach(d => {
+        const apiDay = jsDay2Api(d);
+        const wknd   = d.getDay() === 0 || d.getDay() === 6;
+        const hoy    = isToday(d);
+        const cls    = ['th-day', hoy?'col-hoy':'', wknd?'col-wknd':''].filter(Boolean).join(' ');
+        html += `<th class="${cls}">
+            <div class="day-head-inner">
+                <span class="dh-dn">${DIAS_CORTO[apiDay]}</span>
+                <span class="dh-dd">${d.getDate()}</span>
+                <span class="dh-dm">${MESES_C[d.getMonth()]}</span>
+            </div></th>`;
+    });
+    html += `</tr></thead><tbody>`;
+
+    // ── User rows ─────────────────────────────────────────────
+    const dateSet = new Set(days.map(formatDate));
+    visibles.forEach(u => {
+        const color    = getAreaColor(u);
+        const colorBg  = hexToRgba(color, 0.08);
+        const ini      = u.iniciales || u.username.slice(0,2).toUpperCase();
+        const periodMins = calcUserPeriodMins(u.id, dateSet);
+        const periodH    = formatHours(periodMins);
+        const areaLabel  = u.area_nombre || 'Sin área';
+
+        html += `<tr data-uid="${u.id}">`;
+        html += `<td class="td-user">
+            <div class="td-user-inner">
+                <div class="u-avatar-sm" style="background:${color}">${ini}</div>
+                <div class="u-info-col">
+                    <span class="u-name-sm">${u.username}</span>
+                    ${periodH ? `<span class="u-period-h">${periodH} / período</span>` : ''}
+                    <span class="u-area-tag">${areaLabel}</span>
+                </div>
+            </div></td>`;
+
+        days.forEach(d => {
+            const dateStr = formatDate(d);
+            const entry   = horariosCeldas.find(h =>
+                h.usuario_id === u.id && (h.fecha || '').split('T')[0] === dateStr
+            );
+            const wknd = d.getDay() === 0 || d.getDay() === 6;
+            const hoy  = isToday(d);
+            const tdCls = ['td-day', hoy?'col-hoy':'', wknd?'col-wknd':''].filter(Boolean).join(' ');
+
+            html += `<td class="${tdCls}">`;
+            if (entry && entry.franjas && entry.franjas.length > 0) {
+                const borderStyle = entry.publicado ? 'published' : 'draft';
+                const totalMins   = calcTotalMins(entry.franjas);
+                const franjasHtml = entry.franjas.map(f =>
+                    `<div class="franja-tag">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</div>`
+                ).join('');
+                html += `<div class="cell-content ${borderStyle}"
+                               style="border-color:${color};background:${colorBg};color:${color};"
+                               data-uid="${u.id}" data-date="${dateStr}">
+                    ${franjasHtml}
+                    <div class="cell-total-h">${formatHours(totalMins)}</div>
+                </div>`;
+            } else if (canEdit) {
+                html += `<div class="cell-add" data-uid="${u.id}" data-date="${dateStr}">+</div>`;
+            }
+            html += `</td>`;
+        });
+        html += `</tr>`;
+    });
+
+    // ── Summary row ───────────────────────────────────────────
+    html += `<tr class="tr-summary">
+        <td class="td-user tr-summary"><div class="td-user-inner" style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;">Total por día</div></td>`;
+    days.forEach(d => {
+        const dateStr = formatDate(d);
+        const dayTotal = visibles.reduce((acc, u) => {
+            const entry = horariosCeldas.find(h => h.usuario_id === u.id && (h.fecha||'').split('T')[0] === dateStr);
+            return acc + (entry ? calcTotalMins(entry.franjas) : 0);
+        }, 0);
+        html += `<td class="td-summary">${formatHours(dayTotal) || '—'}</td>`;
+    });
+    html += `</tr>`;
+
+    html += `</tbody></table>`;
+    document.getElementById('grid-wrap').innerHTML = html;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────
+function calcUserPeriodMins(userId, dateSet) {
+    let total = 0;
+    horariosCeldas.forEach(h => {
+        if (h.usuario_id === userId && dateSet.has((h.fecha||'').split('T')[0])) {
+            total += calcTotalMins(h.franjas);
+        }
+    });
+    return total;
+}
+
+// ── Grid click delegation ────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('grid-area').addEventListener('click', e => {
+        if (!canEdit) return;
+        const el = e.target.closest('[data-uid][data-date]');
+        if (!el) return;
+        abrirModal(parseInt(el.dataset.uid), el.dataset.date);
+    });
+});
+
+// ── Modal ────────────────────────────────────────────────────────
+function abrirModal(userId, dateStr) {
+    const u = usuarios.find(x => x.id === userId);
+    if (!u) return;
+
+    const entry = horariosCeldas.find(h =>
+        h.usuario_id === userId && (h.fecha||'').split('T')[0] === dateStr
+    );
+
+    modalState = { userId, fecha: dateStr, entryId: entry?.id ?? null };
+
+    // Title
+    const d  = new Date(dateStr + 'T00:00:00');
+    const dn = DIAS_LARGO[jsDay2Api(d)];
+    document.getElementById('ms-title').textContent =
+        `${u.username} — ${dn} ${d.getDate()} ${MESES[d.getMonth()]}`;
+
+    // Franjas
+    renderModalFranjas(entry?.franjas || [{ inicio:'09:00', fin:'17:00' }]);
+
+    // Delete button
+    document.getElementById('ms-btn-elim').style.display = entry ? '' : 'none';
+
+    document.getElementById('modal-overlay').classList.add('open');
+    document.getElementById('modal-sched').classList.add('open');
+}
+
+function cerrarModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    document.getElementById('modal-sched').classList.remove('open');
+}
+
+function renderModalFranjas(franjas) {
+    const c = document.getElementById('ms-franjas');
+    c.innerHTML = franjas.map((f, i) => `
+        <div class="ms-franja-row" id="mfr-${i}">
+            <input type="time" class="ms-time ms-inicio" value="${f.inicio||'09:00'}" oninput="updateTotal()">
+            <span class="ms-sep">—</span>
+            <input type="time" class="ms-time ms-fin"   value="${f.fin||'17:00'}"   oninput="updateTotal()">
+            <button class="ms-del-franja" onclick="this.closest('.ms-franja-row').remove();updateTotal()">✕</button>
+        </div>`).join('');
+    updateTotal();
+}
+
+function msAddFranja() {
+    const c   = document.getElementById('ms-franjas');
+    const div = document.createElement('div');
+    div.className = 'ms-franja-row';
+    div.innerHTML = `
+        <input type="time" class="ms-time ms-inicio" value="09:00" oninput="updateTotal()">
+        <span class="ms-sep">—</span>
+        <input type="time" class="ms-time ms-fin"   value="17:00" oninput="updateTotal()">
+        <button class="ms-del-franja" onclick="this.closest('.ms-franja-row').remove();updateTotal()">✕</button>`;
+    c.appendChild(div);
+    updateTotal();
+}
+
+function updateTotal() {
+    let total = 0;
+    document.querySelectorAll('.ms-franja-row').forEach(row => {
+        const s = timeToMins(row.querySelector('.ms-inicio')?.value);
+        let   e = timeToMins(row.querySelector('.ms-fin')?.value);
+        if (e <= s) e += 24 * 60;
+        if (e > s) total += e - s;
+    });
+    document.getElementById('ms-total').textContent = total > 0 ? `Total: ${formatHours(total)}` : '';
+}
+
+async function msGuardar() {
+    const franjas = [];
+    document.querySelectorAll('.ms-franja-row').forEach(row => {
+        const inicio = row.querySelector('.ms-inicio')?.value;
+        const fin    = row.querySelector('.ms-fin')?.value;
+        if (inicio && fin) franjas.push({ inicio, fin });
+    });
+
+    const btn = document.getElementById('ms-btn-save');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+        if (franjas.length === 0 && modalState.entryId) {
+            await api.delete(`/horarios-personal/${modalState.entryId}`);
+        } else if (franjas.length > 0) {
+            await api.post('/horarios-personal', {
+                usuario_id: modalState.userId,
+                fecha:      modalState.fecha,
+                franjas,
+            });
+        }
+        cerrarModal();
+        await cargarYRenderizar();
+    } catch(e) {
+        alert('Error al guardar: ' + (e.message || e));
+    } finally {
+        btn.disabled = false; btn.textContent = 'Guardar';
+    }
+}
+
+async function msEliminar() {
+    if (!modalState.entryId) return;
+    if (!confirm('¿Eliminar este horario?')) return;
+    try {
+        await api.delete(`/horarios-personal/${modalState.entryId}`);
+        cerrarModal();
+        await cargarYRenderizar();
+    } catch(e) {
+        alert('Error al eliminar: ' + (e.message || e));
+    }
+}
+
+// ── Publicar ─────────────────────────────────────────────────────
+async function publicarHorarios() {
+    const days  = getDays();
+    const desde = formatDate(days[0]);
+    const hasta  = formatDate(days[days.length - 1]);
+    const draft  = horariosCeldas.filter(h => !h.publicado).length;
+
+    if (draft === 0) {
+        alert('No hay horarios en borrador para publicar en este período.');
+        return;
+    }
+    if (!confirm(`¿Publicar ${draft} horario(s)? Serán visibles para todos los empleados.`)) return;
+
+    const btn = document.getElementById('btn-publicar');
+    btn.textContent = 'Publicando…';
+    try {
+        const r = await api.post('/horarios-personal/publicar', { desde, hasta });
+        await cargarYRenderizar();
+    } catch(e) {
+        alert('Error al publicar: ' + (e.message || e));
+    } finally {
+        btn.textContent = '📤 Publicar horarios';
     }
 }
 
 // ── Init ─────────────────────────────────────────────────────────
 (async () => {
-    loadUserColors();
-    await Promise.all([cargarHorarios(), cargarUsuarios(), cargarAreas()]);
-    renderUserSidebar();
+    try {
+        meUser = await api.get('/auth/me');
+        canEdit = (meUser.rol === 'admin' || meUser.rol === 'gerente' || meUser.edicion_agenda === true);
+    } catch { canEdit = false; }
+
+    // Show publish button only for editors
+    if (!canEdit) document.getElementById('btn-publicar').style.display = 'none';
+
+    await Promise.all([
+        api.get('/auth/usuarios').then(u => { usuarios = u; }).catch(() => { usuarios = []; }),
+        cargarAreas(),
+    ]);
+
     document.body.classList.add('view-semana');
-    await renderGrid();
+    await cargarYRenderizar();
 })();
 </script>
 </body>
