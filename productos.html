@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurante — Carta y productos</title>
+    <!-- Quill rich-text editor -->
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
@@ -104,7 +107,19 @@
         .badge-blue { background: #dbeafe; color: #1d4ed8; }
         .badge-yellow { background: #fef9c3; color: #854d0e; }
 
-        .fav-star { color: #f59e0b; font-size: 16px; }
+        .fav-star { font-size: 16px; user-select: none; }
+        .fav-star.gold { color: #f59e0b; }
+        .fav-star.gray { color: #d1d5db; }
+        .fav-star.editable { cursor: pointer; transition: transform 0.12s; }
+        .fav-star.editable:hover { transform: scale(1.3); }
+        .prod-row { cursor: pointer; }
+        .prod-row.expanded > td { background: #faf5ff !important; }
+        .ing-row > td { background: #f5f3ff; padding: 8px 20px 12px 44px !important; border-top: none !important; }
+        .ing-row .ing-tag {
+            display: inline-block; margin: 2px; padding: 2px 9px; border-radius: 4px;
+            font-size: 12px; font-weight: 600;
+        }
+        .btn-edit-mode.active { background: #f59e0b !important; color: white !important; border-color: #d97706 !important; }
         .empty { text-align: center; padding: 48px; color: #888; }
 
         /* ── MODAL ── */
@@ -167,7 +182,6 @@
     <div class="tabs">
         <button class="tab active" id="tab-productos" onclick="setTab('productos')">Productos</button>
         <button class="tab" id="tab-combos" onclick="setTab('combos')">Combos</button>
-        <button class="tab" id="tab-categorias" onclick="setTab('categorias')">Categorías</button>
         <button class="tab" id="tab-recetas" onclick="setTab('recetas')">🧪 Recetas</button>
     </div>
 
@@ -175,13 +189,10 @@
     <div id="vista-productos">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalProducto()">+ Nuevo</button>
-            <button class="btn btn-secondary btn-sm" id="btn-editar-prod" disabled onclick="editarProductoSel()">Editar</button>
-            <button class="btn btn-danger btn-sm" id="btn-elim-prod" disabled onclick="eliminarProductoSel()">Eliminar</button>
-            <button class="btn btn-warning btn-sm" id="btn-promo" disabled onclick="abrirModalPromo()">★ Promoción</button>
-            <button class="btn btn-secondary btn-sm" id="btn-combos-hab" disabled onclick="abrirModalCombosHab()">🔗 Combos</button>
+            <button class="btn btn-secondary btn-sm btn-edit-mode" id="btn-modo-edicion" onclick="toggleModoEdicion()">✏️ Edición</button>
             <div class="sep"></div>
-            <button class="btn btn-secondary btn-sm" onclick="exportarCSV()">↓ Exportar CSV</button>
-            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('inp-csv').click()">↑ Importar CSV</button>
+            <button class="btn btn-secondary btn-sm" id="bar-exportar" onclick="exportarCSV()" style="display:none">↓ Exportar CSV</button>
+            <button class="btn btn-secondary btn-sm" id="bar-importar" onclick="document.getElementById('inp-csv').click()" style="display:none">↑ Importar CSV</button>
             <input type="file" id="inp-csv" accept=".csv" style="display:none" onchange="importarCSV(this)">
         </div>
 
@@ -207,7 +218,11 @@
                     <tr>
                         <th>★</th>
                         <th>Nombre</th>
-                        <th>Categoría</th>
+                        <th>Categoría
+                            <span id="btn-gestionar-cats" onclick="abrirGestionCategorias()"
+                                  style="display:none;cursor:pointer;font-size:13px;margin-left:6px;opacity:.7;"
+                                  title="Gestionar categorías">✏️</span>
+                        </th>
                         <th>Área</th>
                         <th>Precio</th>
                         <th>Promo</th>
@@ -346,32 +361,33 @@
 </div>
 
 <!-- ── VISTA RECETAS ── -->
-    <div id="vista-recetas" style="display:none">
-        <div class="filtros">
-            <input type="text" id="rec-buscar-prod" placeholder="Buscar producto..." oninput="filtrarRecetas()">
-            <input type="text" id="rec-buscar-ins" placeholder="Buscar por insumo..." oninput="filtrarRecetas()">
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" id="rec-con-receta" checked onchange="filtrarRecetas()"> Con receta
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" id="rec-sin-receta" checked onchange="filtrarRecetas()"> Sin receta
-            </label>
-        </div>
-        <div class="tabla-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Producto</th>
-                        <th>Ingredientes</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-recetas">
-                    <tr><td colspan="3" class="empty">Cargando...</td></tr>
-                </tbody>
-            </table>
-        </div>
-
+<div id="vista-recetas" style="display:none">
+    <div class="filtros">
+        <input type="text" id="rec-buscar-prod" placeholder="🔍 Buscar producto..." oninput="filtrarRecetasDoc()">
+        <select id="rec-filtro-cat" onchange="filtrarRecetasDoc()">
+            <option value="">Todas las categorías</option>
+        </select>
+        <select id="rec-filtro-estado" onchange="filtrarRecetasDoc()">
+            <option value="">Todos</option>
+            <option value="con">Con receta</option>
+            <option value="sin">Sin receta</option>
+        </select>
+    </div>
+    <div class="tabla-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th>Área</th>
+                    <th style="text-align:center;width:160px;">Receta</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-recetas-doc">
+                <tr><td colspan="4" class="empty">Cargando...</td></tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!-- Modal receta -->
@@ -527,6 +543,100 @@
     </div>
 </div>
 
+<!-- ── MODAL GESTIÓN CATEGORÍAS ── -->
+<div class="modal-overlay" id="modal-gestion-cats">
+    <div class="modal" style="max-width:480px">
+        <h3>Gestionar categorías</h3>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <input type="text" id="gc-nuevo-nombre" placeholder="Nombre de nueva categoría..."
+                   style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;"
+                   onkeydown="if(event.key==='Enter')gcAgregarCategoria()">
+            <button class="btn btn-primary btn-sm" onclick="gcAgregarCategoria()">+ Agregar</button>
+        </div>
+        <div id="gc-lista" style="max-height:380px;overflow-y:auto;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-gestion-cats')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── MODAL VER RECETA ── -->
+<div class="modal-overlay" id="modal-ver-receta">
+    <div class="modal" style="max-width:880px;width:96vw;max-height:93vh;padding:20px;display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+            <h3 id="vr-titulo" style="margin:0;font-size:17px;">📓 Receta</h3>
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-warning btn-sm" onclick="abrirEditorRecetaDesdeVer()">✏️ Editar</button>
+                <button class="btn btn-danger btn-sm" onclick="eliminarRecetaDoc()">🗑 Eliminar</button>
+                <button class="btn btn-secondary btn-sm" onclick="cerrarModal('modal-ver-receta')">✕ Cerrar</button>
+            </div>
+        </div>
+        <div id="vr-contenido"
+             style="flex:1;min-height:460px;border:1px solid #e0e0e0;border-radius:10px;overflow:auto;background:white;">
+        </div>
+    </div>
+</div>
+
+<!-- ── MODAL EDITOR DE RECETA ── -->
+<div class="modal-overlay" id="modal-editor-receta">
+    <div class="modal" style="max-width:920px;width:96vw;max-height:96vh;padding:20px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+            <h3 id="er-titulo" style="margin:0;font-size:17px;">✏️ Editor de receta</h3>
+            <button onclick="cerrarModal('modal-editor-receta')"
+                    style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;line-height:1;">✕</button>
+        </div>
+        <!-- Upload PDF shortcut -->
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:#f8f9fa;border-radius:8px;
+                    font-size:13px;color:#555;flex-shrink:0;border:1px solid #e8e8e8;">
+            <span>¿Tenés un PDF ya listo?</span>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('inp-pdf-receta').click()">
+                📎 Subir PDF directamente
+            </button>
+            <input type="file" id="inp-pdf-receta" accept=".pdf" style="display:none" onchange="subirPdfReceta(this)">
+        </div>
+        <!-- Quill toolbar (Quill attaches to this id) -->
+        <div id="quill-toolbar" style="flex-shrink:0;border-radius:8px 8px 0 0;">
+            <span class="ql-formats">
+                <select class="ql-font"></select>
+                <select class="ql-size"></select>
+            </span>
+            <span class="ql-formats">
+                <button class="ql-bold"></button>
+                <button class="ql-italic"></button>
+                <button class="ql-underline"></button>
+                <button class="ql-strike"></button>
+            </span>
+            <span class="ql-formats">
+                <select class="ql-color"></select>
+                <select class="ql-background"></select>
+            </span>
+            <span class="ql-formats">
+                <button class="ql-list" value="ordered"></button>
+                <button class="ql-list" value="bullet"></button>
+                <button class="ql-indent" value="-1"></button>
+                <button class="ql-indent" value="+1"></button>
+            </span>
+            <span class="ql-formats">
+                <select class="ql-align"></select>
+            </span>
+            <span class="ql-formats">
+                <button class="ql-link"></button>
+                <button class="ql-image"></button>
+            </span>
+            <span class="ql-formats">
+                <button class="ql-clean"></button>
+            </span>
+        </div>
+        <div id="quill-editor"
+             style="flex:1;min-height:320px;max-height:calc(96vh - 310px);
+                    border-radius:0 0 8px 8px;font-size:14px;overflow-y:auto;"></div>
+        <div class="modal-footer" style="flex-shrink:0;margin-top:0;">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-editor-receta')">Cancelar</button>
+            <button class="btn btn-primary" id="btn-guardar-receta-doc" onclick="guardarRecetaDoc()">💾 Guardar receta</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script>
@@ -538,25 +648,28 @@ let prodSel = null, comboSel = null;
 let editandoProdId = null, editandoComboId = null, editandoCatId = null;
 let promoActual = null;
 let tabActual = 'productos';
+let modoEdicion = false;
+let _expandedProdId = null;
+let _productosFiltrados = null;
 
 // ── TABS ──────────────────────────────────────────────────────
 function setTab(tab) {
     tabActual = tab;
-    ['productos','combos','categorias','recetas'].forEach(t => {
+    ['productos','combos','recetas'].forEach(t => {
         document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
         const el = document.getElementById(`vista-${t}`);
         if (el) el.style.display = t === tab ? '' : 'none';
     });
     if (tab === 'combos') cargarCombos();
-    if (tab === 'categorias') renderCategorias();
     if (tab === 'recetas') cargarRecetas();
 }
 
 // ── INIT ──────────────────────────────────────────────────────
 async function init() {
-    [categorias, areas] = await Promise.all([
+    [categorias, areas, _recetas] = await Promise.all([
         api.get('/productos/categorias'),
-        api.get('/productos/areas')
+        api.get('/productos/areas'),
+        api.get('/stock/recetas').catch(() => []),
     ]);
     poblarSelects();
     await cargarProductos();
@@ -586,25 +699,40 @@ async function cargarProductos() {
     if (cat) url += `categoria_id=${cat}&`;
     if (area) url += `area_id=${area}&`;
     if (estado === 'encarta') url += 'en_carta=true&';
-    if (estado === 'agotado') url += 'agotado=true&'; // nota: necesitamos endpoint con agotado
+    if (estado === 'agotado') url += 'agotado=true&';
     if (estado === 'favorito') url += 'favorito=true&';
-    productos = await api.get(url);
+    [productos, _recetas] = await Promise.all([
+        api.get(url),
+        api.get('/stock/recetas').catch(() => _recetas),
+    ]);
     prodSel = null;
-    actualizarBtnsProducto();
+    _productosFiltrados = null;
+    _expandedProdId = null;
     renderProductos(productos);
 }
 
 function filtrarLocal() {
     const q = document.getElementById('filtro-buscar').value.toLowerCase();
-    renderProductos(q ? productos.filter(p => p.nombre.toLowerCase().includes(q)) : productos);
+    _productosFiltrados = q ? productos.filter(p => p.nombre.toLowerCase().includes(q)) : null;
+    _expandedProdId = null;
+    renderProductos(_productosFiltrados || productos);
 }
 
 function renderProductos(lista) {
     const tbody = document.getElementById('tbody-productos');
     if (!lista.length) { tbody.innerHTML = `<tr><td colspan="8" class="empty">No hay productos</td></tr>`; return; }
-    tbody.innerHTML = lista.map(p => `
-        <tr class="${prodSel && prodSel.id === p.id ? 'sel' : ''}" onclick="selProducto(${p.id})">
-            <td>${p.favorito ? '<span class="fav-star">★</span>' : ''}</td>
+    let html = '';
+    for (const p of lista) {
+        const expanded = _expandedProdId === p.id;
+        const starEditable = modoEdicion ? ' editable' : '';
+        const starOnClick  = modoEdicion ? `onclick="event.stopPropagation();toggleFavorito(${p.id},${p.favorito})"` : '';
+        const dblClick     = modoEdicion ? `ondblclick="event.stopPropagation();abrirModalProducto(${p.id})"` : '';
+        html += `
+        <tr class="prod-row${expanded ? ' expanded' : ''}"
+            onclick="toggleIngredientes(${p.id})" ${dblClick}>
+            <td><span class="fav-star ${p.favorito ? 'gold' : 'gray'}${starEditable}"
+                      title="${modoEdicion ? (p.favorito ? 'Quitar favorito' : 'Marcar como favorito') : (p.favorito ? 'Favorito' : '')}"
+                      ${starOnClick}>★</span></td>
             <td><strong>${p.nombre}</strong>${p.descripcion ? `<br><small style="color:#888">${p.descripcion}</small>` : ''}</td>
             <td>${p.categoria || '—'}</td>
             <td>${p.area || '—'}</td>
@@ -612,8 +740,12 @@ function renderProductos(lista) {
             <td id="promo-cell-${p.id}"><span class="badge badge-gray">—</span></td>
             <td><span class="badge ${p.en_carta ? 'badge-green' : 'badge-gray'}">${p.en_carta ? 'Sí' : 'No'}</span></td>
             <td><span class="badge ${p.agotado ? 'badge-orange' : 'badge-gray'}">${p.agotado ? 'Agotado' : 'No'}</span></td>
-        </tr>
-    `).join('');
+        </tr>`;
+        if (expanded) {
+            html += `<tr class="ing-row"><td colspan="8">${_renderIngredientes(p.id)}</td></tr>`;
+        }
+    }
+    tbody.innerHTML = html;
     // Cargar promociones
     lista.forEach(p => cargarPromoCell(p.id));
 }
@@ -633,36 +765,68 @@ async function cargarPromoCell(prodId) {
     } catch(e) {}
 }
 
-function selProducto(id) {
-    prodSel = productos.find(p => p.id === id);
-    renderProductos(productos);
-    actualizarBtnsProducto();
+function toggleModoEdicion() {
+    modoEdicion = !modoEdicion;
+    const btn = document.getElementById('btn-modo-edicion');
+    btn.classList.toggle('active', modoEdicion);
+    btn.textContent = modoEdicion ? '✏️ Modo edición ON' : '✏️ Edición';
+    document.getElementById('bar-exportar').style.display = modoEdicion ? '' : 'none';
+    document.getElementById('bar-importar').style.display = modoEdicion ? '' : 'none';
+    document.getElementById('btn-gestionar-cats').style.display = modoEdicion ? '' : 'none';
+    renderProductos(_productosFiltrados || productos);
 }
 
-function actualizarBtnsProducto() {
-    const sel = !!prodSel;
-    document.getElementById('btn-editar-prod').disabled = !sel;
-    document.getElementById('btn-elim-prod').disabled = !sel;
-    document.getElementById('btn-promo').disabled = !sel;
-    document.getElementById('btn-combos-hab').disabled = !sel;
+function toggleIngredientes(prodId) {
+    _expandedProdId = (_expandedProdId === prodId) ? null : prodId;
+    renderProductos(_productosFiltrados || productos);
+}
+
+function _renderIngredientes(prodId) {
+    const receta = _recetas.find(r => r.producto_id === prodId);
+    if (!receta || !receta.tiene_receta) {
+        return '<span style="color:#9ca3af;font-size:13px;">Sin receta registrada</span>';
+    }
+    let ings = receta.ingredientes;
+    if (typeof ings === 'string') ings = JSON.parse(ings);
+    if (!ings.length) return '<span style="color:#9ca3af;font-size:13px;">Sin ingredientes</span>';
+    return '<strong style="font-size:12px;color:#555;margin-right:6px;">Ingredientes:</strong>' +
+        ings.map(i => `
+            <span class="ing-tag" style="background:${i.es_produccion ? '#ede9fe' : '#f0fdf4'};
+                                         color:${i.es_produccion ? '#6d28d9' : '#15803d'};">
+                ${i.es_produccion ? '🏭 ' : ''}${i.insumo_nombre} × ${i.cantidad} ${i.unidad}
+            </span>`).join('');
+}
+
+async function toggleFavorito(prodId, currentVal) {
+    try {
+        await api.patch(`/productos/${prodId}`, { favorito: !currentVal });
+        const prod = productos.find(p => p.id === prodId);
+        if (prod) prod.favorito = !currentVal;
+        if (_productosFiltrados) {
+            const fp = _productosFiltrados.find(p => p.id === prodId);
+            if (fp) fp.favorito = !currentVal;
+        }
+        renderProductos(_productosFiltrados || productos);
+    } catch(e) { alert('Error: ' + e.message); }
 }
 
 // ── MODAL PRODUCTO ────────────────────────────────────────────
 function abrirModalProducto(id = null) {
     editandoProdId = id;
     document.getElementById('modal-prod-titulo').textContent = id ? 'Editar producto' : 'Nuevo producto';
-    if (id && prodSel) {
-        document.getElementById('fp-nombre').value = prodSel.nombre;
-        document.getElementById('fp-descripcion').value = prodSel.descripcion || '';
-        document.getElementById('fp-precio').value = prodSel.precio;
-        document.getElementById('fp-descuento').value = prodSel.descuento_pct || 0;
-        document.getElementById('fp-categoria').value = prodSel.categoria_id || '';
-        document.getElementById('fp-area').value = prodSel.area_id || '';
-        document.getElementById('fp-encarta').checked = prodSel.en_carta;
-        document.getElementById('fp-agotado').checked = prodSel.agotado;
-        document.getElementById('fp-favorito').checked = prodSel.favorito;
+    const prod = id ? productos.find(p => p.id === id) : null;
+    if (prod) {
+        document.getElementById('fp-nombre').value = prod.nombre;
+        document.getElementById('fp-descripcion').value = prod.descripcion || '';
+        document.getElementById('fp-precio').value = prod.precio;
+        document.getElementById('fp-descuento').value = prod.descuento_pct || 0;
+        document.getElementById('fp-categoria').value = prod.categoria_id || '';
+        document.getElementById('fp-area').value = prod.area_id || '';
+        document.getElementById('fp-encarta').checked = prod.en_carta;
+        document.getElementById('fp-agotado').checked = prod.agotado;
+        document.getElementById('fp-favorito').checked = prod.favorito;
     } else {
-        ['fp-nombre','fp-descripcion'].forEach(id => document.getElementById(id).value = '');
+        ['fp-nombre','fp-descripcion'].forEach(fid => document.getElementById(fid).value = '');
         document.getElementById('fp-precio').value = '';
         document.getElementById('fp-descuento').value = '0';
         document.getElementById('fp-encarta').checked = true;
@@ -672,8 +836,6 @@ function abrirModalProducto(id = null) {
     document.getElementById('btn-guardar-prod').textContent = id ? 'Guardar' : 'Continuar';
     document.getElementById('modal-producto').classList.add('active');
 }
-
-function editarProductoSel() { if (prodSel) abrirModalProducto(prodSel.id); }
 
 async function guardarProducto() {
     const body = {
@@ -704,11 +866,6 @@ async function guardarProducto() {
     } catch(err) { alert('Error: ' + err.message); }
 }
 
-async function eliminarProductoSel() {
-    if (!prodSel || !confirm(`¿Eliminar "${prodSel.nombre}"?`)) return;
-    try { await api.delete(`/productos/${prodSel.id}`); prodSel = null; await cargarProductos(); }
-    catch(err) { alert('Error: ' + err.message); }
-}
 
 // ── EXPORTAR / IMPORTAR CSV ───────────────────────────────────
 function exportarCSV() {
@@ -1175,74 +1332,256 @@ async function guardarCombosHab() {
         await cargarProductos();
     }
 
+    // ── RECETAS LIBRO DE RECETAS ──────────────────────────────
+    let _recDocsIndex = {};   // { producto_id → { producto_id, tipo } }
+    let _recDocProdId = null; // producto actualmente en viewer/editor
+    let _quillEditor  = null;
+    let _prodListaRecetas = [];
+
     async function cargarRecetas() {
         try {
-            [_recetas, _insumos, _insumosProduccion] = await Promise.all([
-                api.get("/stock/recetas"),
-                api.get("/stock/insumos"),
-                api.get("/stock/insumos-produccion"),
+            const [prods, docsIdx] = await Promise.all([
+                api.get('/productos/?'),
+                api.get('/productos/recetas-docs/index').catch(() => []),
             ]);
-            filtrarRecetas();
-        } catch(e) { console.error(e); }
+            _prodListaRecetas = prods;
+            _recDocsIndex = {};
+            for (const d of docsIdx) _recDocsIndex[d.producto_id] = d;
+            // Populate category filter
+            const sel = document.getElementById('rec-filtro-cat');
+            if (sel) {
+                sel.innerHTML = '<option value="">Todas las categorías</option>' +
+                    categorias.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+            }
+            filtrarRecetasDoc();
+        } catch(e) { console.error('Error cargando recetas:', e); }
     }
 
-    function filtrarRecetas() {
-        const busqProd = document.getElementById("rec-buscar-prod").value.toLowerCase();
-        const busqIns  = document.getElementById("rec-buscar-ins").value.toLowerCase();
-        const conRec   = document.getElementById("rec-con-receta").checked;
-        const sinRec   = document.getElementById("rec-sin-receta").checked;
-
-        let lista = _recetas.filter(r => {
-            if (!conRec && r.tiene_receta) return false;
-            if (!sinRec && !r.tiene_receta) return false;
-            if (busqProd && !r.producto_nombre.toLowerCase().includes(busqProd)) return false;
-            if (busqIns) {
-                let ings = r.ingredientes;
-                if (typeof ings === "string") ings = JSON.parse(ings);
-                if (!ings.some(i => i.insumo_nombre && i.insumo_nombre.toLowerCase().includes(busqIns))) return false;
-            }
+    function filtrarRecetasDoc() {
+        const busq   = (document.getElementById('rec-buscar-prod')?.value || '').toLowerCase().trim();
+        const catId  = document.getElementById('rec-filtro-cat')?.value || '';
+        const estado = document.getElementById('rec-filtro-estado')?.value || '';
+        let lista = _prodListaRecetas.filter(p => {
+            if (busq  && !p.nombre.toLowerCase().includes(busq)) return false;
+            if (catId && String(p.categoria_id) !== catId) return false;
+            const tieneDoc = !!_recDocsIndex[p.id];
+            if (estado === 'con' && !tieneDoc) return false;
+            if (estado === 'sin' && tieneDoc) return false;
             return true;
         });
+        _renderTablaRecetasDoc(lista);
+    }
 
-        const tbody = document.getElementById("tbody-recetas");
+    function _renderTablaRecetasDoc(lista) {
+        const tbody = document.getElementById('tbody-recetas-doc');
         if (!lista.length) {
-            tbody.innerHTML = `<tr><td colspan="3" class="empty">Sin resultados</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="empty">Sin resultados</td></tr>`;
             return;
         }
-        tbody.innerHTML = lista.map(r => {
-            let ings = r.ingredientes;
-            if (typeof ings === "string") ings = JSON.parse(ings);
-            const ingTexto = ings.length
-                ? ings.map(i => `<span style="background:${i.es_produccion ? '#ede9fe' : '#f0fdf4'};color:${i.es_produccion ? '#6d28d9' : '#15803d'};border-radius:4px;padding:2px 7px;font-size:12px;margin:2px;display:inline-block;">${i.es_produccion ? '🏭 ' : ''}${i.insumo_nombre} ×${i.cantidad} ${i.unidad}</span>`).join("")
-                : `<span style="color:#9ca3af;font-size:12px;">Sin ingredientes</span>`;
+        tbody.innerHTML = lista.map(p => {
+            const doc = _recDocsIndex[p.id];
+            const safe = (s) => String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const celda = doc
+                ? `<td style="text-align:center;">
+                       <button onclick="verRecetaDoc(${p.id},'${safe(p.nombre)}','${doc.tipo}')"
+                               style="background:none;border:none;cursor:pointer;font-size:26px;line-height:1;transition:transform .15s;"
+                               title="Ver receta" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform=''">📓</button>
+                   </td>`
+                : `<td style="text-align:center;">
+                       <button class="btn btn-secondary btn-sm"
+                               onclick="abrirEditorReceta(${p.id},'${safe(p.nombre)}')">+ Escribir receta</button>
+                   </td>`;
             return `<tr>
-                <td><strong>${r.producto_nombre}</strong></td>
-                <td>${ingTexto}</td>
-                <td>
-                    <button class="btn btn-secondary btn-sm" onclick="abrirModalReceta(${r.producto_id}, '${r.producto_nombre}')">
-                        ${r.tiene_receta ? 'Editar' : '+ Crear'}
-                    </button>
-                </td>
+                <td><strong>${p.nombre}</strong>${p.descripcion ? `<br><small style="color:#888">${p.descripcion}</small>` : ''}</td>
+                <td>${p.categoria || '—'}</td>
+                <td>${p.area || '—'}</td>
+                ${celda}
             </tr>`;
-        }).join("");
+        }).join('');
     }
 
-    function abrirModalReceta(prodId, prodNombre) {
-        _recetaProdId = prodId;
-        document.getElementById("receta-titulo").textContent = `Receta — ${prodNombre}`;
-        const cont = document.getElementById("receta-items");
-        cont.innerHTML = "";
-        const receta = _recetas.find(r => r.producto_id === prodId);
-        let ings = receta ? receta.ingredientes : [];
-        if (typeof ings === "string") ings = JSON.parse(ings);
-        ings.forEach(i => {
-            const val = i.es_produccion ? `prod_${i.insumo_produccion_id}` : `stock_${i.insumo_id}`;
-            recetaAgregarFila(val, i.cantidad);
-        });
-        if (!ings.length) recetaAgregarFila();
-        document.getElementById("modal-receta").classList.add("active");
+    async function verRecetaDoc(prodId, prodNombre, tipo) {
+        _recDocProdId = prodId;
+        document.getElementById('vr-titulo').textContent = `📓 ${prodNombre}`;
+        const cont = document.getElementById('vr-contenido');
+        cont.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#888;">Cargando…</div>';
+        document.getElementById('modal-ver-receta').classList.add('active');
+        try {
+            const doc = await api.get(`/productos/${prodId}/receta-doc`);
+            if (doc.tipo === 'pdf') {
+                cont.innerHTML = `<iframe src="${API_URL}${doc.archivo_url}"
+                                          style="width:100%;height:100%;min-height:460px;border:none;border-radius:10px;"></iframe>`;
+            } else {
+                cont.innerHTML = `
+                    <div style="padding:28px 36px;font-family:'Segoe UI',sans-serif;font-size:14px;line-height:1.7;overflow-y:auto;height:100%;">
+                        ${doc.contenido}
+                    </div>`;
+            }
+        } catch(e) {
+            cont.innerHTML = `<div style="padding:24px;color:#dc2626;">Error al cargar la receta: ${e.message}</div>`;
+        }
     }
 
+    async function abrirEditorRecetaDesdeVer() {
+        const prodId  = _recDocProdId;
+        const nombre  = document.getElementById('vr-titulo').textContent.replace('📓 ', '');
+        cerrarModal('modal-ver-receta');
+        await _iniciarEditorReceta(prodId, nombre, true);
+    }
+
+    async function abrirEditorReceta(prodId, prodNombre) {
+        await _iniciarEditorReceta(prodId, prodNombre, false);
+    }
+
+    async function _iniciarEditorReceta(prodId, prodNombre, cargarExistente) {
+        _recDocProdId = prodId;
+        document.getElementById('er-titulo').textContent = `✏️ ${prodNombre} — Receta`;
+        document.getElementById('modal-editor-receta').classList.add('active');
+        // Initialize Quill lazily (must be visible first)
+        await new Promise(r => setTimeout(r, 60));
+        if (!_quillEditor) {
+            _quillEditor = new Quill('#quill-editor', {
+                modules: { toolbar: '#quill-toolbar' },
+                theme: 'snow'
+            });
+        } else {
+            _quillEditor.setContents([]);
+        }
+        if (cargarExistente) {
+            try {
+                const data = await api.get(`/productos/${prodId}/receta-doc`);
+                if (data.tipo === 'html' && data.contenido) {
+                    _quillEditor.clipboard.dangerouslyPasteHTML(data.contenido);
+                }
+            } catch(e) { /* sin receta previa */ }
+        }
+    }
+
+    async function guardarRecetaDoc() {
+        if (!_quillEditor || !_recDocProdId) return;
+        const contenido = _quillEditor.root.innerHTML;
+        if (!contenido || contenido === '<p><br></p>') {
+            alert('La receta está vacía. Escribí algo antes de guardar.'); return;
+        }
+        const btn = document.getElementById('btn-guardar-receta-doc');
+        btn.disabled = true; btn.textContent = '⏳ Guardando…';
+        try {
+            await api.post(`/productos/${_recDocProdId}/receta-doc`, { contenido });
+            _recDocsIndex[_recDocProdId] = { producto_id: _recDocProdId, tipo: 'html' };
+            cerrarModal('modal-editor-receta');
+            filtrarRecetasDoc();
+        } catch(e) { alert('Error al guardar: ' + e.message); }
+        finally { btn.disabled = false; btn.textContent = '💾 Guardar receta'; }
+    }
+
+    async function subirPdfReceta(input) {
+        const file = input.files[0]; if (!file || !_recDocProdId) return;
+        const btn = document.getElementById('btn-guardar-receta-doc');
+        btn.disabled = true; btn.textContent = '⏳ Subiendo PDF…';
+        try {
+            const form = new FormData();
+            form.append('archivo', file);
+            const r = await fetch(`${API_URL}/productos/${_recDocProdId}/receta-doc/upload`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${getToken()}` },
+                body: form
+            });
+            if (!r.ok) throw new Error(((await r.json()) || {}).detail || 'Error al subir');
+            _recDocsIndex[_recDocProdId] = { producto_id: _recDocProdId, tipo: 'pdf' };
+            cerrarModal('modal-editor-receta');
+            filtrarRecetasDoc();
+        } catch(e) { alert('Error: ' + e.message); }
+        finally { btn.disabled = false; btn.textContent = '💾 Guardar receta'; input.value = ''; }
+    }
+
+    async function eliminarRecetaDoc() {
+        if (!_recDocProdId || !confirm('¿Eliminar esta receta?')) return;
+        try {
+            await api.delete(`/productos/${_recDocProdId}/receta-doc`);
+            delete _recDocsIndex[_recDocProdId];
+            cerrarModal('modal-ver-receta');
+            filtrarRecetasDoc();
+        } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    // ── GESTIÓN CATEGORÍAS (modo edición) ───────────────────────
+    function abrirGestionCategorias() {
+        document.getElementById('gc-nuevo-nombre').value = '';
+        _gcRenderLista();
+        document.getElementById('modal-gestion-cats').classList.add('active');
+    }
+
+    function _gcRenderLista() {
+        const cont = document.getElementById('gc-lista');
+        if (!categorias.length) {
+            cont.innerHTML = '<p style="color:#888;text-align:center;padding:16px;">Sin categorías</p>';
+            return;
+        }
+        cont.innerHTML = categorias.map(c => `
+            <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;
+                        background:#f9fafb;border-radius:8px;margin-bottom:6px;border:1px solid #f0f0f0;">
+                <span id="gc-sp-${c.id}" style="flex:1;font-size:14px;font-weight:600;">${c.nombre}</span>
+                <input type="text" id="gc-in-${c.id}" value="${c.nombre}"
+                       style="flex:1;display:none;padding:5px 8px;border:1.5px solid #4f46e5;border-radius:6px;font-size:13px;outline:none;"
+                       onkeydown="if(event.key==='Enter')gcGuardarEdicion(${c.id})">
+                <button class="btn btn-secondary btn-sm" id="gc-eb-${c.id}" onclick="gcIniciarEdicion(${c.id})">✏️</button>
+                <button class="btn btn-success btn-sm"   id="gc-sb-${c.id}" style="display:none" onclick="gcGuardarEdicion(${c.id})">✓</button>
+                <button class="btn btn-danger btn-sm"    onclick="gcEliminarCategoria(${c.id})">✕</button>
+            </div>`).join('');
+    }
+
+    function gcIniciarEdicion(id) {
+        document.getElementById(`gc-sp-${id}`).style.display = 'none';
+        document.getElementById(`gc-in-${id}`).style.display = '';
+        document.getElementById(`gc-eb-${id}`).style.display = 'none';
+        document.getElementById(`gc-sb-${id}`).style.display = '';
+        document.getElementById(`gc-in-${id}`).focus();
+    }
+
+    async function gcGuardarEdicion(id) {
+        const nombre = document.getElementById(`gc-in-${id}`).value.trim();
+        if (!nombre) return;
+        try {
+            await api.patch(`/productos/categorias/${id}`, { nombre });
+            const cat = categorias.find(c => c.id === id);
+            if (cat) cat.nombre = nombre;
+            _gcRenderLista();
+            _actualizarSelectsCategorias();
+        } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    async function gcAgregarCategoria() {
+        const nombre = document.getElementById('gc-nuevo-nombre').value.trim();
+        if (!nombre) { alert('Escribí un nombre.'); return; }
+        try {
+            await api.post('/productos/categorias', { nombre });
+            document.getElementById('gc-nuevo-nombre').value = '';
+            categorias = await api.get('/productos/categorias');
+            _gcRenderLista();
+            _actualizarSelectsCategorias();
+        } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    async function gcEliminarCategoria(id) {
+        if (!confirm('¿Eliminar esta categoría? Los productos quedarán sin categoría.')) return;
+        try {
+            await api.delete(`/productos/categorias/${id}`);
+            categorias = categorias.filter(c => c.id !== id);
+            _gcRenderLista();
+            _actualizarSelectsCategorias();
+        } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    function _actualizarSelectsCategorias() {
+        const opts = categorias.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+        document.getElementById('filtro-cat').innerHTML    = `<option value="">Todas las categorías</option>${opts}`;
+        document.getElementById('fp-categoria').innerHTML  = `<option value="">Sin categoría</option>${opts}`;
+        document.getElementById('fc-categoria').innerHTML  = `<option value="">Sin categoría</option>${opts}`;
+        const rf = document.getElementById('rec-filtro-cat');
+        if (rf) rf.innerHTML = `<option value="">Todas las categorías</option>${opts}`;
+    }
+
+    // (Legacy helpers preserved — used by abrirModalRecetaNueva flow)
     function recetaAgregarFila(val = "", cantidad = "") {
         const cont = document.getElementById("receta-items");
         const fila = document.createElement("div");
@@ -1289,7 +1628,8 @@ async function guardarCombosHab() {
         try {
             await api.post("/stock/receta", { producto_id: _recetaProdId, items });
             cerrarModal("modal-receta");
-            await cargarRecetas();
+            // Refresh _recetas so ingredient-expand in products tab stays current
+            _recetas = await api.get("/stock/recetas").catch(() => _recetas);
         } catch(e) { alert("Error: " + e.message); }
     }
 
@@ -1298,7 +1638,7 @@ async function guardarCombosHab() {
         try {
             await api.delete(`/stock/receta/${_recetaProdId}`);
             cerrarModal("modal-receta");
-            await cargarRecetas();
+            _recetas = await api.get("/stock/recetas").catch(() => _recetas);
         } catch(e) { alert("Error: " + e.message); }
     }
 
