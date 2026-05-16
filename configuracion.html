@@ -284,6 +284,102 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     padding:9px 16px; border-radius:8px; font-size:13px;
     cursor:pointer;
 }
+
+/* ── Roles y Permisos ──────────────────────────────────────── */
+.roles-tabs {
+    display:flex; gap:0; margin-top:16px; margin-bottom:0;
+    border-bottom:2px solid #e5e7eb;
+}
+.roles-tab {
+    padding:9px 20px; font-size:13px; font-weight:700;
+    color:#6b7280; cursor:pointer; border:none; background:none;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+    transition:color .15s, border-color .15s;
+}
+.roles-tab.active { color:#4f46e5; border-bottom-color:#4f46e5; }
+.roles-tab-panel { display:none; }
+.roles-tab-panel.active { display:flex; gap:0; }
+
+.roles-list-col {
+    width:220px; flex-shrink:0;
+    border-right:1px solid #f0f0f0;
+    padding:12px 0; min-height:320px;
+}
+.roles-editor-col {
+    flex:1; padding:16px 20px; min-height:320px;
+}
+
+.role-item {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; cursor:pointer;
+    border-left:3px solid transparent;
+    transition:background .12s;
+    gap:8px;
+}
+.role-item:hover { background:#f9fafb; }
+.role-item.selected {
+    background:#f0f4ff; border-left-color:#4f46e5;
+}
+.role-item-name { font-size:13px; font-weight:600; color:#1a1a2e; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.role-item-sys  { font-size:10px; background:#e0e7ff; color:#4f46e5; padding:1px 6px; border-radius:10px; white-space:nowrap; flex-shrink:0; }
+
+.btn-new-role {
+    display:flex; align-items:center; gap:6px;
+    margin:8px 12px 4px; padding:8px 12px;
+    background:#f5f3ff; color:#6d28d9;
+    border:1.5px dashed #c4b5fd; border-radius:8px;
+    font-size:12px; font-weight:700; cursor:pointer;
+    transition:background .15s; width:calc(100% - 24px);
+}
+.btn-new-role:hover { background:#ede9fe; }
+
+.editor-empty {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    height:100%; color:#9ca3af; font-size:13px; text-align:center;
+    padding:40px 20px; gap:8px;
+}
+.editor-empty-icon { font-size:32px; }
+
+.perm-groups { display:flex; flex-direction:column; gap:14px; margin-top:4px; }
+.perm-group-title {
+    font-size:10px; font-weight:800; color:#9ca3af;
+    text-transform:uppercase; letter-spacing:.6px;
+    margin-bottom:6px;
+}
+.perm-checks { display:flex; flex-direction:column; gap:6px; }
+.perm-check-row {
+    display:flex; align-items:center; gap:10px;
+    padding:7px 10px; border-radius:7px;
+    border:1px solid #f3f4f6; background:#fafafa;
+    cursor:pointer; transition:background .12s, border-color .12s;
+}
+.perm-check-row:hover { background:#f5f3ff; border-color:#e0e7ff; }
+.perm-check-row input[type=checkbox] {
+    width:15px; height:15px; accent-color:#4f46e5;
+    cursor:pointer; flex-shrink:0;
+}
+.perm-check-label { font-size:13px; color:#374151; flex:1; }
+.perm-check-desc { font-size:11px; color:#9ca3af; display:block; margin-top:1px; }
+
+.editor-actions {
+    display:flex; align-items:center; gap:10px;
+    margin-top:16px; padding-top:14px;
+    border-top:1px solid #f0f0f0; flex-wrap:wrap;
+}
+.btn-del-role {
+    background:#fef2f2; color:#dc2626;
+    border:1px solid #fecaca; padding:8px 16px;
+    border-radius:8px; font-size:12px; font-weight:700;
+    cursor:pointer; margin-left:auto; transition:background .15s;
+}
+.btn-del-role:hover { background:#fee2e2; }
+.btn-apply-role {
+    background:#f0fdf4; color:#16a34a;
+    border:1px solid #bbf7d0; padding:8px 16px;
+    border-radius:8px; font-size:12px; font-weight:700;
+    cursor:pointer; transition:background .15s;
+}
+.btn-apply-role:hover { background:#dcfce7; }
 </style>
 </head>
 <body>
@@ -603,7 +699,57 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 6. BASE DE DATOS (oculta sin modo edición) ══════════ -->
+    <!-- ═══ 6. ROLES Y PERMISOS ════════════════════════════════ -->
+    <div class="cfg-section" id="sec-roles">
+        <div class="cfg-section-head" onclick="toggleSection('roles')">
+            <span class="cfg-section-icon">🎭</span>
+            <span class="cfg-section-title">Roles y Permisos</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body" style="padding-bottom:0;">
+
+            <!-- Tabs: Roles / Familias -->
+            <div class="roles-tabs">
+                <button class="roles-tab active" onclick="switchRolesTab('roles')">🎭 Roles</button>
+                <button class="roles-tab" onclick="switchRolesTab('familias')">📂 Familias</button>
+            </div>
+
+            <!-- ─── TAB: Roles ─── -->
+            <div class="roles-tab-panel active" id="rtab-roles">
+                <!-- Lista -->
+                <div class="roles-list-col">
+                    <button class="btn-new-role" onclick="nuevoRol()">＋ Nuevo rol</button>
+                    <div id="roles-list"></div>
+                </div>
+                <!-- Editor -->
+                <div class="roles-editor-col" id="roles-editor">
+                    <div class="editor-empty">
+                        <span class="editor-empty-icon">🎭</span>
+                        Seleccioná un rol para editarlo<br>o creá uno nuevo
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── TAB: Familias ─── -->
+            <div class="roles-tab-panel" id="rtab-familias">
+                <!-- Lista -->
+                <div class="roles-list-col">
+                    <button class="btn-new-role" onclick="nuevaFamilia()">＋ Nueva familia</button>
+                    <div id="familias-list"></div>
+                </div>
+                <!-- Editor -->
+                <div class="roles-editor-col" id="familias-editor">
+                    <div class="editor-empty">
+                        <span class="editor-empty-icon">📂</span>
+                        Seleccioná una familia para editarla<br>o creá una nueva
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══ 7. BASE DE DATOS (oculta sin modo edición) ══════════ -->
     <div class="cfg-section" id="sec-bbdd" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('bbdd')">
             <span class="cfg-section-icon">🗄️</span>
@@ -1183,6 +1329,8 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarDatos();
     cargarSeccionMoneda();
     cargarSeccionImpuestos();
+    cargarRoles();
+    cargarFamilias();
 });
 
 
@@ -1517,6 +1665,359 @@ function confirmarAddTasa() {
     _tasas.push({ codigo, nombre, tasa });
     renderTasas();
     cerrarAddTasa();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Sección Roles y Permisos ─────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+const PERMISOS_DEF = [
+    { key: "gestion_caja",        label: "Gestión de caja",        desc: "Abrir y cerrar la caja diaria",                      grupo: "Sala" },
+    { key: "editar_resumen",      label: "Editar resumen",          desc: "Aplicar descuentos al cerrar mesas",                 grupo: "Sala" },
+    { key: "revision",            label: "Revisión de cuentas",     desc: "Modificar pedidos ya cobrados",                      grupo: "Sala" },
+    { key: "gestion_pedidos",     label: "Gestión de pedidos",      desc: "Gestionar comandas y pedidos activos",               grupo: "Sala" },
+    { key: "edicion_sala",        label: "Edición de sala",         desc: "Configurar mesas y layout de sala",                  grupo: "Sala" },
+    { key: "edicion_carta",       label: "Edición de carta",        desc: "Editar productos, categorías, combos y menú",        grupo: "Carta" },
+    { key: "gestion_stock",       label: "Gestión de stock",        desc: "Gestionar insumos, recargas y proveedores",          grupo: "Stock" },
+    { key: "gestion_produccion",  label: "Gestión de producción",   desc: "Gestionar insumos de producción y elaboraciones",    grupo: "Stock" },
+    { key: "edicion_agenda",      label: "Edición de agenda",       desc: "Editar horarios del personal y bloqueos",            grupo: "Agenda" },
+    { key: "edicion_horarios",    label: "Edición de horarios",     desc: "Configurar horarios de apertura del restaurante",    grupo: "Agenda" },
+    { key: "gestion_reservas",    label: "Gestión de reservas",     desc: "Crear, editar y cancelar reservas",                  grupo: "Agenda" },
+    { key: "acceso_estadisticas", label: "Acceso a estadísticas",   desc: "Ver reportes, análisis y estadísticas del negocio",  grupo: "Administración" },
+    { key: "acceso_facturacion",  label: "Acceso a facturación",    desc: "Ver y gestionar datos de facturación y finanzas",    grupo: "Administración" },
+    { key: "acceso_usuarios",     label: "Acceso a usuarios",       desc: "Ver y gestionar usuarios del sistema",               grupo: "Administración" },
+    { key: "acceso_configuracion",label: "Acceso a configuración",  desc: "Modificar la configuración general del sistema",     grupo: "Administración" },
+];
+
+const GRUPOS_ORDEN = ["Sala","Carta","Stock","Agenda","Administración"];
+
+let _roles    = [];
+let _familias = [];
+let _rolSel   = null;   // objeto rol seleccionado
+let _famSel   = null;   // objeto familia seleccionada
+
+// ── Tab switching ────────────────────────────────────────────
+function switchRolesTab(tab) {
+    document.querySelectorAll('.roles-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.roles-tab-panel').forEach(p => p.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('rtab-' + tab).classList.add('active');
+}
+
+// ═══ ROLES ══════════════════════════════════════════════════
+
+async function cargarRoles() {
+    try {
+        _roles = await apiFetch('/roles');
+    } catch { _roles = []; }
+    renderListaRoles();
+}
+
+function renderListaRoles() {
+    const el = document.getElementById('roles-list');
+    if (!_roles.length) {
+        el.innerHTML = '<p style="font-size:12px;color:#9ca3af;padding:12px 14px;">Sin roles</p>';
+        return;
+    }
+    el.innerHTML = _roles.map(r => `
+        <div class="role-item ${_rolSel?.id === r.id ? 'selected' : ''}" onclick="seleccionarRol(${r.id})">
+            <span class="role-item-name">${r.nombre}</span>
+            ${r.es_sistema ? '<span class="role-item-sys">sistema</span>' : ''}
+        </div>
+    `).join('');
+}
+
+function seleccionarRol(id) {
+    _rolSel = _roles.find(r => r.id === id) || null;
+    renderListaRoles();
+    renderEditorRol();
+}
+
+function nuevoRol() {
+    _rolSel = { id: null, nombre: '', descripcion: '', permisos: {}, es_sistema: false };
+    renderListaRoles();
+    renderEditorRol();
+}
+
+function renderEditorRol() {
+    const el = document.getElementById('roles-editor');
+    if (!_rolSel) {
+        el.innerHTML = `<div class="editor-empty"><span class="editor-empty-icon">🎭</span>Seleccioná un rol para editarlo<br>o creá uno nuevo</div>`;
+        return;
+    }
+    const r = _rolSel;
+    const esSistema = r.es_sistema;
+
+    // Build permission groups HTML
+    const gruposHtml = GRUPOS_ORDEN.map(grupo => {
+        const perms = PERMISOS_DEF.filter(p => p.grupo === grupo);
+        const checksHtml = perms.map(p => `
+            <label class="perm-check-row" ${esSistema ? 'style="opacity:.55;pointer-events:none;"' : ''}>
+                <input type="checkbox" id="rp-${p.key}"
+                       ${r.permisos[p.key] ? 'checked' : ''}
+                       ${esSistema ? 'disabled' : ''}>
+                <span class="perm-check-label">
+                    ${p.label}
+                    <span class="perm-check-desc">${p.desc}</span>
+                </span>
+            </label>
+        `).join('');
+        return `
+            <div>
+                <div class="perm-group-title">${grupo}</div>
+                <div class="perm-checks">${checksHtml}</div>
+            </div>
+        `;
+    }).join('');
+
+    const sysNote = esSistema ? `
+        <div style="font-size:12px;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;
+                    padding:9px 12px;color:#92400e;margin-bottom:12px;">
+            ⚠️ Los roles de sistema tienen acceso total y no se pueden editar.
+        </div>` : '';
+
+    const familiasBtns = _familias.length && !esSistema ? `
+        <div style="margin-bottom:12px;">
+            <label class="cfg-label" style="margin-bottom:6px;display:block;">Aplicar familia de permisos</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                ${_familias.map(f => `
+                    <button onclick="aplicarFamiliaARol(${f.id})"
+                            style="font-size:11px;padding:4px 10px;border-radius:6px;
+                                   border:1px solid #c4b5fd;background:#f5f3ff;color:#6d28d9;
+                                   cursor:pointer;">${f.nombre}</button>
+                `).join('')}
+            </div>
+        </div>` : '';
+
+    el.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:14px;">
+            ${sysNote}
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Nombre del rol</label>
+                    <input class="cfg-input" id="re-nombre" value="${r.nombre}"
+                           placeholder="Ej: Bartender" ${esSistema ? 'disabled' : ''}>
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Descripción (opcional)</label>
+                    <input class="cfg-input" id="re-desc" value="${r.descripcion||''}"
+                           placeholder="Breve descripción del rol" ${esSistema ? 'disabled' : ''}>
+                </div>
+            </div>
+            ${familiasBtns}
+            <div>
+                <label class="cfg-label" style="margin-bottom:8px;display:block;">Permisos</label>
+                <div class="perm-groups">${gruposHtml}</div>
+            </div>
+            <div class="editor-actions">
+                ${!esSistema ? `<button class="btn-save" onclick="guardarRol()" style="font-size:13px;padding:9px 20px;">
+                    ${r.id ? 'Guardar cambios' : 'Crear rol'}
+                </button>` : ''}
+                ${r.id && !esSistema ? `
+                    <button class="btn-apply-role" onclick="aplicarRol(${r.id})"
+                            title="Forzar la propagación de permisos a todos los usuarios con este rol">
+                        ↺ Propagar permisos
+                    </button>
+                    <button class="btn-del-role" onclick="eliminarRol(${r.id})">🗑 Eliminar</button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function _leerPermisosRol() {
+    const permisos = {};
+    PERMISOS_DEF.forEach(p => {
+        const el = document.getElementById('rp-' + p.key);
+        if (el) permisos[p.key] = el.checked;
+    });
+    return permisos;
+}
+
+async function guardarRol() {
+    const nombre = document.getElementById('re-nombre').value.trim();
+    const descripcion = document.getElementById('re-desc').value.trim();
+    if (!nombre) { alert('El nombre del rol es obligatorio.'); return; }
+    const permisos = _leerPermisosRol();
+    try {
+        if (_rolSel.id) {
+            await apiFetch(`/roles/${_rolSel.id}`, { method:'PATCH', body: JSON.stringify({ nombre, descripcion, permisos }) });
+        } else {
+            const res = await apiFetch('/roles', { method:'POST', body: JSON.stringify({ nombre, descripcion, permisos }) });
+        }
+        await cargarRoles();
+        // reseleccionar el rol por nombre
+        const encontrado = _roles.find(r => r.nombre === nombre);
+        if (encontrado) seleccionarRol(encontrado.id);
+    } catch(e) {
+        alert('Error al guardar rol: ' + (e.message || e));
+    }
+}
+
+async function eliminarRol(id) {
+    const r = _roles.find(r => r.id === id);
+    if (!r) return;
+    if (!confirm(`¿Eliminar el rol "${r.nombre}"? Esta acción no se puede deshacer.`)) return;
+    try {
+        await apiFetch(`/roles/${id}`, { method:'DELETE' });
+        _rolSel = null;
+        await cargarRoles();
+        renderEditorRol();
+    } catch(e) {
+        alert('No se pudo eliminar: ' + (e.message || e));
+    }
+}
+
+async function aplicarRol(id) {
+    const r = _roles.find(r => r.id === id);
+    if (!confirm(`¿Propagar los permisos de "${r?.nombre}" a todos sus usuarios ahora?`)) return;
+    try {
+        await apiFetch(`/roles/${id}/aplicar`, { method:'POST' });
+        alert('✅ Permisos propagados correctamente.');
+    } catch(e) {
+        alert('Error: ' + (e.message || e));
+    }
+}
+
+function aplicarFamiliaARol(famId) {
+    const fam = _familias.find(f => f.id === famId);
+    if (!fam || !_rolSel) return;
+    // Marcar los checkboxes según los permisos de la familia
+    PERMISOS_DEF.forEach(p => {
+        const el = document.getElementById('rp-' + p.key);
+        if (el) el.checked = !!fam.permisos[p.key];
+    });
+}
+
+// ═══ FAMILIAS ═══════════════════════════════════════════════
+
+async function cargarFamilias() {
+    try {
+        _familias = await apiFetch('/roles/familias');
+    } catch { _familias = []; }
+    renderListaFamilias();
+}
+
+function renderListaFamilias() {
+    const el = document.getElementById('familias-list');
+    if (!_familias.length) {
+        el.innerHTML = '<p style="font-size:12px;color:#9ca3af;padding:12px 14px;">Sin familias</p>';
+        return;
+    }
+    el.innerHTML = _familias.map(f => `
+        <div class="role-item ${_famSel?.id === f.id ? 'selected' : ''}" onclick="seleccionarFamilia(${f.id})">
+            <span class="role-item-name">${f.nombre}</span>
+        </div>
+    `).join('');
+}
+
+function seleccionarFamilia(id) {
+    _famSel = _familias.find(f => f.id === id) || null;
+    renderListaFamilias();
+    renderEditorFamilia();
+}
+
+function nuevaFamilia() {
+    _famSel = { id: null, nombre: '', descripcion: '', permisos: {} };
+    renderListaFamilias();
+    renderEditorFamilia();
+}
+
+function renderEditorFamilia() {
+    const el = document.getElementById('familias-editor');
+    if (!_famSel) {
+        el.innerHTML = `<div class="editor-empty"><span class="editor-empty-icon">📂</span>Seleccioná una familia para editarla<br>o creá una nueva</div>`;
+        return;
+    }
+    const f = _famSel;
+
+    const gruposHtml = GRUPOS_ORDEN.map(grupo => {
+        const perms = PERMISOS_DEF.filter(p => p.grupo === grupo);
+        const checksHtml = perms.map(p => `
+            <label class="perm-check-row">
+                <input type="checkbox" id="fp-${p.key}" ${f.permisos[p.key] ? 'checked' : ''}>
+                <span class="perm-check-label">
+                    ${p.label}
+                    <span class="perm-check-desc">${p.desc}</span>
+                </span>
+            </label>
+        `).join('');
+        return `
+            <div>
+                <div class="perm-group-title">${grupo}</div>
+                <div class="perm-checks">${checksHtml}</div>
+            </div>
+        `;
+    }).join('');
+
+    el.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Nombre de la familia</label>
+                    <input class="cfg-input" id="fe-nombre" value="${f.nombre}"
+                           placeholder="Ej: Equipo de Sala">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Descripción (opcional)</label>
+                    <input class="cfg-input" id="fe-desc" value="${f.descripcion||''}"
+                           placeholder="Descripción del conjunto de permisos">
+                </div>
+            </div>
+            <div>
+                <label class="cfg-label" style="margin-bottom:8px;display:block;">Permisos de la familia</label>
+                <div class="perm-groups">${gruposHtml}</div>
+            </div>
+            <div class="editor-actions">
+                <button class="btn-save" onclick="guardarFamilia()" style="font-size:13px;padding:9px 20px;">
+                    ${f.id ? 'Guardar cambios' : 'Crear familia'}
+                </button>
+                ${f.id ? `<button class="btn-del-role" onclick="eliminarFamilia(${f.id})">🗑 Eliminar</button>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function _leerPermisosFamilia() {
+    const permisos = {};
+    PERMISOS_DEF.forEach(p => {
+        const el = document.getElementById('fp-' + p.key);
+        if (el) permisos[p.key] = el.checked;
+    });
+    return permisos;
+}
+
+async function guardarFamilia() {
+    const nombre = document.getElementById('fe-nombre').value.trim();
+    const descripcion = document.getElementById('fe-desc').value.trim();
+    if (!nombre) { alert('El nombre de la familia es obligatorio.'); return; }
+    const permisos = _leerPermisosFamilia();
+    try {
+        if (_famSel.id) {
+            await apiFetch(`/roles/familias/${_famSel.id}`, { method:'PATCH', body: JSON.stringify({ nombre, descripcion, permisos }) });
+        } else {
+            await apiFetch('/roles/familias', { method:'POST', body: JSON.stringify({ nombre, descripcion, permisos }) });
+        }
+        await cargarFamilias();
+        const encontrado = _familias.find(f => f.nombre === nombre);
+        if (encontrado) seleccionarFamilia(encontrado.id);
+    } catch(e) {
+        alert('Error al guardar familia: ' + (e.message || e));
+    }
+}
+
+async function eliminarFamilia(id) {
+    const f = _familias.find(f => f.id === id);
+    if (!f) return;
+    if (!confirm(`¿Eliminar la familia "${f.nombre}"?`)) return;
+    try {
+        await apiFetch(`/roles/familias/${id}`, { method:'DELETE' });
+        _famSel = null;
+        await cargarFamilias();
+        renderEditorFamilia();
+    } catch(e) {
+        alert('No se pudo eliminar: ' + (e.message || e));
+    }
 }
 </script>
 </body>

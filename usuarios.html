@@ -130,13 +130,12 @@
                     <th>Siglas</th>
                     <th>Rol</th>
                     <th>Estado</th>
-                    <th style="text-align:center;">Permisos</th>
                     <th>Creado</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tabla-body">
-                <tr><td colspan="5" class="empty">Cargando...</td></tr>
+                <tr><td colspan="6" class="empty">Cargando...</td></tr>
             </tbody>
         </table>
     </div>
@@ -156,12 +155,8 @@
         </div>
         <div class="form-group">
             <label>Rol *</label>
-            <select id="fn-rol">
-                <option value="empleado">Empleado</option>
-                <option value="cocinero">Cocinero</option>
-                <option value="gerente">Gerente</option>
-                <option value="admin">Admin</option>
-            </select>
+            <select id="fn-rol"></select>
+            <small style="color:#6b7280;font-size:11px;margin-top:4px;display:block;">Los permisos se asignan automáticamente según el rol</small>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo')">Cancelar</button>
@@ -181,12 +176,8 @@
         </div>
         <div class="form-group">
             <label>Rol</label>
-            <select id="fe-rol">
-                <option value="empleado">Empleado</option>
-                <option value="cocinero">Cocinero</option>
-                <option value="gerente">Gerente</option>
-                <option value="admin">Admin</option>
-            </select>
+            <select id="fe-rol"></select>
+            <small style="color:#6b7280;font-size:11px;margin-top:4px;display:block;">Los permisos se asignan automáticamente según el rol</small>
         </div>
         <div class="form-group">
             <label>Estado</label>
@@ -198,54 +189,6 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-editar')">Cancelar</button>
             <button class="btn btn-primary" onclick="guardarEdicion()">Guardar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal permisos -->
-<div class="modal-overlay" id="modal-permisos">
-    <div class="modal">
-        <h3 id="mp-titulo">Permisos de usuario</h3>
-        <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px;">
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
-                <input type="checkbox" id="mp-caja" style="width:16px;height:16px;accent-color:#4f46e5;">
-                <div>
-                    <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Gestión de caja</div>
-                    <div style="font-size:12px;color:#888;">Puede abrir y cerrar la caja</div>
-                </div>
-            </label>
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
-                <input type="checkbox" id="mp-resumen" style="width:16px;height:16px;accent-color:#4f46e5;">
-                <div>
-                    <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Editar resumen</div>
-                    <div style="font-size:12px;color:#888;">Puede aplicar descuentos al cerrar mesas</div>
-                </div>
-            </label>
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
-                <input type="checkbox" id="mp-agenda" style="width:16px;height:16px;accent-color:#4f46e5;">
-                <div>
-                    <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Edición de agenda</div>
-                    <div style="font-size:12px;color:#888;">Puede editar horarios y bloqueos de reservas</div>
-                </div>
-            </label>
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
-                <input type="checkbox" id="mp-revision" style="width:16px;height:16px;accent-color:#4f46e5;">
-                <div>
-                    <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Revisión de cuentas</div>
-                    <div style="font-size:12px;color:#888;">Puede modificar pedidos ya cobrados</div>
-                </div>
-            </label>
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
-                <input type="checkbox" id="mp-stock" style="width:16px;height:16px;accent-color:#4f46e5;">
-                <div>
-                    <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Gestión de stock</div>
-                    <div style="font-size:12px;color:#888;">Puede gestionar insumos, recetas y recargas</div>
-                </div>
-            </label>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="cerrarModal('modal-permisos')">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarPermisos()">Guardar</button>
         </div>
     </div>
 </div>
@@ -293,13 +236,30 @@
     requireRol("admin", "gerente");
 
     let usuarios = [];
+    let rolesDisp = [];
     let editandoId = null;
+
+    async function cargarRolesOpciones() {
+        try {
+            rolesDisp = await api.get("/roles");
+        } catch {
+            rolesDisp = [
+                {nombre:'empleado'}, {nombre:'cocinero'}, {nombre:'bartender'},
+                {nombre:'camarero'}, {nombre:'gerente'}, {nombre:'admin'}
+            ];
+        }
+        const opciones = rolesDisp.map(r =>
+            `<option value="${r.nombre}">${r.nombre.charAt(0).toUpperCase()+r.nombre.slice(1)}${r.es_sistema?' ⭐':''}</option>`
+        ).join('');
+        document.getElementById('fn-rol').innerHTML = opciones;
+        document.getElementById('fe-rol').innerHTML = opciones;
+    }
 
     async function cargarUsuarios() {
         usuarios = await api.get("/auth/usuarios");
         const tbody = document.getElementById("tabla-body");
         if (!usuarios.length) {
-            tbody.innerHTML = `<tr><td colspan="5" class="empty">No hay usuarios</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="empty">No hay usuarios</td></tr>`;
             return;
         }
         tbody.innerHTML = usuarios.map(u => `
@@ -312,12 +272,6 @@
                 </td>
                 <td><span class="badge ${rolBadge(u.rol)}">${u.rol}</span></td>
                 <td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
-                <td style="text-align:center;">
-                    <button onclick="abrirModalPermisos(${u.id})"
-                        style="background:#ede9fe;color:#7c3aed;border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;">
-                        ⚙ Permisos
-                    </button>
-                </td>
                 <td>${formatFecha(u.creado_en)}</td>
                 <td>
                     <div class="acciones">
@@ -328,6 +282,7 @@
                         </button>
                     </div>
                 </td>
+            </tr>
         `).join("");
     }
 
@@ -398,34 +353,6 @@
 
     // Los modales NO se cierran al hacer clic en el overlay (solo con el botón o la cruz)
 
-    let editandoPermisosId = null;
-
-    function abrirModalPermisos(id) {
-        editandoPermisosId = id;
-        const u = usuarios.find(x => x.id === id);
-        document.getElementById("mp-titulo").textContent = `Permisos — ${u.username}`;
-        document.getElementById("mp-caja").checked     = !!u.gestion_caja;
-        document.getElementById("mp-resumen").checked  = !!u.editar_resumen;
-        document.getElementById("mp-agenda").checked   = !!u.edicion_agenda;
-        document.getElementById("mp-revision").checked = !!u.revision;
-        document.getElementById("mp-stock").checked    = !!u.gestion_stock;
-        document.getElementById("modal-permisos").classList.add("active");
-    }
-
-    async function guardarPermisos() {
-        try {
-            await api.patch(`/auth/usuarios/${editandoPermisosId}`, {
-                gestion_caja:   document.getElementById("mp-caja").checked,
-                editar_resumen: document.getElementById("mp-resumen").checked,
-                edicion_agenda: document.getElementById("mp-agenda").checked,
-                revision:       document.getElementById("mp-revision").checked,
-                gestion_stock:  document.getElementById("mp-stock").checked
-            });
-            cerrarModal("modal-permisos");
-            await cargarUsuarios();
-        } catch(err) { alert("Error: " + err.message); }
-    }
-
     // ── Cambiar contraseña ──────────────────────────────────────
     let editandoClaveId = null;
 
@@ -475,6 +402,7 @@
         } catch (err) { alert('Error: ' + err.message); }
     }
 
+    cargarRolesOpciones();
     cargarUsuarios();
 </script>
 </body>
