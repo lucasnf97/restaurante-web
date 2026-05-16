@@ -37,9 +37,37 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .view-tab:hover  { background:#f5f3ff; border-color:#c4b5fd; color:#6d28d9; }
 .view-tab.active { background:#4f46e5; color:white; border-color:#4f46e5; }
 
+/* ── Filter bar ─────────────────────────────────────────────── */
+.filter-bar {
+    position:fixed; top:110px; left:0; right:0; z-index:155;
+    background:white; border-bottom:1px solid #e5e7eb;
+    display:flex; align-items:center; gap:10px; height:46px; padding:0 16px;
+    overflow:hidden;
+}
+#filtro-nombre {
+    padding:5px 10px; border:1.5px solid #e0e0e0; border-radius:7px;
+    font-size:13px; width:190px; flex-shrink:0; outline:none;
+    transition:border-color .15s;
+}
+#filtro-nombre:focus { border-color:#6366f1; }
+.area-chips {
+    display:flex; gap:6px; overflow-x:auto; align-items:center; flex:1;
+    scrollbar-width:none;
+}
+.area-chips::-webkit-scrollbar { display:none; }
+.area-chip {
+    padding:3px 12px; border-radius:20px;
+    border:1.5px solid #e0e0e0; background:white;
+    font-size:11px; font-weight:600; color:#6b7280;
+    cursor:pointer; white-space:nowrap; flex-shrink:0;
+    transition:all .15s; user-select:none;
+}
+.area-chip:hover { border-color:#a5b4fc; color:#4f46e5; }
+.area-chip.active { background:#4f46e5; color:white; border-color:#4f46e5; }
+
 /* ── Navigator bar ──────────────────────────────────────────── */
 .nav-bar {
-    position:fixed; top:110px; left:0; right:0; z-index:155;
+    position:fixed; top:156px; left:0; right:0; z-index:150;
     background:#f8f9fa; border-bottom:1px solid #e5e7eb;
     display:flex; align-items:center; justify-content:center;
     gap:14px; height:46px; padding:0 60px;
@@ -64,11 +92,30 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 }
 .btn-horarios:hover { background:rgba(99,102,241,.2); }
 
+/* Edit mode toggle */
+.btn-edit-mode {
+    position:absolute; left:16px;
+    background:white; border:1.5px solid #e0e0e0; color:#6b7280;
+    padding:5px 13px; border-radius:6px;
+    cursor:pointer; font-size:12px; font-weight:600;
+    transition:all .15s; display:flex; align-items:center; gap:5px;
+}
+.btn-edit-mode:hover { border-color:#a5b4fc; color:#4f46e5; }
+.btn-edit-mode.active { background:#4f46e5; color:white; border-color:#4f46e5; }
+
 /* ── Main layout ────────────────────────────────────────────── */
 .main-layout {
-    position:fixed; top:156px; left:0; right:0; bottom:0;
+    position:fixed; top:202px; left:0; right:0; bottom:0;
     display:flex; overflow:hidden;
 }
+
+/* ── View-mode: block painting, neutral cursor ──────────────── */
+body.view-mode .slot-active { cursor:default !important; }
+body.view-mode .slot-active:hover { background:white !important; }
+body.view-mode .u-entry { cursor:default !important; }
+body.view-mode .u-entry:hover { background:transparent !important; }
+body.view-mode .u-entry.selected { background:transparent !important; }
+body.view-mode .us-deselect { display:none !important; }
 
 /* ── User sidebar ───────────────────────────────────────────── */
 .user-sidebar {
@@ -300,7 +347,16 @@ input:checked + .tsl::before { transform:translateX(14px); }
     <button class="view-tab"        id="tab-mes"         onclick="setView('mes')">🗓️ Mes</button>
 </div>
 
+<div class="filter-bar" id="filter-bar">
+    <input type="text" id="filtro-nombre" placeholder="🔍 Buscar empleado…"
+           oninput="onFiltroNombre(this.value)">
+    <div class="area-chips" id="area-chips">
+        <span style="font-size:11px;color:#9ca3af;">Cargando áreas…</span>
+    </div>
+</div>
+
 <div class="nav-bar">
+    <button class="btn-edit-mode active" id="btn-edit-mode" onclick="toggleModoEdicion()">✏️ Edición</button>
     <button class="nav-btn" onclick="navDate(-1)">◀</button>
     <span class="nav-label" id="nav-label">—</span>
     <button class="nav-btn" onclick="navDate(1)">▶</button>
@@ -370,6 +426,12 @@ let asignaciones  = {};  // { "YYYY-MM-DD": { slot_mins: [{id, usuario_id}] } }
 let usuarios      = [];
 let userColors    = {};  // { userId: "#hex" }
 let selectedUserId = null;
+
+// ── Filtro & modo edición ────────────────────────────────────────
+let modoEdicion  = true;     // true = pintar turnos; false = solo ver/filtrar
+let filtroNombre = '';
+let areas        = [];        // [{id, nombre}]
+let areasActivas = null;      // null = sin filtro; Set<id|null> = filtro activo
 
 // Drag-paint state
 let isPainting  = false;
@@ -518,13 +580,37 @@ function updateNavLabel() {
     document.getElementById('nav-label').textContent = lbl;
 }
 
+// ── Filter helpers ──────────────────────────────────────────────
+function isUserMatchingFilter(uid) {
+    const u = usuarios.find(x => x.id === uid);
+    if (!u) return false;
+    // Name filter
+    if (filtroNombre && !u.username.toLowerCase().includes(filtroNombre.toLowerCase())) return false;
+    // Area filter
+    if (areasActivas !== null) {
+        const aId = u.area_id ?? null;
+        if (!areasActivas.has(aId)) return false;
+    }
+    return true;
+}
+
+function isUserVisibleInSidebar(u) {
+    if (areasActivas !== null) {
+        const aId = u.area_id ?? null;
+        if (!areasActivas.has(aId)) return false;
+    }
+    return true;
+}
+
 // ── Render cell colors HTML ─────────────────────────────────────
 function cellColorsHTML(dateStr, slotMins) {
     const list = asignaciones[dateStr]?.[slotMins] || [];
     if (!list.length) return '';
-    const strips = list.map(a =>
-        `<div style="background:${getUserColor(a.usuario_id)}"></div>`
-    ).join('');
+    const strips = list.map(a => {
+        const matched = modoEdicion || isUserMatchingFilter(a.usuario_id);
+        const opacity = matched ? 1 : 0.15;
+        return `<div style="background:${getUserColor(a.usuario_id)};opacity:${opacity}"></div>`;
+    }).join('');
     return `<div class="cell-colors">${strips}</div>`;
 }
 
@@ -598,7 +684,7 @@ function updateCellDOM(dateStr, slotMins) {
 }
 
 function refreshAllCells() {
-    // Re-render all existing cell colors (e.g. after color change)
+    // Re-render all existing cell colors (e.g. after color change or filter change)
     document.querySelectorAll('td[data-date][data-slot]').forEach(td => {
         const dateStr  = td.dataset.date;
         const slotMins = parseInt(td.dataset.slot);
@@ -608,7 +694,11 @@ function refreshAllCells() {
             colDiv?.remove();
         } else {
             if (!colDiv) { colDiv = document.createElement('div'); colDiv.className = 'cell-colors'; td.appendChild(colDiv); }
-            colDiv.innerHTML = list.map(a => `<div style="background:${getUserColor(a.usuario_id)}"></div>`).join('');
+            colDiv.innerHTML = list.map(a => {
+                const matched = modoEdicion || isUserMatchingFilter(a.usuario_id);
+                const opacity = matched ? 1 : 0.15;
+                return `<div style="background:${getUserColor(a.usuario_id)};opacity:${opacity}"></div>`;
+            }).join('');
         }
     });
 }
@@ -671,6 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gridArea = document.getElementById('grid-area');
 
     gridArea.addEventListener('mousedown', e => {
+        if (!modoEdicion) return;
         const td = e.target.closest('td.slot-active[data-date]');
         if (!td || !selectedUserId) return;
         e.preventDefault();
@@ -684,7 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     gridArea.addEventListener('mousemove', e => {
-        if (!isPainting || !selectedUserId) return;
+        if (!modoEdicion || !isPainting || !selectedUserId) return;
         const td = e.target.closest('td.slot-active[data-date]');
         if (!td) return;
         applyPaint(td.dataset.date, parseInt(td.dataset.slot));
@@ -700,18 +791,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── Sidebar de usuarios ─────────────────────────────────────────
 function renderUserSidebar() {
+    // Filter by area
+    const visibles = usuarios.filter(isUserVisibleInSidebar);
+
     const grouped = {};
-    usuarios.forEach(u => {
+    visibles.forEach(u => {
         const rol = u.rol || 'empleado';
         if (!grouped[rol]) grouped[rol] = [];
         grouped[rol].push(u);
     });
 
-    const rolOrder = ['admin','gerente','empleado'];
+    // Show known roles first, then any other roles
+    const knownRoles = ['admin', 'gerente', 'empleado'];
+    const extraRoles  = Object.keys(grouped).filter(r => !knownRoles.includes(r));
+    const rolOrder    = [...knownRoles, ...extraRoles];
+
     let html = '';
     rolOrder.forEach(rol => {
         if (!grouped[rol]?.length) return;
-        const cfg = ROL_CFG[rol] || { label: rol, icon: '👤' };
+        const cfg = ROL_CFG[rol] || { label: rol.charAt(0).toUpperCase() + rol.slice(1), icon: '👤' };
         html += `<div class="role-head">${cfg.icon} ${cfg.label}</div>`;
         grouped[rol].forEach(u => {
             const color = getUserColor(u.id);
@@ -731,10 +829,12 @@ function renderUserSidebar() {
         });
     });
 
-    document.getElementById('us-list').innerHTML = html || '<div style="padding:16px;font-size:12px;color:#9ca3af">Sin usuarios</div>';
+    document.getElementById('us-list').innerHTML = html ||
+        '<div style="padding:16px;font-size:12px;color:#9ca3af">Sin usuarios</div>';
 }
 
 function selectUser(uid) {
+    if (!modoEdicion) return;
     if (selectedUserId === uid) {
         deseleccionarUsuario();
         return;
@@ -838,6 +938,81 @@ async function guardarHorarios() {
     }
 }
 
+// ── Modo edición ─────────────────────────────────────────────────
+function toggleModoEdicion() {
+    modoEdicion = !modoEdicion;
+    const btn = document.getElementById('btn-edit-mode');
+    if (modoEdicion) {
+        btn.textContent = '✏️ Edición';
+        btn.classList.add('active');
+        document.getElementById('us-tip').textContent = 'Selecciona un empleado y pinta la grilla';
+        document.body.classList.remove('view-mode');
+    } else {
+        btn.textContent = '👁 Ver';
+        btn.classList.remove('active');
+        document.getElementById('us-tip').textContent = 'Filtra para resaltar horarios';
+        document.body.classList.add('view-mode');
+        deseleccionarUsuario();
+    }
+    refreshAllCells();
+}
+
+// ── Filtro de nombre ─────────────────────────────────────────────
+function onFiltroNombre(val) {
+    filtroNombre = val.trim();
+    renderUserSidebar();
+    refreshAllCells();
+}
+
+// ── Áreas ────────────────────────────────────────────────────────
+async function cargarAreas() {
+    try {
+        areas = await api.get('/productos/areas');
+        // Start with all areas + null (sin área) active
+        areasActivas = new Set([null, ...areas.map(a => a.id)]);
+        renderAreaChips();
+    } catch(e) {
+        console.warn('No se pudieron cargar las áreas:', e);
+        areas = [];
+        areasActivas = null;
+        const el = document.getElementById('area-chips');
+        if (el) el.innerHTML = '';
+    }
+}
+
+function renderAreaChips() {
+    const container = document.getElementById('area-chips');
+    if (!container) return;
+    let html = '';
+    // "Sin área" chip for users without assigned area
+    const sinAreaActive = areasActivas === null || areasActivas.has(null);
+    html += `<span class="area-chip ${sinAreaActive ? 'active' : ''}"
+                   onclick="toggleArea(null)">Sin área</span>`;
+    areas.forEach(a => {
+        const active = areasActivas === null || areasActivas.has(a.id);
+        html += `<span class="area-chip ${active ? 'active' : ''}"
+                       onclick="toggleArea(${a.id})">${a.nombre}</span>`;
+    });
+    container.innerHTML = html;
+}
+
+function toggleArea(areaId) {
+    if (areasActivas === null) {
+        // Initialize set with all minus this one
+        areasActivas = new Set([null, ...areas.map(a => a.id)]);
+        areasActivas.delete(areaId);
+    } else {
+        if (areasActivas.has(areaId)) {
+            areasActivas.delete(areaId);
+        } else {
+            areasActivas.add(areaId);
+        }
+    }
+    renderAreaChips();
+    renderUserSidebar();
+    refreshAllCells();
+}
+
 // ── API ─────────────────────────────────────────────────────────
 async function cargarHorarios() {
     horarios = await api.get('/horarios/');
@@ -873,7 +1048,7 @@ async function cargarAsignaciones() {
 // ── Init ─────────────────────────────────────────────────────────
 (async () => {
     loadUserColors();
-    await Promise.all([cargarHorarios(), cargarUsuarios()]);
+    await Promise.all([cargarHorarios(), cargarUsuarios(), cargarAreas()]);
     renderUserSidebar();
     document.body.classList.add('view-semana');
     await renderGrid();
