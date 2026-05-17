@@ -50,9 +50,8 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
 /* ── Billing cards ── */
 .billing-cards {
-    display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:32px;
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(175px, 1fr)); gap:16px; margin-bottom:32px;
 }
-@media(max-width:1100px) { .billing-cards { grid-template-columns:repeat(3,1fr); } }
 @media(max-width:700px)  { .billing-cards { grid-template-columns:1fr 1fr; } }
 
 .bill-card {
@@ -67,6 +66,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .bill-card.produccion::before { background:#9ca3af; }
 .bill-card.insumos::before   { background:#dc2626; }
 .bill-card.servicios::before { background:#6366f1; }
+.bill-card.desechos::before  { background:#f59e0b; }
 .bill-card.balance::before   { background:#0ea5e9; }
 
 .bill-icon { font-size:26px; margin-bottom:10px; }
@@ -658,9 +658,9 @@ async function cargarFacturacion() {
     requireAuth();
 
     document.getElementById("billing-cards").innerHTML = `
-        ${["ventas","produccion","insumos","servicios","balance"].map(c=>`
+        ${["ventas","produccion","insumos","servicios","desechos","balance"].map(c=>`
         <div class="bill-card ${c} loading-card">
-            <div class="bill-icon">${{ventas:"💰",produccion:"🏭",insumos:"📦",servicios:"🔧",balance:"⚖️"}[c]}</div>
+            <div class="bill-icon">${{ventas:"💰",produccion:"🏭",insumos:"📦",servicios:"🔧",desechos:"🗑️",balance:"⚖️"}[c]}</div>
             <div class="bill-value" style="color:#ddd;background:#f0f0f0;border-radius:6px;width:80%;height:28px;margin-top:14px;"></div>
         </div>`).join("")}`;
     document.getElementById("prog-wrap").innerHTML = '<p class="prog-no-data">Cargando…</p>';
@@ -690,6 +690,7 @@ function renderBillingCards(d) {
     const esMesActual = d.year === new Date().getFullYear() && d.month === new Date().getMonth()+1;
     const sufijo = esMesActual ? " (parcial)" : "";
 
+    const desechos = d.desechos || 0;
     const cards = [
         {
             cls:"ventas", icon:"💰", label:"Ventas del mes",
@@ -713,10 +714,16 @@ function renderBillingCards(d) {
             sub: d.costo_servicios_facturados < 0 ? "Crédito neto (notas de crédito)" : "Gasto neto de servicios"
         },
         {
+            cls:"desechos", icon:"🗑️", label:"Desechos / merma",
+            value: fmt(desechos),
+            extraCls: desechos > 0 ? "negativo" : "",
+            sub: desechos > 0 ? "Pérdida por revisiones de stock" : "Sin revisiones de stock este mes"
+        },
+        {
             cls:"balance", icon:"⚖️", label:`Balance mensual${sufijo}`,
             value: fmt(d.balance),
             extraCls: d.balance >= 0 ? "positivo" : "negativo",
-            sub: "Ventas − insumos − servicios"
+            sub: "Ventas − insumos − servicios − desechos"
         },
     ];
 

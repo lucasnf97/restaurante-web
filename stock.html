@@ -57,6 +57,31 @@
         .tab.active { background: #4f46e5; color: white; }
         .tab:hover:not(.active) { background: #f5f3ff; color: #4f46e5; }
         .prov-chip { display: inline-flex; align-items: center; gap: 6px; background: #ede9fe; color: #5b21b6; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+
+        /* ── Revisión de stock ── */
+        .rev-modal { max-width: 860px; }
+        .rev-table-wrap { max-height: 55vh; overflow-y: auto; border: 1.5px solid #e5e7eb; border-radius: 10px; margin-top: 12px; }
+        .rev-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .rev-table th { position: sticky; top: 0; background: #f8f9fa; padding: 9px 12px; text-align: left;
+                        font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .5px;
+                        border-bottom: 1.5px solid #e5e7eb; z-index: 1; }
+        .rev-table td { padding: 8px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; }
+        .rev-table tr:hover td { background: #fafafa; }
+        .rev-inp { width: 90px; padding: 5px 8px; border: 1.5px solid #d1d5db; border-radius: 6px;
+                   font-size: 13px; outline: none; text-align: right; }
+        .rev-inp:focus { border-color: #4f46e5; }
+        .rev-dif { font-weight: 700; }
+        .rev-dif.neg { color: #dc2626; }
+        .rev-dif.pos { color: #16a34a; }
+        .rev-perdida { color: #dc2626; font-weight: 600; }
+        .rev-total-bar { display: flex; align-items: center; justify-content: space-between;
+                         background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 10px;
+                         padding: 12px 18px; margin-top: 14px; }
+        .rev-total-bar.cero { background: #f0fdf4; border-color: #bbf7d0; }
+        .rev-total-lbl { font-size: 13px; font-weight: 700; color: #991b1b; }
+        .rev-total-bar.cero .rev-total-lbl { color: #166534; }
+        .rev-total-val { font-size: 20px; font-weight: 800; color: #dc2626; }
+        .rev-total-bar.cero .rev-total-val { color: #16a34a; }
     </style>
 </head>
 <body>
@@ -89,6 +114,7 @@
     <div id="vista-insumos">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumo()">+ Nuevo insumo</button>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
             <input type="text" id="filtro-ins-nombre" placeholder="Buscar por nombre..." oninput="cargarInsumos()">
@@ -112,6 +138,7 @@
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumoProduccion()">+ Nuevo insumo de producción</button>
             <button class="btn btn-secondary btn-sm" onclick="abrirModalRegistrarProduccion()" style="border-color:#7c3aed;color:#7c3aed;">📋 Registrar producción</button>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
             <input type="text" id="filtro-prod-nombre" placeholder="Buscar por nombre..." oninput="cargarInsumosProduccion()">
@@ -892,6 +919,144 @@ function actualizarStats() {
     document.getElementById("stat-ok-sub").textContent    = `${sOk} stock · ${pOk} prod`;
 }
 
+// ── REVISIÓN DE STOCK ─────────────────────────────────────────
+
+let _revData = [];   // [{id, nombre, unidad, cantidad_actual, ultimo_precio}]
+let _monedaSimbolo = '';
+
+async function abrirModalRevision() {
+    document.getElementById("rev-notas").value = "";
+    document.getElementById("rev-tbody").innerHTML = `<tr><td colspan="7" class="empty">Cargando…</td></tr>`;
+    document.getElementById("rev-total-val").textContent = "$ 0,00";
+    document.getElementById("rev-total-bar").classList.add("cero");
+    document.getElementById("modal-revision").classList.add("active");
+
+    try {
+        // Cargar símbolo de moneda si aún no lo tenemos
+        if (!_monedaSimbolo) {
+            try {
+                const cfg = await api.get("/config/sistema");
+                _monedaSimbolo = cfg.moneda_simbolo || "$";
+            } catch { _monedaSimbolo = "$"; }
+        }
+        _revData = await api.get("/stock/revision/preview");
+        revRenderTabla();
+    } catch(e) {
+        document.getElementById("rev-tbody").innerHTML =
+            `<tr><td colspan="7" class="empty" style="color:#dc2626;">Error: ${e.message}</td></tr>`;
+    }
+}
+
+function revRenderTabla() {
+    const sym = _monedaSimbolo;
+    const tbody = document.getElementById("rev-tbody");
+    if (!_revData.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin insumos registrados</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = _revData.map((ins, idx) => {
+        const teorico = parseFloat(ins.cantidad_actual) || 0;
+        const precio  = ins.ultimo_precio !== null && ins.ultimo_precio !== undefined
+                        ? parseFloat(ins.ultimo_precio) : null;
+        const precioStr = precio !== null ? `${sym} ${precio.toFixed(2)}` : "—";
+        return `<tr id="rev-row-${idx}">
+            <td><strong>${ins.nombre}</strong></td>
+            <td>${ins.unidad}</td>
+            <td style="text-align:right;">${fmtNum(teorico)}</td>
+            <td style="text-align:right;">
+                <input type="number" class="rev-inp" id="rev-inp-${idx}"
+                       value="${fmtNum(teorico)}" min="0" step="0.001"
+                       oninput="revRecalcRow(${idx})">
+            </td>
+            <td style="text-align:right;" id="rev-dif-${idx}"><span class="rev-dif">0</span></td>
+            <td style="text-align:right;">${precioStr}</td>
+            <td style="text-align:right;" id="rev-perd-${idx}">—</td>
+        </tr>`;
+    }).join("");
+}
+
+function revRecalcRow(idx) {
+    const ins     = _revData[idx];
+    const teorico = parseFloat(ins.cantidad_actual) || 0;
+    const real    = parseFloat(document.getElementById(`rev-inp-${idx}`).value);
+    if (isNaN(real)) return;
+
+    const dif     = real - teorico;
+    const precio  = ins.ultimo_precio !== null && ins.ultimo_precio !== undefined
+                    ? parseFloat(ins.ultimo_precio) : null;
+    const perdida = precio !== null ? Math.max(0, -dif) * precio : null;
+    const sym     = _monedaSimbolo;
+
+    const difEl  = document.getElementById(`rev-dif-${idx}`);
+    const perdEl = document.getElementById(`rev-perd-${idx}`);
+
+    const sign = dif > 0 ? "+" : "";
+    difEl.innerHTML = `<span class="rev-dif ${dif < 0 ? 'neg' : dif > 0 ? 'pos' : ''}">${sign}${fmtNum(dif)}</span>`;
+    perdEl.innerHTML = perdida !== null && perdida > 0
+        ? `<span class="rev-perdida">${sym} ${perdida.toFixed(2)}</span>`
+        : `<span style="color:#9ca3af;">—</span>`;
+
+    revActualizarTotal();
+}
+
+function revActualizarTotal() {
+    let total = 0;
+    _revData.forEach((ins, idx) => {
+        const inp = document.getElementById(`rev-inp-${idx}`);
+        if (!inp) return;
+        const teorico = parseFloat(ins.cantidad_actual) || 0;
+        const real    = parseFloat(inp.value);
+        if (isNaN(real)) return;
+        const precio  = ins.ultimo_precio !== null ? parseFloat(ins.ultimo_precio) : 0;
+        total += Math.max(0, teorico - real) * precio;
+    });
+
+    const sym    = _monedaSimbolo;
+    const bar    = document.getElementById("rev-total-bar");
+    const valEl  = document.getElementById("rev-total-val");
+    valEl.textContent = `${sym} ${total.toFixed(2)}`;
+    bar.classList.toggle("cero", total === 0);
+}
+
+async function confirmarRevision() {
+    // Recopilar solo ítems con diferencia
+    const items = [];
+    _revData.forEach((ins, idx) => {
+        const inp  = document.getElementById(`rev-inp-${idx}`);
+        if (!inp) return;
+        const real = parseFloat(inp.value);
+        if (isNaN(real)) return;
+        const teorico = parseFloat(ins.cantidad_actual) || 0;
+        if (Math.abs(real - teorico) > 0.0001) {
+            items.push({ insumo_id: ins.id, stock_real: real });
+        }
+    });
+
+    if (!items.length) {
+        alert("No hay diferencias entre stock teórico y real. No se guardará ningún ajuste.");
+        return;
+    }
+
+    const notas = document.getElementById("rev-notas").value.trim() || null;
+    const btn   = document.getElementById("rev-btn-confirmar");
+    btn.disabled = true;
+    btn.textContent = "Guardando…";
+
+    try {
+        const res = await api.post("/stock/revision", { notas, items });
+        cerrarModal("modal-revision");
+        // Refrescar stock para reflejar los ajustes
+        await cargarInsumos();
+        await cargarInsumosProduccion();
+        alert(`✅ ${res.mensaje}`);
+    } catch(e) {
+        alert("Error al guardar la revisión: " + (e.message || e));
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Guardar revisión";
+    }
+}
+
 // Carga inicial: ambas listas en paralelo para tener las stats completas desde el arranque
 Promise.all([cargarInsumos(), cargarInsumosProduccion()]);
 </script>
@@ -903,6 +1068,51 @@ Promise.all([cargarInsumos(), cargarInsumosProduccion()]);
         <div id="modal-receta-contenido"></div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-ver-receta')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Revisión de stock -->
+<div class="modal-overlay" id="modal-revision">
+    <div class="modal rev-modal">
+        <h3>🔍 Revisión de stock</h3>
+        <p style="font-size:13px;color:#666;margin-bottom:4px;">
+            Ingresá el stock <strong>real</strong> de cada insumo. Solo se guardan los insumos con diferencia.
+        </p>
+        <div class="form-group" style="margin-bottom:8px;">
+            <label>Notas (opcional)</label>
+            <input type="text" id="rev-notas" placeholder="Ej: Revisión semanal turno noche">
+        </div>
+
+        <div class="rev-table-wrap">
+            <table class="rev-table">
+                <thead>
+                    <tr>
+                        <th>Insumo</th>
+                        <th>Unidad</th>
+                        <th style="text-align:right;">Stock teórico</th>
+                        <th style="text-align:right;">Stock real</th>
+                        <th style="text-align:right;">Diferencia</th>
+                        <th style="text-align:right;">Precio ref.</th>
+                        <th style="text-align:right;">Pérdida $</th>
+                    </tr>
+                </thead>
+                <tbody id="rev-tbody">
+                    <tr><td colspan="7" class="empty">Cargando…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="rev-total-bar cero" id="rev-total-bar">
+            <span class="rev-total-lbl">💸 Pérdida total del período</span>
+            <span class="rev-total-val" id="rev-total-val">$ 0,00</span>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-revision')">Cancelar</button>
+            <button class="btn btn-primary" id="rev-btn-confirmar"
+                    onclick="confirmarRevision()"
+                    style="background:#f59e0b;border-color:#f59e0b;">Guardar revisión</button>
         </div>
     </div>
 </div>
