@@ -180,6 +180,39 @@
         body.solo-vista [onclick*="guardar"],
         body.solo-vista [onclick*="Guardar"],
         body.solo-vista .solo-vista-oculto { display: none !important; }
+
+        /* ── MODAL PRECIOS MASIVOS ── */
+        .pm-col-selector {
+            display:flex; align-items:center; gap:14px; padding:12px 20px;
+            background:#f8f9fa; border-bottom:1px solid #f0f0f0; flex-wrap:wrap;
+        }
+        .pm-col-selector > span { font-size:13px; font-weight:600; color:#374151; }
+        .pm-col-opt {
+            display:flex; align-items:center; gap:5px; font-size:13px;
+            color:#374151; cursor:pointer; padding:5px 12px; border-radius:20px;
+            border:1.5px solid #e5e7eb; background:white; user-select:none;
+            transition:all .15s;
+        }
+        .pm-col-opt input[type=radio] { accent-color:#4f46e5; cursor:pointer; }
+        .pm-col-opt.pm-col-active { border-color:#4f46e5; background:#eef2ff; color:#4f46e5; font-weight:700; }
+        .pm-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .pm-table th {
+            position:sticky; top:0; background:#f8f9fa; padding:9px 12px;
+            text-align:left; font-size:12px; font-weight:700; color:#6b7280;
+            border-bottom:2px solid #e5e7eb; white-space:nowrap; z-index:1;
+        }
+        .pm-table th.pm-th-active { background:#eef2ff; color:#4f46e5; }
+        .pm-table td { padding:6px 8px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+        .pm-table tr:last-child td { border-bottom:none; }
+        .pm-table td:first-child { font-weight:600; color:#1a1a2e; padding-left:12px; }
+        .pm-inp {
+            width:100%; min-width:90px; padding:5px 8px; border:1.5px solid #e5e7eb;
+            border-radius:7px; font-size:13px; font-family:inherit; color:#374151;
+            box-sizing:border-box; transition:border-color .15s;
+        }
+        .pm-inp:focus { outline:none; border-color:#4f46e5; }
+        .pm-inp.pm-inp-active { border-color:#a5b4fc; background:#fafafe; }
+        .pm-inp.pm-inp-active:focus { border-color:#4f46e5; }
     </style>
 </head>
 <body>
@@ -242,7 +275,11 @@
                                   title="Gestionar categorías">✏️</span>
                         </th>
                         <th>Área</th>
-                        <th>Precio</th>
+                        <th>Precio
+                            <span id="btn-precios-masivo" onclick="abrirModalPrecios()"
+                                  style="display:none;cursor:pointer;font-size:13px;margin-left:5px;opacity:.7;"
+                                  title="Modificación masiva de precios">✏️</span>
+                        </th>
                         <th>Promo</th>
                         <th>En carta</th>
                         <th>Agotado</th>
@@ -657,6 +694,49 @@
     </div>
 </div>
 
+<!-- ── MODAL PRECIOS MASIVOS ── -->
+<div class="modal-overlay" id="modal-precios-masivo">
+    <div class="modal" style="max-width:680px;width:96vw;max-height:92vh;padding:0;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px 14px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+            <div>
+                <h3 style="margin:0;font-size:16px;">💰 Modificación masiva de precios</h3>
+                <p id="pm-subtitulo" style="margin:3px 0 0;font-size:12px;color:#9ca3af;"></p>
+            </div>
+            <button onclick="cerrarModal('modal-precios-masivo')"
+                    style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;line-height:1;padding:0 4px;">✕</button>
+        </div>
+        <div class="pm-col-selector" id="pm-col-selector">
+            <span>Columna a aplicar:</span>
+            <label class="pm-col-opt" id="pm-lbl-1">
+                <input type="radio" name="pm-col" value="1" onchange="pmActualizarDestacado()"> Precio 1
+            </label>
+            <label class="pm-col-opt" id="pm-lbl-2">
+                <input type="radio" name="pm-col" value="2" onchange="pmActualizarDestacado()"> Precio 2
+            </label>
+            <label class="pm-col-opt" id="pm-lbl-3">
+                <input type="radio" name="pm-col" value="3" onchange="pmActualizarDestacado()"> Precio 3
+            </label>
+        </div>
+        <div style="overflow-y:auto;flex:1;">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th style="width:40%">Producto</th>
+                        <th class="pm-th" id="pm-th-1" data-col="1">Precio 1 <small style="font-weight:400;opacity:.7">(activo)</small></th>
+                        <th class="pm-th" id="pm-th-2" data-col="2">Precio 2</th>
+                        <th class="pm-th" id="pm-th-3" data-col="3">Precio 3</th>
+                    </tr>
+                </thead>
+                <tbody id="pm-tbody"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer" style="flex-shrink:0;">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-precios-masivo')">Cancelar</button>
+            <button class="btn btn-primary" id="btn-pm-aplicar" onclick="aplicarPrecios()">Aplicar cambios</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script>
@@ -739,6 +819,78 @@ function filtrarLocal() {
     renderProductos(_productosFiltrados || productos);
 }
 
+// ── MODAL PRECIOS MASIVOS ────────────────────────────────────
+function abrirModalPrecios() {
+    const lista = _productosFiltrados || productos;
+    document.getElementById('pm-subtitulo').textContent =
+        `${lista.length} producto${lista.length !== 1 ? 's' : ''} listado${lista.length !== 1 ? 's' : ''} actualmente`;
+    // Seleccionar columna 2 por defecto
+    const radios = document.querySelectorAll('input[name="pm-col"]');
+    radios.forEach(r => { r.checked = r.value === '2'; });
+    pmRenderTabla(lista);
+    pmActualizarDestacado();
+    document.getElementById('modal-precios-masivo').classList.add('active');
+}
+
+function pmRenderTabla(lista) {
+    const tbody = document.getElementById('pm-tbody');
+    const fmt = v => (v != null && v !== '') ? parseFloat(v).toFixed(2) : '';
+    tbody.innerHTML = lista.map(p => `
+        <tr>
+            <td title="${(p.categoria || '')}">
+                ${p.nombre}
+                ${p.categoria ? `<br><small style="color:#9ca3af;font-weight:400;">${p.categoria}</small>` : ''}
+            </td>
+            <td><input type="number" class="pm-inp" data-id="${p.id}" data-col="1"
+                       value="${fmt(p.precio)}" min="0" step="0.01" placeholder="—"></td>
+            <td><input type="number" class="pm-inp" data-id="${p.id}" data-col="2"
+                       value="${fmt(p.precio_2)}" min="0" step="0.01" placeholder="—"></td>
+            <td><input type="number" class="pm-inp" data-id="${p.id}" data-col="3"
+                       value="${fmt(p.precio_3)}" min="0" step="0.01" placeholder="—"></td>
+        </tr>`).join('');
+}
+
+function pmActualizarDestacado() {
+    const col = document.querySelector('input[name="pm-col"]:checked')?.value || '2';
+    // Headers
+    [1,2,3].forEach(n => {
+        document.getElementById(`pm-th-${n}`).classList.toggle('pm-th-active', String(n) === col);
+        document.getElementById(`pm-lbl-${n}`).classList.toggle('pm-col-active', String(n) === col);
+    });
+    // Inputs
+    document.querySelectorAll('.pm-inp').forEach(inp => {
+        inp.classList.toggle('pm-inp-active', inp.dataset.col === col);
+    });
+}
+
+async function aplicarPrecios() {
+    const col = parseInt(document.querySelector('input[name="pm-col"]:checked')?.value || '2');
+    const filas = {};
+    document.querySelectorAll('.pm-inp').forEach(inp => {
+        const id  = parseInt(inp.dataset.id);
+        const num = parseInt(inp.dataset.col);
+        if (!filas[id]) filas[id] = { id };
+        const v = inp.value.trim();
+        filas[id][`precio_${num}`] = v !== '' ? parseFloat(v) : null;
+    });
+    const btn = document.getElementById('btn-pm-aplicar');
+    btn.disabled = true;
+    btn.textContent = 'Aplicando…';
+    try {
+        await api.post('/productos/precios-masivo', {
+            aplicar_columna: col,
+            filas: Object.values(filas)
+        });
+        cerrarModal('modal-precios-masivo');
+        await cargarProductos();
+    } catch(e) {
+        alert('Error al aplicar precios: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Aplicar cambios';
+    }
+}
+
 function renderProductos(lista) {
     const tbody = document.getElementById('tbody-productos');
     if (!lista.length) { tbody.innerHTML = `<tr><td colspan="8" class="empty">No hay productos</td></tr>`; return; }
@@ -794,6 +946,7 @@ function toggleModoEdicion() {
     document.getElementById('bar-exportar').style.display = modoEdicion ? '' : 'none';
     document.getElementById('bar-importar').style.display = modoEdicion ? '' : 'none';
     document.getElementById('btn-gestionar-cats').style.display = modoEdicion ? '' : 'none';
+    document.getElementById('btn-precios-masivo').style.display = modoEdicion ? '' : 'none';
     renderProductos(_productosFiltrados || productos);
 }
 
