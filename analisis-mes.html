@@ -265,6 +265,40 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .res-sin      { background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; }
 .res-pill.pill-activo { box-shadow:0 0 0 3px currentColor; filter:brightness(.92); }
 
+/* ── Day progress card ── */
+.day-header-row {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px; flex-wrap:wrap; gap:8px;
+}
+.day-header-left { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.day-date-lbl { font-size:12px; color:#9ca3af; font-weight:500; }
+.day-header-right { display:flex; align-items:center; gap:6px; }
+.day-update-lbl { font-size:11px; color:#c4c4c4; }
+.btn-refresh {
+    background:none; border:1.5px solid #e0e0e0; border-radius:8px;
+    cursor:pointer; padding:5px 9px; font-size:14px; line-height:1;
+    color:#888; transition:all .15s;
+}
+.btn-refresh:hover { background:#f3f4f6; border-color:#bbb; }
+.btn-refresh.spinning { animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.day-stats-row {
+    display:flex; gap:24px; flex-wrap:wrap;
+    padding:10px 0 14px; border-bottom:1px solid #f0f0f0; margin-bottom:6px;
+}
+.day-stat { display:flex; flex-direction:column; }
+.day-stat-val { font-size:20px; font-weight:800; color:#1a1a2e; line-height:1.2; }
+.day-stat-lbl { font-size:11px; color:#9ca3af; font-weight:500; margin-top:1px; }
+
+.day-bar-section { margin-bottom:4px; }
+.day-bar-title {
+    font-size:11px; font-weight:700; color:#6b7280;
+    text-transform:uppercase; letter-spacing:.5px;
+    margin-bottom:-40px; /* overlap: title floats above the margin */
+    position:relative; z-index:2;
+}
+
 /* ── Expand button ── */
 .btn-expandir-wrap { text-align:center; }
 .btn-expandir {
@@ -352,6 +386,44 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
 
         <div id="prog-wrap"><p class="prog-no-data">Cargando…</p></div>
+    </div>
+
+    <!-- ═══════ BARRA DE PROGRESO DEL DÍA ═══════ -->
+    <div class="progress-section">
+
+        <div class="day-header-row">
+            <div class="day-header-left">
+                <span class="section-title" style="font-size:15px;">📅 Progreso del día</span>
+                <span class="day-date-lbl" id="day-date-lbl"></span>
+            </div>
+            <div class="day-header-right">
+                <span class="day-update-lbl" id="day-update-lbl"></span>
+                <button class="btn-refresh" id="btn-refresh-day" onclick="cargarDia()" title="Actualizar">🔄</button>
+                <button class="btn-gear" id="btn-gear-day" onclick="toggleDayConfig()" title="Configurar objetivos diarios">⚙️</button>
+            </div>
+        </div>
+
+        <!-- Config objetivos diarios -->
+        <div class="umbral-bar" id="day-config-bar">
+            <strong style="color:#555;font-size:13px;">Objetivos diarios:</strong>
+            <div class="umbral-group">
+                <label>Facturación $</label>
+                <input type="number" id="day-meta-fact" min="0" step="100" style="width:120px;" placeholder="Auto (meta/días)">
+            </div>
+            <div class="umbral-group">
+                <label>Tickets</label>
+                <input type="number" id="day-meta-tickets" min="0" step="1" style="width:80px;" placeholder="Sin objetivo">
+            </div>
+            <button onclick="guardarMetaDia()" style="background:#4f46e5;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Aplicar</button>
+            <button onclick="borrarMetaDia()" style="background:#f3f4f6;color:#666;border:1.5px solid #e0e0e0;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">Sin objetivos</button>
+        </div>
+
+        <!-- Stats rápidas -->
+        <div class="day-stats-row" id="day-stats-row" style="display:none"></div>
+
+        <!-- Barras -->
+        <div id="day-prog-wrap"><p class="prog-no-data">Cargando…</p></div>
+
     </div>
 
     <!-- ═══════ SECCIÓN 2: COSTOS DE LA CARTA ═══════ -->
@@ -605,6 +677,8 @@ async function cargarFacturacion() {
         } catch { ventasMesAnterior = null; }
 
         renderProgressBar();
+        // Si los datos del día ya cargaron, re-renderizar barras con el break-even ahora disponible
+        if (datosDay) renderDayBars();
     } catch(e) {
         document.getElementById("billing-cards").innerHTML =
             `<p style="color:#dc2626;padding:16px;">Error al cargar facturación: ${e.message}</p>`;
@@ -882,13 +956,204 @@ function toggleRow(id) {
     renderTabla();
 }
 
+// ── Progreso del día ────────────────────────────────────────────
+const META_DIA_KEY = 'meta_diaria_v1';
+let datosDay = null;
+
+const DIAS_LONG  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const MESES_LONG = ['enero','febrero','marzo','abril','mayo','junio',
+                    'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function getMetaDia() {
+    try { return JSON.parse(localStorage.getItem(META_DIA_KEY)) || {}; }
+    catch { return {}; }
+}
+
+function toggleDayConfig() {
+    const bar  = document.getElementById('day-config-bar');
+    const btn  = document.getElementById('btn-gear-day');
+    const open = bar.classList.toggle('visible');
+    btn.classList.toggle('active', open);
+    if (open) {
+        const m = getMetaDia();
+        document.getElementById('day-meta-fact').value    = m.facturacion ?? '';
+        document.getElementById('day-meta-tickets').value = m.tickets ?? '';
+    }
+}
+
+function guardarMetaDia() {
+    const f = parseFloat(document.getElementById('day-meta-fact').value) || null;
+    const t = parseInt(document.getElementById('day-meta-tickets').value)  || null;
+    localStorage.setItem(META_DIA_KEY, JSON.stringify({ facturacion: f, tickets: t }));
+    document.getElementById('day-config-bar').classList.remove('visible');
+    document.getElementById('btn-gear-day').classList.remove('active');
+    renderDayBars();
+}
+
+function borrarMetaDia() {
+    localStorage.removeItem(META_DIA_KEY);
+    document.getElementById('day-config-bar').classList.remove('visible');
+    document.getElementById('btn-gear-day').classList.remove('active');
+    renderDayBars();
+}
+
+async function cargarDia() {
+    const btnR = document.getElementById('btn-refresh-day');
+    if (btnR) btnR.classList.add('spinning');
+    try {
+        datosDay = await apiFetch('/reportes/progreso-dia');
+        const ahora = new Date();
+        document.getElementById('day-update-lbl').textContent =
+            `Actualizado ${ahora.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' })}`;
+        renderDayBars();
+    } catch(e) {
+        document.getElementById('day-prog-wrap').innerHTML =
+            `<p class="prog-no-data" style="color:#dc2626;">Error al cargar datos del día: ${e.message}</p>`;
+    } finally {
+        if (btnR) btnR.classList.remove('spinning');
+    }
+}
+
+function renderDayBars() {
+    const wrap = document.getElementById('day-prog-wrap');
+    if (!datosDay) { wrap.innerHTML = '<p class="prog-no-data">Sin datos</p>'; return; }
+
+    const d      = datosDay;
+    const metaDia = getMetaDia();
+    const hoy    = new Date();
+
+    // Días del mes actual
+    const diasMesActual = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+
+    // Break-even mensual (de datosMes ya cargado por cargarFacturacion)
+    const breakEvenMensual = datosMes
+        ? (datosMes.costo_insumos_facturados + datosMes.costo_servicios_facturados)
+        : 0;
+    const breakEvenDiario = breakEvenMensual > 0 ? breakEvenMensual / diasMesActual : 0;
+
+    // Promedios diarios del mes anterior
+    const diasAnt = d.dias_mes_anterior || 1;
+    const promFactAnt  = d.facturacion_mes_anterior / diasAnt;
+    const promMesasAnt = d.mesas_mes_anterior / diasAnt;
+
+    // Ticket promedio mes anterior (para convertir break-even $ → tickets)
+    const ticketPromAnt = d.mesas_mes_anterior > 0
+        ? d.facturacion_mes_anterior / d.mesas_mes_anterior
+        : 0;
+    const breakEvenTickets = (breakEvenDiario > 0 && ticketPromAnt > 0)
+        ? breakEvenDiario / ticketPromAnt
+        : 0;
+
+    // Objetivo diario de facturación:
+    // 1º usa config específica del día, 2º deriva de meta mensual/días, 3º sin marker
+    let metaFactDia = metaDia.facturacion ?? null;
+    if (!metaFactDia) {
+        const metaMensual = getMeta();
+        metaFactDia = metaMensual ? metaMensual / diasMesActual : 0;
+    }
+    const metaTicketsDia = metaDia.tickets ?? 0;
+
+    // Stats rápidas
+    const statsRow = document.getElementById('day-stats-row');
+    statsRow.style.display = '';
+    const ticketProm = d.mesas_hoy > 0 ? d.facturacion_hoy / d.mesas_hoy : 0;
+    statsRow.innerHTML = `
+        <div class="day-stat">
+            <span class="day-stat-val">${fmt(d.facturacion_hoy)}</span>
+            <span class="day-stat-lbl">💰 Facturación hoy</span>
+        </div>
+        <div class="day-stat">
+            <span class="day-stat-val">${d.mesas_hoy}</span>
+            <span class="day-stat-lbl">🎫 Tickets hoy</span>
+        </div>
+        <div class="day-stat">
+            <span class="day-stat-val">${d.mesas_hoy > 0 ? fmt(ticketProm) : '—'}</span>
+            <span class="day-stat-lbl">📊 Ticket promedio</span>
+        </div>`;
+
+    // ── Barra 1: Facturación ──────────────────────────────────────
+    const bar1 = renderOneDayBar({
+        valor: d.facturacion_hoy,
+        label: '💰 Facturación del día',
+        formatVal:  v => fmt(v),
+        formatFill: v => fmt(v),
+        markers: [
+            breakEvenDiario > 0 ? { val: breakEvenDiario, color: '#dc2626', name: 'Break-even diario' } : null,
+            promFactAnt > 0     ? { val: promFactAnt,      color: '#2563eb', name: 'Prom. día mes ant.' } : null,
+            metaFactDia > 0     ? { val: metaFactDia,      color: '#7c3aed', name: 'Objetivo diario'   } : null,
+        ].filter(Boolean),
+    });
+
+    // ── Barra 2: Tickets ─────────────────────────────────────────
+    const bar2 = renderOneDayBar({
+        valor: d.mesas_hoy,
+        label: '🎫 Tickets del día',
+        formatVal:  v => `${Math.round(v * 10) / 10}`,
+        formatFill: v => `${Math.round(v)}`,
+        markers: [
+            breakEvenTickets > 0 ? { val: breakEvenTickets, color: '#dc2626', name: 'Break-even diario' } : null,
+            promMesasAnt > 0     ? { val: promMesasAnt,      color: '#2563eb', name: 'Prom. día mes ant.' } : null,
+            metaTicketsDia > 0   ? { val: metaTicketsDia,    color: '#7c3aed', name: 'Objetivo diario'   } : null,
+        ].filter(Boolean),
+    });
+
+    wrap.innerHTML = bar1 + bar2;
+}
+
+function renderOneDayBar({ valor, label, formatVal, formatFill, markers }) {
+    // Calcular escala máxima de la barra
+    const allVals = [valor, ...markers.map(m => m.val)].filter(v => v > 0);
+    let barMax = allVals.length ? Math.max(...allVals) * 1.3 : 100;
+    if (barMax <= 0) barMax = 100;
+
+    const toPct = v => Math.min(Math.max((v / barMax) * 100, 0), 100);
+
+    // Ordenar markers por valor y alternar etiquetas arriba/abajo para no pisar
+    const sorted = [...markers].sort((a, b) => a.val - b.val);
+    sorted.forEach((m, i) => { m._side = i % 2 === 0 ? 'up' : 'down'; });
+
+    const fillPct = toPct(valor);
+    const fillLbl = fillPct > 10
+        ? `<span class="prog-fill-lbl">${formatFill(valor)}</span>`
+        : '';
+
+    const mkHtml = sorted.map(m => `
+        <div class="prog-mk" style="left:${toPct(m.val)}%;background:${m.color};">
+            <div class="prog-mk-lbl ${m._side}" style="color:${m.color};">
+                ${m.name}<br><strong>${formatVal(m.val)}</strong>
+            </div>
+        </div>`).join('');
+
+    return `
+        <div class="day-bar-section">
+            <div class="day-bar-title">${label}</div>
+            <div class="prog-track">
+                <div class="prog-fill" style="width:${fillPct}%;">${fillLbl}</div>
+                ${mkHtml}
+            </div>
+            <div class="prog-scale">
+                <span>0</span><span>${formatVal(Math.round(barMax))}</span>
+            </div>
+        </div>`;
+}
+
 // ── Init ────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
     requireAuth();
     cargarUmbralesUI();
     actualizarLblMes();
+
+    // Etiqueta de fecha de hoy
+    const hoy = new Date();
+    document.getElementById('day-date-lbl').textContent =
+        `${DIAS_LONG[hoy.getDay()]}, ${hoy.getDate()} de ${MESES_LONG[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+
     cargarFacturacion();
     cargarCostos();
+    cargarDia();
+
+    // Auto-refresh cada 5 minutos
+    setInterval(cargarDia, 5 * 60 * 1000);
 });
 </script>
 </body>
