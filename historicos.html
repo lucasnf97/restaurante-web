@@ -91,6 +91,75 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .xlbl      { flex:1; display:flex; align-items:center; justify-content:center;
              font-size:10px; color:#888; text-align:center; line-height:1.3; }
 .xlbl.cur  { color:#4f46e5; font-weight:700; }
+
+/* ── Sección Análisis de ventas ────────────────────────────── */
+.analisis-header {
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer; user-select:none; padding:2px 0;
+}
+.analisis-header:hover .analisis-toggle { color:#4f46e5; }
+.analisis-toggle { font-size:13px; color:#9ca3af; transition:transform .25s; display:inline-block; }
+.analisis-toggle.open { transform:rotate(180deg); }
+
+.analisis-layout {
+    display:flex; gap:24px; align-items:flex-start; margin-top:18px;
+}
+.analisis-filtros {
+    width:230px; flex-shrink:0; display:flex; flex-direction:column; gap:12px;
+}
+.an-form-group { display:flex; flex-direction:column; gap:4px; }
+.an-form-group label { font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.4px; }
+.an-form-group select,
+.an-form-group input[type=date],
+.an-form-group input[type=number] {
+    padding:7px 10px; border:1.5px solid #e5e7eb; border-radius:8px;
+    font-size:13px; font-family:inherit; color:#374151; background:white;
+    transition:border-color .15s; width:100%;
+}
+.an-form-group select:focus,
+.an-form-group input:focus { outline:none; border-color:#4f46e5; }
+.an-sub-filtros { display:flex; flex-direction:column; gap:8px; }
+.an-checkbox { display:flex; align-items:center; gap:8px; font-size:13px; color:#374151; cursor:pointer; }
+.an-checkbox input[type=checkbox] { accent-color:#4f46e5; width:15px; height:15px; cursor:pointer; flex-shrink:0; }
+.an-btn {
+    padding:9px 16px; background:#4f46e5; color:white; border:none;
+    border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;
+    transition:background .15s; width:100%;
+}
+.an-btn:hover:not(:disabled) { background:#4338ca; }
+.an-btn:disabled { background:#9ca3af; cursor:not-allowed; }
+.an-divider { height:1px; background:#f0f0f0; margin:2px 0; }
+
+.analisis-resultados { flex:1; min-width:0; }
+.an-hint  { color:#9ca3af; font-size:13px; text-align:center; padding:40px 0; }
+.an-error { color:#ef4444; font-size:13px; text-align:center; padding:40px 0; }
+
+/* Tabla de resultados */
+.an-table-scroll {
+    overflow-x:auto; max-height:480px; overflow-y:auto;
+    border:1px solid #e5e7eb; border-radius:10px;
+}
+.an-table { width:100%; border-collapse:collapse; font-size:13px; }
+.an-table thead th {
+    position:sticky; top:0; z-index:1; background:#f8f9fa;
+    padding:9px 14px; text-align:left; font-size:11px; font-weight:700;
+    color:#6b7280; border-bottom:2px solid #e5e7eb; white-space:nowrap;
+}
+.an-table thead th.num { text-align:right; }
+.an-table tbody td {
+    padding:7px 14px; border-bottom:1px solid #f3f4f6;
+    color:#374151; white-space:nowrap;
+}
+.an-table tbody td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.an-table tbody tr:last-child td { border-bottom:none; }
+.an-table tbody tr:hover:not(.an-row-total) { background:#f9fafb; }
+.an-table tbody tr.an-row-zero td { color:#c4b5d1; }
+.an-badge-zero { color:#d1d5db; }
+.an-table tbody tr.an-row-total td {
+    font-weight:700; border-top:2px solid #e5e7eb;
+    background:#f8f9fa; color:#1a1a2e;
+}
+.an-table tbody tr.an-row-total td:first-child { color:#4f46e5; }
 </style>
 </head>
 <body>
@@ -132,6 +201,76 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
             <div class="g-yaxis" id="g-yaxis"></div>
             <div class="g-plot"  id="g-plot">
                 <p style="color:#aaa;padding:20px;text-align:center;">Cargando…</p>
+            </div>
+        </div>
+    </div>
+    </div>
+    </div>
+
+    <!-- ═══════ ANÁLISIS DE VENTAS ═══════ -->
+    <div class="chart-col">
+    <div class="chart-card">
+        <div class="analisis-header" onclick="toggleAnalisis()">
+            <span class="section-title" style="font-size:15px;">📊 Análisis de ventas</span>
+            <span id="an-toggle" class="analisis-toggle">▼</span>
+        </div>
+
+        <div id="an-body" style="display:none">
+            <div class="analisis-layout">
+
+                <!-- ── Panel de filtros ── -->
+                <div class="analisis-filtros">
+                    <div class="an-form-group">
+                        <label>Tipo de análisis</label>
+                        <select id="an-tipo" onchange="anCambiarTipo()">
+                            <option value="diario">Ventas por día</option>
+                            <option value="semanal">Ventas por semana / año</option>
+                        </select>
+                    </div>
+
+                    <div class="an-divider"></div>
+
+                    <!-- Filtros: modo diario -->
+                    <div id="an-filtros-diario" class="an-sub-filtros">
+                        <div class="an-form-group">
+                            <label>Desde</label>
+                            <input type="date" id="an-desde">
+                        </div>
+                        <div class="an-form-group">
+                            <label>Hasta</label>
+                            <input type="date" id="an-hasta">
+                        </div>
+                    </div>
+
+                    <!-- Filtros: modo semanal -->
+                    <div id="an-filtros-semanal" class="an-sub-filtros" style="display:none">
+                        <div class="an-form-group">
+                            <label>Año desde</label>
+                            <input type="number" id="an-anio-desde" min="2018" max="2099">
+                        </div>
+                        <div class="an-form-group">
+                            <label>Año hasta</label>
+                            <input type="number" id="an-anio-hasta" min="2018" max="2099">
+                        </div>
+                    </div>
+
+                    <div class="an-divider"></div>
+
+                    <label class="an-checkbox">
+                        <input type="checkbox" id="an-con-impuesto">
+                        Incluir impuestos
+                    </label>
+
+                    <button class="an-btn" id="an-btn-consultar" onclick="anConsultar()">Consultar</button>
+                </div>
+
+                <!-- ── Panel de resultados ── -->
+                <div class="analisis-resultados">
+                    <div id="an-tabla-wrap">
+                        <p class="an-hint">Seleccioná el tipo de análisis y aplicá los filtros para ver los resultados.</p>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -242,10 +381,150 @@ async function cargarGrafico() {
         <div class="g-xlabels">${xlabelsHtml}</div>`;
 }
 
+// ── Análisis de ventas ──────────────────────────────────────────
+let anAbierto = false;
+
+function toggleAnalisis() {
+    anAbierto = !anAbierto;
+    document.getElementById('an-body').style.display = anAbierto ? '' : 'none';
+    document.getElementById('an-toggle').classList.toggle('open', anAbierto);
+}
+
+function anCambiarTipo() {
+    const tipo = document.getElementById('an-tipo').value;
+    document.getElementById('an-filtros-diario').style.display  = tipo === 'diario'  ? '' : 'none';
+    document.getElementById('an-filtros-semanal').style.display = tipo === 'semanal' ? '' : 'none';
+}
+
+async function anConsultar() {
+    const tipo   = document.getElementById('an-tipo').value;
+    const conImp = document.getElementById('an-con-impuesto').checked;
+    const wrap   = document.getElementById('an-tabla-wrap');
+    const btn    = document.getElementById('an-btn-consultar');
+    btn.disabled = true;
+    btn.textContent = 'Consultando…';
+    wrap.innerHTML = '<p class="an-hint">Cargando datos…</p>';
+
+    try {
+        if (tipo === 'diario') {
+            const desde = document.getElementById('an-desde').value;
+            const hasta = document.getElementById('an-hasta').value;
+            if (!desde || !hasta) {
+                wrap.innerHTML = '<p class="an-hint">Seleccioná las fechas de inicio y fin.</p>';
+                return;
+            }
+            const data = await api.get(`/reportes/ventas-diarias?desde=${desde}&hasta=${hasta}&con_impuesto=${conImp}`);
+            anRenderDiario(data, wrap);
+        } else {
+            const anioD = document.getElementById('an-anio-desde').value;
+            const anioH = document.getElementById('an-anio-hasta').value;
+            if (!anioD || !anioH) {
+                wrap.innerHTML = '<p class="an-hint">Seleccioná el rango de años.</p>';
+                return;
+            }
+            const data = await api.get(`/reportes/ventas-semanales?anio_desde=${anioD}&anio_hasta=${anioH}&con_impuesto=${conImp}`);
+            anRenderSemanal(data, wrap);
+        }
+    } catch(e) {
+        wrap.innerHTML = `<p class="an-error">Error al cargar datos: ${e.message || ''}</p>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Consultar';
+    }
+}
+
+function anRenderDiario(rows, wrap) {
+    if (!rows.length) {
+        wrap.innerHTML = '<p class="an-hint">Sin datos para el período seleccionado.</p>';
+        return;
+    }
+    let totMesas = 0, totFact = 0;
+
+    const filas = rows.map(r => {
+        totMesas += r.mesas_cerradas;
+        totFact  += r.facturacion;
+        const vacio = r.mesas_cerradas === 0;
+        const nd = `<span class="an-badge-zero">—</span>`;
+        return `<tr class="${vacio ? 'an-row-zero' : ''}">
+            <td>${r.fecha}</td>
+            <td>${r.dia_semana}</td>
+            <td class="num">${vacio ? nd : r.mesas_cerradas}</td>
+            <td class="num">${vacio ? nd : fmt(r.facturacion)}</td>
+            <td class="num">${vacio ? nd : fmt(r.promedio_por_mesa)}</td>
+        </tr>`;
+    }).join('');
+
+    const promTotal = totMesas > 0 ? totFact / totMesas : 0;
+
+    wrap.innerHTML = `
+        <div class="an-table-scroll">
+            <table class="an-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Día</th>
+                        <th class="num">Mesas</th>
+                        <th class="num">Facturación</th>
+                        <th class="num">Promedio / mesa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filas}
+                    <tr class="an-row-total">
+                        <td colspan="2">TOTAL</td>
+                        <td class="num">${totMesas}</td>
+                        <td class="num">${fmt(totFact)}</td>
+                        <td class="num">${fmt(promTotal)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function anRenderSemanal(data, wrap) {
+    const { anios, filas } = data;
+    if (!filas || filas.length <= 1) {
+        wrap.innerHTML = '<p class="an-hint">Sin datos para los años seleccionados.</p>';
+        return;
+    }
+    const nd = `<span class="an-badge-zero">—</span>`;
+
+    const headers = `<th>Semana</th>` + anios.map(y => `<th class="num">${y}</th>`).join('');
+
+    const tbRows = filas.map(f => {
+        const isTotal = f.semana === 'TOTAL';
+        const celdas = anios.map(y => {
+            const v = f[y];
+            return `<td class="num">${v != null ? fmt(v) : nd}</td>`;
+        }).join('');
+        return `<tr class="${isTotal ? 'an-row-total' : ''}">
+            <td>${isTotal ? 'TOTAL' : `Sem. ${f.semana}`}</td>
+            ${celdas}
+        </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `
+        <div class="an-table-scroll">
+            <table class="an-table">
+                <thead><tr>${headers}</tr></thead>
+                <tbody>${tbRows}</tbody>
+            </table>
+        </div>`;
+}
+
 // ── Init ────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
     requireAuth();
     cargarGrafico();
+
+    // Defaults: diario = últimos 30 días; semanal = año anterior y actual
+    const hoy    = new Date();
+    const hace30 = new Date(hoy); hace30.setDate(hoy.getDate() - 30);
+    const toISO  = d => d.toISOString().split('T')[0];
+    document.getElementById('an-desde').value      = toISO(hace30);
+    document.getElementById('an-hasta').value      = toISO(hoy);
+    document.getElementById('an-anio-desde').value = hoy.getFullYear() - 1;
+    document.getElementById('an-anio-hasta').value = hoy.getFullYear();
 });
 </script>
 </body>
