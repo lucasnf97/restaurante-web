@@ -178,7 +178,8 @@
         body.solo-vista [onclick*="Eliminar"],
         body.solo-vista [onclick*="editar"],
         body.solo-vista [onclick*="guardar"],
-        body.solo-vista [onclick*="Guardar"] { display: none !important; }
+        body.solo-vista [onclick*="Guardar"],
+        body.solo-vista .solo-vista-oculto { display: none !important; }
     </style>
 </head>
 <body>
@@ -585,8 +586,8 @@
         <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
             <h3 id="vr-titulo" style="margin:0;font-size:17px;">📓 Receta</h3>
             <div style="display:flex;gap:8px;">
-                <button class="btn btn-warning btn-sm" onclick="abrirEditorRecetaDesdeVer()">✏️ Editar</button>
-                <button class="btn btn-danger btn-sm" onclick="eliminarRecetaDoc()">🗑 Eliminar</button>
+                <button class="btn btn-warning btn-sm solo-vista-oculto" onclick="abrirEditorRecetaDesdeVer()">✏️ Editar</button>
+                <button class="btn btn-danger btn-sm solo-vista-oculto" onclick="eliminarRecetaDoc()">🗑 Eliminar</button>
                 <button class="btn btn-secondary btn-sm" onclick="cerrarModal('modal-ver-receta')">✕ Cerrar</button>
             </div>
         </div>
@@ -1428,6 +1429,7 @@ async function guardarCombosHab() {
             tbody.innerHTML = `<tr><td colspan="4" class="empty">Sin resultados</td></tr>`;
             return;
         }
+        const soloVista = document.body.classList.contains('solo-vista');
         tbody.innerHTML = lista.map(p => {
             const doc = _recDocsIndex[p.id];
             const safe = (s) => String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -1438,8 +1440,10 @@ async function guardarCombosHab() {
                                title="Ver receta" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform=''">📓</button>
                    </td>`
                 : `<td style="text-align:center;">
-                       <button class="btn btn-secondary btn-sm"
-                               onclick="abrirEditorReceta(${p.id},'${safe(p.nombre)}')">+ Escribir receta</button>
+                       ${soloVista
+                           ? '<span style="color:#9ca3af;font-size:12px;">Sin receta</span>'
+                           : `<button class="btn btn-secondary btn-sm"
+                                      onclick="abrirEditorReceta(${p.id},'${safe(p.nombre)}')">+ Escribir receta</button>`}
                    </td>`;
             return `<tr>
                 <td><strong>${p.nombre}</strong>${p.descripcion ? `<br><small style="color:#888">${p.descripcion}</small>` : ''}</td>
