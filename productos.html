@@ -820,13 +820,19 @@ function filtrarLocal() {
 }
 
 // ── MODAL PRECIOS MASIVOS ────────────────────────────────────
-function abrirModalPrecios() {
+async function abrirModalPrecios() {
     const lista = _productosFiltrados || productos;
     document.getElementById('pm-subtitulo').textContent =
         `${lista.length} producto${lista.length !== 1 ? 's' : ''} listado${lista.length !== 1 ? 's' : ''} actualmente`;
-    // Seleccionar columna 2 por defecto
-    const radios = document.querySelectorAll('input[name="pm-col"]');
-    radios.forEach(r => { r.checked = r.value === '2'; });
+    // Pre-seleccionar la columna activa actual desde el servidor
+    let slotActivo = 1;
+    try {
+        const cfg = await api.get('/config/sistema');
+        slotActivo = cfg.precio_slot_activo || 1;
+    } catch(e) {}
+    document.querySelectorAll('input[name="pm-col"]').forEach(r => {
+        r.checked = parseInt(r.value) === slotActivo;
+    });
     pmRenderTabla(lista);
     pmActualizarDestacado();
     document.getElementById('modal-precios-masivo').classList.add('active');
