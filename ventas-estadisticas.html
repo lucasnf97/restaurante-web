@@ -87,48 +87,20 @@ body.config-open .wgt-drag { display:flex; }
 .tv-btn-buscar:hover { background:#4338ca; }
 .tv-btn-buscar:disabled { background:#9ca3af; cursor:not-allowed; }
 
-/* Podio */
-.podio-wrap {
-    display:flex; align-items:flex-end; justify-content:center;
-    gap:8px; padding:20px 16px 0;
+/* Top-3 lista con medallas (reemplaza el podio gráfico) */
+.top3-list { padding:8px 16px 2px; }
+.top3-item {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 0; border-bottom:1px solid #f3f4f6; min-width:0;
 }
-.podio-slot { display:flex; flex-direction:column; align-items:center; flex:1; min-width:0; }
-.podio-info {
-    display:flex; flex-direction:column; align-items:center;
-    text-align:center; padding:0 4px 8px; width:100%;
-}
-.podio-medal { font-size:22px; margin-bottom:5px; }
-.podio-thumb {
-    width:44px; height:44px; border-radius:50%; object-fit:cover;
-    border:2px solid rgba(0,0,0,.08); margin-bottom:5px; background:#f3f4f6;
-}
-.podio-thumb-ph {
-    width:44px; height:44px; border-radius:50%; background:#f3f4f6;
-    display:flex; align-items:center; justify-content:center;
-    font-size:18px; margin-bottom:5px; border:2px solid rgba(0,0,0,.04);
-}
-.podio-name {
-    font-size:12px; font-weight:700; color:#1a1a2e; line-height:1.3;
-    overflow:hidden; display:-webkit-box; -webkit-line-clamp:2;
-    -webkit-box-orient:vertical; margin-bottom:3px; max-width:100%;
-}
-.podio-qty { font-size:11px; color:#6b7280; }
-.podio-rev { font-size:11px; font-weight:700; color:#4f46e5; }
-.podio-platform {
-    width:100%; border-radius:6px 6px 0 0;
-    display:flex; align-items:center; justify-content:center;
-    font-size:18px; font-weight:900; color:rgba(255,255,255,.8);
-}
-.pp-1 { height:80px; background:linear-gradient(175deg,#fbbf24,#d97706); }
-.pp-2 { height:56px; background:linear-gradient(175deg,#9ca3af,#6b7280); }
-.pp-3 { height:40px; background:linear-gradient(175deg,#cd9566,#b45309); }
-
-/* Separador */
-.podio-base-line {
-    height:2px;
-    background:linear-gradient(90deg,#f0f2f5 0%,#e5e7eb 40%,#e5e7eb 60%,#f0f2f5 100%);
-    margin:0 16px;
-}
+.top3-item:last-child { border-bottom:none; }
+.top3-medal { font-size:20px; flex-shrink:0; width:26px; text-align:center; }
+.top3-info { flex:1; min-width:0; }
+.top3-name { font-size:14px; font-weight:700; color:#1a1a2e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.top3-cat  { font-size:10px; color:#9ca3af; }
+.top3-right { display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0; }
+.top3-qty { font-size:12px; font-weight:700; color:#374151; white-space:nowrap; }
+.top3-rev { font-size:11px; font-weight:700; color:#4f46e5; white-space:nowrap; }
 
 /* Ranking */
 .tv-section-label {
@@ -363,6 +335,79 @@ body.config-open .wgt-drag { display:flex; }
 .dem-umbral-inp:focus { outline:none; border-color:#4f46e5; }
 .dem-umbral-unit { font-size:12px; color:#9ca3af; }
 .dem-umbral-note { font-size:10px; color:#9ca3af; margin-top:2px; }
+
+/* ── Mapa de Calor ─────────────────────────────────────────── */
+.wgt-hm-header {
+    display:flex; align-items:center; gap:10px; padding:14px 16px 10px;
+    border-bottom:1px solid #f0f0f0;
+}
+.wgt-hm-title { font-size:14px; font-weight:700; color:#1a1a2e; flex:1; }
+.hm-controls {
+    display:flex; align-items:center; gap:10px; padding:10px 16px;
+    flex-wrap:wrap; border-bottom:1px solid #f0f0f0;
+}
+.hm-scale-btns { display:flex; gap:4px; }
+.hm-scale-btn {
+    padding:4px 12px; border-radius:20px; border:1.5px solid #e0e0e0;
+    background:white; font-size:12px; font-weight:600; color:#6b7280;
+    cursor:pointer; transition:all .15s; white-space:nowrap;
+}
+.hm-scale-btn:hover { border-color:#a5b4fc; color:#4f46e5; }
+.hm-scale-btn.active { background:#4f46e5; color:white; border-color:#4f46e5; }
+.hm-sep { color:#e0e0e0; font-size:16px; }
+.hm-date-row { display:flex; align-items:center; gap:6px; }
+.hm-date-row input[type=date] {
+    padding:4px 8px; border:1.5px solid #e0e0e0; border-radius:7px;
+    font-size:12px; font-family:inherit; color:#374151;
+}
+.hm-date-row input[type=date]:focus { outline:none; border-color:#4f46e5; }
+.hm-btn-buscar {
+    padding:5px 14px; border-radius:20px; border:none;
+    background:#4f46e5; color:white; font-size:12px; font-weight:700;
+    cursor:pointer; transition:background .15s;
+}
+.hm-btn-buscar:hover { background:#4338ca; }
+.hm-btn-buscar:disabled { background:#9ca3af; cursor:not-allowed; }
+
+.hm-body { padding:12px 16px 16px; overflow-x:auto; }
+.hm-grid {
+    display:grid;
+    gap:2px;
+    width:max-content;
+}
+.hm-cell-hora {
+    font-size:10px; font-weight:600; color:#9ca3af;
+    display:flex; align-items:center; justify-content:flex-end;
+    padding-right:8px; white-space:nowrap;
+    height:28px;
+}
+.hm-cell-dia {
+    font-size:10px; font-weight:700; color:#6b7280;
+    text-align:center; padding-bottom:4px;
+    display:flex; align-items:flex-end; justify-content:center;
+}
+.hm-cell {
+    width:72px; height:28px; border-radius:4px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:600; cursor:default;
+    transition:transform .1s, box-shadow .1s;
+    position:relative;
+}
+.hm-cell:hover { transform:scale(1.08); box-shadow:0 2px 8px rgba(0,0,0,.15); z-index:2; }
+.hm-cell-empty { background:#f9fafb; color:transparent; }
+.hm-legend {
+    display:flex; align-items:center; gap:8px; margin-top:10px;
+    font-size:10px; color:#9ca3af;
+}
+.hm-legend-bar {
+    height:8px; width:120px; border-radius:4px;
+    background:linear-gradient(90deg,#fef9c3,#fbbf24,#f97316,#dc2626);
+}
+.hm-loading {
+    text-align:center; padding:40px 16px; color:#9ca3af; font-size:13px;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+}
+.hm-sin-datos { text-align:center; padding:40px 16px; color:#9ca3af; font-size:13px; }
 </style>
 </head>
 <body>
@@ -404,7 +449,8 @@ requireAuth();
 // ── Definición de widgets ────────────────────────────────────────
 const CFG_KEY  = 'vest_cfg_v1';
 const WGT_DEFS = [
-    { key:'top_ventas', icon:'🏆', name:'Top de Ventas',          spans:[3,6] },
+    { key:'top_ventas', icon:'🏆', name:'Top de Ventas',          spans:[2,3] },
+    { key:'calor',      icon:'🌡️', name:'Mapa de Calor — Mesas',  fixedSpan:6 },
     { key:'demanda',    icon:'📊', name:'Análisis de Demanda',     fixedSpan:6 },
 ];
 
@@ -481,6 +527,7 @@ function applyCfg() {
 
 function buildWgtInner(def) {
     if (def.key === 'top_ventas') return buildTopVentasHTML();
+    if (def.key === 'calor')      return buildCalorHTML();
     if (def.key === 'demanda')    return buildDemandaHTML();
     return `<div style="padding:20px;color:#9ca3af">Widget pendiente</div>`;
 }
@@ -540,6 +587,10 @@ async function initWidgets() {
         await buscarTopVentas();
     }
 
+    if (document.getElementById('hm-body')) {
+        initCalor();
+    }
+
     if (document.getElementById('dem-body')) {
         initDemanda();
     }
@@ -571,7 +622,7 @@ async function buscarTopVentas() {
     }
 }
 
-// ── Render: podio + lista ────────────────────────────────────────
+// ── Render: lista con medallas ───────────────────────────────────
 function renderTopVentas() {
     const body = document.getElementById('tv-body');
     if (!body) return;
@@ -581,41 +632,26 @@ function renderTopVentas() {
         return;
     }
 
+    const MEDALS = ['🥇','🥈','🥉'];
     let html = '';
 
-    // ─ PODIO ─────────────────────────────────────────────────────
-    // Orden visual: [2°, 1°, 3°]
-    const slots = [
-        { d: topData[1], pos:2, medal:'🥈', cls:'pp-2' },
-        { d: topData[0], pos:1, medal:'🥇', cls:'pp-1' },
-        { d: topData[2], pos:3, medal:'🥉', cls:'pp-3' },
-    ];
-    html += `<div class="podio-wrap">`;
-    slots.forEach(({ d, pos, medal, cls }) => {
-        if (!d) {
-            // Slot vacío (si hay menos de 3 resultados)
-            html += `<div class="podio-slot">
-                <div class="podio-platform ${cls}" style="opacity:.2">${pos}</div>
-            </div>`;
-            return;
-        }
-        const imgTag  = d.imagen_url ? `<img class="podio-thumb" src="${esc(d.imagen_url)}"
-            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">` : '';
-        const phStyle = d.imagen_url ? 'style="display:none"' : '';
+    // ─ TOP 3 con medallas ────────────────────────────────────────
+    html += `<div class="top3-list">`;
+    topData.slice(0, 3).forEach((d, i) => {
         html += `
-        <div class="podio-slot">
-            <div class="podio-info">
-                <div class="podio-medal">${medal}</div>
-                ${imgTag}
-                <div class="podio-thumb-ph" ${phStyle}>🍽️</div>
-                <div class="podio-name">${esc(d.nombre)}</div>
-                <div class="podio-qty">${fmtInt(d.cantidad_vendida)} uds</div>
-                <div class="podio-rev">€ ${fmt(d.ingresos)}</div>
+        <div class="top3-item">
+            <div class="top3-medal">${MEDALS[i]}</div>
+            <div class="top3-info">
+                <div class="top3-name">${esc(d.nombre)}</div>
+                ${d.categoria ? `<div class="top3-cat">${esc(d.categoria)}</div>` : ''}
             </div>
-            <div class="podio-platform ${cls}">${pos}</div>
+            <div class="top3-right">
+                <div class="top3-qty">${fmtInt(d.cantidad_vendida)} uds</div>
+                <div class="top3-rev">€ ${fmt(d.ingresos)}</div>
+            </div>
         </div>`;
     });
-    html += `</div><div class="podio-base-line"></div>`;
+    html += `</div>`;
 
     // ─ LISTA 4°+ ─────────────────────────────────────────────────
     const resto = topData.slice(3);
@@ -654,6 +690,181 @@ function renderTopVentas() {
 }
 
 function toggleVerMas() { showAll = !showAll; renderTopVentas(); }
+
+// ═══════════════════════════════════════════════════════════════════
+// ── Mapa de Calor ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+
+const HM_DIAS   = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+const HM_ESCALAS = [
+    { key:'semana',   label:'Semana',   dias:7   },
+    { key:'2semanas', label:'2 Semanas',dias:14  },
+    { key:'mes',      label:'Mes',      dias:30  },
+    { key:'semestre', label:'Semestre', dias:180 },
+    { key:'anio',     label:'Año',      dias:365 },
+];
+
+let hmEscala = 'mes';
+let hmData   = [];
+
+function buildCalorHTML() {
+    const hoy   = getHastaDefault();
+    const desde = _hmDesdeFromEscala('mes');
+    return `
+    <div class="wgt-hm-header">
+        <span class="wgt-drag" title="Arrastrar">⠿</span>
+        <span class="wgt-hm-title">🌡️ Mapa de Calor — Cierre de mesas por día y hora</span>
+    </div>
+    <div class="hm-controls">
+        <div class="hm-scale-btns">
+            ${HM_ESCALAS.map(e => `
+                <button class="hm-scale-btn${e.key==='mes'?' active':''}"
+                        data-escala="${e.key}" onclick="hmSetEscala(this)">
+                    ${e.label}
+                </button>`).join('')}
+        </div>
+        <span class="hm-sep">|</span>
+        <div class="hm-date-row">
+            <input type="date" id="hm-desde" value="${desde}">
+            <span style="font-size:12px;color:#9ca3af;">→</span>
+            <input type="date" id="hm-hasta" value="${hoy}">
+            <button class="hm-btn-buscar" id="hm-buscar-btn" onclick="buscarCalor()">🔍 Buscar</button>
+        </div>
+    </div>
+    <div class="hm-body" id="hm-body">
+        <div class="hm-loading"><div class="tv-spinner"></div>Cargando…</div>
+    </div>`;
+}
+
+function _hmDesdeFromEscala(escala) {
+    const d = new Date();
+    const dias = HM_ESCALAS.find(e => e.key === escala)?.dias || 30;
+    d.setDate(d.getDate() - dias + 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function hmSetEscala(btn) {
+    document.querySelectorAll('.hm-scale-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    hmEscala = btn.dataset.escala;
+    const desde = _hmDesdeFromEscala(hmEscala);
+    const hasta = getHastaDefault();
+    const desdeEl = document.getElementById('hm-desde');
+    const hastaEl = document.getElementById('hm-hasta');
+    if (desdeEl) desdeEl.value = desde;
+    if (hastaEl) hastaEl.value = hasta;
+    buscarCalor();
+}
+
+async function initCalor() {
+    await buscarCalor();
+}
+
+async function buscarCalor() {
+    const btn   = document.getElementById('hm-buscar-btn');
+    const body  = document.getElementById('hm-body');
+    if (!body) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
+    body.innerHTML = `<div class="hm-loading"><div class="tv-spinner"></div>Cargando…</div>`;
+
+    const desde = document.getElementById('hm-desde')?.value || _hmDesdeFromEscala('mes');
+    const hasta = document.getElementById('hm-hasta')?.value || getHastaDefault();
+
+    try {
+        hmData = await api.get(`/ventas/calor-mesas?desde=${desde}&hasta=${hasta}`);
+        renderCalor();
+    } catch(e) {
+        body.innerHTML = `<div class="hm-sin-datos">⚠️ Error: ${esc(e.message)}</div>`;
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔍 Buscar'; }
+    }
+}
+
+function _hmColor(ratio) {
+    // 0 → casi transparente; 1 → rojo intenso
+    // Escala: blanco pálido → amarillo → naranja → rojo
+    if (ratio === 0) return { bg:'#f9fafb', text:'transparent' };
+    // Amarillo #fbbf24 → Naranja #f97316 → Rojo #dc2626
+    let r, g, b;
+    if (ratio < 0.5) {
+        const t = ratio * 2;
+        r = Math.round(251 + (249-251)*t);
+        g = Math.round(191 + (115-191)*t);
+        b = Math.round(36  + (22 -36 )*t);
+    } else {
+        const t = (ratio - 0.5) * 2;
+        r = Math.round(249 + (220-249)*t);
+        g = Math.round(115 + (38 -115)*t);
+        b = Math.round(22  + (38 -22 )*t);
+    }
+    const text = ratio > 0.55 ? 'rgba(255,255,255,.9)' : '#374151';
+    return { bg:`rgb(${r},${g},${b})`, text };
+}
+
+function renderCalor() {
+    const body = document.getElementById('hm-body');
+    if (!body) return;
+
+    if (!hmData.length) {
+        body.innerHTML = `<div class="hm-sin-datos">📭 Sin datos de cierre de mesas en el período</div>`;
+        return;
+    }
+
+    // Construir mapa dia→hora→total
+    const mapa = {};
+    let maxTotal = 0;
+    let horaMin = 23, horaMax = 0;
+    hmData.forEach(({ dia, hora, total }) => {
+        if (!mapa[dia]) mapa[dia] = {};
+        mapa[dia][hora] = total;
+        if (total > maxTotal) maxTotal = total;
+        if (hora < horaMin) horaMin = hora;
+        if (hora > horaMax) horaMax = hora;
+    });
+
+    // Asegurar rango mínimo de horas razonable
+    horaMin = Math.max(0,  horaMin - 1);
+    horaMax = Math.min(23, horaMax + 1);
+
+    const HORAS = Array.from({length: horaMax - horaMin + 1}, (_, i) => horaMin + i);
+    // Columnas: etiqueta-hora + 7 días
+    const totalCols = 1 + 7;
+
+    // Construir el grid CSS
+    let html = `<div class="hm-grid" style="grid-template-columns:44px repeat(7,72px);">`;
+
+    // Fila de cabecera (días)
+    html += `<div class="hm-cell-hora"></div>`;
+    HM_DIAS.forEach(d => {
+        html += `<div class="hm-cell-dia">${d}</div>`;
+    });
+
+    // Filas de horas
+    HORAS.forEach(hora => {
+        html += `<div class="hm-cell-hora">${String(hora).padStart(2,'0')}:00</div>`;
+        for (let dia = 0; dia < 7; dia++) {
+            const total = mapa[dia]?.[hora] || 0;
+            const ratio = maxTotal > 0 ? total / maxTotal : 0;
+            const { bg, text } = _hmColor(ratio);
+            const label = total > 0 ? total : '';
+            const title = `${HM_DIAS[dia]} ${String(hora).padStart(2,'0')}:00 — ${total} cierre${total!==1?'s':''}`;
+            html += `<div class="hm-cell" style="background:${bg};color:${text};" title="${title}">${label}</div>`;
+        }
+    });
+
+    html += `</div>`;
+
+    // Leyenda
+    html += `
+    <div class="hm-legend">
+        <span>Menos</span>
+        <div class="hm-legend-bar"></div>
+        <span>Más</span>
+        <span style="margin-left:12px;color:#c4b5fd;">Máximo: ${maxTotal} cierre${maxTotal!==1?'s':''}</span>
+    </div>`;
+
+    body.innerHTML = html;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // ── Análisis de Demanda ─────────────────────────────────────────
