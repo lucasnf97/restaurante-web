@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Salarios</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
+        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+        .content { margin-top: 60px; padding: 32px; }
+
+        /* Header */
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+        .header-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        /* Botones */
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; }
+        .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-sm { padding: 5px 11px; font-size: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Month picker */
+        .mes-picker { display: flex; align-items: center; gap: 8px; background: white; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 6px 12px; }
+        .mes-picker label { font-size: 13px; color: #666; white-space: nowrap; }
+        .mes-picker select, .mes-picker input[type=number] { border: none; outline: none; font-size: 13px; color: #333; background: transparent; cursor: pointer; }
+        .mes-picker input[type=number] { width: 62px; }
+
+        /* Summary cards */
+        .summary-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .sum-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 3px solid #e0e0e0; }
+        .sum-card.indigo { border-top-color: #4f46e5; }
+        .sum-card.green  { border-top-color: #16a34a; }
+        .sum-card.amber  { border-top-color: #d97706; }
+        .sum-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .sum-value { font-size: 26px; font-weight: 700; color: #1a1a2e; }
+        .sum-value.sm { font-size: 20px; }
+
+        /* Table */
+        .tabla-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+        td { padding: 13px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; vertical-align: middle; }
+        tr:hover td { background: #fafafa; }
+        .empty { text-align: center; padding: 48px; color: #888; }
+
+        /* Avatar */
+        .avatar { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; background: #4f46e5; flex-shrink: 0; }
+
+        /* User cell */
+        .user-cell { display: flex; align-items: center; gap: 10px; }
+        .user-info { display: flex; flex-direction: column; }
+        .user-name { font-weight: 600; color: #1a1a2e; font-size: 14px; }
+        .user-rol  { font-size: 11px; color: #888; text-transform: capitalize; }
+
+        /* Difference coloring */
+        .pos { color: #16a34a; font-weight: 600; }
+        .neg { color: #dc2626; font-weight: 600; }
+        .neu { color: #888; }
+
+        /* Sueldo editable */
+        .sueldo-wrap { display: flex; align-items: center; gap: 6px; }
+        .sueldo-inp { width: 80px; padding: 5px 8px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px; text-align: right; outline: none; }
+        .sueldo-inp:focus { border-color: #4f46e5; }
+        .sueldo-inp[readonly] { background: transparent; border-color: transparent; cursor: default; }
+        .btn-sueldo-edit { background: none; border: none; cursor: pointer; font-size: 15px; opacity: 0.5; transition: opacity .15s; }
+        .btn-sueldo-edit:hover { opacity: 1; }
+
+        /* Footer bar */
+        .footer-bar { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .footer-total { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+        .footer-total span { color: #4f46e5; font-size: 22px; }
+        .footer-actions { display: flex; gap: 10px; align-items: center; }
+
+        /* Toast */
+        #toast { position: fixed; bottom: 28px; right: 28px; background: #1a1a2e; color: white; padding: 12px 20px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .3s; z-index: 9999; pointer-events: none; max-width: 340px; }
+        #toast.show { opacity: 1; }
+        #toast.err { background: #dc2626; }
+
+        /* Modal overlay */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-box { background: white; border-radius: 14px; padding: 28px 32px; width: 400px; max-width: 95vw; }
+        .modal-box h3 { font-size: 17px; font-weight: 700; color: #1a1a2e; margin-bottom: 18px; }
+        .modal-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+        .modal-row label { font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase; }
+        .modal-row input { padding: 9px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
+        .modal-row input:focus { border-color: #4f46e5; }
+        .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+        /* Loading state */
+        .loading { opacity: 0.5; pointer-events: none; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">💼 Salarios</div>
+    <div class="navbar-links">
+        <span id="usr-label" style="color:#a5b4fc;font-size:13px;"></span>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+
+    <!-- Header -->
+    <div class="page-header">
+        <h2>💼 Revisión de Salarios</h2>
+        <div class="header-controls">
+            <div class="mes-picker">
+                <label>Mes:</label>
+                <select id="sel-mes">
+                    <option value="1">Enero</option><option value="2">Febrero</option>
+                    <option value="3">Marzo</option><option value="4">Abril</option>
+                    <option value="5">Mayo</option><option value="6">Junio</option>
+                    <option value="7">Julio</option><option value="8">Agosto</option>
+                    <option value="9">Septiembre</option><option value="10">Octubre</option>
+                    <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                </select>
+                <label>Año:</label>
+                <input type="number" id="inp-year" min="2020" max="2099" step="1">
+            </div>
+            <button class="btn btn-primary" onclick="cargar()">Cargar</button>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-row">
+        <div class="sum-card indigo">
+            <div class="sum-label">Total nómina</div>
+            <div class="sum-value sm" id="card-total">—</div>
+        </div>
+        <div class="sum-card green">
+            <div class="sum-label">Empleados activos</div>
+            <div class="sum-value" id="card-empleados">—</div>
+        </div>
+        <div class="sum-card amber">
+            <div class="sum-label">Total horas asignadas</div>
+            <div class="sum-value sm" id="card-horas">—</div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Empleado</th>
+                    <th>Sueldo / Hora</th>
+                    <th>Hs. Asignadas</th>
+                    <th>Hs. Fichadas</th>
+                    <th>Dif. Horas</th>
+                    <th>Salario Total</th>
+                    <th>Dif. de Saldo</th>
+                </tr>
+            </thead>
+            <tbody id="tbody">
+                <tr><td colspan="7" class="empty">Seleccioná un mes y hacé clic en Cargar</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-bar">
+        <div class="footer-total">
+            Total planilla: <span id="footer-total">—</span>
+        </div>
+        <div class="footer-actions">
+            <button class="btn btn-success" id="btn-registrar" onclick="abrirRegistrar()" disabled>
+                📥 Registrar como gasto mensual
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal registrar -->
+<div class="modal-overlay" id="modal-registrar">
+    <div class="modal-box">
+        <h3>Registrar gasto de salarios</h3>
+        <div class="modal-row">
+            <label>Referencia</label>
+            <input type="text" id="modal-ref" placeholder="Ej: Salarios Mayo 2025">
+        </div>
+        <div class="modal-row">
+            <label>Total a registrar</label>
+            <input type="number" id="modal-total" min="0" step="0.01" readonly>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarRegistrar()">Cancelar</button>
+            <button class="btn btn-success" id="btn-confirmar-reg" onclick="confirmarRegistrar()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+// ── Auth ────────────────────────────────────────────────────────────────────
+const user = JSON.parse(localStorage.getItem('user') || 'null');
+if (!user) { location.href = 'index.html'; }
+
+const isManager = user.rol === 'admin' || user.rol === 'gerente';
+if (!isManager && !user.revision_salarios) { location.href = 'dashboard.html'; }
+
+document.getElementById('usr-label').textContent = user.username;
+function logout() { localStorage.clear(); location.href = 'index.html'; }
+
+// ── Init ────────────────────────────────────────────────────────────────────
+const now = new Date();
+document.getElementById('sel-mes').value = now.getMonth() + 1;
+document.getElementById('inp-year').value = now.getFullYear();
+
+const SIM = localStorage.getItem('moneda_simbolo') || '€';
+
+// ── State ───────────────────────────────────────────────────────────────────
+let _data = null;
+
+// ── Load ────────────────────────────────────────────────────────────────────
+async function cargar() {
+    const mes  = parseInt(document.getElementById('sel-mes').value);
+    const year = parseInt(document.getElementById('inp-year').value);
+    if (!year || year < 2020) return toast('Año inválido', true);
+
+    try {
+        const d = await api.get(`/salarios/resumen?year=${year}&month=${mes}`);
+        _data = d;
+        renderTabla(d);
+        renderSummary(d);
+        document.getElementById('btn-registrar').disabled = false;
+    } catch(e) {
+        toast('Error al cargar datos: ' + (e.message || e), true);
+    }
+}
+
+function fmt(n) { return SIM + ' ' + parseFloat(n).toFixed(2); }
+function fmtH(n) { return parseFloat(n).toFixed(2) + ' h'; }
+
+// ── Render table ────────────────────────────────────────────────────────────
+function renderTabla(d) {
+    const tbody = document.getElementById('tbody');
+    if (!d.usuarios || d.usuarios.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay empleados activos</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = d.usuarios.map(u => {
+        const ini = (u.iniciales || u.username.substring(0,2)).toUpperCase();
+        const difH = u.diferencia_horas;
+        const difS = u.diferencia_saldo;
+        const difHCls = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
+        const difSCls = difS > 0.01 ? 'pos' : difS < -0.01 ? 'neg' : 'neu';
+        const difHStr = (difH > 0 ? '+' : '') + fmtH(difH);
+        const difSStr = (difS > 0 ? '+' : '') + fmt(difS);
+        const canEdit = isManager;
+
+        return `<tr>
+            <td>
+                <div class="user-cell">
+                    <div class="avatar">${ini}</div>
+                    <div class="user-info">
+                        <span class="user-name">${u.username}</span>
+                        <span class="user-rol">${u.rol}</span>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="sueldo-wrap">
+                    <input class="sueldo-inp" id="si-${u.id}" type="number" min="0" step="0.01"
+                           value="${parseFloat(u.sueldo_hora).toFixed(2)}"
+                           ${canEdit ? '' : 'readonly'}
+                           onchange="guardarSueldo(${u.id})">
+                    ${canEdit ? `<button class="btn-sueldo-edit" onclick="focusSueldo(${u.id})" title="Editar">✏️</button>` : ''}
+                </div>
+            </td>
+            <td>${fmtH(u.horas_asignadas)}</td>
+            <td>${fmtH(u.horas_fichadas)}</td>
+            <td class="${difHCls}">${difHStr}</td>
+            <td><strong>${fmt(u.salario_total)}</strong></td>
+            <td class="${difSCls}">${difSStr}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderSummary(d) {
+    const sym = SIM;
+    const totalH = d.usuarios.reduce((s, u) => s + u.horas_asignadas, 0);
+    document.getElementById('card-total').textContent     = fmt(d.total_salarios);
+    document.getElementById('card-empleados').textContent = d.usuarios.length;
+    document.getElementById('card-horas').textContent     = fmtH(totalH);
+    document.getElementById('footer-total').textContent   = fmt(d.total_salarios);
+}
+
+// ── Sueldo edit ──────────────────────────────────────────────────────────────
+function focusSueldo(uid) {
+    const inp = document.getElementById(`si-${uid}`);
+    inp.removeAttribute('readonly');
+    inp.focus();
+    inp.select();
+}
+
+async function guardarSueldo(uid) {
+    const inp = document.getElementById(`si-${uid}`);
+    const val = parseFloat(inp.value);
+    if (isNaN(val) || val < 0) { inp.value = '0.00'; return; }
+
+    try {
+        await api.patch(`/salarios/sueldo/${uid}`, { sueldo_hora: val });
+        inp.setAttribute('readonly', '');
+        toast('Sueldo actualizado ✓');
+        // Recalculate row totals
+        if (_data) {
+            const u = _data.usuarios.find(x => x.id === uid);
+            if (u) {
+                u.sueldo_hora     = val;
+                u.salario_total   = +(val * u.horas_asignadas).toFixed(2);
+                u.diferencia_saldo = +(val * u.diferencia_horas).toFixed(2);
+                _data.total_salarios = +(_data.usuarios.reduce((s, x) => s + x.salario_total, 0)).toFixed(2);
+                renderTabla(_data);
+                renderSummary(_data);
+            }
+        }
+    } catch(e) {
+        toast('Error al guardar: ' + (e.message || e), true);
+        inp.setAttribute('readonly', '');
+    }
+}
+
+// ── Registrar gasto ──────────────────────────────────────────────────────────
+function abrirRegistrar() {
+    if (!_data) return;
+    const mes  = parseInt(document.getElementById('sel-mes').value);
+    const year = parseInt(document.getElementById('inp-year').value);
+    const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    document.getElementById('modal-ref').value   = `Salarios ${MESES[mes]} ${year}`;
+    document.getElementById('modal-total').value = _data.total_salarios.toFixed(2);
+    document.getElementById('modal-registrar').classList.add('open');
+}
+
+function cerrarRegistrar() {
+    document.getElementById('modal-registrar').classList.remove('open');
+}
+
+async function confirmarRegistrar() {
+    const mes   = parseInt(document.getElementById('sel-mes').value);
+    const year  = parseInt(document.getElementById('inp-year').value);
+    const ref   = document.getElementById('modal-ref').value.trim();
+    const total = parseFloat(document.getElementById('modal-total').value);
+
+    if (!total || total <= 0) return toast('El total debe ser mayor que 0', true);
+
+    const btn = document.getElementById('btn-confirmar-reg');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Registrando...';
+
+    try {
+        const r = await api.post('/salarios/registrar-mes', { year, month: mes, total, referencia: ref });
+        cerrarRegistrar();
+        toast(r.mensaje || 'Gasto registrado correctamente ✓');
+    } catch(e) {
+        toast('Error: ' + (e.message || e), true);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar';
+    }
+}
+
+// ── Toast ───────────────────────────────────────────────────────────────────
+let _toastTimer = null;
+function toast(msg, err = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show' + (err ? ' err' : '');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { el.className = ''; }, 3200);
+}
+
+// Close modal on backdrop click
+document.getElementById('modal-registrar').addEventListener('click', function(e) {
+    if (e.target === this) cerrarRegistrar();
+});
+
+// Load symbol from config
+(async () => {
+    try {
+        const cfg = await api.get('/config');
+        if (cfg.moneda_simbolo) {
+            window._SIM = cfg.moneda_simbolo;
+        }
+    } catch {}
+})();
+</script>
+</body>
+</html>

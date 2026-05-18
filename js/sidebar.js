@@ -41,6 +41,7 @@
                 { href: "fichajes.html",   icon: "🕐", label: "Fichajes",  perm: "ver_fichajes" },
                 { href: "usuarios.html",   icon: "👤", label: "Usuarios",  perm: "acceso_usuarios" },
                 { href: "cuadrante.html",  icon: "📋", label: "Horarios",  perm: ["edicion_agenda","edicion_horarios","ver_horarios"] },
+                { href: "salarios.html",   icon: "💼", label: "Salarios",  perm: "revision_salarios" },
             ]
         },
         { href: "configuracion.html", icon: "⚙️", label: "Configuración", perm: "acceso_configuracion" },
