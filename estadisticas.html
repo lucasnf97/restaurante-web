@@ -50,7 +50,9 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .bill-card {
     background:white; border-radius:12px; padding:20px 22px;
     box-shadow:0 2px 8px rgba(0,0,0,.06); position:relative; overflow:hidden;
+    cursor:pointer; transition:transform .15s, box-shadow .15s;
 }
+.bill-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.13); }
 .bill-card::before {
     content:''; position:absolute; top:0; left:0; right:0; height:3px;
     border-radius:12px 12px 0 0;
@@ -494,6 +496,58 @@ body.config-open .hub-wgt-grid {
 #hub-wgt-grid [id^="wgt-"].wgt-dragging { opacity:.35; pointer-events:none; }
 #hub-wgt-grid [id^="wgt-"].drop-before  { box-shadow:-4px 0 0 #4f46e5; }
 #hub-wgt-grid [id^="wgt-"].drop-after   { box-shadow: 4px 0 0 #4f46e5; }
+
+/* ── Detail modal ── */
+.detalle-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.45); z-index:500;
+    align-items:center; justify-content:center; padding:20px;
+}
+.detalle-overlay.visible { display:flex; }
+.detalle-modal {
+    background:white; border-radius:14px;
+    width:100%; max-width:800px; max-height:88vh;
+    display:flex; flex-direction:column;
+    box-shadow:0 8px 40px rgba(0,0,0,.25); overflow:hidden;
+}
+.detalle-hdr {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 24px 14px; border-bottom:1px solid #f0f0f0; flex-shrink:0;
+}
+.detalle-hdr h3 { font-size:17px; font-weight:700; color:#1a1a2e; }
+.det-close {
+    background:none; border:none; font-size:20px; cursor:pointer;
+    color:#888; padding:2px 8px; border-radius:6px; transition:background .15s;
+}
+.det-close:hover { background:#f3f4f6; color:#333; }
+.detalle-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.det-table { width:100%; border-collapse:collapse; font-size:13px; }
+.det-table th {
+    text-align:left; padding:7px 10px; border-bottom:2px solid #e5e7eb;
+    font-size:11px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.5px; color:#888; white-space:nowrap;
+}
+.det-table td { padding:8px 10px; border-bottom:1px solid #f3f4f6; color:#374151; }
+.det-table tr:last-child td { border-bottom:none; }
+.det-table tr.det-total td {
+    font-weight:700; border-top:2px solid #e5e7eb;
+    color:#1a1a2e; background:#f9fafb;
+}
+.det-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.det-empty  { text-align:center; color:#aaa; padding:48px 0; font-size:14px; }
+.det-loading{ text-align:center; color:#aaa; padding:48px 0; font-size:14px; }
+/* Balance formula */
+.balance-formula { display:flex; flex-direction:column; gap:10px; padding:4px 0; }
+.bal-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 18px; border-radius:10px; background:#f9fafb;
+}
+.bal-row.bal-total { background:#1a1a2e; color:white; }
+.bal-label { font-size:14px; }
+.bal-val { font-size:17px; font-weight:700; }
+.bal-op { font-size:20px; color:#cbd5e1; text-align:center; margin:-4px 0; }
+.bal-val.verde { color:#16a34a; }
+.bal-val.rojo  { color:#dc2626; }
 </style>
 </head>
 <body>
@@ -1280,13 +1334,213 @@ function renderBillingCards(d) {
     ];
 
     document.getElementById("billing-cards").innerHTML = cards.map(c => `
-        <div class="bill-card ${c.cls}">
+        <div class="bill-card ${c.cls}" onclick="abrirDetalle('${c.cls}')">
             <div class="bill-icon">${c.icon}</div>
             <div class="bill-label">${c.label}</div>
             <div class="bill-value ${c.extraCls}">${c.value}</div>
             <div class="bill-sub">${c.sub}</div>
         </div>
     `).join("");
+}
+
+// ── Detalle de cards ────────────────────────────────────────────
+const _DET_TITLES = {
+    ventas:    '💰 Ventas del mes — desglose diario',
+    stock:     '🏗️ Monto acumulado de stock',
+    insumos:   '📦 Insumos facturados — compras del mes',
+    servicios: '🔧 Servicios facturados',
+    desechos:  '🗑️ Desechos / merma',
+    balance:   '⚖️ Balance mensual — desglose',
+};
+
+function abrirDetalle(tipo) {
+    document.getElementById('detalle-overlay').classList.add('visible');
+    cargarDetalle(tipo);
+}
+function cerrarDetalle() {
+    document.getElementById('detalle-overlay').classList.remove('visible');
+}
+
+async function cargarDetalle(tipo) {
+    const body   = document.getElementById('detalle-body');
+    const titulo = document.getElementById('detalle-titulo');
+    titulo.textContent = _DET_TITLES[tipo] || 'Detalle';
+    body.innerHTML = '<div class="det-loading">Cargando…</div>';
+
+    const y = anioActual, m = mesActual;
+
+    try {
+        switch (tipo) {
+
+            case 'ventas': {
+                const mm   = String(m).padStart(2, '0');
+                const last = new Date(y, m, 0).getDate();
+                const data = await apiFetch(
+                    `/reportes/ventas-diarias?desde=${y}-${mm}-01&hasta=${y}-${mm}-${String(last).padStart(2,'0')}`
+                );
+                const rows = data.filter(r => r.mesas_cerradas > 0 || r.facturacion > 0);
+                if (!rows.length) { body.innerHTML = '<div class="det-empty">Sin ventas registradas este mes.</div>'; break; }
+                const totM = rows.reduce((s, r) => s + r.mesas_cerradas, 0);
+                const totF = rows.reduce((s, r) => s + r.facturacion, 0);
+                body.innerHTML = `
+                    <table class="det-table">
+                        <thead><tr>
+                            <th>Fecha</th><th>Día</th>
+                            <th class="num">Mesas</th><th class="num">Facturación</th><th class="num">Prom/mesa</th>
+                        </tr></thead>
+                        <tbody>
+                            ${rows.map(r => `<tr>
+                                <td>${r.fecha}</td><td>${r.dia_semana}</td>
+                                <td class="num">${r.mesas_cerradas}</td>
+                                <td class="num">${fmt(r.facturacion)}</td>
+                                <td class="num">${r.mesas_cerradas > 0 ? fmt(r.promedio_por_mesa) : '—'}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total">
+                                <td colspan="2">TOTAL</td>
+                                <td class="num">${totM}</td>
+                                <td class="num">${fmt(totF)}</td>
+                                <td class="num">${totM > 0 ? fmt(totF / totM) : '—'}</td>
+                            </tr>
+                        </tbody>
+                    </table>`;
+                break;
+            }
+
+            case 'stock': {
+                const data = await apiFetch('/reportes/stock-snapshot');
+                if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin inventario registrado.</div>'; break; }
+                body.innerHTML = `
+                    <table class="det-table">
+                        <thead><tr>
+                            <th>Insumo</th><th>Unidad</th>
+                            <th class="num">Cantidad</th><th class="num">Último precio</th><th class="num">Valor</th>
+                        </tr></thead>
+                        <tbody>
+                            ${data.items.map(r => `<tr>
+                                <td>${r.nombre}</td><td>${r.unidad}</td>
+                                <td class="num">${r.cantidad_actual}</td>
+                                <td class="num">${fmt(r.precio_unitario)}</td>
+                                <td class="num">${fmt(r.valor_total)}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total">
+                                <td colspan="4">TOTAL</td>
+                                <td class="num">${fmt(data.total)}</td>
+                            </tr>
+                        </tbody>
+                    </table>`;
+                break;
+            }
+
+            case 'insumos': {
+                const data = await apiFetch(`/reportes/insumos-mes?year=${y}&month=${m}`);
+                if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin compras de stock registradas este mes.</div>'; break; }
+                body.innerHTML = `
+                    <table class="det-table">
+                        <thead><tr>
+                            <th>Insumo</th><th>Fecha</th>
+                            <th class="num">Cantidad</th><th class="num">Precio unit.</th><th class="num">Subtotal</th>
+                        </tr></thead>
+                        <tbody>
+                            ${data.items.map(r => `<tr>
+                                <td>${r.insumo}</td><td>${r.fecha}</td>
+                                <td class="num">${r.cantidad} ${r.unidad}</td>
+                                <td class="num">${fmt(r.precio_unitario)}</td>
+                                <td class="num">${fmt(r.subtotal)}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total">
+                                <td colspan="4">TOTAL</td>
+                                <td class="num">${fmt(data.total)}</td>
+                            </tr>
+                        </tbody>
+                    </table>`;
+                break;
+            }
+
+            case 'servicios': {
+                const data = await apiFetch(`/reportes/servicios-mes?year=${y}&month=${m}`);
+                if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin servicios facturados este mes.</div>'; break; }
+                body.innerHTML = `
+                    <table class="det-table">
+                        <thead><tr>
+                            <th>Concepto</th><th>Fecha</th><th>Usuario</th><th class="num">Monto</th>
+                        </tr></thead>
+                        <tbody>
+                            ${data.items.map(r => `<tr>
+                                <td>${r.referencia}</td><td>${r.fecha}</td><td>${r.usuario}</td>
+                                <td class="num" style="color:${r.monto < 0 ? '#16a34a' : '#dc2626'}">${fmt(r.monto)}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total">
+                                <td colspan="3">TOTAL</td>
+                                <td class="num" style="color:${data.total < 0 ? '#16a34a' : ''}">${fmt(data.total)}</td>
+                            </tr>
+                        </tbody>
+                    </table>`;
+                break;
+            }
+
+            case 'desechos': {
+                const data = await apiFetch(`/reportes/desechos-mes?year=${y}&month=${m}`);
+                if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin desechos registrados este mes.</div>'; break; }
+                body.innerHTML = `
+                    <table class="det-table">
+                        <thead><tr>
+                            <th>Insumo</th><th>Fecha</th>
+                            <th class="num">Cant. perdida</th><th class="num">Precio unit.</th><th class="num">Pérdida</th>
+                        </tr></thead>
+                        <tbody>
+                            ${data.items.map(r => `<tr>
+                                <td>${r.insumo}</td><td>${r.fecha}</td>
+                                <td class="num">${r.diferencia} ${r.unidad}</td>
+                                <td class="num">${fmt(r.precio_unitario)}</td>
+                                <td class="num" style="color:#dc2626">${fmt(r.perdida)}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total">
+                                <td colspan="4">TOTAL PÉRDIDA</td>
+                                <td class="num" style="color:#dc2626">${fmt(data.total)}</td>
+                            </tr>
+                        </tbody>
+                    </table>`;
+                break;
+            }
+
+            case 'balance': {
+                const d = datosMes;
+                if (!d) { body.innerHTML = '<div class="det-empty">Cargue primero los datos del mes.</div>'; break; }
+                const desechos = d.desechos || 0;
+                const bal = d.balance;
+                body.innerHTML = `
+                    <div class="balance-formula">
+                        <div class="bal-row">
+                            <span class="bal-label">💰 Ventas del mes</span>
+                            <span class="bal-val verde">+ ${fmt(d.ventas)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">📦 Insumos facturados</span>
+                            <span class="bal-val rojo">− ${fmt(d.costo_insumos_facturados)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">🔧 Servicios facturados</span>
+                            <span class="bal-val rojo">− ${fmt(d.costo_servicios_facturados)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">🗑️ Desechos / merma</span>
+                            <span class="bal-val rojo">− ${fmt(desechos)}</span>
+                        </div>
+                        <div class="bal-op">=</div>
+                        <div class="bal-row bal-total">
+                            <span class="bal-label">⚖️ Balance mensual</span>
+                            <span class="bal-val" style="color:${bal >= 0 ? '#4ade80' : '#f87171'}">${fmt(bal)}</span>
+                        </div>
+                    </div>`;
+                break;
+            }
+        }
+    } catch (e) {
+        body.innerHTML = `<div class="det-empty">Error al cargar los datos: ${e.message || 'Error desconocido'}</div>`;
+    }
 }
 
 // ── Costos de la carta ──────────────────────────────────────────
@@ -1593,7 +1847,22 @@ document.addEventListener("DOMContentLoaded", () => {
     cargarFacturacion();
     cargarGrafico();
     cargarCostos();
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarDetalle(); });
 });
 </script>
+
+<!-- ── Detail modal ── -->
+<div id="detalle-overlay" class="detalle-overlay" onclick="cerrarDetalle()">
+    <div class="detalle-modal" onclick="event.stopPropagation()">
+        <div class="detalle-hdr">
+            <h3 id="detalle-titulo">Detalle</h3>
+            <button class="det-close" onclick="cerrarDetalle()">✕</button>
+        </div>
+        <div id="detalle-body" class="detalle-body">
+            <div class="det-loading">Cargando…</div>
+        </div>
+    </div>
+</div>
 </body>
 </html>
