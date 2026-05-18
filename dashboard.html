@@ -43,26 +43,33 @@ body.config-open .content { margin-right:390px; }
 .block-drag:hover { background:rgba(196,181,253,.15); }
 body.config-open .block-drag { display:inline; }
 
-/* RESUMEN PERIODOS */
-.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-@media(max-width:900px) { .stats-row { grid-template-columns:repeat(2,1fr); } }
-@media(max-width:500px) { .stats-row { grid-template-columns:1fr; } }
+/* RESUMEN PERIODOS
+   4 solapas de igual ancho = (3 columnas de la grilla de 6) ÷ 4
+   3 cols = 50% del contenedor − medio gap de la grilla (18px/2 = 9px)       */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    width: calc(50% - 9px);   /* exactamente 3 de las 6 columnas del grid */
+}
+@media(max-width:900px) { .stats-row { width:100%; grid-template-columns:repeat(2,1fr); } }
+@media(max-width:500px) { .stats-row { width:100%; grid-template-columns:1fr; } }
 
-.sum-card { background:white; border-radius:12px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06);
+.sum-card { background:white; border-radius:12px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.06);
             border-top:3px solid #e5e7eb; }
 .sum-card.hoy    { border-top-color:#16a34a; }
 .sum-card.semana { border-top-color:#4f46e5; }
 .sum-card.mes    { border-top-color:#7c3aed; }
 .sum-card.anio   { border-top-color:#d97706; }
 
-.sum-title    { font-size:14px; font-weight:700; color:#1a1a2e; margin-bottom:1px; }
-.sum-subtitle { font-size:11px; color:#9ca3af; margin-bottom:10px; }
-.sum-total    { font-size:34px; font-weight:800; color:#1a1a2e; text-align:right; line-height:1; margin-bottom:12px; }
-.sum-sym      { font-size:15px; font-weight:400; color:#9ca3af; vertical-align:top; margin-right:2px; line-height:2.2; }
-.sum-hr       { border:none; border-top:1px solid #f0f0f0; margin:10px 0 10px; }
-.sum-row      { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#6b7280; margin-bottom:4px; }
+.sum-title    { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:1px; }
+.sum-subtitle { font-size:10px; color:#9ca3af; margin-bottom:8px; }
+.sum-total    { font-size:26px; font-weight:800; color:#1a1a2e; text-align:right; line-height:1; margin-bottom:10px; }
+.sum-sym      { font-size:13px; font-weight:400; color:#9ca3af; vertical-align:top; margin-right:1px; line-height:2.1; }
+.sum-hr       { border:none; border-top:1px solid #f0f0f0; margin:8px 0; }
+.sum-row      { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#6b7280; margin-bottom:3px; }
 .sum-row span:last-child { font-weight:700; color:#374151; }
-.sum-gap      { margin-top:8px; }
+.sum-gap      { margin-top:6px; }
 
 /* MODULE CARD */
 .module-card { background:white; border-radius:12px; padding:20px 16px; cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.06); text-decoration:none; color:inherit; display:flex; flex-direction:column; border:2px solid transparent; height:100%; }
