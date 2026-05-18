@@ -408,7 +408,59 @@ body.config-open .wgt-drag { display:flex; }
     display:flex; flex-direction:column; align-items:center; gap:8px;
 }
 .hm-sin-datos { text-align:center; padding:40px 16px; color:#9ca3af; font-size:13px; }
+
+/* ── Gráficos de barras ─────────────────────────────────────── */
+.wgt-bar-header {
+    display:flex; align-items:center; gap:8px;
+    padding:14px 16px 12px; border-bottom:1px solid #f0f0f0;
+}
+.wgt-bar-title { font-size:14px; font-weight:800; color:#1a1a2e; flex:1; }
+
+.bar-controls {
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:10px 16px; background:#fafafa; border-bottom:1px solid #f0f0f0;
+}
+
+/* Dropdown de período */
+.bar-period-wrap { position:relative; }
+.bar-period-btn {
+    display:flex; align-items:center; gap:8px;
+    padding:5px 12px; border:1.5px solid #e5e7eb; border-radius:8px;
+    background:white; font-size:12px; font-weight:600; color:#374151;
+    cursor:pointer; transition:border-color .12s; white-space:nowrap; user-select:none;
+}
+.bar-period-btn:hover, .bar-period-btn.open { border-color:#4f46e5; color:#4f46e5; }
+.bar-period-arrow { font-size:9px; color:#9ca3af; transition:transform .15s; }
+.bar-period-btn.open .bar-period-arrow { transform:rotate(180deg); }
+.bar-period-list {
+    position:absolute; top:calc(100% + 5px); left:0; min-width:170px;
+    background:white; border:1.5px solid #e5e7eb; border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,.12); z-index:100;
+    overflow:hidden; display:none;
+}
+.bar-period-list.open { display:block; }
+.bar-period-opt {
+    padding:9px 16px; font-size:13px; color:#374151;
+    cursor:pointer; transition:background .1s;
+}
+.bar-period-opt:hover  { background:#f5f3ff; color:#4f46e5; }
+.bar-period-opt.active { background:#ede9fe; color:#4f46e5; font-weight:700; }
+
+/* Checkbox impuesto */
+.bar-chk { display:flex; align-items:center; gap:5px; font-size:12px; color:#6b7280; cursor:pointer; }
+.bar-chk input { cursor:pointer; accent-color:#4f46e5; }
+
+/* Área del gráfico */
+.bar-chart-wrap {
+    padding:14px 16px 16px; height:380px; position:relative;
+}
+.bar-empty   { text-align:center; padding:60px 20px; color:#9ca3af; font-size:13px; }
+.bar-loading {
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    justify-content:center; height:100%; color:#9ca3af; font-size:13px;
+}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -447,11 +499,13 @@ body.config-open .wgt-drag { display:flex; }
 requireAuth();
 
 // ── Definición de widgets ────────────────────────────────────────
-const CFG_KEY  = 'vest_cfg_v1';
+const CFG_KEY  = 'vest_cfg_v2';
 const WGT_DEFS = [
-    { key:'top_ventas', icon:'🏆', name:'Top de Ventas',          spans:[2,3] },
-    { key:'calor',      icon:'🌡️', name:'Mapa de Calor — Mesas',  fixedSpan:3 },
-    { key:'demanda',    icon:'📊', name:'Análisis de Demanda',     fixedSpan:6 },
+    { key:'top_ventas',   icon:'🏆', name:'Top de Ventas',             spans:[2,3]  },
+    { key:'calor',        icon:'🌡️', name:'Mapa de Calor — Mesas',     fixedSpan:3 },
+    { key:'demanda',      icon:'📊', name:'Análisis de Demanda',        fixedSpan:6 },
+    { key:'barras_prod',  icon:'📈', name:'Barras por Producto',        fixedSpan:6 },
+    { key:'barras_cat',   icon:'📉', name:'Barras por Categoría',       fixedSpan:6 },
 ];
 
 // ── Estado global ────────────────────────────────────────────────
@@ -460,6 +514,19 @@ let topData     = [];
 let showAll     = false;
 let categorias  = [];
 let draggingKey = null;
+
+// ── Estado gráficos de barras ────────────────────────────────────
+const BAR_PERIODOS = [
+    { label:'Hoy',              dias:0   },
+    { label:'Última semana',    dias:7   },
+    { label:'Últimos 30 días',  dias:30  },
+    { label:'Últimos 90 días',  dias:90  },
+    { label:'Últimos 365 días', dias:365 },
+];
+const barState = {
+    barras_prod: { dias:30, chart:null },
+    barras_cat:  { dias:30, chart:null },
+};
 
 // ── Estado análisis de demanda ───────────────────────────────────
 let demData    = null;
@@ -526,9 +593,11 @@ function applyCfg() {
 }
 
 function buildWgtInner(def) {
-    if (def.key === 'top_ventas') return buildTopVentasHTML();
-    if (def.key === 'calor')      return buildCalorHTML();
-    if (def.key === 'demanda')    return buildDemandaHTML();
+    if (def.key === 'top_ventas')  return buildTopVentasHTML();
+    if (def.key === 'calor')       return buildCalorHTML();
+    if (def.key === 'demanda')     return buildDemandaHTML();
+    if (def.key === 'barras_prod') return buildBarrasHTML('barras_prod');
+    if (def.key === 'barras_cat')  return buildBarrasHTML('barras_cat');
     return `<div style="padding:20px;color:#9ca3af">Widget pendiente</div>`;
 }
 
@@ -594,6 +663,9 @@ async function initWidgets() {
     if (document.getElementById('dem-body')) {
         initDemanda();
     }
+
+    if (document.getElementById('barras_prod-wrap')) barFetch('barras_prod');
+    if (document.getElementById('barras_cat-wrap'))  barFetch('barras_cat');
 }
 
 // ── API: cargar top productos ────────────────────────────────────
@@ -1263,6 +1335,212 @@ function guardarCfg() {
 
     cerrarConfig();
     applyCfg();
+}
+
+// ── Gráficos de Barras ───────────────────────────────────────────
+
+function buildBarrasHTML(key) {
+    const isCateg = key === 'barras_cat';
+    const title   = isCateg ? '📉 Ventas por Categoría' : '📈 Ventas por Producto';
+    const opts    = BAR_PERIODOS.map(p =>
+        `<div class="bar-period-opt${p.dias===30?' active':''}"
+              onclick="barSetPeriodo('${key}',${p.dias},'${p.label}')">${p.label}</div>`
+    ).join('');
+    return `
+    <div class="wgt-bar-header">
+        <span class="wgt-drag" title="Arrastrar para reordenar">⠿</span>
+        <span class="wgt-bar-title">${title}</span>
+    </div>
+    <div class="bar-controls">
+        <div class="bar-period-wrap">
+            <div class="bar-period-btn" id="${key}-period-btn"
+                 onclick="barTogglePeriodo('${key}')">
+                <span id="${key}-period-lbl">Últimos 30 días</span>
+                <span class="bar-period-arrow">▼</span>
+            </div>
+            <div class="bar-period-list" id="${key}-period-list">${opts}</div>
+        </div>
+        <label class="bar-chk">
+            <input type="checkbox" id="${key}-impuesto" onchange="barFetch('${key}')">
+            Con impuesto
+        </label>
+    </div>
+    <div class="bar-chart-wrap" id="${key}-wrap">
+        <div class="bar-loading"><div class="tv-spinner"></div>Cargando…</div>
+    </div>`;
+}
+
+/* Cierra todos los dropdowns de barras al hacer clic fuera */
+document.addEventListener('click', e => {
+    ['barras_prod','barras_cat'].forEach(key => {
+        const btn  = document.getElementById(`${key}-period-btn`);
+        const list = document.getElementById(`${key}-period-list`);
+        if (btn && list && !btn.contains(e.target) && !list.contains(e.target)) {
+            btn.classList.remove('open');
+            list.classList.remove('open');
+        }
+    });
+});
+
+function barTogglePeriodo(key) {
+    const btn  = document.getElementById(`${key}-period-btn`);
+    const list = document.getElementById(`${key}-period-list`);
+    if (!btn || !list) return;
+    const open = list.classList.contains('open');
+    /* Cerrar todos primero */
+    ['barras_prod','barras_cat'].forEach(k => {
+        document.getElementById(`${k}-period-btn`)?.classList.remove('open');
+        document.getElementById(`${k}-period-list`)?.classList.remove('open');
+    });
+    if (!open) { btn.classList.add('open'); list.classList.add('open'); }
+}
+
+function barSetPeriodo(key, dias, label) {
+    barState[key].dias = dias;
+    const lbl  = document.getElementById(`${key}-period-lbl`);
+    const btn  = document.getElementById(`${key}-period-btn`);
+    const list = document.getElementById(`${key}-period-list`);
+    if (lbl) lbl.textContent = label;
+    btn?.classList.remove('open');
+    list?.classList.remove('open');
+    list?.querySelectorAll('.bar-period-opt').forEach(el => {
+        el.classList.toggle('active', el.textContent.trim() === label);
+    });
+    barFetch(key);
+}
+
+function barGetDates(dias) {
+    const hoy   = new Date();
+    const hasta = hoy.toISOString().split('T')[0];
+    const desde = new Date(hoy);
+    if (dias === 0) {
+        /* solo hoy */
+    } else {
+        desde.setDate(desde.getDate() - dias);
+    }
+    return { desde: desde.toISOString().split('T')[0], hasta };
+}
+
+async function barFetch(key) {
+    const { dias } = barState[key];
+    const { desde, hasta } = barGetDates(dias);
+    const conImp  = document.getElementById(`${key}-impuesto`)?.checked || false;
+    const wrap    = document.getElementById(`${key}-wrap`);
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="bar-loading"><div class="tv-spinner"></div>Cargando…</div>';
+
+    const endpoint = key === 'barras_cat' ? 'barras-categorias' : 'barras-productos';
+    try {
+        const data = await api.get(
+            `/ventas/${endpoint}?desde=${desde}&hasta=${hasta}&con_impuesto=${conImp}`
+        );
+        barRender(key, data);
+    } catch(e) {
+        wrap.innerHTML = `<div class="bar-empty">⚠️ Error: ${esc(e.message)}</div>`;
+    }
+}
+
+function barRender(key, data) {
+    const wrap = document.getElementById(`${key}-wrap`);
+    if (!wrap) return;
+
+    /* Destruir gráfico anterior */
+    if (barState[key].chart) {
+        barState[key].chart.destroy();
+        barState[key].chart = null;
+    }
+
+    if (!data.length) {
+        wrap.innerHTML = '<div class="bar-empty">Sin datos para el período seleccionado.</div>';
+        return;
+    }
+
+    wrap.innerHTML = `<canvas id="${key}-canvas"></canvas>`;
+    const canvas = document.getElementById(`${key}-canvas`);
+    const ctx    = canvas.getContext('2d');
+
+    const isCateg  = key === 'barras_cat';
+    const labels   = data.map(d => isCateg ? d.categoria : d.nombre);
+    const revenues = data.map(d => d.ingresos);
+    const counts   = data.map(d => d.cantidad);
+
+    barState[key].chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Facturación',
+                    data:  revenues,
+                    backgroundColor: 'rgba(16,185,129,.85)',
+                    borderRadius: 3,
+                    yAxisID: 'yRev',
+                    order: 1,
+                },
+                {
+                    label: 'Unidades',
+                    data:  counts,
+                    backgroundColor: 'rgba(99,102,241,.75)',
+                    borderRadius: 3,
+                    yAxisID: 'yUnd',
+                    order: 2,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font:{ size:11 }, boxWidth:14, padding:16 },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.dataset.yAxisID === 'yRev'
+                            ? ` ${fmt(ctx.raw)}`
+                            : ` ${fmtInt(ctx.raw)} uds`,
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        maxRotation: 40, minRotation: 30,
+                        font: { size: 10 },
+                        callback(val, idx) {
+                            const s = this.getLabelForValue(idx);
+                            return s.length > 15 ? s.slice(0, 14) + '…' : s;
+                        },
+                    },
+                    grid: { display: false },
+                },
+                yRev: {
+                    position: 'left',
+                    ticks: {
+                        font: { size: 10 },
+                        callback: v => fmt(v),
+                    },
+                    title: {
+                        display: true, text: 'Facturación',
+                        font: { size: 10 }, color: '#9ca3af',
+                    },
+                },
+                yUnd: {
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        font: { size: 10 },
+                        callback: v => fmtInt(v),
+                    },
+                    title: {
+                        display: true, text: 'Unidades',
+                        font: { size: 10 }, color: '#9ca3af',
+                    },
+                },
+            },
+        },
+    });
 }
 
 // ── Drag & Drop ──────────────────────────────────────────────────
