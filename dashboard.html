@@ -43,16 +43,9 @@ body.config-open .content { margin-right:390px; }
 .block-drag:hover { background:rgba(196,181,253,.15); }
 body.config-open .block-drag { display:inline; }
 
-/* RESUMEN PERIODOS
-   4 solapas de igual ancho = (3 columnas de la grilla de 6) ÷ 4
-   3 cols = 50% del contenedor − medio gap de la grilla (18px/2 = 9px)       */
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    width: calc(50% - 9px);   /* exactamente 3 de las 6 columnas del grid */
-}
-@media(max-width:900px) { .stats-row { width:100%; grid-template-columns:repeat(2,1fr); } }
+/* RESUMEN PERIODOS — bloque fijo span-3, 4 solapas de igual ancho */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+@media(max-width:900px) { .stats-row { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:500px) { .stats-row { width:100%; grid-template-columns:1fr; } }
 
 .sum-card { background:white; border-radius:12px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.06);
@@ -229,7 +222,7 @@ function getMod(id) { return ALL_MODULES.find(m => m.id === id); }
 
 // ── CONFIG POR DEFECTO ───────────────────────────────────────
 const DEFAULT_CONFIG = { blocks: [
-    { id:"stats",        type:"stats",   label:"Resumen del día",   visible:true, span:6 },
+    { id:"stats",        type:"stats",   label:"Resumen del día",   visible:true, span:3 },
     { id:"reservas",     type:"reservas",label:"Reservas del día",  visible:true, span:3 },
     { id:"accesos",      type:"accesos", label:"Accesos rápidos",   visible:true, span:6,
       modules:["mesas","productos","caja","fichajes","usuarios","stock","facturas"] },
@@ -238,10 +231,10 @@ const DEFAULT_CONFIG = { blocks: [
 
 // ── LOAD / SAVE ──────────────────────────────────────────────
 function loadConfig() {
-    try { const s = localStorage.getItem("dash_cfg_v3"); if (s) return JSON.parse(s); } catch(e) {}
+    try { const s = localStorage.getItem("dash_cfg_v4"); if (s) return JSON.parse(s); } catch(e) {}
     return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
 }
-function saveConfig() { localStorage.setItem("dash_cfg_v3", JSON.stringify(config)); }
+function saveConfig() { localStorage.setItem("dash_cfg_v4", JSON.stringify(config)); }
 
 let config = loadConfig();
 
@@ -618,11 +611,13 @@ function buildCblock(b, i) {
     const spanLabel = `${b.span} col${b.span===1?"":"s"}`;
     let opts = "";
 
-    // Span selector: todos tienen esto
-    const spanOpts = [1,2,3,6].map(s =>
-        `<button class="span-btn ${b.span===s?"active":""}" onclick="setSpan(${i},${s})">${s}</button>`
-    ).join("");
-    opts += `<div class="opt-row"><span>Columnas</span><div class="span-btns">${spanOpts}</div></div>`;
+    // Span selector: oculto para el bloque stats (tamaño fijo 3 cols)
+    if (b.type !== "stats") {
+        const spanOpts = [1,2,3,6].map(s =>
+            `<button class="span-btn ${b.span===s?"active":""}" onclick="setSpan(${i},${s})">${s}</button>`
+        ).join("");
+        opts += `<div class="opt-row"><span>Columnas</span><div class="span-btns">${spanOpts}</div></div>`;
+    }
 
     // Accesos rápidos: selector de módulo
     if (b.type === "quick") {
