@@ -43,9 +43,8 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
 /* ── Billing cards ── */
 .billing-cards {
-    display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:32px;
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:16px; margin-bottom:32px;
 }
-@media(max-width:1100px) { .billing-cards { grid-template-columns:repeat(3,1fr); } }
 @media(max-width:700px)  { .billing-cards { grid-template-columns:1fr 1fr; } }
 
 .bill-card {
@@ -57,9 +56,10 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     border-radius:12px 12px 0 0;
 }
 .bill-card.ventas::before    { background:#16a34a; }
-.bill-card.produccion::before { background:#9ca3af; }
+.bill-card.stock::before     { background:#0891b2; }
 .bill-card.insumos::before   { background:#dc2626; }
 .bill-card.servicios::before { background:#6366f1; }
+.bill-card.desechos::before  { background:#f59e0b; }
 .bill-card.balance::before   { background:#0ea5e9; }
 
 .bill-icon { font-size:26px; margin-bottom:10px; }
@@ -562,9 +562,9 @@ body.config-open .hub-wgt-grid {
             <div class="bill-label">Ventas del mes</div>
             <div class="bill-value">Cargando…</div>
         </div>
-        <div class="bill-card produccion loading-card">
-            <div class="bill-icon">🏭</div>
-            <div class="bill-label">Costo de producción</div>
+        <div class="bill-card stock loading-card">
+            <div class="bill-icon">🏗️</div>
+            <div class="bill-label">Monto acumulado de stock</div>
             <div class="bill-value">Cargando…</div>
         </div>
         <div class="bill-card insumos loading-card">
@@ -575,6 +575,11 @@ body.config-open .hub-wgt-grid {
         <div class="bill-card servicios loading-card">
             <div class="bill-icon">🔧</div>
             <div class="bill-label">Servicios facturados</div>
+            <div class="bill-value">Cargando…</div>
+        </div>
+        <div class="bill-card desechos loading-card">
+            <div class="bill-icon">🗑️</div>
+            <div class="bill-label">Desechos / merma</div>
             <div class="bill-value">Cargando…</div>
         </div>
         <div class="bill-card balance loading-card">
@@ -1207,9 +1212,9 @@ async function cargarFacturacion() {
     requireAuth();
 
     document.getElementById("billing-cards").innerHTML = `
-        ${["ventas","produccion","insumos","servicios","balance"].map(c=>`
+        ${["ventas","stock","insumos","servicios","desechos","balance"].map(c=>`
         <div class="bill-card ${c} loading-card">
-            <div class="bill-icon">${{ventas:"💰",produccion:"🏭",insumos:"📦",servicios:"🔧",balance:"⚖️"}[c]}</div>
+            <div class="bill-icon">${{ventas:"💰",stock:"🏗️",insumos:"📦",servicios:"🔧",desechos:"🗑️",balance:"⚖️"}[c]}</div>
             <div class="bill-value" style="color:#ddd;background:#f0f0f0;border-radius:6px;width:80%;height:28px;margin-top:14px;"></div>
         </div>`).join("")}`;
     document.getElementById("prog-wrap").innerHTML = '<p class="prog-no-data">Cargando…</p>';
@@ -1245,9 +1250,9 @@ function renderBillingCards(d) {
             sub: "Suma de cierres de caja"
         },
         {
-            cls:"produccion", icon:"🏭", label:"Costo de producción real",
-            value: fmt(d.costo_produccion), extraCls:"",
-            sub: "Dato estadístico — no afecta al balance"
+            cls:"stock", icon:"🏗️", label:"Monto acumulado de stock",
+            value: fmt(d.monto_acumulado_stock), extraCls:"",
+            sub: "Valor actual en inventario — dato estadístico"
         },
         {
             cls:"insumos", icon:"📦", label:"Insumos facturados",
@@ -1261,10 +1266,16 @@ function renderBillingCards(d) {
             sub: d.costo_servicios_facturados < 0 ? "Crédito neto (notas de crédito)" : "Gasto neto de servicios"
         },
         {
+            cls:"desechos", icon:"🗑️", label:"Desechos / merma",
+            value: fmt(d.desechos || 0),
+            extraCls: (d.desechos || 0) > 0 ? "negativo" : "",
+            sub: (d.desechos || 0) > 0 ? "Pérdida por revisiones de stock" : "Sin revisiones de stock este mes"
+        },
+        {
             cls:"balance", icon:"⚖️", label:`Balance mensual${sufijo}`,
             value: fmt(d.balance),
             extraCls: d.balance >= 0 ? "positivo" : "negativo",
-            sub: "Ventas − insumos − servicios"
+            sub: "Ventas − insumos − servicios − desechos"
         },
     ];
 
