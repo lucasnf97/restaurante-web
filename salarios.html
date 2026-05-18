@@ -118,6 +118,18 @@
         /* Spinner */
         .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Modal de ajuste de horas */
+        .modal-info { background: #f8f9fa; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+        .modal-info-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #555; padding: 5px 0; border-bottom: 1px solid #eee; }
+        .modal-info-row:last-child { border-bottom: none; }
+        .modal-info-row span:first-child { color: #888; }
+        .modal-info-row span:last-child { font-weight: 600; }
+        .ajuste-preview { background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 8px; padding: 12px 14px; margin-top: 10px; }
+        .ajuste-preview .modal-info-row { border-bottom-color: #e0f2fe; }
+        .ajuste-total-row { font-size: 14px !important; padding: 8px 0 2px !important; }
+        .ajuste-total-row span { font-size: 15px !important; font-weight: 700 !important; color: #1a1a2e !important; }
+        .dif-saldo-cell { display: flex; align-items: center; gap: 8px; }
     </style>
 </head>
 <body>
@@ -255,6 +267,63 @@
     </div>
 </div>
 
+<!-- Modal ajuste de horas -->
+<div class="modal-overlay" id="modal-ajuste">
+    <div class="modal-box" style="width:440px;">
+        <h3 id="ajuste-titulo">⏱️ Ajuste de horas</h3>
+        <p style="font-size:13px;color:#666;margin:6px 0 16px;">
+            Ingresá las horas a ajustar. Positivo suma horas y aumenta el salario; negativo descuenta.
+        </p>
+
+        <!-- Info actual (solo lectura) -->
+        <div class="modal-info">
+            <div class="modal-info-row">
+                <span>Sueldo por hora</span>
+                <span id="aj-sueldo">—</span>
+            </div>
+            <div class="modal-info-row">
+                <span>Horas asignadas</span>
+                <span id="aj-h-asig">—</span>
+            </div>
+            <div class="modal-info-row">
+                <span>Horas fichadas</span>
+                <span id="aj-h-fich">—</span>
+            </div>
+            <div class="modal-info-row">
+                <span>Diferencia actual</span>
+                <span id="aj-dif-h">—</span>
+            </div>
+        </div>
+
+        <!-- Input de ajuste -->
+        <div class="modal-row">
+            <label>Horas a ajustar</label>
+            <input type="number" id="aj-inp" step="0.25" placeholder="0.00" oninput="calcAjuste()">
+        </div>
+
+        <!-- Preview calculado -->
+        <div class="ajuste-preview">
+            <div class="modal-info-row">
+                <span>Diferencia de saldo</span>
+                <span id="aj-dif-s">—</span>
+            </div>
+            <div class="modal-info-row">
+                <span>Salario base actual</span>
+                <span id="aj-sal-act">—</span>
+            </div>
+            <div class="modal-info-row ajuste-total-row">
+                <span>Salario total final</span>
+                <span id="aj-sal-fin">—</span>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarAjuste()">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmarAjuste()">Confirmar ajuste</button>
+        </div>
+    </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="js/api.js"></script>
@@ -364,7 +433,12 @@ function buildRow(u) {
             <td>${fmtH(u.horas_fichadas)}</td>
             <td class="${difHCls}">${difHStr}</td>
             <td><strong>${fmt(u.salario_total)}</strong></td>
-            <td class="${difSCls}">${difSStr}</td>
+            <td>
+                <div class="dif-saldo-cell">
+                    <span class="${difSCls}">${difSStr}</span>
+                    ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id})" title="Ajustar horas">✏️</button>` : ''}
+                </div>
+            </td>
         </tr>`;
     } else {
         // Masked: show hours but hide monetary values
@@ -483,6 +557,74 @@ async function guardarSueldo(uid) {
     }
 }
 
+// ── Ajuste de horas ──────────────────────────────────────────────────────────
+let _ajusteUid = null;
+
+function abrirAjusteHoras(uid) {
+    const u = _data && _data.usuarios.find(x => x.id === uid);
+    if (!u) return;
+    _ajusteUid = uid;
+
+    document.getElementById('ajuste-titulo').textContent = `⏱️ Ajuste de horas — ${u.username}`;
+    document.getElementById('aj-sueldo').textContent  = fmt(u.sueldo_hora) + '/h';
+    document.getElementById('aj-h-asig').textContent  = fmtH(u.horas_asignadas);
+    document.getElementById('aj-h-fich').textContent  = fmtH(u.horas_fichadas);
+
+    const difH   = u.diferencia_horas;
+    const difHEl = document.getElementById('aj-dif-h');
+    difHEl.textContent = (difH > 0 ? '+' : '') + fmtH(difH);
+    difHEl.className   = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
+
+    // Pre-fill con la diferencia actual (el usuario puede editarla)
+    const inp = document.getElementById('aj-inp');
+    inp.value = difH.toFixed(2);
+
+    calcAjuste();
+    document.getElementById('modal-ajuste').classList.add('open');
+    setTimeout(() => { inp.focus(); inp.select(); }, 100);
+}
+
+function calcAjuste() {
+    const u = _ajusteUid && _data && _data.usuarios.find(x => x.id === _ajusteUid);
+    if (!u) return;
+
+    const ajuste   = parseFloat(document.getElementById('aj-inp').value) || 0;
+    const difSaldo = +(u.sueldo_hora * ajuste).toFixed(2);
+    const salFinal = +(u.salario_total + difSaldo).toFixed(2);
+
+    const difSEl = document.getElementById('aj-dif-s');
+    difSEl.textContent = (difSaldo >= 0 ? '+' : '') + fmt(difSaldo);
+    difSEl.className   = difSaldo > 0.005 ? 'pos' : difSaldo < -0.005 ? 'neg' : 'neu';
+
+    document.getElementById('aj-sal-act').textContent = fmt(u.salario_total);
+    document.getElementById('aj-sal-fin').textContent = fmt(salFinal);
+}
+
+function cerrarAjuste() {
+    document.getElementById('modal-ajuste').classList.remove('open');
+    _ajusteUid = null;
+}
+
+function confirmarAjuste() {
+    const u = _ajusteUid && _data && _data.usuarios.find(x => x.id === _ajusteUid);
+    if (!u) return;
+
+    const ajuste = parseFloat(document.getElementById('aj-inp').value) || 0;
+
+    // Actualizar datos en memoria
+    u.horas_asignadas  = +((u.horas_asignadas + ajuste).toFixed(4));
+    u.salario_total    = +(u.sueldo_hora * u.horas_asignadas).toFixed(2);
+    u.diferencia_horas = +((u.horas_fichadas - u.horas_asignadas).toFixed(4));
+    u.diferencia_saldo = +(u.sueldo_hora * u.diferencia_horas).toFixed(2);
+
+    _data.total_salarios = +(_data.usuarios.reduce((s, x) => s + x.salario_total, 0)).toFixed(2);
+
+    const signo = ajuste >= 0 ? '+' : '';
+    cerrarAjuste();
+    renderAll();
+    toast(`Ajuste ${signo}${ajuste.toFixed(2)} h aplicado a ${u.username} ✓`);
+}
+
 // ── Registrar como gasto ─────────────────────────────────────────────────────
 function abrirRegistrar() {
     if (!_data || !_unlocked) { pedirAuth(); return; }
@@ -534,6 +676,7 @@ function toast(msg, err = false) {
 // ── Close modals on backdrop ─────────────────────────────────────────────────
 document.getElementById('modal-auth').addEventListener('click', e => { if (e.target === e.currentTarget) cerrarAuth(); });
 document.getElementById('modal-registrar').addEventListener('click', e => { if (e.target === e.currentTarget) cerrarRegistrar(); });
+document.getElementById('modal-ajuste').addEventListener('click', e => { if (e.target === e.currentTarget) cerrarAjuste(); });
 
 // ── Auto-load on open ────────────────────────────────────────────────────────
 cargar();
