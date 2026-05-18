@@ -43,14 +43,26 @@ body.config-open .content { margin-right:390px; }
 .block-drag:hover { background:rgba(196,181,253,.15); }
 body.config-open .block-drag { display:inline; }
 
-/* STAT CARDS */
-.stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:14px; }
-.stat-card { background:white; border-radius:12px; padding:18px 22px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
-.stat-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
-.stat-value { font-size:26px; font-weight:700; color:#1a1a2e; }
-.stat-value.green  { color:#16a34a; }
-.stat-value.blue   { color:#4f46e5; }
-.stat-value.orange { color:#d97706; }
+/* RESUMEN PERIODOS */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+@media(max-width:900px) { .stats-row { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:500px) { .stats-row { grid-template-columns:1fr; } }
+
+.sum-card { background:white; border-radius:12px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06);
+            border-top:3px solid #e5e7eb; }
+.sum-card.hoy    { border-top-color:#16a34a; }
+.sum-card.semana { border-top-color:#4f46e5; }
+.sum-card.mes    { border-top-color:#7c3aed; }
+.sum-card.anio   { border-top-color:#d97706; }
+
+.sum-title    { font-size:14px; font-weight:700; color:#1a1a2e; margin-bottom:1px; }
+.sum-subtitle { font-size:11px; color:#9ca3af; margin-bottom:10px; }
+.sum-total    { font-size:34px; font-weight:800; color:#1a1a2e; text-align:right; line-height:1; margin-bottom:12px; }
+.sum-sym      { font-size:15px; font-weight:400; color:#9ca3af; vertical-align:top; margin-right:2px; line-height:2.2; }
+.sum-hr       { border:none; border-top:1px solid #f0f0f0; margin:10px 0 10px; }
+.sum-row      { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#6b7280; margin-bottom:4px; }
+.sum-row span:last-child { font-weight:700; color:#374151; }
+.sum-gap      { margin-top:8px; }
 
 /* MODULE CARD */
 .module-card { background:white; border-radius:12px; padding:20px 16px; cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.06); text-decoration:none; color:inherit; display:flex; flex-direction:column; border:2px solid transparent; height:100%; }
@@ -227,25 +239,27 @@ function saveConfig() { localStorage.setItem("dash_cfg_v3", JSON.stringify(confi
 let config = loadConfig();
 
 // ── DATOS ────────────────────────────────────────────────────
-let statsData   = { pedidos:"—", total:"—", mesas:"—", reservas:"—" };
+let periodos    = null;   // response from /reportes/resumen-periodos
 let reservasHoy = [];
 let stockData   = { ok:0, warn:0, agotado:0 };
 let resPag      = 0;
+let _monedaSim  = "$";
 
 async function cargarDatos() {
+    // Cargar símbolo de moneda (una vez)
     try {
-        const r = await api.get("/caja/resumen/hoy");
-        statsData.pedidos = r.pedidos_cobrados;
-        statsData.total   = `$${r.total_hoy.toFixed(2)}`;
+        const cfg = await api.get("/config/sistema");
+        _monedaSim = cfg.moneda_simbolo || "$";
     } catch(e) {}
+
+    // Resumen de períodos (hoy / semana / mes / año)
     try {
-        const m = await api.get("/mesas/?estado=ocupada");
-        statsData.mesas = m.length;
-    } catch(e) {}
+        periodos = await api.get("/reportes/resumen-periodos");
+    } catch(e) { periodos = null; }
+
     try {
         const hoy = new Date().toISOString().split("T")[0];
         const rv  = await api.get(`/reservas/?fecha=${hoy}`);
-        statsData.reservas = rv.length;
         reservasHoy = rv.sort((a,b) => (a.hora||"").localeCompare(b.hora||""));
         calcPaginaActual();
     } catch(e) {}
@@ -310,13 +324,69 @@ function blockHeader(label) {
 }
 
 function buildStats(b) {
-    return `${blockHeader("Resumen del día")}
-    <div class="stats-row">
-        <div class="stat-card"><div class="stat-label">Pedidos hoy</div><div class="stat-value blue">${statsData.pedidos}</div></div>
-        <div class="stat-card"><div class="stat-label">Total hoy</div><div class="stat-value green">${statsData.total}</div></div>
-        <div class="stat-card"><div class="stat-label">Mesas ocupadas</div><div class="stat-value">${statsData.mesas}</div></div>
-        <div class="stat-card"><div class="stat-label">Reservas hoy</div><div class="stat-value orange">${statsData.reservas}</div></div>
-    </div>`;
+    const sym = _monedaSim;
+
+    function fmtTotal(v) {
+        if (v === null || v === undefined) return "—";
+        if (v === 0) return "0";
+        const [ent, dec] = v.toFixed(2).split(".");
+        const miles = ent.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return `<span class="sum-sym">${sym}</span>${miles},${dec}`;
+    }
+    function fmtNum(v) {
+        return (v ?? "—").toLocaleString ? Number(v).toLocaleString("es-AR") : v;
+    }
+    function fmtProm(v) {
+        if (!v || v === 0) return "—";
+        return `${sym} ${v.toFixed(2)}`;
+    }
+
+    const meta = periodos?.meta || {};
+    const defs = [
+        {
+            cls:   "hoy",
+            title: "Total hoy",
+            sub:   meta.fecha_hoy || "—",
+            data:  periodos?.hoy,
+        },
+        {
+            cls:   "semana",
+            title: "Total semana en curso",
+            sub:   meta.num_semana ? `Semana ${meta.num_semana}` : "—",
+            data:  periodos?.semana,
+        },
+        {
+            cls:   "mes",
+            title: "Total mes en curso",
+            sub:   meta.nombre_mes && meta.anio ? `${meta.nombre_mes} ${meta.anio}` : "—",
+            data:  periodos?.mes,
+        },
+        {
+            cls:   "anio",
+            title: "Total año en curso",
+            sub:   meta.anio ? String(meta.anio) : "—",
+            data:  periodos?.anio,
+        },
+    ];
+
+    const cards = defs.map(d => {
+        const v = d.data;
+        return `
+        <div class="sum-card ${d.cls}">
+            <div class="sum-title">${d.title}</div>
+            <div class="sum-subtitle">${d.sub}</div>
+            <div class="sum-total">${v ? fmtTotal(v.total) : "—"}</div>
+            <hr class="sum-hr">
+            <div class="sum-row"><span>Mesas cerradas</span><span>${v ? fmtNum(v.mesas) : "—"}</span></div>
+            <div class="sum-row"><span>Promedio por mesa</span><span>${v ? fmtProm(v.promedio_mesa) : "—"}</span></div>
+            <div class="sum-gap"></div>
+            <div class="sum-row"><span>Clientes totales</span><span>${v ? fmtNum(v.comensales) : "—"}</span></div>
+            <div class="sum-row"><span>Promedio por cliente</span><span>${v ? fmtProm(v.promedio_comensal) : "—"}</span></div>
+        </div>`;
+    }).join("");
+
+    return `${blockHeader("Resumen de facturación")}
+    <div class="stats-row">${cards}</div>`;
 }
 
 function estadoReserva(r) {
