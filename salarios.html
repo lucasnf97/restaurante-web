@@ -437,24 +437,14 @@ async function confirmarAuth() {
     btn.innerHTML = '<span class="spinner"></span>Verificando...';
 
     try {
-        const body = new URLSearchParams({ username: u, password: p });
-        const resp = await fetch(api.base + '/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body
-        });
-        if (!resp.ok) {
-            const j = await resp.json().catch(() => ({}));
-            errEl.textContent = j.detail || 'Usuario o contraseña incorrectos.';
-            return;
-        }
-        // Successful auth → unlock
+        // login() está definido en api.js — hace el POST con form-urlencoded correctamente
+        await login(u, p);
         _unlocked = true;
         cerrarAuth();
         renderAll();
         toast('Datos desbloqueados ✓');
     } catch(e) {
-        errEl.textContent = 'Error de conexión. Intentá de nuevo.';
+        errEl.textContent = e.message || 'Usuario o contraseña incorrectos.';
     } finally {
         btn.disabled = false;
         btn.innerHTML = 'Verificar';
