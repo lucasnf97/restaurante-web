@@ -222,6 +222,8 @@ function renderFranjas(franjas) {
     ).join(" ");
 }
 
+const TOLERANCIA_H = 5 / 60;   // ±5 minutos → se considera puntual
+
 function renderDiff(horasReales, horasAsig) {
     if (horasAsig === null || horasReales == null) return '<span class="diff-neu">—</span>';
     const diff = horasReales - horasAsig;
@@ -229,8 +231,8 @@ function renderDiff(horasReales, horasAsig) {
     const h    = Math.floor(abs);
     const m    = Math.round((abs - h) * 60);
     const str  = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-    if (diff >  0.083) return `<span class="diff-pos">+${str}</span>`;
-    if (diff < -0.083) return `<span class="diff-neg">−${str}</span>`;
+    if (diff >  TOLERANCIA_H) return `<span class="diff-pos">+${str}</span>`;
+    if (diff < -TOLERANCIA_H) return `<span class="diff-neg">−${str}</span>`;
     return `<span class="diff-neu">≈ justo</span>`;
 }
 
