@@ -55,6 +55,29 @@
         .badge-gray  { background: #f3f4f6; color: #666; }
         .badge-purple { background: #ede9fe; color: #7c3aed; }
         .badge-orange { background: #fff7ed; color: #c2410c; }
+
+        /* ── Columnas nuevas ── */
+        .franja-tag { display:inline-block; font-size:11px; color:#555;
+                      background:#f3f4f6; border-radius:4px; padding:1px 5px;
+                      margin:1px 0; white-space:nowrap; }
+        .diff-pos { color:#16a34a; font-weight:700; font-size:13px; }
+        .diff-neg { color:#dc2626; font-weight:700; font-size:13px; }
+        .diff-neu { color:#94a3b8; font-size:13px; }
+        /* Notas */
+        .nota-text  { font-size:12px; color:#374151; }
+        .nota-empty { font-size:12px; color:#d1d5db; font-style:italic; }
+        .btn-nota-edit { background:none; border:none; cursor:pointer; color:#cbd5e1;
+                         font-size:13px; padding:1px 4px; border-radius:4px;
+                         transition:color .15s; line-height:1; vertical-align:middle; }
+        .btn-nota-edit:hover { color:#4f46e5; }
+        .nota-edit-wrap { display:flex; align-items:center; gap:4px; }
+        .nota-input { border:1.5px solid #4f46e5; border-radius:6px; padding:4px 8px;
+                      font-size:12px; width:180px; outline:none; }
+        .btn-nota-save   { background:#4f46e5; color:white; border:none; border-radius:5px;
+                           padding:3px 8px; font-size:11px; cursor:pointer; }
+        .btn-nota-save:hover { background:#4338ca; }
+        .btn-nota-cancel { background:#f3f4f6; color:#666; border:none; border-radius:5px;
+                           padding:3px 8px; font-size:11px; cursor:pointer; }
     </style>
 </head>
 <body>
@@ -110,11 +133,14 @@
                     <th>Entrada</th>
                     <th>Salida</th>
                     <th>Duración</th>
+                    <th>Horario asignado</th>
+                    <th>Diferencia</th>
                     <th>Estado</th>
+                    <th>Notas</th>
                 </tr>
             </thead>
             <tbody id="tabla-body">
-                <tr><td colspan="5" class="empty">Cargando...</td></tr>
+                <tr><td colspan="8" class="empty">Cargando...</td></tr>
             </tbody>
         </table>
     </div>
@@ -167,13 +193,113 @@ async function cargarUsuariosFiltro() {
     } catch(e) {}
 }
 
+// ── Helpers columnas nuevas ──────────────────────────────────
+function isManager() {
+    try {
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        return u.rol === "admin" || u.rol === "gerente";
+    } catch { return false; }
+}
+
+function calcHorasAsignadas(franjas) {
+    if (!franjas || !franjas.length) return null;
+    let total = 0;
+    for (const f of franjas) {
+        const [ih, im] = f.inicio.split(":").map(Number);
+        const [fh, fm] = f.fin.split(":").map(Number);
+        let ini = ih * 60 + im;
+        let fin = fh * 60 + fm;
+        if (fin <= ini) fin += 24 * 60;   // turno nocturno que cruza medianoche
+        total += (fin - ini) / 60;
+    }
+    return total;
+}
+
+function renderFranjas(franjas) {
+    if (!franjas || !franjas.length) return "—";
+    return franjas.map(f =>
+        `<span class="franja-tag">${f.inicio}–${f.fin}</span>`
+    ).join(" ");
+}
+
+function renderDiff(horasReales, horasAsig) {
+    if (horasAsig === null || horasReales == null) return '<span class="diff-neu">—</span>';
+    const diff = horasReales - horasAsig;
+    const abs  = Math.abs(diff);
+    const h    = Math.floor(abs);
+    const m    = Math.round((abs - h) * 60);
+    const str  = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+    if (diff >  0.083) return `<span class="diff-pos">+${str}</span>`;
+    if (diff < -0.083) return `<span class="diff-neg">−${str}</span>`;
+    return `<span class="diff-neu">≈ justo</span>`;
+}
+
+function renderNotaTd(f) {
+    const txt = f.notas
+        ? `<span class="nota-text">${f.notas.replace(/</g,"&lt;")}</span>`
+        : `<span class="nota-empty">—</span>`;
+    const btn = isManager()
+        ? `<button class="btn-nota-edit" onclick="editarNota(${f.id})" title="Editar nota">✏️</button>`
+        : "";
+    return `<td id="nota-td-${f.id}">${txt}${btn}</td>`;
+}
+
+// ── Edición inline de notas ──────────────────────────────────
+function editarNota(id) {
+    const td  = document.getElementById(`nota-td-${id}`);
+    const cur = td.querySelector(".nota-text")?.textContent?.trim() || "";
+    td.innerHTML = `
+        <div class="nota-edit-wrap">
+            <input class="nota-input" id="nota-inp-${id}"
+                   type="text" value="${cur.replace(/"/g,"&quot;")}"
+                   placeholder="Agregar nota..." maxlength="200">
+            <button class="btn-nota-save"   onclick="guardarNota(${id})">✓</button>
+            <button class="btn-nota-cancel" onclick="cancelarNota(${id},'${cur.replace(/'/g,"\\'")}')">✗</button>
+        </div>`;
+    const inp = document.getElementById(`nota-inp-${id}`);
+    inp.focus();
+    inp.addEventListener("keydown", e => {
+        if (e.key === "Enter")  guardarNota(id);
+        if (e.key === "Escape") cancelarNota(id, cur);
+    });
+}
+
+async function guardarNota(id) {
+    const inp = document.getElementById(`nota-inp-${id}`);
+    if (!inp) return;
+    const notas = inp.value.trim() || null;
+    try {
+        await apiFetch(`/turnos/${id}/notas`, {
+            method: "PATCH",
+            body: JSON.stringify({ notas })
+        });
+        const td  = document.getElementById(`nota-td-${id}`);
+        const txt = notas
+            ? `<span class="nota-text">${notas.replace(/</g,"&lt;")}</span>`
+            : `<span class="nota-empty">—</span>`;
+        td.innerHTML = `${txt}<button class="btn-nota-edit" onclick="editarNota(${id})" title="Editar nota">✏️</button>`;
+    } catch(e) {
+        alert("Error al guardar la nota");
+        console.error(e);
+    }
+}
+
+function cancelarNota(id, original) {
+    const td  = document.getElementById(`nota-td-${id}`);
+    const txt = original
+        ? `<span class="nota-text">${original.replace(/</g,"&lt;")}</span>`
+        : `<span class="nota-empty">—</span>`;
+    td.innerHTML = `${txt}<button class="btn-nota-edit" onclick="editarNota(${id})" title="Editar nota">✏️</button>`;
+}
+
+// ── Cargar historial ──────────────────────────────────────────
 async function cargarHistorial() {
     const desde   = document.getElementById("filtro-desde").value;
     const hasta   = document.getElementById("filtro-hasta").value;
     const usuario = document.getElementById("filtro-usuario").value;
     let url = "/turnos/historial?";
-    if (desde)   url += `desde=${desde}T00:00:00&`;
-    if (hasta)   url += `hasta=${hasta}T23:59:59&`;
+    if (desde) url += `desde=${desde}T00:00:00&`;
+    if (hasta) url += `hasta=${hasta}T23:59:59&`;
 
     try {
         let fichajes = await api.get(url);
@@ -183,18 +309,22 @@ async function cargarHistorial() {
 
         const tbody = document.getElementById("tabla-body");
         if (!fichajes.length) {
-            tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin fichajes en el período seleccionado</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="empty">Sin fichajes en el período seleccionado</td></tr>`;
             return;
         }
         tbody.innerHTML = fichajes.map(f => {
-            const duracion = f.horas != null ? formatHoras(f.horas) : "—";
-            const activo   = !f.ts_salida;
+            const duracion   = f.horas != null ? formatHoras(f.horas) : "—";
+            const activo     = !f.ts_salida;
+            const horasAsig  = calcHorasAsignadas(f.franjas_asignadas);
             return `<tr>
                 <td><strong>${f.username}</strong></td>
                 <td>${formatTs(f.ts_entrada)}</td>
                 <td>${f.ts_salida ? formatTs(f.ts_salida) : '<span style="color:#94a3b8;">En turno</span>'}</td>
                 <td>${duracion}</td>
-                <td><span class="badge ${activo ? 'badge-green' : 'badge-gray'}">${activo ? 'Activo' : 'Finalizado'}</span></td>
+                <td>${renderFranjas(f.franjas_asignadas)}</td>
+                <td>${renderDiff(f.horas, horasAsig)}</td>
+                <td><span class="badge ${activo ? "badge-green" : "badge-gray"}">${activo ? "Activo" : "Finalizado"}</span></td>
+                ${renderNotaTd(f)}
             </tr>`;
         }).join("");
     } catch(e) { console.error(e); }
