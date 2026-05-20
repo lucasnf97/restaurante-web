@@ -150,7 +150,7 @@
 <script src="js/api.js"></script>
 <script>
 requireAuth();
-requirePermiso('ver_fichajes');
+requirePermiso('ver_fichajes', 'edicion_fichajes');
 
 const COLORES = ["#4f46e5","#16a34a","#dc2626","#ca8a04","#0891b2","#7c3aed","#be185d","#0f766e"];
 
@@ -158,6 +158,17 @@ async function init() {
     const hoy = new Date().toISOString().split("T")[0];
     document.getElementById("filtro-desde").value = hoy;
     document.getElementById("filtro-hasta").value = hoy;
+
+    // Si solo tiene ver_fichajes (sin edición completa), bloquear el selector de usuario
+    if (!hasEdicionFichajes()) {
+        const sel = document.getElementById("filtro-usuario");
+        const u   = currentUser();
+        sel.innerHTML = `<option value="${u.username}">${u.username}</option>`;
+        sel.disabled  = true;
+        sel.style.opacity = "0.6";
+        sel.style.cursor  = "not-allowed";
+    }
+
     await Promise.all([cargarActivos(), cargarHistorial(), cargarUsuariosFiltro()]);
 }
 
@@ -184,6 +195,7 @@ async function cargarActivos() {
 }
 
 async function cargarUsuariosFiltro() {
+    if (!hasEdicionFichajes()) return;  // selector ya bloqueado con el propio usuario
     try {
         const usuarios = await api.get("/auth/usuarios");
         const sel = document.getElementById("filtro-usuario");
@@ -193,12 +205,23 @@ async function cargarUsuariosFiltro() {
     } catch(e) {}
 }
 
-// ── Helpers columnas nuevas ──────────────────────────────────
-function isManager() {
-    try {
-        const u = JSON.parse(localStorage.getItem("user") || "{}");
-        return u.rol === "admin" || u.rol === "gerente";
-    } catch { return false; }
+// ── Helpers de permisos ─────────────────────────────────────
+function currentUser() {
+    try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; }
+}
+function hasEdicionFichajes() {
+    const u = currentUser();
+    return u.rol === "admin" || u.rol === "gerente" || !!u.edicion_fichajes;
+}
+function hasVerFichajes() {
+    const u = currentUser();
+    return !!u.ver_fichajes || hasEdicionFichajes();
+}
+/** ¿Puede editar la nota de este fichaje? */
+function canEditNota(fichaje) {
+    if (hasEdicionFichajes()) return true;
+    if (hasVerFichajes() && fichaje.usuario_id == currentUser().id) return true;
+    return false;
 }
 
 function calcHorasAsignadas(franjas) {
@@ -222,8 +245,6 @@ function renderFranjas(franjas) {
     ).join(" ");
 }
 
-const TOLERANCIA_H = 5 / 60;   // ±5 minutos → se considera puntual
-
 function renderDiff(horasReales, horasAsig) {
     if (horasAsig === null || horasReales == null) return '<span class="diff-neu">—</span>';
     const diff = horasReales - horasAsig;
@@ -231,19 +252,20 @@ function renderDiff(horasReales, horasAsig) {
     const h    = Math.floor(abs);
     const m    = Math.round((abs - h) * 60);
     const str  = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-    if (diff >  TOLERANCIA_H) return `<span class="diff-pos">+${str}</span>`;
-    if (diff < -TOLERANCIA_H) return `<span class="diff-neg">−${str}</span>`;
-    return `<span class="diff-neu">≈ justo</span>`;
+    if (h === 0 && m === 0) return `<span class="diff-neu">≈ justo</span>`;
+    if (diff > 0) return `<span class="diff-pos">+${str}</span>`;
+    return `<span class="diff-neg">−${str}</span>`;
 }
 
 function renderNotaTd(f) {
     const txt = f.notas
         ? `<span class="nota-text">${f.notas.replace(/</g,"&lt;")}</span>`
         : `<span class="nota-empty">—</span>`;
-    const btn = isManager()
+    const btn = canEditNota(f)
         ? `<button class="btn-nota-edit" onclick="editarNota(${f.id})" title="Editar nota">✏️</button>`
         : "";
-    return `<td id="nota-td-${f.id}">${txt}${btn}</td>`;
+    // Guardamos usuario_id en data-attr para poder reconstruir el botón luego
+    return `<td id="nota-td-${f.id}" data-uid="${f.usuario_id}">${txt}${btn}</td>`;
 }
 
 // ── Edición inline de notas ──────────────────────────────────
@@ -266,6 +288,13 @@ function editarNota(id) {
     });
 }
 
+function _notaBtn(id, td) {
+    const uid = parseInt(td.dataset.uid || "0");
+    return canEditNota({ usuario_id: uid })
+        ? `<button class="btn-nota-edit" onclick="editarNota(${id})" title="Editar nota">✏️</button>`
+        : "";
+}
+
 async function guardarNota(id) {
     const inp = document.getElementById(`nota-inp-${id}`);
     if (!inp) return;
@@ -279,7 +308,7 @@ async function guardarNota(id) {
         const txt = notas
             ? `<span class="nota-text">${notas.replace(/</g,"&lt;")}</span>`
             : `<span class="nota-empty">—</span>`;
-        td.innerHTML = `${txt}<button class="btn-nota-edit" onclick="editarNota(${id})" title="Editar nota">✏️</button>`;
+        td.innerHTML = `${txt}${_notaBtn(id, td)}`;
     } catch(e) {
         alert("Error al guardar la nota");
         console.error(e);
@@ -291,7 +320,7 @@ function cancelarNota(id, original) {
     const txt = original
         ? `<span class="nota-text">${original.replace(/</g,"&lt;")}</span>`
         : `<span class="nota-empty">—</span>`;
-    td.innerHTML = `${txt}<button class="btn-nota-edit" onclick="editarNota(${id})" title="Editar nota">✏️</button>`;
+    td.innerHTML = `${txt}${_notaBtn(id, td)}`;
 }
 
 // ── Cargar historial ──────────────────────────────────────────
