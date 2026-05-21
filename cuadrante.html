@@ -445,6 +445,98 @@ body.view-mes         .th-day { min-width:58px; }
 .leyenda-sep { width:100%; height:1px; background:#f3f4f6; margin:6px 0; }
 .leyenda-draft   { border:2px dashed #6b7280; background:transparent; }
 .leyenda-pub     { border:2px solid #6b7280; background:transparent; }
+
+/* ── Templates bar ──────────────────────────────────────────── */
+.templates-bar {
+    display:none; /* shown via JS only for editors */
+    position:fixed; top:196px; left:0; right:0; z-index:145;
+    background:#faf5ff; border-bottom:1.5px solid #e9d5ff;
+    align-items:center; gap:8px; height:50px; padding:0 14px;
+    overflow-x:auto; scrollbar-width:none;
+}
+.templates-bar::-webkit-scrollbar { display:none; }
+.tpl-bar-label {
+    font-size:11px; font-weight:800; text-transform:uppercase;
+    letter-spacing:.7px; color:#7c3aed; flex-shrink:0;
+}
+.tpl-chips { display:flex; gap:6px; align-items:center; flex:1; overflow-x:auto; scrollbar-width:none; }
+.tpl-chips::-webkit-scrollbar { display:none; }
+.tpl-chip {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 10px; border-radius:20px;
+    background:white; color:#6d28d9;
+    border:1.5px solid #c4b5fd;
+    font-size:12px; font-weight:600;
+    cursor:grab; white-space:nowrap; user-select:none;
+    transition:all .15s; flex-shrink:0;
+}
+.tpl-chip:hover { background:#ede9fe; }
+.tpl-chip.dragging { opacity:.45; cursor:grabbing; }
+.tpl-chip-times { font-size:10px; font-weight:500; color:#a78bfa; }
+.tpl-chip-del {
+    background:none; border:none; color:#c4b5fd; cursor:pointer;
+    font-size:12px; padding:0; line-height:1; margin-left:2px;
+    transition:color .1s;
+}
+.tpl-chip-del:hover { color:#7c3aed; }
+.tpl-add-btn {
+    background:none; border:1.5px dashed #c4b5fd; border-radius:20px;
+    color:#7c3aed; font-size:12px; font-weight:600;
+    padding:4px 12px; cursor:pointer; flex-shrink:0;
+    transition:all .15s;
+}
+.tpl-add-btn:hover { background:#ede9fe; border-color:#7c3aed; }
+
+/* Drop target highlight */
+.td-day.drop-over { background:#ede9fe !important; outline:2px dashed #7c3aed; outline-offset:-2px; }
+
+/* ── Modal de plantilla ─────────────────────────────────────── */
+.tpl-modal {
+    display:none; position:fixed; z-index:502;
+    top:50%; left:50%; transform:translate(-50%,-50%);
+    background:white; border-radius:14px;
+    box-shadow:0 8px 40px rgba(0,0,0,.22);
+    width:340px; max-width:96vw;
+    flex-direction:column; overflow:hidden;
+}
+.tpl-modal.open { display:flex; }
+
+/* ── Extras en modal de horario (rol + break) ───────────────── */
+.ms-extras {
+    border-top:1px solid #f3f4f6; padding-top:8px; margin-top:4px;
+    display:flex; flex-direction:column; gap:7px;
+}
+.ms-extras-row {
+    display:flex; align-items:center; gap:8px;
+}
+.ms-extras-label {
+    font-size:11px; font-weight:700; color:#9ca3af;
+    text-transform:uppercase; letter-spacing:.5px;
+    width:90px; flex-shrink:0;
+}
+.ms-extras-select {
+    flex:1; padding:5px 8px;
+    border:1.5px solid #e0e0e0; border-radius:7px;
+    font-size:12px; font-family:inherit; outline:none;
+    transition:border-color .15s;
+}
+.ms-extras-select:focus { border-color:#4f46e5; }
+.ms-break-input {
+    width:68px; padding:5px 8px;
+    border:1.5px solid #e0e0e0; border-radius:7px;
+    font-size:12px; font-family:inherit; outline:none;
+    transition:border-color .15s; text-align:right;
+}
+.ms-break-input:focus { border-color:#4f46e5; }
+.ms-break-label { font-size:12px; color:#9ca3af; }
+
+/* Cell break indicator */
+.cell-break { font-size:9px; opacity:.7; margin-top:1px; }
+.cell-rol-badge {
+    font-size:9px; font-weight:700; opacity:.85;
+    border-radius:3px; padding:0 3px; background:rgba(0,0,0,.08);
+    display:inline-block; margin-bottom:1px;
+}
 </style>
 </head>
 <body>
@@ -481,6 +573,13 @@ body.view-mes         .th-day { min-width:58px; }
     </div>
 </div>
 
+<!-- Barra de plantillas de horario (visible solo para editores) -->
+<div class="templates-bar" id="templates-bar">
+    <span class="tpl-bar-label">📋 Plantillas</span>
+    <div class="tpl-chips" id="tpl-chips"></div>
+    <button class="tpl-add-btn" onclick="abrirTplModal()">+ Nueva</button>
+</div>
+
 <div class="grid-area" id="grid-area">
     <div id="grid-wrap">
         <div class="grid-loading">Cargando horarios…</div>
@@ -498,12 +597,56 @@ body.view-mes         .th-day { min-width:58px; }
         <div id="ms-rest-ref" class="ms-rest-ref" style="display:none"></div>
         <div id="ms-franjas"></div>
         <button class="ms-add-btn" onclick="msAddFranja()">+ Agregar franja</button>
+        <!-- Rol de turno y descanso -->
+        <div class="ms-extras">
+            <div class="ms-extras-row">
+                <span class="ms-extras-label">Rol turno</span>
+                <select id="ms-rol-turno" class="ms-extras-select">
+                    <option value="">— Mismo rol —</option>
+                </select>
+            </div>
+            <div class="ms-extras-row">
+                <span class="ms-extras-label">Descanso</span>
+                <input type="number" id="ms-break-mins" class="ms-break-input"
+                       min="0" max="480" step="5" value="0" oninput="updateTotal()">
+                <span class="ms-break-label">min</span>
+            </div>
+        </div>
     </div>
     <div class="ms-footer">
         <span class="ms-total" id="ms-total"></span>
         <div class="ms-actions">
             <button class="ms-btn-elim" id="ms-btn-elim" style="display:none" onclick="msEliminar()">🗑 Eliminar</button>
             <button class="ms-btn-save" id="ms-btn-save" onclick="msGuardar()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Template CRUD modal -->
+<div class="modal-overlay" id="tpl-overlay" onclick="cerrarTplModal()" style="display:none"></div>
+<div class="tpl-modal" id="tpl-modal">
+    <div class="ms-head">
+        <span class="ms-title" id="tpl-modal-title">Nueva plantilla</span>
+        <button class="ms-close" onclick="cerrarTplModal()">✕</button>
+    </div>
+    <div class="ms-body">
+        <input type="text" id="tpl-nombre" class="ms-time" style="width:100%;margin-bottom:6px"
+               placeholder="Nombre (ej: Apertura)">
+        <div id="tpl-franjas"></div>
+        <button class="ms-add-btn" onclick="tplAddFranja()">+ Franja</button>
+        <div class="ms-extras" style="margin-top:8px">
+            <div class="ms-extras-row">
+                <span class="ms-extras-label">Descanso</span>
+                <input type="number" id="tpl-break" class="ms-break-input"
+                       min="0" max="480" step="5" value="0">
+                <span class="ms-break-label">min</span>
+            </div>
+        </div>
+    </div>
+    <div class="ms-footer">
+        <button class="ms-btn-elim" id="tpl-btn-del" style="display:none" onclick="eliminarTemplate()">🗑 Eliminar</button>
+        <div class="ms-actions">
+            <button class="ms-btn-save" onclick="guardarTemplate()">Guardar</button>
         </div>
     </div>
 </div>
@@ -626,6 +769,10 @@ function calcTotalMins(franjas) {
         if (e > s) total += e - s;
     });
     return total;
+}
+/** Total neto = franjas - break */
+function calcNetMins(entry) {
+    return Math.max(0, calcTotalMins(entry.franjas || []) - (entry.break_mins || 0));
 }
 function formatHours(mins) {
     if (!mins || mins <= 0) return '';
@@ -845,18 +992,34 @@ function renderGrid() {
             const hoy  = isToday(d);
             const tdCls = ['td-day', hoy?'col-hoy':'', wknd?'col-wknd':''].filter(Boolean).join(' ');
 
-            html += `<td class="${tdCls}">`;
+            // El color de la celda usa el rol de turno si está configurado
+            const rolCelda  = (entry && entry.rol_turno) ? entry.rol_turno : u.rol;
+            const colorC    = getRolColor(rolCelda);
+            const colorCBg  = hexToRgba(colorC, 0.08);
+
+            const dropAttrs = canEdit
+                ? `ondragover="event.preventDefault();this.classList.add('drop-over')"
+                   ondragleave="this.classList.remove('drop-over')"
+                   ondrop="handleTemplateDrop(event,${u.id},'${dateStr}')"`
+                : '';
+
+            html += `<td class="${tdCls}" ${dropAttrs}>`;
             if (entry && entry.franjas && entry.franjas.length > 0) {
                 const borderStyle = entry.publicado ? 'published' : 'draft';
-                const totalMins   = calcTotalMins(entry.franjas);
+                const netMins     = calcNetMins(entry);
                 const franjasHtml = entry.franjas.map(f =>
                     `<div class="franja-tag">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</div>`
                 ).join('');
+                const rolBadge = entry.rol_turno
+                    ? `<div class="cell-rol-badge">${getRolLabel(entry.rol_turno)}</div>` : '';
+                const breakBadge = entry.break_mins > 0
+                    ? `<div class="cell-break">☕ ${entry.break_mins}m</div>` : '';
                 html += `<div class="cell-content ${borderStyle}"
-                               style="border-color:${color};background:${colorBg};color:${color};"
+                               style="border-color:${colorC};background:${colorCBg};color:${colorC};"
                                data-uid="${u.id}" data-date="${dateStr}">
-                    ${franjasHtml}
-                    <div class="cell-total-h">${formatHours(totalMins)}</div>
+                    ${rolBadge}${franjasHtml}
+                    <div class="cell-total-h">${formatHours(netMins)}</div>
+                    ${breakBadge}
                 </div>`;
             } else if (canEdit) {
                 html += `<div class="cell-add" data-uid="${u.id}" data-date="${dateStr}">+</div>`;
@@ -875,7 +1038,7 @@ function calcUserPeriodMins(userId, dateSet) {
     let total = 0;
     horariosCeldas.forEach(h => {
         if (h.usuario_id === userId && dateSet.has((h.fecha||'').split('T')[0])) {
-            total += calcTotalMins(h.franjas);
+            total += calcNetMins(h);   // descontamos el break
         }
     });
     return total;
@@ -914,6 +1077,16 @@ function abrirModal(userId, dateStr) {
 
     // Franjas
     renderModalFranjas(entry?.franjas || [{ inicio:'09:00', fin:'17:00' }]);
+
+    // Rol de turno
+    const rolSel = document.getElementById('ms-rol-turno');
+    rolSel.innerHTML = '<option value="">— Mismo rol —</option>' +
+        rolesDisponibles.map(r => `<option value="${r}">${getRolLabel(r)}</option>`).join('');
+    rolSel.value = entry?.rol_turno || '';
+
+    // Break
+    document.getElementById('ms-break-mins').value = entry?.break_mins ?? 0;
+    updateTotal();
 
     // Delete button
     document.getElementById('ms-btn-elim').style.display = entry ? '' : 'none';
@@ -954,22 +1127,28 @@ function msAddFranja() {
 
 function updateTotal() {
     let total = 0;
-    document.querySelectorAll('.ms-franja-row').forEach(row => {
+    document.querySelectorAll('#ms-franjas .ms-franja-row').forEach(row => {
         const s = timeToMins(row.querySelector('.ms-inicio')?.value);
         let   e = timeToMins(row.querySelector('.ms-fin')?.value);
         if (e <= s) e += 24 * 60;
         if (e > s) total += e - s;
     });
-    document.getElementById('ms-total').textContent = total > 0 ? `Total: ${formatHours(total)}` : '';
+    const breakMins = parseInt(document.getElementById('ms-break-mins')?.value || 0);
+    const net = Math.max(0, total - breakMins);
+    let lbl = net > 0 ? `Total: ${formatHours(net)}` : '';
+    if (breakMins > 0 && total > 0) lbl += ` <span style="color:#9ca3af;font-weight:500;">(−${breakMins}m descanso)</span>`;
+    document.getElementById('ms-total').innerHTML = lbl;
 }
 
 async function msGuardar() {
     const franjas = [];
-    document.querySelectorAll('.ms-franja-row').forEach(row => {
+    document.querySelectorAll('#ms-franjas .ms-franja-row').forEach(row => {
         const inicio = row.querySelector('.ms-inicio')?.value;
         const fin    = row.querySelector('.ms-fin')?.value;
         if (inicio && fin) franjas.push({ inicio, fin });
     });
+    const rolTurno  = document.getElementById('ms-rol-turno')?.value || null;
+    const breakMins = parseInt(document.getElementById('ms-break-mins')?.value || 0);
 
     const btn = document.getElementById('ms-btn-save');
     btn.disabled = true; btn.textContent = 'Guardando…';
@@ -981,6 +1160,8 @@ async function msGuardar() {
                 usuario_id: modalState.userId,
                 fecha:      modalState.fecha,
                 franjas,
+                rol_turno:  rolTurno,
+                break_mins: breakMins,
             });
         }
         cerrarModal();
@@ -1150,6 +1331,14 @@ function renderModalRestRef(diaSemana) {
     // Show publish button only for editors
     if (!canEdit) document.getElementById('btn-publicar').style.display = 'none';
 
+    // Barra de plantillas: solo para editores, ajusta el offset del grid
+    if (canEdit) {
+        const tBar = document.getElementById('templates-bar');
+        tBar.style.display = 'flex';
+        document.getElementById('grid-area').style.top = '246px';
+        renderTemplatesBar();
+    }
+
     await api.get('/auth/usuarios').then(u => { usuarios = u; }).catch(() => { usuarios = []; });
     initRoles();
 
@@ -1158,6 +1347,170 @@ function renderModalRestRef(diaSemana) {
     document.body.classList.add('view-semana');
     await cargarYRenderizar();
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// PLANTILLAS DE HORARIO
+// ═══════════════════════════════════════════════════════════════
+
+const TPL_KEY = 'horarios_templates_v1';
+
+function loadTemplates() {
+    try {
+        const raw = localStorage.getItem(TPL_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch {}
+    // Plantillas por defecto
+    return [
+        { id: 'tpl_apertura', nombre: 'Apertura', franjas: [{ inicio:'08:00', fin:'16:00' }], break_mins: 30 },
+        { id: 'tpl_tarde',    nombre: 'Tarde',     franjas: [{ inicio:'14:00', fin:'22:00' }], break_mins: 30 },
+        { id: 'tpl_cierre',   nombre: 'Cierre',    franjas: [{ inicio:'16:00', fin:'00:00' }], break_mins: 30 },
+        { id: 'tpl_partido',  nombre: 'Partido',   franjas: [{ inicio:'11:00', fin:'16:00' },{ inicio:'19:00', fin:'23:00' }], break_mins: 0 },
+    ];
+}
+
+function saveTemplates() {
+    localStorage.setItem(TPL_KEY, JSON.stringify(_templates));
+}
+
+let _templates = loadTemplates();
+
+function renderTemplatesBar() {
+    const c = document.getElementById('tpl-chips');
+    if (!c) return;
+    if (!_templates.length) {
+        c.innerHTML = '<span style="font-size:11px;color:#a78bfa;">Sin plantillas — crea la primera</span>';
+        return;
+    }
+    c.innerHTML = _templates.map(t => {
+        const tiempos  = t.franjas.map(f => `${f.inicio}–${f.fin}`).join(', ');
+        const breakStr = t.break_mins > 0 ? ` ☕${t.break_mins}m` : '';
+        return `<span class="tpl-chip" draggable="true"
+                      ondragstart="tplDragStart(event,'${t.id}')"
+                      ondragend="tplDragEnd(event)"
+                      onclick="abrirTplModal('${t.id}')">
+            ${t.nombre}
+            <span class="tpl-chip-times">${tiempos}${breakStr}</span>
+            <button class="tpl-chip-del"
+                    onclick="event.stopPropagation();confirmarEliminarTpl('${t.id}')">✕</button>
+        </span>`;
+    }).join('');
+}
+
+// ── Drag ─────────────────────────────────────────────────────────
+let _dragTplId = null;
+
+function tplDragStart(e, id) {
+    _dragTplId = id;
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'copy';
+    e.currentTarget.classList.add('dragging');
+}
+
+function tplDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    _dragTplId = null;
+}
+
+async function handleTemplateDrop(e, userId, dateStr) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drop-over');
+    if (!_dragTplId || !canEdit) return;
+    const tpl = _templates.find(t => t.id === _dragTplId);
+    _dragTplId = null;
+    if (!tpl) return;
+    try {
+        await api.post('/horarios-personal', {
+            usuario_id: userId,
+            fecha:      dateStr,
+            franjas:    tpl.franjas,
+            break_mins: tpl.break_mins || 0,
+        });
+        await cargarYRenderizar();
+    } catch(err) {
+        alert('Error al aplicar plantilla: ' + (err.message || err));
+    }
+}
+
+// ── Template CRUD modal ───────────────────────────────────────────
+let _editingTplId = null;
+
+function abrirTplModal(id) {
+    _editingTplId = id || null;
+    const tpl = id ? _templates.find(t => t.id === id) : null;
+    document.getElementById('tpl-modal-title').textContent = tpl ? 'Editar plantilla' : 'Nueva plantilla';
+    document.getElementById('tpl-nombre').value = tpl?.nombre || '';
+    document.getElementById('tpl-break').value  = tpl?.break_mins ?? 0;
+    document.getElementById('tpl-btn-del').style.display = tpl ? '' : 'none';
+    renderTplFranjas(tpl?.franjas || [{ inicio:'09:00', fin:'17:00' }]);
+    document.getElementById('tpl-overlay').style.display = 'block';
+    document.getElementById('tpl-modal').classList.add('open');
+    setTimeout(() => document.getElementById('tpl-nombre').focus(), 50);
+}
+
+function cerrarTplModal() {
+    document.getElementById('tpl-overlay').style.display = 'none';
+    document.getElementById('tpl-modal').classList.remove('open');
+    _editingTplId = null;
+}
+
+function renderTplFranjas(franjas) {
+    const c = document.getElementById('tpl-franjas');
+    c.innerHTML = franjas.map(f => `
+        <div class="ms-franja-row">
+            <input type="time" class="ms-time ms-inicio" value="${f.inicio||'09:00'}">
+            <span class="ms-sep">—</span>
+            <input type="time" class="ms-time ms-fin"   value="${f.fin||'17:00'}">
+            <button class="ms-del-franja" onclick="this.closest('.ms-franja-row').remove()">✕</button>
+        </div>`).join('');
+}
+
+function tplAddFranja() {
+    const c = document.getElementById('tpl-franjas');
+    const div = document.createElement('div');
+    div.className = 'ms-franja-row';
+    div.innerHTML = `
+        <input type="time" class="ms-time ms-inicio" value="09:00">
+        <span class="ms-sep">—</span>
+        <input type="time" class="ms-time ms-fin"   value="17:00">
+        <button class="ms-del-franja" onclick="this.closest('.ms-franja-row').remove()">✕</button>`;
+    c.appendChild(div);
+}
+
+function guardarTemplate() {
+    const nombre = document.getElementById('tpl-nombre').value.trim();
+    if (!nombre) { alert('Ingresá un nombre para la plantilla'); return; }
+    const franjas = [];
+    document.querySelectorAll('#tpl-franjas .ms-franja-row').forEach(row => {
+        const inicio = row.querySelector('.ms-inicio')?.value;
+        const fin    = row.querySelector('.ms-fin')?.value;
+        if (inicio && fin) franjas.push({ inicio, fin });
+    });
+    if (!franjas.length) { alert('Agregá al menos una franja horaria'); return; }
+    const breakMins = parseInt(document.getElementById('tpl-break').value || 0);
+
+    if (_editingTplId) {
+        const t = _templates.find(t => t.id === _editingTplId);
+        if (t) { t.nombre = nombre; t.franjas = franjas; t.break_mins = breakMins; }
+    } else {
+        _templates.push({ id: 'tpl_' + Date.now(), nombre, franjas, break_mins: breakMins });
+    }
+    saveTemplates();
+    renderTemplatesBar();
+    cerrarTplModal();
+}
+
+function confirmarEliminarTpl(id) {
+    if (!confirm('¿Eliminar esta plantilla?')) return;
+    _templates = _templates.filter(t => t.id !== id);
+    saveTemplates();
+    renderTemplatesBar();
+}
+
+function eliminarTemplate() {
+    if (!_editingTplId) return;
+    confirmarEliminarTpl(_editingTplId);
+    cerrarTplModal();
+}
 </script>
 </body>
 </html>

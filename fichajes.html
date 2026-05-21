@@ -224,7 +224,7 @@ function canEditNota(fichaje) {
     return false;
 }
 
-function calcHorasAsignadas(franjas) {
+function calcHorasAsignadas(franjas, breakMins) {
     if (!franjas || !franjas.length) return null;
     let total = 0;
     for (const f of franjas) {
@@ -235,7 +235,8 @@ function calcHorasAsignadas(franjas) {
         if (fin <= ini) fin += 24 * 60;   // turno nocturno que cruza medianoche
         total += (fin - ini) / 60;
     }
-    return total;
+    // Descontar el descanso configurado en el horario
+    return Math.max(0, total - (breakMins || 0) / 60);
 }
 
 function renderFranjas(franjas) {
@@ -346,7 +347,7 @@ async function cargarHistorial() {
         tbody.innerHTML = fichajes.map(f => {
             const duracion   = f.horas != null ? formatHoras(f.horas) : "—";
             const activo     = !f.ts_salida;
-            const horasAsig  = calcHorasAsignadas(f.franjas_asignadas);
+            const horasAsig  = calcHorasAsignadas(f.franjas_asignadas, f.break_mins);
             return `<tr>
                 <td><strong>${f.username}</strong></td>
                 <td>${formatTs(f.ts_entrada)}</td>
