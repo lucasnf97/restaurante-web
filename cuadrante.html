@@ -1533,37 +1533,60 @@ function minsToTime(m) {
     return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
 }
 
-/** Devuelve {ok, msg}. Verifica que las franjas del empleado no caigan en cierres intermedios del restaurante. */
+/**
+ * Devuelve {ok, msg}.
+ * Verifica que cada franja del empleado esté completamente cubierta
+ * por la unión de las franjas del restaurante (antes de apertura,
+ * huecos intermedios y después del cierre están todos prohibidos).
+ */
 function validateFranjasVsRestaurante(franjas, diaSemana) {
     const restDia = getRestDia(diaSemana);
     if (!restDia.activo) {
         return { ok: false, msg: 'El restaurante está cerrado este día según el horario configurado.' };
     }
     const restFranjas = restDia.franjas || [];
-    if (!restFranjas.length) return { ok: true };   // sin horario = sin restricción
+    if (!restFranjas.length) return { ok: true };   // sin horario configurado → sin restricción
 
-    // Ordenar por inicio y calcular los "huecos" entre franjas del restaurante
-    const sorted = [...restFranjas].sort((a, b) => timeToMins(a.inicio) - timeToMins(b.inicio));
-    const gaps = [];
-    for (let i = 0; i < sorted.length - 1; i++) {
-        const gs = timeToMins(sorted[i].fin);
-        let   ge = timeToMins(sorted[i + 1].inicio);
-        if (ge < gs) ge += 24 * 60;
-        if (ge > gs) gaps.push([gs, ge]);
-    }
-    if (!gaps.length) return { ok: true };  // sin huecos → libre
+    // Convertir franjas del restaurante a intervalos en minutos y ordenar por inicio
+    const restIntervals = restFranjas
+        .map(f => {
+            let rs = timeToMins(f.inicio);
+            let re = timeToMins(f.fin);
+            if (re <= rs) re += 24 * 60;   // turno nocturno
+            return [rs, re];
+        })
+        .sort((a, b) => a[0] - b[0]);
+
+    const firstOpen = restIntervals[0][0];
+    const lastClose = restIntervals[restIntervals.length - 1][1];
 
     for (const ef of franjas) {
         let es = timeToMins(ef.inicio);
         let ee = timeToMins(ef.fin);
         if (ee <= es) ee += 24 * 60;
-        for (const [gs, ge] of gaps) {
-            if (es < ge && ee > gs) {
-                return {
-                    ok: false,
-                    msg: `La franja ${ef.inicio}–${ef.fin} incluye un período en que el restaurante está cerrado (${minsToTime(gs)}–${minsToTime(ge)}).`,
-                };
+
+        // Sweep: avanzamos un puntero de cobertura desde es hasta ee
+        // usando los intervalos del restaurante. Si en algún momento
+        // hay un hueco (el próximo intervalo empieza después del puntero),
+        // el turno del empleado cae en un período cerrado.
+        let ptr = es;
+        for (const [rs, re] of restIntervals) {
+            if (rs > ptr) break;      // hueco — franja sin cubrir
+            if (re > ptr) ptr = re;
+            if (ptr >= ee) break;     // franja completamente cubierta
+        }
+
+        if (ptr < ee) {
+            // Construir mensaje descriptivo según dónde falla la cobertura
+            let msg;
+            if (es < firstOpen) {
+                msg = `La franja ${ef.inicio}–${ef.fin} comienza antes de que el restaurante abra (${minsToTime(firstOpen)}).`;
+            } else if (ee > lastClose) {
+                msg = `La franja ${ef.inicio}–${ef.fin} termina después de que el restaurante cierre (${minsToTime(lastClose % (24 * 60))}).`;
+            } else {
+                msg = `La franja ${ef.inicio}–${ef.fin} incluye un período de cierre del restaurante (${minsToTime(ptr)}–${minsToTime(ptr)}).`;
             }
+            return { ok: false, msg };
         }
     }
     return { ok: true };
