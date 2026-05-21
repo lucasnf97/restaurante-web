@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -10,7 +10,6 @@
         .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .navbar-brand { font-size: 18px; font-weight: 700; }
         .navbar-links { display: flex; gap: 16px; align-items: center; }
-        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
         .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
         .btn-logout:hover { background: #4f46e5; color: white; }
         .content { margin-top: 60px; padding: 32px; }
@@ -19,8 +18,8 @@
         .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
         .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; }
         .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
-        .btn-sm { padding: 5px 11px; font-size: 12px; }
 
+        /* ── Stats ── */
         .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
         .stat-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
         .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
@@ -28,6 +27,7 @@
         .stat-value.green { color: #16a34a; }
         .stat-value.blue  { color: #4f46e5; }
 
+        /* ── Activos ── */
         .activos-section { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
         .activos-section h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px; }
         .globos-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
@@ -37,47 +37,80 @@
         .globo-time { font-size: 10px; color: #94a3b8; }
         .sin-activos { color: #94a3b8; font-size: 13px; }
 
-        .filtros { background: white; border-radius: 12px; padding: 16px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
-        .filtros label { font-size: 13px; color: #666; }
-        .filtros input, .filtros select { padding: 7px 11px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
+        /* ── Filtros ── */
+        .filtros { background: white; border-radius: 12px; padding: 16px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
+        .filtros label { font-size: 13px; color: #666; font-weight: 500; }
+        .filtros input, .filtros select { padding: 7px 11px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; transition: border-color .15s; }
         .filtros input:focus, .filtros select:focus { border-color: #4f46e5; }
+        .filtros select:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        .tabla-wrapper { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-        td { padding: 13px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; }
-        tr:hover td { background: #fafafa; }
-        .empty { text-align: center; padding: 48px; color: #888; }
+        /* ── Cards agrupadas por usuario ── */
+        .fichajes-list { display: flex; flex-direction: column; gap: 12px; }
+
+        .user-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+
+        /* Fila resumen del usuario (clickeable) */
+        .user-summary {
+            display: grid;
+            grid-template-columns: 220px 1fr 1fr 1fr 120px 36px;
+            align-items: center;
+            padding: 14px 20px;
+            cursor: pointer;
+            transition: background .15s;
+            gap: 8px;
+            user-select: none;
+        }
+        .user-summary:hover { background: #fafafa; }
+        .user-summary.expanded { border-bottom: 1px solid #f0f0f0; background: #f8f9ff; }
+
+        .user-summary-name { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; flex-shrink: 0; }
+        .user-name-text { font-size: 14px; font-weight: 700; color: #1a1a2e; }
+        .user-rol-badge { font-size: 10px; color: #6b7280; margin-top: 1px; }
+
+        .summary-col { display: flex; flex-direction: column; gap: 2px; }
+        .summary-col-label { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+        .summary-col-value { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+        .summary-col-sub { font-size: 11px; color: #6b7280; }
+
+        .diff-pos { color: #16a34a; font-weight: 700; }
+        .diff-neg { color: #dc2626; font-weight: 700; }
+        .diff-neu { color: #94a3b8; }
+
+        .expand-btn { color: #9ca3af; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: transform .2s; }
+        .user-summary.expanded .expand-btn { transform: rotate(180deg); }
+
+        /* Tabla interna de fichajes individuales */
+        .user-detail { display: none; }
+        .user-detail.open { display: block; }
+
+        .detail-table { width: 100%; border-collapse: collapse; }
+        .detail-table th {
+            background: #f8f9fa; padding: 9px 16px; text-align: left;
+            font-size: 11px; font-weight: 700; color: #9ca3af;
+            text-transform: uppercase; letter-spacing: .5px;
+        }
+        .detail-table td { padding: 11px 16px; border-top: 1px solid #f0f0f0; font-size: 13px; color: #374151; }
+        .detail-table tr:hover td { background: #fafafa; }
 
         .badge { padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-        .badge-green { background: #dcfce7; color: #16a34a; }
-        .badge-blue  { background: #dbeafe; color: #1d4ed8; }
-        .badge-gray  { background: #f3f4f6; color: #666; }
-        .badge-purple { background: #ede9fe; color: #7c3aed; }
-        .badge-orange { background: #fff7ed; color: #c2410c; }
+        .badge-green  { background: #dcfce7; color: #16a34a; }
+        .badge-gray   { background: #f3f4f6; color: #666; }
 
-        /* ── Columnas nuevas ── */
-        .franja-tag { display:inline-block; font-size:11px; color:#555;
-                      background:#f3f4f6; border-radius:4px; padding:1px 5px;
-                      margin:1px 0; white-space:nowrap; }
-        .diff-pos { color:#16a34a; font-weight:700; font-size:13px; }
-        .diff-neg { color:#dc2626; font-weight:700; font-size:13px; }
-        .diff-neu { color:#94a3b8; font-size:13px; }
-        /* Notas */
-        .nota-text  { font-size:12px; color:#374151; }
-        .nota-empty { font-size:12px; color:#d1d5db; font-style:italic; }
-        .btn-nota-edit { background:none; border:none; cursor:pointer; color:#cbd5e1;
-                         font-size:13px; padding:1px 4px; border-radius:4px;
-                         transition:color .15s; line-height:1; vertical-align:middle; }
-        .btn-nota-edit:hover { color:#4f46e5; }
-        .nota-edit-wrap { display:flex; align-items:center; gap:4px; }
-        .nota-input { border:1.5px solid #4f46e5; border-radius:6px; padding:4px 8px;
-                      font-size:12px; width:180px; outline:none; }
-        .btn-nota-save   { background:#4f46e5; color:white; border:none; border-radius:5px;
-                           padding:3px 8px; font-size:11px; cursor:pointer; }
-        .btn-nota-save:hover { background:#4338ca; }
-        .btn-nota-cancel { background:#f3f4f6; color:#666; border:none; border-radius:5px;
-                           padding:3px 8px; font-size:11px; cursor:pointer; }
+        .franja-tag { display: inline-block; font-size: 11px; color: #555; background: #f3f4f6; border-radius: 4px; padding: 1px 5px; margin: 1px 0; white-space: nowrap; }
+
+        /* Notas inline */
+        .nota-text  { font-size: 12px; color: #374151; }
+        .nota-empty { font-size: 12px; color: #d1d5db; font-style: italic; }
+        .btn-nota-edit { background: none; border: none; cursor: pointer; color: #cbd5e1; font-size: 13px; padding: 1px 4px; border-radius: 4px; transition: color .15s; vertical-align: middle; }
+        .btn-nota-edit:hover { color: #4f46e5; }
+        .nota-edit-wrap { display: flex; align-items: center; gap: 4px; }
+        .nota-input { border: 1.5px solid #4f46e5; border-radius: 6px; padding: 4px 8px; font-size: 12px; width: 180px; outline: none; }
+        .btn-nota-save   { background: #4f46e5; color: white; border: none; border-radius: 5px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
+        .btn-nota-save:hover { background: #4338ca; }
+        .btn-nota-cancel { background: #f3f4f6; color: #666; border: none; border-radius: 5px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
+
+        .empty { text-align: center; padding: 48px; color: #888; font-size: 14px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     </style>
 </head>
 <body>
@@ -99,8 +132,12 @@
             <div class="stat-value green" id="stat-activos">—</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Fichajes hoy</div>
-            <div class="stat-value blue" id="stat-hoy">—</div>
+            <div class="stat-label">Empleados en período</div>
+            <div class="stat-value blue" id="stat-empleados">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Fichajes en período</div>
+            <div class="stat-value" id="stat-fichajes">—</div>
         </div>
     </div>
 
@@ -112,37 +149,22 @@
         </div>
     </div>
 
-    <!-- Filtros historial -->
+    <!-- Filtros -->
     <div class="filtros">
         <label>Desde:</label>
         <input type="date" id="filtro-desde" onchange="cargarHistorial()">
         <label>Hasta:</label>
         <input type="date" id="filtro-hasta" onchange="cargarHistorial()">
-        <label>Usuario:</label>
-        <select id="filtro-usuario" onchange="cargarHistorial()">
+        <label id="lbl-usuario" style="display:none;">Usuario:</label>
+        <select id="filtro-usuario" style="display:none;" onchange="cargarHistorial()">
             <option value="">Todos</option>
         </select>
-        <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
+        <button class="btn btn-secondary" onclick="limpiarFiltros()" id="btn-limpiar">Limpiar</button>
     </div>
 
-    <div class="tabla-wrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>Usuario</th>
-                    <th>Entrada</th>
-                    <th>Salida</th>
-                    <th>Duración</th>
-                    <th>Horario asignado</th>
-                    <th>Diferencia</th>
-                    <th>Estado</th>
-                    <th>Notas</th>
-                </tr>
-            </thead>
-            <tbody id="tabla-body">
-                <tr><td colspan="8" class="empty">Cargando...</td></tr>
-            </tbody>
-        </table>
+    <!-- Lista agrupada por usuario -->
+    <div id="fichajes-container">
+        <div class="empty">Cargando...</div>
     </div>
 </div>
 
@@ -154,22 +176,40 @@ requirePermiso('ver_fichajes', 'edicion_fichajes');
 
 const COLORES = ["#4f46e5","#16a34a","#dc2626","#ca8a04","#0891b2","#7c3aed","#be185d","#0f766e"];
 
+// ── Permisos ─────────────────────────────────────────────────
+function currentUser() {
+    try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; }
+}
+function hasEdicionFichajes() {
+    const u = currentUser();
+    return u.rol === "admin" || u.rol === "gerente" || !!u.edicion_fichajes;
+}
+function hasVerFichajes() {
+    const u = currentUser();
+    return !!u.ver_fichajes || hasEdicionFichajes();
+}
+function canEditNota(fichaje) {
+    if (hasEdicionFichajes()) return true;
+    if (hasVerFichajes() && fichaje.usuario_id == currentUser().id) return true;
+    return false;
+}
+
+// ── Init ─────────────────────────────────────────────────────
 async function init() {
     const hoy = new Date().toISOString().split("T")[0];
     document.getElementById("filtro-desde").value = hoy;
     document.getElementById("filtro-hasta").value = hoy;
 
-    // Si solo tiene ver_fichajes (sin edición completa), bloquear el selector de usuario
-    if (!hasEdicionFichajes()) {
+    if (hasEdicionFichajes()) {
+        // Editores ven el selector de usuario
+        document.getElementById("lbl-usuario").style.display = "inline";
         const sel = document.getElementById("filtro-usuario");
-        const u   = currentUser();
-        sel.innerHTML = `<option value="${u.username}">${u.username}</option>`;
-        sel.disabled  = true;
-        sel.style.opacity = "0.6";
-        sel.style.cursor  = "not-allowed";
+        sel.style.display = "inline";
+        await cargarUsuariosFiltro();
     }
+    // Usuarios sin edición no ven filtro de usuario (se filtra automáticamente en backend)
 
-    await Promise.all([cargarActivos(), cargarHistorial(), cargarUsuariosFiltro()]);
+    await Promise.all([cargarActivos(), cargarHistorial()]);
 }
 
 async function cargarActivos() {
@@ -182,20 +222,18 @@ async function cargarActivos() {
             return;
         }
         wrap.innerHTML = activos.map((t, i) => {
-            const iniciales = t.iniciales || t.username.substring(0,3).toUpperCase();
+            const iniciales = t.iniciales || t.username.substring(0, 3).toUpperCase();
             const color = COLORES[i % COLORES.length];
-            const desde = formatTs(t.ts_entrada);
             return `<div class="globo">
                 <div class="globo-circle" style="background:${color};">${iniciales}</div>
                 <div class="globo-name">${t.username}</div>
-                <div class="globo-time">desde ${desde}</div>
+                <div class="globo-time">desde ${formatTs(t.ts_entrada)}</div>
             </div>`;
         }).join("");
     } catch(e) { console.error(e); }
 }
 
 async function cargarUsuariosFiltro() {
-    if (!hasEdicionFichajes()) return;  // selector ya bloqueado con el propio usuario
     try {
         const usuarios = await api.get("/auth/usuarios");
         const sel = document.getElementById("filtro-usuario");
@@ -205,88 +243,173 @@ async function cargarUsuariosFiltro() {
     } catch(e) {}
 }
 
-// ── Helpers de permisos ─────────────────────────────────────
-function currentUser() {
-    try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; }
-}
-function hasEdicionFichajes() {
-    const u = currentUser();
-    return u.rol === "admin" || u.rol === "gerente" || !!u.edicion_fichajes;
-}
-function hasVerFichajes() {
-    const u = currentUser();
-    return !!u.ver_fichajes || hasEdicionFichajes();
-}
-/** ¿Puede editar la nota de este fichaje? */
-function canEditNota(fichaje) {
-    if (hasEdicionFichajes()) return true;
-    if (hasVerFichajes() && fichaje.usuario_id == currentUser().id) return true;
-    return false;
+// ── Cargar historial agrupado ─────────────────────────────────
+async function cargarHistorial() {
+    const desde   = document.getElementById("filtro-desde").value;
+    const hasta   = document.getElementById("filtro-hasta").value;
+    const usuario = hasEdicionFichajes()
+        ? document.getElementById("filtro-usuario").value
+        : "";
+
+    let url = "/turnos/historial?";
+    if (desde) url += `desde=${desde}T00:00:00&`;
+    if (hasta) url += `hasta=${hasta}T23:59:59&`;
+
+    const container = document.getElementById("fichajes-container");
+    container.innerHTML = '<div class="empty">Cargando...</div>';
+
+    try {
+        let fichajes = await api.get(url);
+        if (usuario) fichajes = fichajes.filter(f => f.username === usuario);
+
+        // Stats
+        document.getElementById("stat-fichajes").textContent = fichajes.length;
+
+        if (!fichajes.length) {
+            document.getElementById("stat-empleados").textContent = "0";
+            container.innerHTML = '<div class="empty">Sin fichajes en el período seleccionado</div>';
+            return;
+        }
+
+        // Agrupar por usuario
+        const grupos = {};
+        fichajes.forEach((f, idx) => {
+            if (!grupos[f.username]) {
+                grupos[f.username] = {
+                    username:   f.username,
+                    usuario_id: f.usuario_id,
+                    fichajes:   [],
+                    colorIdx:   Object.keys(grupos).length,
+                };
+            }
+            grupos[f.username].fichajes.push(f);
+        });
+
+        document.getElementById("stat-empleados").textContent = Object.keys(grupos).length;
+
+        container.innerHTML = '<div class="fichajes-list">' +
+            Object.values(grupos).map(g => renderUserCard(g)).join("") +
+            '</div>';
+
+    } catch(e) { console.error(e); container.innerHTML = '<div class="empty">Error al cargar fichajes</div>'; }
 }
 
-function calcHorasAsignadas(franjas, breakMins) {
-    if (!franjas || !franjas.length) return null;
-    let total = 0;
-    for (const f of franjas) {
-        const [ih, im] = f.inicio.split(":").map(Number);
-        const [fh, fm] = f.fin.split(":").map(Number);
-        let ini = ih * 60 + im;
-        let fin = fh * 60 + fm;
-        if (fin <= ini) fin += 24 * 60;   // turno nocturno que cruza medianoche
-        total += (fin - ini) / 60;
+function limpiarFiltros() {
+    document.getElementById("filtro-desde").value = "";
+    document.getElementById("filtro-hasta").value = "";
+    if (hasEdicionFichajes()) {
+        document.getElementById("filtro-usuario").value = "";
     }
-    // Descontar el descanso configurado en el horario
-    return Math.max(0, total - (breakMins || 0) / 60);
+    cargarHistorial();
 }
 
-function renderFranjas(franjas) {
-    if (!franjas || !franjas.length) return "—";
-    return franjas.map(f =>
-        `<span class="franja-tag">${f.inicio}–${f.fin}</span>`
-    ).join(" ");
+// ── Render card por usuario ───────────────────────────────────
+function renderUserCard(g) {
+    const color    = COLORES[g.colorIdx % COLORES.length];
+    const iniciales = g.username.substring(0, 2).toUpperCase();
+    const count    = g.fichajes.length;
+
+    // Totales del período
+    let totalFichadasMins = 0;
+    let totalAsignadasMins = 0;
+    let tieneAsignadas = false;
+
+    g.fichajes.forEach(f => {
+        if (f.horas != null) totalFichadasMins += f.horas * 60;
+        const ha = calcHorasAsignadas(f.franjas_asignadas, f.break_mins);
+        if (ha !== null) { totalAsignadasMins += ha * 60; tieneAsignadas = true; }
+    });
+
+    const fichadasStr  = formatMins(totalFichadasMins);
+    const asignadasStr = tieneAsignadas ? formatMins(totalAsignadasMins) : "—";
+    const diffHtml     = tieneAsignadas
+        ? renderDiffMins(totalFichadasMins - totalAsignadasMins)
+        : '<span class="diff-neu">—</span>';
+
+    const hayActivo = g.fichajes.some(f => !f.ts_salida);
+
+    const cardId   = `card-${g.usuario_id}`;
+    const detailId = `detail-${g.usuario_id}`;
+
+    return `
+    <div class="user-card" id="${cardId}">
+        <div class="user-summary" onclick="toggleCard(${g.usuario_id})">
+            <div class="user-summary-name">
+                <div class="user-avatar" style="background:${color};">${iniciales}</div>
+                <div>
+                    <div class="user-name-text">${g.username}</div>
+                    <div class="user-rol-badge">${count} fichaje${count !== 1 ? 's' : ''}${hayActivo ? ' · <span style="color:#16a34a;font-weight:600;">En turno</span>' : ''}</div>
+                </div>
+            </div>
+            <div class="summary-col">
+                <div class="summary-col-label">Horas fichadas</div>
+                <div class="summary-col-value">${fichadasStr}</div>
+            </div>
+            <div class="summary-col">
+                <div class="summary-col-label">Horas asignadas</div>
+                <div class="summary-col-value">${asignadasStr}</div>
+            </div>
+            <div class="summary-col">
+                <div class="summary-col-label">Diferencia</div>
+                <div class="summary-col-value">${diffHtml}</div>
+            </div>
+            <div></div>
+            <div class="expand-btn">▼</div>
+        </div>
+        <div class="user-detail" id="${detailId}">
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Entrada</th>
+                        <th>Salida</th>
+                        <th>Duración</th>
+                        <th>Horario asignado</th>
+                        <th>Diferencia</th>
+                        <th>Estado</th>
+                        <th>Notas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${g.fichajes.map(f => renderFichajeRow(f)).join("")}
+                </tbody>
+            </table>
+        </div>
+    </div>`;
 }
 
-function renderDiff(horasReales, horasAsig) {
-    if (horasAsig === null || horasReales == null) return '<span class="diff-neu">—</span>';
-    const diff = horasReales - horasAsig;
-    const abs  = Math.abs(diff);
-    const h    = Math.floor(abs);
-    const m    = Math.round((abs - h) * 60);
-    const str  = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-    if (h === 0 && m === 0) return `<span class="diff-neu">≈ justo</span>`;
-    if (diff > 0) return `<span class="diff-pos">+${str}</span>`;
-    return `<span class="diff-neg">−${str}</span>`;
+function toggleCard(usuarioId) {
+    const summary = document.querySelector(`#card-${usuarioId} .user-summary`);
+    const detail  = document.getElementById(`detail-${usuarioId}`);
+    summary.classList.toggle("expanded");
+    detail.classList.toggle("open");
 }
 
+function renderFichajeRow(f) {
+    const duracion  = f.horas != null ? formatHoras(f.horas) : "—";
+    const activo    = !f.ts_salida;
+    const horasAsig = calcHorasAsignadas(f.franjas_asignadas, f.break_mins);
+    const diffHtml  = renderDiff(f.horas, horasAsig);
+
+    return `<tr>
+        <td>${formatTs(f.ts_entrada)}</td>
+        <td>${f.ts_salida ? formatTs(f.ts_salida) : '<span style="color:#94a3b8;">En turno</span>'}</td>
+        <td><strong>${duracion}</strong></td>
+        <td>${renderFranjas(f.franjas_asignadas)}</td>
+        <td>${diffHtml}</td>
+        <td><span class="badge ${activo ? "badge-green" : "badge-gray"}">${activo ? "Activo" : "Finalizado"}</span></td>
+        ${renderNotaTd(f)}
+    </tr>`;
+}
+
+// ── Notas inline ─────────────────────────────────────────────
 function renderNotaTd(f) {
     const txt = f.notas
-        ? `<span class="nota-text">${f.notas.replace(/</g,"&lt;")}</span>`
+        ? `<span class="nota-text">${f.notas.replace(/</g, "&lt;")}</span>`
         : `<span class="nota-empty">—</span>`;
     const btn = canEditNota(f)
         ? `<button class="btn-nota-edit" onclick="editarNota(${f.id})" title="Editar nota">✏️</button>`
         : "";
-    // Guardamos usuario_id en data-attr para poder reconstruir el botón luego
     return `<td id="nota-td-${f.id}" data-uid="${f.usuario_id}">${txt}${btn}</td>`;
-}
-
-// ── Edición inline de notas ──────────────────────────────────
-function editarNota(id) {
-    const td  = document.getElementById(`nota-td-${id}`);
-    const cur = td.querySelector(".nota-text")?.textContent?.trim() || "";
-    td.innerHTML = `
-        <div class="nota-edit-wrap">
-            <input class="nota-input" id="nota-inp-${id}"
-                   type="text" value="${cur.replace(/"/g,"&quot;")}"
-                   placeholder="Agregar nota..." maxlength="200">
-            <button class="btn-nota-save"   onclick="guardarNota(${id})">✓</button>
-            <button class="btn-nota-cancel" onclick="cancelarNota(${id},'${cur.replace(/'/g,"\\'")}')">✗</button>
-        </div>`;
-    const inp = document.getElementById(`nota-inp-${id}`);
-    inp.focus();
-    inp.addEventListener("keydown", e => {
-        if (e.key === "Enter")  guardarNota(id);
-        if (e.key === "Escape") cancelarNota(id, cur);
-    });
 }
 
 function _notaBtn(id, td) {
@@ -294,6 +417,25 @@ function _notaBtn(id, td) {
     return canEditNota({ usuario_id: uid })
         ? `<button class="btn-nota-edit" onclick="editarNota(${id})" title="Editar nota">✏️</button>`
         : "";
+}
+
+function editarNota(id) {
+    const td  = document.getElementById(`nota-td-${id}`);
+    const cur = td.querySelector(".nota-text")?.textContent?.trim() || "";
+    td.innerHTML = `
+        <div class="nota-edit-wrap">
+            <input class="nota-input" id="nota-inp-${id}"
+                   type="text" value="${cur.replace(/"/g, "&quot;")}"
+                   placeholder="Agregar nota..." maxlength="200">
+            <button class="btn-nota-save"   onclick="guardarNota(${id})">✓</button>
+            <button class="btn-nota-cancel" onclick="cancelarNota(${id},'${cur.replace(/'/g, "\\'")}')">✗</button>
+        </div>`;
+    const inp = document.getElementById(`nota-inp-${id}`);
+    inp.focus();
+    inp.addEventListener("keydown", e => {
+        if (e.key === "Enter")  guardarNota(id);
+        if (e.key === "Escape") cancelarNota(id, cur);
+    });
 }
 
 async function guardarNota(id) {
@@ -307,66 +449,68 @@ async function guardarNota(id) {
         });
         const td  = document.getElementById(`nota-td-${id}`);
         const txt = notas
-            ? `<span class="nota-text">${notas.replace(/</g,"&lt;")}</span>`
+            ? `<span class="nota-text">${notas.replace(/</g, "&lt;")}</span>`
             : `<span class="nota-empty">—</span>`;
         td.innerHTML = `${txt}${_notaBtn(id, td)}`;
     } catch(e) {
         alert("Error al guardar la nota");
-        console.error(e);
     }
 }
 
 function cancelarNota(id, original) {
     const td  = document.getElementById(`nota-td-${id}`);
     const txt = original
-        ? `<span class="nota-text">${original.replace(/</g,"&lt;")}</span>`
+        ? `<span class="nota-text">${original.replace(/</g, "&lt;")}</span>`
         : `<span class="nota-empty">—</span>`;
     td.innerHTML = `${txt}${_notaBtn(id, td)}`;
 }
 
-// ── Cargar historial ──────────────────────────────────────────
-async function cargarHistorial() {
-    const desde   = document.getElementById("filtro-desde").value;
-    const hasta   = document.getElementById("filtro-hasta").value;
-    const usuario = document.getElementById("filtro-usuario").value;
-    let url = "/turnos/historial?";
-    if (desde) url += `desde=${desde}T00:00:00&`;
-    if (hasta) url += `hasta=${hasta}T23:59:59&`;
-
-    try {
-        let fichajes = await api.get(url);
-        if (usuario) fichajes = fichajes.filter(f => f.username === usuario);
-
-        document.getElementById("stat-hoy").textContent = fichajes.length;
-
-        const tbody = document.getElementById("tabla-body");
-        if (!fichajes.length) {
-            tbody.innerHTML = `<tr><td colspan="8" class="empty">Sin fichajes en el período seleccionado</td></tr>`;
-            return;
-        }
-        tbody.innerHTML = fichajes.map(f => {
-            const duracion   = f.horas != null ? formatHoras(f.horas) : "—";
-            const activo     = !f.ts_salida;
-            const horasAsig  = calcHorasAsignadas(f.franjas_asignadas, f.break_mins);
-            return `<tr>
-                <td><strong>${f.username}</strong></td>
-                <td>${formatTs(f.ts_entrada)}</td>
-                <td>${f.ts_salida ? formatTs(f.ts_salida) : '<span style="color:#94a3b8;">En turno</span>'}</td>
-                <td>${duracion}</td>
-                <td>${renderFranjas(f.franjas_asignadas)}</td>
-                <td>${renderDiff(f.horas, horasAsig)}</td>
-                <td><span class="badge ${activo ? "badge-green" : "badge-gray"}">${activo ? "Activo" : "Finalizado"}</span></td>
-                ${renderNotaTd(f)}
-            </tr>`;
-        }).join("");
-    } catch(e) { console.error(e); }
+// ── Helpers de formato ────────────────────────────────────────
+function calcHorasAsignadas(franjas, breakMins) {
+    if (!franjas || !franjas.length) return null;
+    let total = 0;
+    for (const f of franjas) {
+        const [ih, im] = f.inicio.split(":").map(Number);
+        const [fh, fm] = f.fin.split(":").map(Number);
+        let ini = ih * 60 + im;
+        let fin = fh * 60 + fm;
+        if (fin <= ini) fin += 24 * 60;
+        total += fin - ini;
+    }
+    return Math.max(0, total - (breakMins || 0)) / 60;
 }
 
-function limpiarFiltros() {
-    document.getElementById("filtro-desde").value = "";
-    document.getElementById("filtro-hasta").value = "";
-    document.getElementById("filtro-usuario").value = "";
-    cargarHistorial();
+function renderFranjas(franjas) {
+    if (!franjas || !franjas.length) return "—";
+    return franjas.map(f =>
+        `<span class="franja-tag">${f.inicio}–${f.fin}</span>`
+    ).join(" ");
+}
+
+/** Diferencia en horas (float) */
+function renderDiff(horasReales, horasAsig) {
+    if (horasAsig === null || horasReales == null) return '<span class="diff-neu">—</span>';
+    return renderDiffMins((horasReales - horasAsig) * 60);
+}
+
+/** Diferencia en minutos (int) */
+function renderDiffMins(diffMins) {
+    if (diffMins == null) return '<span class="diff-neu">—</span>';
+    const abs = Math.abs(diffMins);
+    const h   = Math.floor(abs / 60);
+    const m   = Math.round(abs % 60);
+    if (h === 0 && m === 0) return '<span class="diff-neu">≈ justo</span>';
+    const str = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+    if (diffMins > 0) return `<span class="diff-pos">+${str}</span>`;
+    return `<span class="diff-neg">−${str}</span>`;
+}
+
+function formatMins(mins) {
+    const h = Math.floor(mins / 60);
+    const m = Math.round(mins % 60);
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
 }
 
 function formatTs(ts) {
