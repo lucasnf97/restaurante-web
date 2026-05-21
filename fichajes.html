@@ -196,9 +196,13 @@ function canEditNota(fichaje) {
 
 // ── Init ─────────────────────────────────────────────────────
 async function init() {
-    const hoy = new Date().toISOString().split("T")[0];
-    document.getElementById("filtro-desde").value = hoy;
-    document.getElementById("filtro-hasta").value = hoy;
+    const hoy   = new Date();
+    const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1; // 0=Lun…6=Dom
+    const lunes  = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem);
+    const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+    const fmt = d => d.toISOString().split("T")[0];
+    document.getElementById("filtro-desde").value = fmt(lunes);
+    document.getElementById("filtro-hasta").value = fmt(domingo);
 
     if (hasEdicionFichajes()) {
         // Editores ven el selector de usuario
