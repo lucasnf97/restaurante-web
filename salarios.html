@@ -366,6 +366,8 @@ let _diaInicio  = 1;   // día de inicio del período (de config)
 let _confirmados = []; // períodos ya confirmados (array de {periodo_inicio, periodo_fin})
 let _periodoActualDesde = null;
 let _periodoActualHasta = null;
+let _pendientesData  = {};    // idx → data cargada de cada período pendiente
+let _ajustePendIdx   = null;  // idx del período pendiente activo en modal ajuste (null = principal)
 
 const MESES_LARGO  = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
                        'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -532,34 +534,42 @@ async function cargarPendiente(idx) {
         const data = await api.get(
             `/salarios/resumen?desde=${fmtDate(p.inicio)}&hasta=${fmtDate(p.fin)}`
         );
+        _pendientesData[idx] = data;
         // Mostrar total
         const totalEl = document.getElementById(`pend-total-${idx}`);
         if (totalEl) totalEl.textContent = _unlocked ? fmt(data.total_salarios) : '•••••';
-        // Renderizar tabla simplificada
-        content.innerHTML = buildTablaHTML(data, false);
+        // Renderizar tabla con botones de edición si corresponde
+        content.innerHTML = buildTablaHTML(data, isManager && _unlocked, idx);
     } catch(e) {
         content.innerHTML = `<em style="color:#dc2626;">Error al cargar: ${e.message || e}</em>`;
     }
 }
 
-function buildTablaHTML(data, editable) {
+function buildTablaHTML(data, canEdit, pendIdx) {
     if (!data || !data.usuarios.length) return '<p style="padding:20px;color:#888;">Sin datos</p>';
     const rows = data.usuarios.map(u => {
-        const ini    = (u.iniciales || u.username.substring(0,2)).toUpperCase();
-        const difH   = u.diferencia_horas;
+        const ini     = (u.iniciales || u.username.substring(0,2)).toUpperCase();
+        const difH    = u.diferencia_horas;
         const difHCls = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
         const difHStr = (difH > 0 ? '+' : '') + fmtH(difH);
+        // el argumento pendIdx puede ser undefined (tabla principal) o un número (pendiente)
+        const idxArg  = (pendIdx !== undefined && pendIdx !== null) ? pendIdx : 'null';
         if (_unlocked) {
             const difS    = u.diferencia_saldo;
             const difSCls = difS > 0.01 ? 'pos' : difS < -0.01 ? 'neg' : 'neu';
             return `<tr>
                 <td>${userCellHTML(u, ini)}</td>
                 <td>${fmt(u.sueldo_hora)}/h</td>
-                <td>${fmtH(u.horas_asignadas)}</td>
+                <td>${fmtH(u.horas_asignadas)}${u.ajuste_horas ? `<br><span style="font-size:11px;color:#6b7280;">base ${fmtH(u.horas_asig_base||0)} + aj. ${u.ajuste_horas>0?'+':''}${fmtH(u.ajuste_horas)}</span>` : ''}</td>
                 <td>${fmtH(u.horas_fichadas)}</td>
                 <td class="${difHCls}">${difHStr}</td>
                 <td><strong>${fmt(u.salario_total)}</strong></td>
-                <td class="${difSCls}">${(difS > 0 ? '+' : '') + fmt(difS)}</td>
+                <td>
+                    <div class="dif-saldo-cell">
+                        <span class="${difSCls}">${(difS > 0 ? '+' : '') + fmt(difS)}</span>
+                        ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},${idxArg})" title="Ajustar horas">✏️</button>` : ''}
+                    </div>
+                </td>
             </tr>`;
         } else {
             return `<tr>
@@ -720,7 +730,7 @@ function buildRow(u) {
             <td>
                 <div class="dif-saldo-cell">
                     <span class="${difSCls}">${difSStr}</span>
-                    ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id})" title="Ajustar horas">✏️</button>` : ''}
+                    ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},null)" title="Ajustar horas">✏️</button>` : ''}
                 </div>
             </td>
         </tr>`;
@@ -824,6 +834,15 @@ async function confirmarAuth() {
         _unlocked = true;
         cerrarAuth();
         renderAll();
+        // Re-renderizar pendientes ya cargados con datos desbloqueados
+        Object.entries(_pendientesData).forEach(([idx, data]) => {
+            const content = document.getElementById(`pend-content-${idx}`);
+            if (content && content.querySelector('table')) {
+                content.innerHTML = buildTablaHTML(data, isManager && _unlocked, parseInt(idx));
+            }
+            const totalEl = document.getElementById(`pend-total-${idx}`);
+            if (totalEl) totalEl.textContent = fmt(data.total_salarios);
+        });
         toast('Datos desbloqueados ✓');
     } catch(e) {
         errEl.textContent = e.message || 'Usuario o contraseña incorrectos.';
@@ -868,8 +887,17 @@ async function guardarSueldo(uid) {
 // ── Ajuste de horas (modal en tabla principal) ────────────────────────────────
 let _ajusteUid = null;
 
-function abrirAjusteHoras(uid) {
-    const u = _data && _data.usuarios.find(x => x.id === uid);
+/** Devuelve el dataset activo según si estamos en tabla principal o pendiente */
+function _ajusteDataRef() {
+    return (_ajustePendIdx !== null && _ajustePendIdx !== undefined)
+        ? _pendientesData[_ajustePendIdx]
+        : _data;
+}
+
+function abrirAjusteHoras(uid, pendIdx) {
+    _ajustePendIdx = (pendIdx !== undefined && pendIdx !== null && pendIdx !== 'null') ? pendIdx : null;
+    const dataRef  = _ajusteDataRef();
+    const u = dataRef && dataRef.usuarios.find(x => x.id === uid);
     if (!u) return;
     _ajusteUid = uid;
     document.getElementById('ajuste-titulo').textContent = `⏱️ Ajuste de horas — ${u.username}`;
@@ -888,7 +916,8 @@ function abrirAjusteHoras(uid) {
 }
 
 function calcAjuste() {
-    const u = _ajusteUid && _data && _data.usuarios.find(x => x.id === _ajusteUid);
+    const dataRef = _ajusteDataRef();
+    const u = _ajusteUid && dataRef && dataRef.usuarios.find(x => x.id === _ajusteUid);
     if (!u) return;
     const ajuste   = parseFloat(document.getElementById('aj-inp').value) || 0;
     const difSaldo = +(u.sueldo_hora * ajuste).toFixed(2);
@@ -902,22 +931,36 @@ function calcAjuste() {
 
 function cerrarAjuste() {
     document.getElementById('modal-ajuste').classList.remove('open');
-    _ajusteUid = null;
+    _ajusteUid    = null;
+    _ajustePendIdx = null;
 }
 
 function confirmarAjuste() {
-    const u = _ajusteUid && _data && _data.usuarios.find(x => x.id === _ajusteUid);
+    const dataRef = _ajusteDataRef();
+    const u = _ajusteUid && dataRef && dataRef.usuarios.find(x => x.id === _ajusteUid);
     if (!u) return;
-    const ajuste = parseFloat(document.getElementById('aj-inp').value) || 0;
+    const ajuste   = parseFloat(document.getElementById('aj-inp').value) || 0;
+    const signo    = ajuste >= 0 ? '+' : '';
+    const username = u.username;
     u.horas_asignadas  = +((u.horas_asignadas + ajuste).toFixed(4));
     u.salario_total    = +(u.sueldo_hora * u.horas_asignadas).toFixed(2);
     u.diferencia_horas = +((u.horas_fichadas - u.horas_asignadas).toFixed(4));
     u.diferencia_saldo = +(u.sueldo_hora * u.diferencia_horas).toFixed(2);
-    _data.total_salarios = +(_data.usuarios.reduce((s, x) => s + x.salario_total, 0)).toFixed(2);
-    const signo = ajuste >= 0 ? '+' : '';
+    dataRef.total_salarios = +(dataRef.usuarios.reduce((s, x) => s + x.salario_total, 0)).toFixed(2);
+
+    const pendIdx = _ajustePendIdx;
     cerrarAjuste();
-    renderAll();
-    toast(`Ajuste ${signo}${ajuste.toFixed(2)} h aplicado a ${u.username} ✓`);
+
+    if (pendIdx !== null && pendIdx !== undefined) {
+        // Actualizar tabla del período pendiente
+        const content = document.getElementById(`pend-content-${pendIdx}`);
+        if (content) content.innerHTML = buildTablaHTML(dataRef, isManager && _unlocked, pendIdx);
+        const totalEl = document.getElementById(`pend-total-${pendIdx}`);
+        if (totalEl) totalEl.textContent = _unlocked ? fmt(dataRef.total_salarios) : '•••••';
+    } else {
+        renderAll();
+    }
+    toast(`Ajuste ${signo}${ajuste.toFixed(2)} h aplicado a ${username} ✓`);
 }
 
 // ── Registrar como gasto ─────────────────────────────────────────────────────
