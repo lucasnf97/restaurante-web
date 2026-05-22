@@ -31,11 +31,12 @@
         .btn-danger:hover   { background: #b91c1c; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Month picker */
-        .mes-picker { display: flex; align-items: center; gap: 8px; background: white; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 6px 12px; }
-        .mes-picker label { font-size: 13px; color: #666; white-space: nowrap; }
-        .mes-picker select, .mes-picker input[type=number] { border: none; outline: none; font-size: 13px; color: #333; background: transparent; cursor: pointer; }
-        .mes-picker input[type=number] { width: 62px; }
+        /* Period picker */
+        .periodo-picker { display: flex; align-items: center; gap: 8px; background: white; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 6px 12px; }
+        .periodo-picker label { font-size: 13px; color: #666; white-space: nowrap; }
+        .periodo-picker select, .periodo-picker input[type=number] { border: none; outline: none; font-size: 13px; color: #333; background: transparent; cursor: pointer; }
+        .periodo-picker input[type=number] { width: 62px; }
+        .periodo-label { font-size: 12px; color: #6b7280; padding: 4px 10px; background: #f8f9fa; border-radius: 6px; white-space: nowrap; }
 
         /* Lock banner */
         .lock-banner { background: #fef3c7; border: 1.5px solid #f59e0b; border-radius: 10px; padding: 12px 18px; display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
@@ -43,6 +44,23 @@
         .lock-banner-text { font-size: 13px; color: #92400e; flex: 1; }
         .lock-banner-text strong { display: block; font-size: 14px; margin-bottom: 2px; }
         .lock-banner.hidden { display: none; }
+
+        /* ── Períodos pendientes ── */
+        .pendientes-section { margin-bottom: 24px; }
+        .pendientes-title { font-size: 14px; font-weight: 700; color: #92400e; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .pendiente-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 10px; border-left: 4px solid #f59e0b; }
+        .pendiente-card.confirmado { border-left-color: #16a34a; opacity: 0.75; }
+        .pendiente-summary { display: flex; align-items: center; padding: 14px 20px; cursor: pointer; gap: 12px; }
+        .pendiente-summary:hover { background: #fafafa; }
+        .pendiente-period-label { font-size: 14px; font-weight: 700; color: #1a1a2e; flex: 1; }
+        .badge-pendiente  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+        .badge-confirmado { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+        .pendiente-total { font-size: 14px; font-weight: 700; color: #4f46e5; min-width: 80px; text-align: right; }
+        .pendiente-arrow { color: #9ca3af; font-size: 14px; transition: transform .2s; }
+        .pendiente-summary.expanded .pendiente-arrow { transform: rotate(180deg); }
+        .pendiente-body { display: none; border-top: 1px solid #f0f0f0; }
+        .pendiente-body.open { display: block; }
+        .pendiente-actions { display: flex; justify-content: flex-end; padding: 12px 20px; gap: 10px; background: #fafafa; border-top: 1px solid #f0f0f0; }
 
         /* Summary cards */
         .summary-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -148,8 +166,8 @@
     <div class="page-header">
         <h2>💼 Revisión de Salarios</h2>
         <div class="header-controls">
-            <div class="mes-picker">
-                <label>Mes:</label>
+            <div class="periodo-picker">
+                <label>Período:</label>
                 <select id="sel-mes">
                     <option value="1">Enero</option><option value="2">Febrero</option>
                     <option value="3">Marzo</option><option value="4">Abril</option>
@@ -158,11 +176,17 @@
                     <option value="9">Septiembre</option><option value="10">Octubre</option>
                     <option value="11">Noviembre</option><option value="12">Diciembre</option>
                 </select>
-                <label>Año:</label>
                 <input type="number" id="inp-year" min="2020" max="2099" step="1">
             </div>
+            <span class="periodo-label" id="periodo-label-header">—</span>
             <button class="btn btn-primary" onclick="cargar()">Cargar</button>
         </div>
+    </div>
+
+    <!-- Períodos pendientes de confirmación -->
+    <div id="pendientes-section" class="pendientes-section" style="display:none;">
+        <div class="pendientes-title">⚠️ Períodos pendientes de confirmación</div>
+        <div id="pendientes-list"></div>
     </div>
 
     <!-- Lock banner -->
@@ -220,6 +244,10 @@
             <span class="footer-total-val masked" id="footer-total" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span>
         </div>
         <div class="footer-actions">
+            <button class="btn btn-success" id="btn-confirmar-per" onclick="confirmarPeriodoActual()"
+                    style="display:none;" disabled>
+                ✅ Confirmar período
+            </button>
             <button class="btn btn-success" id="btn-registrar" onclick="abrirRegistrar()" disabled>
                 📥 Registrar como gasto mensual
             </button>
@@ -274,8 +302,6 @@
         <p style="font-size:13px;color:#666;margin:6px 0 16px;">
             Ingresá las horas a ajustar. Positivo suma horas y aumenta el salario; negativo descuenta.
         </p>
-
-        <!-- Info actual (solo lectura) -->
         <div class="modal-info">
             <div class="modal-info-row">
                 <span>Sueldo por hora</span>
@@ -294,14 +320,10 @@
                 <span id="aj-dif-h">—</span>
             </div>
         </div>
-
-        <!-- Input de ajuste -->
         <div class="modal-row">
             <label>Horas a ajustar</label>
             <input type="number" id="aj-inp" step="0.25" placeholder="0.00" oninput="calcAjuste()">
         </div>
-
-        <!-- Preview calculado -->
         <div class="ajuste-preview">
             <div class="modal-info-row">
                 <span>Diferencia de saldo</span>
@@ -316,7 +338,6 @@
                 <span id="aj-sal-fin">—</span>
             </div>
         </div>
-
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarAjuste()">Cancelar</button>
             <button class="btn btn-primary" onclick="confirmarAjuste()">Confirmar ajuste</button>
@@ -337,36 +358,299 @@ if (!isManager && !user.revision_salarios) location.href = 'dashboard.html';
 document.getElementById('usr-label').textContent = user.username;
 function logout() { localStorage.clear(); location.href = 'index.html'; }
 
-// ── Init selectors ───────────────────────────────────────────────────────────
-const now = new Date();
-document.getElementById('sel-mes').value  = now.getMonth() + 1;
-document.getElementById('inp-year').value = now.getFullYear();
-
 // ── State ────────────────────────────────────────────────────────────────────
-let _data     = null;
-let _unlocked = false;
-let _SIM      = localStorage.getItem('moneda_simbolo') || '€';
+let _data       = null;
+let _unlocked   = false;
+let _SIM        = localStorage.getItem('moneda_simbolo') || '€';
+let _diaInicio  = 1;   // día de inicio del período (de config)
+let _confirmados = []; // períodos ya confirmados (array de {periodo_inicio, periodo_fin})
+let _periodoActualDesde = null;
+let _periodoActualHasta = null;
+
+const MESES_LARGO  = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                       'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MESES_CORTO  = ['','Ene','Feb','Mar','Abr','May','Jun',
+                       'Jul','Ago','Sep','Oct','Nov','Dic'];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(n)  { return _SIM + ' ' + parseFloat(n).toFixed(2); }
 function fmtH(n) { return parseFloat(n).toFixed(2) + ' h'; }
+const fmtDate = d => d.toISOString().split('T')[0];
 
-// ── Load data ────────────────────────────────────────────────────────────────
+// ── Cálculo del período ───────────────────────────────────────────────────────
+/**
+ * Calcula el período de facturación para el mes/año seleccionado.
+ * El "período de Mayo" va desde dia_inicio de Abril hasta (dia_inicio-1) de Mayo.
+ * Si dia_inicio=1, coincide con el mes calendario.
+ */
+function calcPeriodo(mes, year) {
+    if (_diaInicio <= 1) {
+        const inicio = new Date(year, mes - 1, 1);
+        const fin    = new Date(year, mes, 0);       // último día del mes
+        return { inicio, fin };
+    }
+    // fin = día (diaInicio-1) del mes seleccionado
+    const fin    = new Date(year, mes - 1, _diaInicio - 1);
+    // inicio = diaInicio del mes anterior (JS maneja mes=-1 → diciembre año anterior)
+    const inicio = new Date(year, mes - 2, _diaInicio);
+    return { inicio, fin };
+}
+
+function periodoLabel(inicio, fin) {
+    const di = inicio.getDate();
+    const mi = MESES_CORTO[inicio.getMonth() + 1];
+    const yi = inicio.getFullYear();
+    const df = fin.getDate();
+    const mf = MESES_CORTO[fin.getMonth() + 1];
+    const yf = fin.getFullYear();
+    if (yi === yf) return `${di} ${mi} – ${df} ${mf} ${yf}`;
+    return `${di} ${mi} ${yi} – ${df} ${mf} ${yf}`;
+}
+
+function periodoActual() {
+    const hoy = new Date();
+    const dia = hoy.getDate();
+    const mes = hoy.getMonth() + 1;
+    const yr  = hoy.getFullYear();
+    if (_diaInicio <= 1 || dia < _diaInicio) {
+        return calcPeriodo(mes, yr);
+    }
+    // Si ya pasó diaInicio, estamos en el período del mes siguiente
+    let nextMes = mes + 1, nextYr = yr;
+    if (nextMes > 12) { nextMes = 1; nextYr++; }
+    return calcPeriodo(nextMes, nextYr);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+    // Cargar config del sistema para obtener dia_inicio_periodo
+    try {
+        const cfg = await api.get('/config/sistema');
+        _diaInicio = cfg.dia_inicio_periodo || 1;
+        _SIM = cfg.moneda_simbolo || _SIM;
+        localStorage.setItem('moneda_simbolo', _SIM);
+    } catch(e) { console.warn('No se pudo cargar config:', e); }
+
+    // Cargar períodos confirmados
+    try {
+        _confirmados = await api.get('/salarios/periodos-confirmados');
+    } catch(e) { _confirmados = []; }
+
+    // Período actual: default al picker
+    const hoy = new Date();
+    document.getElementById('sel-mes').value  = hoy.getMonth() + 1;
+    document.getElementById('inp-year').value  = hoy.getFullYear();
+
+    // Renderizar períodos pendientes
+    renderPendientes();
+
+    // Cargar período actual
+    cargar();
+}
+
+// ── Períodos pendientes ───────────────────────────────────────────────────────
+function calcularPeriodosPasados() {
+    const current = periodoActual();
+    const hoy     = new Date();
+    const periodos = [];
+
+    let base = new Date(current.inicio);
+    base.setDate(base.getDate() - 1); // día antes del período actual
+
+    for (let i = 0; i < 12; i++) {
+        const mes  = base.getMonth() + 1;
+        const yr   = base.getFullYear();
+        const p    = calcPeriodo(mes, yr);
+        if (p.fin < hoy) periodos.push(p);
+        base = new Date(p.inicio);
+        base.setDate(base.getDate() - 1);
+        if (i > 20) break; // safety
+    }
+    return periodos;
+}
+
+function estaConfirmado(inicio, fin) {
+    const ki = fmtDate(inicio), kf = fmtDate(fin);
+    return _confirmados.some(c => c.periodo_inicio === ki && c.periodo_fin === kf);
+}
+
+function renderPendientes() {
+    const pasados   = calcularPeriodosPasados();
+    const pendientes = pasados.filter(p => !estaConfirmado(p.inicio, p.fin));
+
+    const section = document.getElementById('pendientes-section');
+    const list    = document.getElementById('pendientes-list');
+
+    if (!pendientes.length) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = 'block';
+    list.innerHTML = pendientes.map((p, idx) => `
+        <div class="pendiente-card" id="pend-card-${idx}">
+            <div class="pendiente-summary" onclick="togglePendiente(${idx})">
+                <div class="pendiente-period-label">📅 ${periodoLabel(p.inicio, p.fin)}</div>
+                <span class="badge-pendiente">⚠ Pendiente de confirmación</span>
+                <div class="pendiente-total" id="pend-total-${idx}">
+                    ${_unlocked ? '—' : '•••••'}
+                </div>
+                <span class="pendiente-arrow">▼</span>
+            </div>
+            <div class="pendiente-body" id="pend-body-${idx}">
+                <div style="padding:20px;color:#888;font-size:13px;" id="pend-content-${idx}">
+                    Clic en el encabezado para cargar datos…
+                </div>
+                ${isManager ? `
+                <div class="pendiente-actions">
+                    <button class="btn btn-primary" style="font-size:13px;padding:8px 16px;"
+                            onclick="confirmarPeriodo('${fmtDate(p.inicio)}','${fmtDate(p.fin)}',${idx})">
+                        ✅ Confirmar período
+                    </button>
+                </div>` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    // Guardar referencia a los períodos pendientes para confirmar
+    window._pendientesPeriodos = pendientes;
+}
+
+function togglePendiente(idx) {
+    const summary = document.querySelector(`#pend-card-${idx} .pendiente-summary`);
+    const body    = document.getElementById(`pend-body-${idx}`);
+    const isOpen  = body.classList.toggle('open');
+    summary.classList.toggle('expanded', isOpen);
+    if (isOpen) cargarPendiente(idx);
+}
+
+async function cargarPendiente(idx) {
+    const p    = window._pendientesPeriodos && window._pendientesPeriodos[idx];
+    if (!p) return;
+    const content = document.getElementById(`pend-content-${idx}`);
+    content.innerHTML = '<em style="color:#888;">Cargando…</em>';
+    try {
+        const data = await api.get(
+            `/salarios/resumen?desde=${fmtDate(p.inicio)}&hasta=${fmtDate(p.fin)}`
+        );
+        // Mostrar total
+        const totalEl = document.getElementById(`pend-total-${idx}`);
+        if (totalEl) totalEl.textContent = _unlocked ? fmt(data.total_salarios) : '•••••';
+        // Renderizar tabla simplificada
+        content.innerHTML = buildTablaHTML(data, false);
+    } catch(e) {
+        content.innerHTML = `<em style="color:#dc2626;">Error al cargar: ${e.message || e}</em>`;
+    }
+}
+
+function buildTablaHTML(data, editable) {
+    if (!data || !data.usuarios.length) return '<p style="padding:20px;color:#888;">Sin datos</p>';
+    const rows = data.usuarios.map(u => {
+        const ini    = (u.iniciales || u.username.substring(0,2)).toUpperCase();
+        const difH   = u.diferencia_horas;
+        const difHCls = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
+        const difHStr = (difH > 0 ? '+' : '') + fmtH(difH);
+        if (_unlocked) {
+            const difS    = u.diferencia_saldo;
+            const difSCls = difS > 0.01 ? 'pos' : difS < -0.01 ? 'neg' : 'neu';
+            return `<tr>
+                <td>${userCellHTML(u, ini)}</td>
+                <td>${fmt(u.sueldo_hora)}/h</td>
+                <td>${fmtH(u.horas_asignadas)}</td>
+                <td>${fmtH(u.horas_fichadas)}</td>
+                <td class="${difHCls}">${difHStr}</td>
+                <td><strong>${fmt(u.salario_total)}</strong></td>
+                <td class="${difSCls}">${(difS > 0 ? '+' : '') + fmt(difS)}</td>
+            </tr>`;
+        } else {
+            return `<tr>
+                <td>${userCellHTML(u, ini)}</td>
+                <td>•••••</td>
+                <td>${fmtH(u.horas_asignadas)}</td>
+                <td>${fmtH(u.horas_fichadas)}</td>
+                <td class="${difHCls}">${difHStr}</td>
+                <td>•••••</td><td>•••••</td>
+            </tr>`;
+        }
+    }).join('');
+    return `<table><thead><tr>
+        <th>Empleado</th><th>Sueldo/h</th><th>Hs.Asig.</th>
+        <th>Hs.Fich.</th><th>Dif.h</th><th>Salario</th><th>Dif.$</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function confirmarPeriodo(desde, hasta, idx) {
+    if (!_unlocked) { pedirAuth(); return; }
+    const p = window._pendientesPeriodos && window._pendientesPeriodos[idx];
+    if (!p) return;
+
+    // Cargar datos del período para obtener total
+    let total = 0;
+    try {
+        const data = await api.get(`/salarios/resumen?desde=${desde}&hasta=${hasta}`);
+        total = data.total_salarios;
+    } catch(e) {}
+
+    if (!confirm(`¿Confirmar el período ${periodoLabel(p.inicio, p.fin)} con total ${fmt(total)}?\n\nEsta acción no se puede deshacer desde la pantalla principal.`)) return;
+
+    try {
+        await api.post('/salarios/confirmar-periodo', {
+            periodo_inicio: desde,
+            periodo_fin:    hasta,
+            total_salarios: total,
+        });
+        // Marcar como confirmado
+        _confirmados.push({ periodo_inicio: desde, periodo_fin: hasta });
+        const card = document.getElementById(`pend-card-${idx}`);
+        if (card) {
+            card.classList.add('confirmado');
+            const badge = card.querySelector('.badge-pendiente');
+            if (badge) { badge.className = 'badge-confirmado'; badge.textContent = '✓ Confirmado'; }
+            const actions = card.querySelector('.pendiente-actions');
+            if (actions) actions.remove();
+        }
+        toast('Período confirmado ✓');
+        // Refrescar sección
+        renderPendientes();
+    } catch(e) {
+        toast('Error al confirmar: ' + (e.message || e), true);
+    }
+}
+
+// ── Cargar datos del período seleccionado ─────────────────────────────────────
 async function cargar() {
     const mes  = parseInt(document.getElementById('sel-mes').value);
     const year = parseInt(document.getElementById('inp-year').value);
     if (!year || year < 2020) { toast('Año inválido', true); return; }
 
-    document.getElementById('empty-msg') && (document.getElementById('empty-msg').textContent = 'Cargando...');
+    const { inicio, fin } = calcPeriodo(mes, year);
+    _periodoActualDesde = fmtDate(inicio);
+    _periodoActualHasta = fmtDate(fin);
+
+    // Actualizar label del período
+    document.getElementById('periodo-label-header').textContent = periodoLabel(inicio, fin);
+
+    // Botón confirmar: solo si el período ya cerró y no está confirmado
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const yaTermino = fin < hoy;
+    const confirmado = estaConfirmado(inicio, fin);
+    const btnConf = document.getElementById('btn-confirmar-per');
+    if (isManager && yaTermino && !confirmado) {
+        btnConf.style.display = 'inline-block';
+        btnConf.disabled = !_unlocked;
+    } else {
+        btnConf.style.display = 'none';
+    }
+
+    const tbody = document.getElementById('tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
 
     try {
-        _data = await api.get(`/salarios/resumen?year=${year}&month=${mes}`);
+        _data = await api.get(`/salarios/resumen?desde=${_periodoActualDesde}&hasta=${_periodoActualHasta}`);
         renderAll();
         document.getElementById('btn-registrar').disabled = !_unlocked;
     } catch(e) {
         toast('Error al cargar: ' + (e.message || e), true);
-        document.getElementById('tbody').innerHTML =
-            `<tr><td colspan="7" class="empty">No se pudieron cargar los datos. Intentá de nuevo.</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty">No se pudieron cargar los datos.</td></tr>`;
     }
 }
 
@@ -429,7 +713,7 @@ function buildRow(u) {
                     ${canEdit ? `<button class="btn-edit" onclick="focusSueldo(${u.id})" title="Editar">✏️</button>` : ''}
                 </div>
             </td>
-            <td>${fmtH(u.horas_asignadas)}</td>
+            <td>${fmtH(u.horas_asignadas)}${u.ajuste_horas ? `<br><span style="font-size:11px;color:#6b7280;">base ${fmtH(u.horas_asig_base||0)} + aj. ${u.ajuste_horas>0?'+':''}${fmtH(u.ajuste_horas)}</span>` : ''}</td>
             <td>${fmtH(u.horas_fichadas)}</td>
             <td class="${difHCls}">${difHStr}</td>
             <td><strong>${fmt(u.salario_total)}</strong></td>
@@ -441,7 +725,6 @@ function buildRow(u) {
             </td>
         </tr>`;
     } else {
-        // Masked: show hours but hide monetary values
         return `<tr>
             <td>${userCell(u, ini)}</td>
             <td><span class="masked-cell" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span></td>
@@ -455,6 +738,10 @@ function buildRow(u) {
 }
 
 function userCell(u, ini) {
+    return userCellHTML(u, ini);
+}
+
+function userCellHTML(u, ini) {
     return `<div class="user-cell">
         <div class="avatar">${ini}</div>
         <div class="user-info">
@@ -472,6 +759,8 @@ function renderFooter() {
         el.onclick     = null;
         el.title       = '';
         document.getElementById('btn-registrar').disabled = false;
+        const btnConf = document.getElementById('btn-confirmar-per');
+        if (btnConf.style.display !== 'none') btnConf.disabled = false;
     } else {
         el.textContent = '•••••';
         el.className   = 'footer-total-val masked';
@@ -483,6 +772,29 @@ function renderFooter() {
 
 function updateLockBanner() {
     document.getElementById('lock-banner').classList.toggle('hidden', _unlocked);
+}
+
+// ── Confirmar período actual ─────────────────────────────────────────────────
+async function confirmarPeriodoActual() {
+    if (!_unlocked) { pedirAuth(); return; }
+    if (!_data) return;
+
+    const label = periodoLabel(new Date(_periodoActualDesde), new Date(_periodoActualHasta));
+    if (!confirm(`¿Confirmar el período ${label} con total ${fmt(_data.total_salarios)}?\n\nEsta acción no se puede deshacer desde la pantalla principal.`)) return;
+
+    try {
+        await api.post('/salarios/confirmar-periodo', {
+            periodo_inicio: _periodoActualDesde,
+            periodo_fin:    _periodoActualHasta,
+            total_salarios: _data.total_salarios,
+        });
+        _confirmados.push({ periodo_inicio: _periodoActualDesde, periodo_fin: _periodoActualHasta });
+        document.getElementById('btn-confirmar-per').style.display = 'none';
+        renderPendientes();
+        toast('Período confirmado ✓');
+    } catch(e) {
+        toast('Error: ' + (e.message || e), true);
+    }
 }
 
 // ── Re-auth ──────────────────────────────────────────────────────────────────
@@ -504,14 +816,10 @@ async function confirmarAuth() {
     const errEl = document.getElementById('auth-err');
     const btn   = document.getElementById('btn-auth-ok');
     errEl.textContent = '';
-
     if (!u || !p) { errEl.textContent = 'Completá usuario y contraseña.'; return; }
-
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Verificando...';
-
     try {
-        // login() está definido en api.js — hace el POST con form-urlencoded correctamente
         await login(u, p);
         _unlocked = true;
         cerrarAuth();
@@ -557,28 +865,23 @@ async function guardarSueldo(uid) {
     }
 }
 
-// ── Ajuste de horas ──────────────────────────────────────────────────────────
+// ── Ajuste de horas (modal en tabla principal) ────────────────────────────────
 let _ajusteUid = null;
 
 function abrirAjusteHoras(uid) {
     const u = _data && _data.usuarios.find(x => x.id === uid);
     if (!u) return;
     _ajusteUid = uid;
-
     document.getElementById('ajuste-titulo').textContent = `⏱️ Ajuste de horas — ${u.username}`;
     document.getElementById('aj-sueldo').textContent  = fmt(u.sueldo_hora) + '/h';
     document.getElementById('aj-h-asig').textContent  = fmtH(u.horas_asignadas);
     document.getElementById('aj-h-fich').textContent  = fmtH(u.horas_fichadas);
-
     const difH   = u.diferencia_horas;
     const difHEl = document.getElementById('aj-dif-h');
     difHEl.textContent = (difH > 0 ? '+' : '') + fmtH(difH);
     difHEl.className   = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
-
-    // Pre-fill con la diferencia actual (el usuario puede editarla)
     const inp = document.getElementById('aj-inp');
     inp.value = difH.toFixed(2);
-
     calcAjuste();
     document.getElementById('modal-ajuste').classList.add('open');
     setTimeout(() => { inp.focus(); inp.select(); }, 100);
@@ -587,15 +890,12 @@ function abrirAjusteHoras(uid) {
 function calcAjuste() {
     const u = _ajusteUid && _data && _data.usuarios.find(x => x.id === _ajusteUid);
     if (!u) return;
-
     const ajuste   = parseFloat(document.getElementById('aj-inp').value) || 0;
     const difSaldo = +(u.sueldo_hora * ajuste).toFixed(2);
     const salFinal = +(u.salario_total + difSaldo).toFixed(2);
-
     const difSEl = document.getElementById('aj-dif-s');
     difSEl.textContent = (difSaldo >= 0 ? '+' : '') + fmt(difSaldo);
     difSEl.className   = difSaldo > 0.005 ? 'pos' : difSaldo < -0.005 ? 'neg' : 'neu';
-
     document.getElementById('aj-sal-act').textContent = fmt(u.salario_total);
     document.getElementById('aj-sal-fin').textContent = fmt(salFinal);
 }
@@ -608,17 +908,12 @@ function cerrarAjuste() {
 function confirmarAjuste() {
     const u = _ajusteUid && _data && _data.usuarios.find(x => x.id === _ajusteUid);
     if (!u) return;
-
     const ajuste = parseFloat(document.getElementById('aj-inp').value) || 0;
-
-    // Actualizar datos en memoria
     u.horas_asignadas  = +((u.horas_asignadas + ajuste).toFixed(4));
     u.salario_total    = +(u.sueldo_hora * u.horas_asignadas).toFixed(2);
     u.diferencia_horas = +((u.horas_fichadas - u.horas_asignadas).toFixed(4));
     u.diferencia_saldo = +(u.sueldo_hora * u.diferencia_horas).toFixed(2);
-
     _data.total_salarios = +(_data.usuarios.reduce((s, x) => s + x.salario_total, 0)).toFixed(2);
-
     const signo = ajuste >= 0 ? '+' : '';
     cerrarAjuste();
     renderAll();
@@ -630,9 +925,7 @@ function abrirRegistrar() {
     if (!_data || !_unlocked) { pedirAuth(); return; }
     const mes  = parseInt(document.getElementById('sel-mes').value);
     const year = parseInt(document.getElementById('inp-year').value);
-    const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
-                   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    document.getElementById('modal-ref').value   = `Salarios ${MESES[mes]} ${year}`;
+    document.getElementById('modal-ref').value   = `Salarios ${MESES_LARGO[mes]} ${year}`;
     document.getElementById('modal-total').value = _data.total_salarios.toFixed(2);
     document.getElementById('modal-registrar').classList.add('open');
 }
@@ -647,7 +940,6 @@ async function confirmarRegistrar() {
     const ref   = document.getElementById('modal-ref').value.trim();
     const total = parseFloat(document.getElementById('modal-total').value);
     if (!total || total <= 0) { toast('El total debe ser mayor que 0', true); return; }
-
     const btn = document.getElementById('btn-confirmar-reg');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Registrando...';
@@ -673,9 +965,8 @@ function toast(msg, err = false) {
     _toastT = setTimeout(() => { el.className = ''; }, 3200);
 }
 
-
-// ── Auto-load on open ────────────────────────────────────────────────────────
-cargar();
+// ── Auto-load ────────────────────────────────────────────────────────────────
+init();
 </script>
 </body>
 </html>

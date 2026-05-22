@@ -90,12 +90,14 @@
             font-size: 11px; font-weight: 700; color: #9ca3af;
             text-transform: uppercase; letter-spacing: .5px;
         }
-        .detail-table td { padding: 11px 16px; border-top: 1px solid #f0f0f0; font-size: 13px; color: #374151; }
+        .detail-table td { padding: 11px 16px; border-top: 1px solid #f0f0f0; font-size: 13px; color: #374151; vertical-align: middle; }
         .detail-table tr:hover td { background: #fafafa; }
 
-        .badge { padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        /* Estado badges */
+        .badge { padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
         .badge-green  { background: #dcfce7; color: #16a34a; }
         .badge-gray   { background: #f3f4f6; color: #666; }
+        .badge-amber  { background: #fef3c7; color: #92400e; }
 
         .franja-tag { display: inline-block; font-size: 11px; color: #555; background: #f3f4f6; border-radius: 4px; padding: 1px 5px; margin: 1px 0; white-space: nowrap; }
 
@@ -110,7 +112,43 @@
         .btn-nota-save:hover { background: #4338ca; }
         .btn-nota-cancel { background: #f3f4f6; color: #666; border: none; border-radius: 5px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
 
+        /* Botón revisar */
+        .btn-revisar { background: none; border: none; cursor: pointer; color: #cbd5e1; font-size: 15px; padding: 2px 5px; border-radius: 4px; transition: color .15s; }
+        .btn-revisar:hover { color: #4f46e5; }
+        .btn-revisar.revisado { color: #16a34a; cursor: default; font-size: 13px; }
+
         .empty { text-align: center; padding: 48px; color: #888; font-size: 14px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+        /* ── Modal de revisión ── */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-rev { background: white; border-radius: 14px; width: 520px; max-width: 96vw; max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .modal-rev-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #f0f0f0; }
+        .modal-rev-head h3 { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+        .modal-close { background: none; border: none; cursor: pointer; font-size: 18px; color: #9ca3af; padding: 4px; border-radius: 4px; transition: color .15s; }
+        .modal-close:hover { color: #374151; }
+        .modal-rev-body { padding: 20px 24px; }
+        .info-grid { background: #f8f9fa; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+        .info-row { display: flex; justify-content: space-between; align-items: flex-start; font-size: 13px; padding: 5px 0; border-bottom: 1px solid #eee; gap: 12px; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #888; flex-shrink: 0; }
+        .info-val { font-weight: 600; color: #1a1a2e; text-align: right; }
+        .notas-box { background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
+        .notas-box-label { font-size: 11px; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+        .notas-box-text { font-size: 13px; color: #374151; line-height: 1.5; }
+        .ajuste-section { margin-bottom: 16px; }
+        .ajuste-section label { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 6px; }
+        .ajuste-hint { font-size: 12px; color: #9ca3af; margin-bottom: 8px; }
+        .ajuste-inp { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; transition: border-color .15s; }
+        .ajuste-inp:focus { border-color: #4f46e5; }
+        .preview-box { background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
+        .preview-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
+        .preview-row.total { font-size: 14px; font-weight: 700; color: #1a1a2e; padding-top: 8px; border-top: 1px solid #bae6fd; margin-top: 4px; }
+        .modal-rev-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #f0f0f0; }
+        .btn-rev-cancel { background: white; color: #444; border: 1.5px solid #e0e0e0; padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .btn-rev-cancel:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-rev-ok { background: #4f46e5; color: white; border: none; padding: 9px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+        .btn-rev-ok:hover { background: #4338ca; }
     </style>
 </head>
 <body>
@@ -168,6 +206,76 @@
     </div>
 </div>
 
+<!-- Modal revisión -->
+<div class="modal-overlay" id="modal-revision">
+    <div class="modal-rev">
+        <div class="modal-rev-head">
+            <h3 id="rev-titulo">Revisión del fichaje</h3>
+            <button class="modal-close" onclick="cerrarRevision()">✕</button>
+        </div>
+        <div class="modal-rev-body">
+
+            <!-- Info del fichaje -->
+            <div class="info-grid">
+                <div class="info-row">
+                    <span class="info-label">Entrada</span>
+                    <span class="info-val" id="rev-entrada">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Salida</span>
+                    <span class="info-val" id="rev-salida">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Duración fichada</span>
+                    <span class="info-val" id="rev-duracion">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Horario asignado</span>
+                    <span class="info-val" id="rev-horario">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Horas asignadas</span>
+                    <span class="info-val" id="rev-asignadas">—</span>
+                </div>
+            </div>
+
+            <!-- Notas -->
+            <div class="notas-box" id="rev-notas-box">
+                <div class="notas-box-label">📝 Nota del empleado</div>
+                <div class="notas-box-text" id="rev-notas">—</div>
+            </div>
+
+            <!-- Ajuste -->
+            <div class="ajuste-section">
+                <label>Ajuste de horas asignadas</label>
+                <p class="ajuste-hint">Positivo suma horas, negativo descuenta. Ej: <strong>1.5</strong> para añadir 1h 30m, <strong>-0.5</strong> para quitar 30m.</p>
+                <input type="number" class="ajuste-inp" id="rev-ajuste"
+                       step="0.25" placeholder="0" oninput="calcRevision()">
+            </div>
+
+            <!-- Preview -->
+            <div class="preview-box">
+                <div class="preview-row">
+                    <span style="color:#666;">Horas asignadas base</span>
+                    <span id="rev-prev-base">—</span>
+                </div>
+                <div class="preview-row">
+                    <span style="color:#666;">Ajuste</span>
+                    <span id="rev-prev-ajuste" class="diff-neu">0</span>
+                </div>
+                <div class="preview-row total">
+                    <span>Total horas asignadas</span>
+                    <span id="rev-prev-total">—</span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-rev-foot">
+            <button class="btn-rev-cancel" onclick="cerrarRevision()">Cancelar</button>
+            <button class="btn-rev-ok" onclick="confirmarRevision()">✓ Confirmar revisión</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script>
@@ -175,6 +283,9 @@ requireAuth();
 requirePermiso('ver_fichajes', 'edicion_fichajes');
 
 const COLORES = ["#4f46e5","#16a34a","#dc2626","#ca8a04","#0891b2","#7c3aed","#be185d","#0f766e"];
+
+// ── Datos globales ────────────────────────────────────────────
+let _fichajesData = {};   // id → fichaje completo
 
 // ── Permisos ─────────────────────────────────────────────────
 function currentUser() {
@@ -205,13 +316,11 @@ async function init() {
     document.getElementById("filtro-hasta").value = fmt(domingo);
 
     if (hasEdicionFichajes()) {
-        // Editores ven el selector de usuario
         document.getElementById("lbl-usuario").style.display = "inline";
         const sel = document.getElementById("filtro-usuario");
         sel.style.display = "inline";
         await cargarUsuariosFiltro();
     }
-    // Usuarios sin edición no ven filtro de usuario (se filtra automáticamente en backend)
 
     await Promise.all([cargarActivos(), cargarHistorial()]);
 }
@@ -266,7 +375,10 @@ async function cargarHistorial() {
         let fichajes = await api.get(url);
         if (usuario) fichajes = fichajes.filter(f => f.username === usuario);
 
-        // Stats
+        // Guardar mapa global para acceso rápido
+        _fichajesData = {};
+        fichajes.forEach(f => { _fichajesData[f.id] = f; });
+
         document.getElementById("stat-fichajes").textContent = fichajes.length;
 
         if (!fichajes.length) {
@@ -277,7 +389,7 @@ async function cargarHistorial() {
 
         // Agrupar por usuario
         const grupos = {};
-        fichajes.forEach((f, idx) => {
+        fichajes.forEach(f => {
             if (!grupos[f.username]) {
                 grupos[f.username] = {
                     username:   f.username,
@@ -313,14 +425,13 @@ function renderUserCard(g) {
     const iniciales = g.username.substring(0, 2).toUpperCase();
     const count    = g.fichajes.length;
 
-    // Totales del período
     let totalFichadasMins = 0;
     let totalAsignadasMins = 0;
     let tieneAsignadas = false;
 
     g.fichajes.forEach(f => {
         if (f.horas != null) totalFichadasMins += f.horas * 60;
-        const ha = calcHorasAsignadas(f.franjas_asignadas, f.break_mins);
+        const ha = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, f.ajuste_horas || 0);
         if (ha !== null) { totalAsignadasMins += ha * 60; tieneAsignadas = true; }
     });
 
@@ -371,6 +482,7 @@ function renderUserCard(g) {
                         <th>Diferencia</th>
                         <th>Estado</th>
                         <th>Notas</th>
+                        <th>Revisión</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -391,17 +503,39 @@ function toggleCard(usuarioId) {
 function renderFichajeRow(f) {
     const duracion  = f.horas != null ? formatHoras(f.horas) : "—";
     const activo    = !f.ts_salida;
-    const horasAsig = calcHorasAsignadas(f.franjas_asignadas, f.break_mins);
+    const horasAsig = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, f.ajuste_horas || 0);
     const diffHtml  = renderDiff(f.horas, horasAsig);
+
+    // Estado
+    let badgeCls, badgeText;
+    if (activo) {
+        badgeCls = "badge-green"; badgeText = "En turno";
+    } else if (f.notas && !f.revisado) {
+        badgeCls = "badge-amber"; badgeText = "Pendiente de aprobación";
+    } else {
+        badgeCls = "badge-gray"; badgeText = "Finalizado";
+    }
+
+    // Botón revisar (solo editores, solo fichajes cerrados)
+    const puedeRevisar = hasEdicionFichajes() && !activo;
+    let revBtn = "";
+    if (puedeRevisar) {
+        if (f.revisado) {
+            revBtn = `<button class="btn-revisar revisado" title="Ya revisado" disabled>✓</button>`;
+        } else {
+            revBtn = `<button class="btn-revisar" onclick="abrirRevision(${f.id})" title="Revisar fichaje">📋</button>`;
+        }
+    }
 
     return `<tr>
         <td>${formatTs(f.ts_entrada)}</td>
         <td>${f.ts_salida ? formatTs(f.ts_salida) : '<span style="color:#94a3b8;">En turno</span>'}</td>
         <td><strong>${duracion}</strong></td>
-        <td>${renderFranjas(f.franjas_asignadas)}</td>
+        <td>${renderFranjas(f.franjas_asignadas)}${f.ajuste_horas ? `<br><span style="font-size:11px;color:#6b7280;">ajuste: ${f.ajuste_horas > 0 ? '+' : ''}${f.ajuste_horas}h</span>` : ''}</td>
         <td>${diffHtml}</td>
-        <td><span class="badge ${activo ? "badge-green" : "badge-gray"}">${activo ? "Activo" : "Finalizado"}</span></td>
+        <td><span class="badge ${badgeCls}" id="status-${f.id}">${badgeText}</span></td>
         ${renderNotaTd(f)}
+        <td>${revBtn}</td>
     </tr>`;
 }
 
@@ -451,11 +585,15 @@ async function guardarNota(id) {
             method: "PATCH",
             body: JSON.stringify({ notas })
         });
+        // Actualizar en memoria
+        if (_fichajesData[id]) _fichajesData[id].notas = notas;
         const td  = document.getElementById(`nota-td-${id}`);
         const txt = notas
             ? `<span class="nota-text">${notas.replace(/</g, "&lt;")}</span>`
             : `<span class="nota-empty">—</span>`;
         td.innerHTML = `${txt}${_notaBtn(id, td)}`;
+        // Actualizar badge de estado si el fichaje tiene nota y no está revisado
+        _actualizarBadgeEstado(id);
     } catch(e) {
         alert("Error al guardar la nota");
     }
@@ -469,9 +607,105 @@ function cancelarNota(id, original) {
     td.innerHTML = `${txt}${_notaBtn(id, td)}`;
 }
 
+function _actualizarBadgeEstado(id) {
+    const f = _fichajesData[id];
+    if (!f || f.activo) return;
+    const badgeEl = document.getElementById(`status-${id}`);
+    if (!badgeEl) return;
+    if (f.notas && !f.revisado) {
+        badgeEl.className = "badge badge-amber";
+        badgeEl.textContent = "Pendiente de aprobación";
+    } else {
+        badgeEl.className = "badge badge-gray";
+        badgeEl.textContent = "Finalizado";
+    }
+}
+
+// ── Modal de revisión ─────────────────────────────────────────
+let _revFichajeId = null;
+
+function abrirRevision(id) {
+    const f = _fichajesData[id];
+    if (!f) return;
+    _revFichajeId = id;
+
+    const horasAsigBase = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, 0);
+
+    document.getElementById("rev-titulo").textContent =
+        `Revisión — ${f.username} · ${formatFecha(f.ts_entrada)}`;
+    document.getElementById("rev-entrada").textContent  = formatTs(f.ts_entrada);
+    document.getElementById("rev-salida").textContent   = f.ts_salida ? formatTs(f.ts_salida) : "En turno";
+    document.getElementById("rev-duracion").textContent = f.horas != null ? formatHoras(f.horas) : "—";
+    document.getElementById("rev-horario").innerHTML    = renderFranjas(f.franjas_asignadas);
+    document.getElementById("rev-asignadas").textContent =
+        horasAsigBase != null ? formatHoras(horasAsigBase) : "Sin horario asignado";
+
+    const notaEl = document.getElementById("rev-notas");
+    notaEl.textContent = f.notas || "(sin notas)";
+    notaEl.style.color = f.notas ? "#374151" : "#9ca3af";
+
+    document.getElementById("rev-ajuste").value = (f.ajuste_horas || 0) !== 0 ? (f.ajuste_horas || 0) : "";
+    calcRevision();
+
+    document.getElementById("modal-revision").classList.add("open");
+    setTimeout(() => document.getElementById("rev-ajuste").focus(), 100);
+}
+
+function calcRevision() {
+    const f = _revFichajeId && _fichajesData[_revFichajeId];
+    if (!f) return;
+
+    const horasAsigBase = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, 0) || 0;
+    const ajuste  = parseFloat(document.getElementById("rev-ajuste").value) || 0;
+    const total   = horasAsigBase + ajuste;
+
+    document.getElementById("rev-prev-base").textContent = formatHoras(horasAsigBase);
+
+    const ajusteEl = document.getElementById("rev-prev-ajuste");
+    if (ajuste === 0) {
+        ajusteEl.textContent = "0";
+        ajusteEl.className = "diff-neu";
+    } else {
+        ajusteEl.textContent = (ajuste > 0 ? "+" : "") + formatHoras(Math.abs(ajuste));
+        ajusteEl.className = ajuste > 0 ? "diff-pos" : "diff-neg";
+    }
+
+    document.getElementById("rev-prev-total").textContent = formatHoras(total);
+}
+
+function cerrarRevision() {
+    document.getElementById("modal-revision").classList.remove("open");
+    _revFichajeId = null;
+}
+
+async function confirmarRevision() {
+    if (!_revFichajeId) return;
+    const ajuste = parseFloat(document.getElementById("rev-ajuste").value) || 0;
+
+    try {
+        await apiFetch(`/turnos/${_revFichajeId}/revisar`, {
+            method: "PATCH",
+            body: JSON.stringify({ ajuste_horas: ajuste })
+        });
+
+        // Actualizar en memoria
+        const f = _fichajesData[_revFichajeId];
+        if (f) { f.revisado = true; f.ajuste_horas = ajuste; }
+
+        cerrarRevision();
+        // Recargar para mostrar estado actualizado
+        cargarHistorial();
+    } catch(e) {
+        alert("Error al confirmar revisión: " + (e.message || e));
+    }
+}
+
 // ── Helpers de formato ────────────────────────────────────────
-function calcHorasAsignadas(franjas, breakMins) {
-    if (!franjas || !franjas.length) return null;
+function calcHorasAsignadas(franjas, breakMins, ajusteHoras) {
+    ajusteHoras = ajusteHoras || 0;
+    if (!franjas || !franjas.length) {
+        return ajusteHoras !== 0 ? ajusteHoras : null;
+    }
     let total = 0;
     for (const f of franjas) {
         const [ih, im] = f.inicio.split(":").map(Number);
@@ -481,7 +715,7 @@ function calcHorasAsignadas(franjas, breakMins) {
         if (fin <= ini) fin += 24 * 60;
         total += fin - ini;
     }
-    return Math.max(0, total - (breakMins || 0)) / 60;
+    return Math.max(0, total - (breakMins || 0)) / 60 + ajusteHoras;
 }
 
 function renderFranjas(franjas) {
@@ -491,13 +725,11 @@ function renderFranjas(franjas) {
     ).join(" ");
 }
 
-/** Diferencia en horas (float) */
 function renderDiff(horasReales, horasAsig) {
     if (horasAsig === null || horasReales == null) return '<span class="diff-neu">—</span>';
     return renderDiffMins((horasReales - horasAsig) * 60);
 }
 
-/** Diferencia en minutos (int) */
 function renderDiffMins(diffMins) {
     if (diffMins == null) return '<span class="diff-neu">—</span>';
     const abs = Math.abs(diffMins);
@@ -522,12 +754,18 @@ function formatTs(ts) {
     return new Date(ts).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
 }
 
+function formatFecha(ts) {
+    if (!ts) return "—";
+    return new Date(ts).toLocaleDateString("es-AR", { dateStyle: "medium" });
+}
+
 function formatHoras(h) {
-    const horas = Math.floor(h);
-    const mins  = Math.round((h - horas) * 60);
-    if (horas === 0) return `${mins}m`;
-    if (mins  === 0) return `${horas}h`;
-    return `${horas}h ${mins}m`;
+    if (h == null) return "—";
+    const abs   = Math.abs(h);
+    const horas = Math.floor(abs);
+    const mins  = Math.round((abs - horas) * 60);
+    let str = horas === 0 ? `${mins}m` : mins === 0 ? `${horas}h` : `${horas}h ${mins}m`;
+    return h < 0 ? `−${str}` : str;
 }
 
 init();

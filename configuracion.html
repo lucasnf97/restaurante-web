@@ -749,7 +749,39 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 7. BASE DE DATOS (oculta sin modo edición) ══════════ -->
+    <!-- ═══ 7. PERÍODO DE FACTURACIÓN SALARIAL ═════════════════ -->
+    <div class="cfg-section" id="sec-facturacion">
+        <div class="cfg-section-head" onclick="toggleSection('facturacion')">
+            <span class="cfg-section-icon">📅</span>
+            <span class="cfg-section-title">
+                Período de facturación salarial
+                <span class="cfg-section-badge badge-off" id="badge-facturacion">Día 1</span>
+            </span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
+                Define el día del mes en que comienza el período de facturación salarial.
+                El período cierra el día anterior al inicio del mes siguiente.<br>
+                <strong>Ejemplo:</strong> día 26 → el período de Mayo va del 26 de Abril al 25 de Mayo.
+            </p>
+            <div class="cfg-grid" style="margin-top:18px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Día de inicio del período</label>
+                    <input class="cfg-input" type="number" id="fact-dia"
+                           min="1" max="28" step="1" placeholder="1"
+                           style="max-width:120px;">
+                    <span class="cfg-hint">Valor entre 1 y 28. Con valor 1 el período coincide con el mes calendario.</span>
+                </div>
+            </div>
+            <div class="cfg-actions">
+                <button class="btn-save" onclick="guardarPeriodoFacturacion()">Guardar cambios</button>
+                <span class="save-ok" id="ok-facturacion">✓ Guardado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 8. BASE DE DATOS (oculta sin modo edición) ══════════ -->
     <div class="cfg-section" id="sec-bbdd" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('bbdd')">
             <span class="cfg-section-icon">🗄️</span>
@@ -925,6 +957,51 @@ function toggleSection(id) {
     if (sec) sec.classList.toggle('open');
 }
 
+// ── Período de facturación (carga desde API) ─────────────────
+async function cargarPeriodoFacturacion() {
+    try {
+        const cfg = await api.get('/config/sistema');
+        const dia = cfg.dia_inicio_periodo || 1;
+        document.getElementById('fact-dia').value = dia;
+        const badge = document.getElementById('badge-facturacion');
+        badge.textContent = dia <= 1 ? 'Mes calendario' : `Día ${dia}`;
+        badge.className   = dia > 1
+            ? 'cfg-section-badge badge-on'
+            : 'cfg-section-badge badge-off';
+    } catch(e) {
+        console.warn('No se pudo cargar período de facturación:', e);
+    }
+}
+
+async function guardarPeriodoFacturacion() {
+    const dia = parseInt(document.getElementById('fact-dia').value) || 1;
+    if (dia < 1 || dia > 28) {
+        alert('El día debe estar entre 1 y 28');
+        return;
+    }
+    try {
+        // GET config actual para no perder otros valores
+        const cfg = await api.get('/config/sistema');
+        const body = {
+            moneda_codigo:      cfg.moneda_codigo      || 'EUR',
+            moneda_simbolo:     cfg.moneda_simbolo     || '€',
+            moneda_nombre:      cfg.moneda_nombre      || 'Euro',
+            tasas_cambio:       cfg.tasas_cambio       || [],
+            impuesto_pct:       cfg.impuesto_pct       || 0,
+            dia_inicio_periodo: dia,
+        };
+        await api.put('/config/sistema', body);
+        const badge = document.getElementById('badge-facturacion');
+        badge.textContent = dia <= 1 ? 'Mes calendario' : `Día ${dia}`;
+        badge.className   = dia > 1
+            ? 'cfg-section-badge badge-on'
+            : 'cfg-section-badge badge-off';
+        mostrarOk('ok-facturacion');
+    } catch(e) {
+        alert('Error al guardar: ' + (e.message || e));
+    }
+}
+
 // ── Carga inicial de datos ──────────────────────────────────
 function cargarDatos() {
     // Restaurante
@@ -947,6 +1024,9 @@ function cargarDatos() {
 
     // Modo edición
     actualizarEstadoEdicion();
+
+    // Período de facturación salarial
+    cargarPeriodoFacturacion();
 }
 
 // ── Guardar Restaurante ─────────────────────────────────────
