@@ -52,7 +52,7 @@
         /* Fila resumen del usuario (clickeable) */
         .user-summary {
             display: grid;
-            grid-template-columns: 220px 1fr 1fr 1fr 120px 36px;
+            grid-template-columns: 220px 1fr 1fr 1fr 120px 56px;
             align-items: center;
             padding: 14px 20px;
             cursor: pointer;
@@ -115,7 +115,15 @@
         /* Botón revisar */
         .btn-revisar { background: none; border: none; cursor: pointer; color: #cbd5e1; font-size: 15px; padding: 2px 5px; border-radius: 4px; transition: color .15s; }
         .btn-revisar:hover { color: #4f46e5; }
-        .btn-revisar.revisado { color: #16a34a; cursor: default; font-size: 13px; }
+        .btn-revisar.ok { color: #16a34a; cursor: default; font-size: 13px; }
+
+        /* Indicador de pendiente en resumen de usuario */
+        .alerta-pendiente {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 18px; height: 18px; background: #f59e0b; color: white;
+            border-radius: 50%; font-size: 11px; font-weight: 800;
+            margin-right: 5px; flex-shrink: 0; vertical-align: middle;
+        }
 
         .empty { text-align: center; padding: 48px; color: #888; font-size: 14px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 
@@ -441,7 +449,9 @@ function renderUserCard(g) {
         ? renderDiffMins(totalFichadasMins - totalAsignadasMins)
         : '<span class="diff-neu">—</span>';
 
-    const hayActivo = g.fichajes.some(f => !f.ts_salida);
+    const hayActivo    = g.fichajes.some(f => !f.ts_salida);
+    const hayPendiente = hasEdicionFichajes() &&
+        g.fichajes.some(f => !f.activo && f.notas && !f.revisado);
 
     const cardId   = `card-${g.usuario_id}`;
     const detailId = `detail-${g.usuario_id}`;
@@ -469,7 +479,11 @@ function renderUserCard(g) {
                 <div class="summary-col-value">${diffHtml}</div>
             </div>
             <div></div>
-            <div class="expand-btn">▼</div>
+            <div class="expand-btn">
+                <span class="alerta-pendiente" id="alerta-${g.usuario_id}"
+                      style="display:${hayPendiente ? 'inline-flex' : 'none'};"
+                      title="Hay fichajes pendientes de revisión">!</span>▼
+            </div>
         </div>
         <div class="user-detail" id="${detailId}">
             <table class="detail-table">
@@ -517,13 +531,16 @@ function renderFichajeRow(f) {
     }
 
     // Botón revisar (solo editores, solo fichajes cerrados)
-    const puedeRevisar = hasEdicionFichajes() && !activo;
+    // Pendiente = tiene nota y NO está revisado
+    const pendiente = !activo && !!f.notas && !f.revisado;
     let revBtn = "";
-    if (puedeRevisar) {
-        if (f.revisado) {
-            revBtn = `<button class="btn-revisar revisado" title="Ya revisado" disabled>✓</button>`;
+    if (hasEdicionFichajes() && !activo) {
+        if (pendiente) {
+            revBtn = `<button class="btn-revisar" onclick="abrirRevision(${f.id})"
+                             title="Pendiente de revisión" id="revbtn-${f.id}">📋</button>`;
         } else {
-            revBtn = `<button class="btn-revisar" onclick="abrirRevision(${f.id})" title="Revisar fichaje">📋</button>`;
+            revBtn = `<button class="btn-revisar ok" title="Sin cambios pendientes"
+                             id="revbtn-${f.id}" disabled>✓</button>`;
         }
     }
 
@@ -585,15 +602,19 @@ async function guardarNota(id) {
             method: "PATCH",
             body: JSON.stringify({ notas })
         });
-        // Actualizar en memoria
-        if (_fichajesData[id]) _fichajesData[id].notas = notas;
+        // Actualizar en memoria: guardar nota y resetear revisado
+        if (_fichajesData[id]) {
+            _fichajesData[id].notas   = notas;
+            _fichajesData[id].revisado = false;
+        }
         const td  = document.getElementById(`nota-td-${id}`);
         const txt = notas
             ? `<span class="nota-text">${notas.replace(/</g, "&lt;")}</span>`
             : `<span class="nota-empty">—</span>`;
         td.innerHTML = `${txt}${_notaBtn(id, td)}`;
-        // Actualizar badge de estado si el fichaje tiene nota y no está revisado
+        // Actualizar badge de estado y botón de revisión
         _actualizarBadgeEstado(id);
+        _actualizarRevBtn(id);
     } catch(e) {
         alert("Error al guardar la nota");
     }
@@ -619,6 +640,36 @@ function _actualizarBadgeEstado(id) {
         badgeEl.className = "badge badge-gray";
         badgeEl.textContent = "Finalizado";
     }
+}
+
+function _actualizarRevBtn(id) {
+    const f = _fichajesData[id];
+    if (!f || f.activo) return;
+    const btn = document.getElementById(`revbtn-${id}`);
+    if (!btn) return;
+    const pendiente = !!f.notas && !f.revisado;
+    if (pendiente) {
+        btn.className = "btn-revisar";
+        btn.textContent = "📋";
+        btn.title = "Pendiente de revisión";
+        btn.disabled = false;
+        btn.onclick = () => abrirRevision(id);
+    } else {
+        btn.className = "btn-revisar ok";
+        btn.textContent = "✓";
+        btn.title = "Sin cambios pendientes";
+        btn.disabled = true;
+        btn.onclick = null;
+    }
+    _actualizarAlertaUsuario(f.usuario_id);
+}
+
+function _actualizarAlertaUsuario(usuarioId) {
+    const hayPendiente = hasEdicionFichajes() && Object.values(_fichajesData).some(
+        f => f.usuario_id === usuarioId && !f.activo && f.notas && !f.revisado
+    );
+    const alertEl = document.getElementById(`alerta-${usuarioId}`);
+    if (alertEl) alertEl.style.display = hayPendiente ? "inline-flex" : "none";
 }
 
 // ── Modal de revisión ─────────────────────────────────────────
