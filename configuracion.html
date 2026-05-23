@@ -464,21 +464,83 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
             </div>
 
             <div class="cfg-actions">
-                <button class="btn-save" onclick="guardarRestaurante()">Guardar cambios</button>
+                <button class="btn-save" onclick="guardarRestaurante()">Guardar</button>
                 <span class="save-ok" id="ok-restaurante">✓ Guardado</span>
+            </div>
+
+            <!-- ── Horario de cierre de turno ─────────────────── -->
+            <div style="margin-top:24px;padding-top:20px;border-top:2px solid #f0f0f0;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:16px;">🌙</span>
+                    <span style="font-size:14px;font-weight:700;color:#1a1a2e;">Horario de cierre de turno</span>
+                    <span class="cfg-section-badge badge-on" id="badge-corte">06:00</span>
+                </div>
+                <p style="font-size:13px;color:#6b7280;line-height:1.6;">
+                    Define la hora a partir de la cual comienza un nuevo día de turno.
+                    Los fichajes realizados <em>antes</em> de este horario se agrupan con el turno del día anterior.<br>
+                    <strong>Ejemplo:</strong> con corte a las 06:00, un fichaje a la 01:30 del domingo se contabiliza como turno del sábado.
+                </p>
+                <div class="cfg-grid" style="margin-top:16px;">
+                    <div class="cfg-field">
+                        <label class="cfg-label">Hora de corte del turno</label>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <input class="cfg-input" type="number" id="corte-hora"
+                                   min="0" max="23" step="1" value="6"
+                                   style="max-width:90px;"
+                                   oninput="actualizarPreviewCorte()">
+                            <span style="font-size:13px;color:#9ca3af;">:00 hs</span>
+                        </div>
+                        <span class="cfg-hint">Entre 0 y 23. Recomendado: 4–6 hs para restaurantes con cierre tardío.</span>
+                        <div class="hora-corte-preview" id="corte-preview">🌙 Corte a las 06:00 hs</div>
+                    </div>
+                </div>
+                <div style="margin-top:16px;">
+                    <div style="font-size:11px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">
+                        Acciones automáticas al horario de corte
+                    </div>
+                    <label class="toggle-row" onclick="event.preventDefault(); toggleCheck('corte-cierra-fichajes')">
+                        <div class="toggle-wrap">
+                            <input type="checkbox" id="corte-cierra-fichajes">
+                            <span class="toggle-slider"></span>
+                        </div>
+                        <div class="toggle-text">
+                            <div class="toggle-label">Cerrar fichajes activos</div>
+                            <div class="toggle-desc">Cierra automáticamente todos los fichajes abiertos al llegar a la hora de corte.</div>
+                        </div>
+                    </label>
+                    <label class="toggle-row" onclick="event.preventDefault(); toggleCheck('corte-cierra-caja')">
+                        <div class="toggle-wrap">
+                            <input type="checkbox" id="corte-cierra-caja">
+                            <span class="toggle-slider"></span>
+                        </div>
+                        <div class="toggle-text">
+                            <div class="toggle-label">Cerrar caja activa</div>
+                            <div class="toggle-desc">Cierra automáticamente la caja si está abierta al llegar a la hora de corte.</div>
+                        </div>
+                    </label>
+                </div>
+                <div class="cfg-actions" id="corte-actions">
+                    <button class="btn-save" id="btn-save-corte" onclick="guardarCorteHorario()">Guardar horario de corte</button>
+                    <span class="save-ok" id="ok-corte">✓ Guardado</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- ═══ 2. INFORMACIÓN LEGAL ════════════════════════════════ -->
+    <!-- ═══ 2. CONFIGURACIÓN LEGAL E IMPOSITIVA ══════════════════ -->
     <div class="cfg-section" id="sec-legal">
         <div class="cfg-section-head" onclick="toggleSection('legal')">
-            <span class="cfg-section-icon">📄</span>
-            <span class="cfg-section-title">Información Legal</span>
+            <span class="cfg-section-icon">📋</span>
+            <span class="cfg-section-title">Configuración legal e impositiva</span>
             <span class="cfg-section-arrow">›</span>
         </div>
         <div class="cfg-section-body">
-            <div class="cfg-grid" style="margin-top:16px;">
+
+            <!-- ── Datos legales ── -->
+            <div style="font-size:11px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;margin-top:16px;margin-bottom:12px;">
+                Datos legales
+            </div>
+            <div class="cfg-grid">
                 <div class="cfg-field">
                     <label class="cfg-label">Razón social</label>
                     <input class="cfg-input" type="text" id="l-razon"
@@ -510,21 +572,191 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                            placeholder="contacto@restaurante.com">
                 </div>
             </div>
-
             <div class="cfg-actions">
-                <button class="btn-save" onclick="guardarLegal()">Guardar cambios</button>
+                <button class="btn-save" onclick="guardarLegal()">Guardar datos legales</button>
                 <span class="save-ok" id="ok-legal">✓ Guardado</span>
             </div>
+
+            <!-- ── Divisa del sistema ── -->
+            <div style="margin-top:28px;padding-top:20px;border-top:2px solid #f0f0f0;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:16px;">💱</span>
+                    <span style="font-size:14px;font-weight:700;color:#1a1a2e;">Divisa del sistema</span>
+                    <span class="cfg-section-badge badge-on" id="badge-moneda">€ EUR</span>
+                </div>
+                <p style="font-size:13px;color:#6b7280;line-height:1.6;">
+                    Todos los precios, estadísticas y reportes del sistema se mostrarán en esta divisa.
+                    Cuando una factura venga en otra moneda, el sistema te mostrará la equivalencia usando las tasas configuradas aquí.
+                </p>
+                <div class="cfg-grid" style="margin-top:16px;">
+                    <div class="cfg-field">
+                        <label class="cfg-label">Moneda predeterminada</label>
+                        <select class="moneda-select" id="m-codigo" onchange="autocompletarMoneda()">
+                            <option value="">Seleccionar…</option>
+                            <option value="EUR|€|Euro">€ EUR — Euro</option>
+                            <option value="USD|$|Dólar americano">$ USD — Dólar americano</option>
+                            <option value="GBP|£|Libra esterlina">£ GBP — Libra esterlina</option>
+                            <option value="ARS|$|Peso argentino">$ ARS — Peso argentino</option>
+                            <option value="BRL|R$|Real brasileño">R$ BRL — Real brasileño</option>
+                            <option value="UYU|$U|Peso uruguayo">$U UYU — Peso uruguayo</option>
+                            <option value="DKK|kr|Corona danesa">kr DKK — Corona danesa</option>
+                            <option value="SEK|kr|Corona sueca">kr SEK — Corona sueca</option>
+                            <option value="NOK|kr|Corona noruega">kr NOK — Corona noruega</option>
+                            <option value="CHF|Fr|Franco suizo">Fr CHF — Franco suizo</option>
+                            <option value="MXN|$|Peso mexicano">$ MXN — Peso mexicano</option>
+                            <option value="COP|$|Peso colombiano">$ COP — Peso colombiano</option>
+                            <option value="CLP|$|Peso chileno">$ CLP — Peso chileno</option>
+                            <option value="PEN|S/|Sol peruano">S/ PEN — Sol peruano</option>
+                            <option value="otro||">Otra divisa…</option>
+                        </select>
+                    </div>
+                    <div class="cfg-field">
+                        <label class="cfg-label">Símbolo</label>
+                        <input class="cfg-input" type="text" id="m-simbolo"
+                               placeholder="€, $, £, kr…" maxlength="5">
+                    </div>
+                </div>
+                <div class="cfg-grid full" id="m-otro-wrap" style="display:none;margin-top:12px;">
+                    <div class="cfg-field">
+                        <label class="cfg-label">Código ISO de la divisa (ej: THB, MAD…)</label>
+                        <input class="cfg-input" type="text" id="m-otro-codigo"
+                               placeholder="USD, EUR, GBP…" maxlength="10"
+                               style="text-transform:uppercase;">
+                    </div>
+                    <div class="cfg-field">
+                        <label class="cfg-label">Nombre de la divisa</label>
+                        <input class="cfg-input" type="text" id="m-otro-nombre"
+                               placeholder="Ej: Baht tailandés">
+                    </div>
+                </div>
+                <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:#1a1a2e;">Tasas de cambio</div>
+                            <div style="font-size:12px;color:#9ca3af;margin-top:2px;">1 [moneda sistema] = X [moneda extranjera]</div>
+                        </div>
+                        <button class="btn-save" style="padding:7px 14px;font-size:12px;" onclick="abrirAddTasa()">+ Agregar tasa</button>
+                    </div>
+                    <table class="tasa-table" id="tasa-table">
+                        <thead><tr><th>Divisa extranjera</th><th>Equivalencia</th><th></th></tr></thead>
+                        <tbody id="tasa-tbody">
+                            <tr><td colspan="3" class="tasa-empty">Sin tasas configuradas</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="tasa-add-row" id="tasa-add-row">
+                        <select id="ta-select" style="min-width:180px;" onchange="autocompletarAddTasa()">
+                            <option value="">Seleccionar divisa…</option>
+                            <option value="USD|Dólar americano">USD — Dólar americano</option>
+                            <option value="EUR|Euro">EUR — Euro</option>
+                            <option value="GBP|Libra esterlina">GBP — Libra esterlina</option>
+                            <option value="ARS|Peso argentino">ARS — Peso argentino</option>
+                            <option value="BRL|Real brasileño">BRL — Real brasileño</option>
+                            <option value="UYU|Peso uruguayo">UYU — Peso uruguayo</option>
+                            <option value="DKK|Corona danesa">DKK — Corona danesa</option>
+                            <option value="SEK|Corona sueca">SEK — Corona sueca</option>
+                            <option value="NOK|Corona noruega">NOK — Corona noruega</option>
+                            <option value="CHF|Franco suizo">CHF — Franco suizo</option>
+                            <option value="MXN|Peso mexicano">MXN — Peso mexicano</option>
+                            <option value="COP|Peso colombiano">COP — Peso colombiano</option>
+                            <option value="CLP|Peso chileno">CLP — Peso chileno</option>
+                            <option value="PEN|Sol peruano">PEN — Sol peruano</option>
+                            <option value="otro|">Otra…</option>
+                        </select>
+                        <input id="ta-codigo" type="text" placeholder="Código (ej: THB)"
+                               maxlength="10" style="width:90px;display:none;text-transform:uppercase;">
+                        <input id="ta-nombre" type="text" placeholder="Nombre"
+                               style="min-width:140px;display:none;">
+                        <span style="font-size:13px;color:#6b7280;white-space:nowrap;">
+                            1 <span id="ta-sistema-codigo">EUR</span> =
+                        </span>
+                        <input id="ta-tasa" type="number" step="0.0001" min="0.0001"
+                               placeholder="0.87" style="width:90px;">
+                        <span id="ta-foreign-codigo" style="font-size:13px;color:#6b7280;min-width:40px;"></span>
+                        <button class="btn-tasa-ok" onclick="confirmarAddTasa()">Agregar</button>
+                        <button class="btn-tasa-cancel" onclick="cerrarAddTasa()">✕</button>
+                    </div>
+                </div>
+                <div class="cfg-actions" id="moneda-actions">
+                    <button class="btn-save" onclick="guardarMoneda()">Guardar divisa</button>
+                    <span class="save-ok" id="ok-moneda">✓ Guardado</span>
+                </div>
+            </div>
+
+            <!-- ── Impuestos ── -->
+            <div style="margin-top:28px;padding-top:20px;border-top:2px solid #f0f0f0;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:16px;">🧾</span>
+                    <span style="font-size:14px;font-weight:700;color:#1a1a2e;">Impuestos</span>
+                    <span class="cfg-section-badge badge-off" id="badge-impuestos">Sin configurar</span>
+                </div>
+                <p style="font-size:13px;color:#6b7280;line-height:1.6;">
+                    Configurá el porcentaje de impuestos vigente en tu país (IVA, VAT, MOMS, GST…).
+                    Al cargar una factura el sistema mostrará automáticamente la equivalencia entre el precio
+                    <strong>con</strong> y <strong>sin</strong> impuestos incluidos.
+                </p>
+                <div class="cfg-grid" style="margin-top:16px;">
+                    <div class="cfg-field">
+                        <label class="cfg-label">Nombre del impuesto</label>
+                        <input class="cfg-input" type="text" id="imp-nombre"
+                               placeholder="Ej: IVA, VAT, MOMS, GST…"
+                               style="text-transform:uppercase;">
+                    </div>
+                    <div class="cfg-field">
+                        <label class="cfg-label">Porcentaje (%)</label>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <input class="cfg-input" type="number" id="imp-pct"
+                                   min="0" max="100" step="0.1" placeholder="Ej: 25"
+                                   oninput="actualizarBadgeImpuesto()"
+                                   style="max-width:120px;">
+                            <span style="font-size:20px;color:#9ca3af;">%</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="imp-ejemplo" style="display:none;margin-top:16px;padding:14px 16px;
+                     background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;
+                     font-size:13px;color:#166534;line-height:1.8;"></div>
+                <div class="cfg-actions" id="impuestos-actions">
+                    <button class="btn-save" onclick="guardarImpuesto()">Guardar impuesto</button>
+                    <span class="save-ok" id="ok-impuestos">✓ Guardado</span>
+                </div>
+            </div>
+
+            <!-- ── Período de facturación salarial ── -->
+            <div style="margin-top:28px;padding-top:20px;border-top:2px solid #f0f0f0;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:16px;">📅</span>
+                    <span style="font-size:14px;font-weight:700;color:#1a1a2e;">Período de facturación salarial</span>
+                    <span class="cfg-section-badge badge-off" id="badge-facturacion">Día 1</span>
+                </div>
+                <p style="font-size:13px;color:#6b7280;line-height:1.6;">
+                    Define el día del mes en que comienza el período de facturación salarial.
+                    El período cierra el día anterior al inicio del mes siguiente.<br>
+                    <strong>Ejemplo:</strong> día 26 → el período de Mayo va del 26 de Abril al 25 de Mayo.
+                </p>
+                <div class="cfg-grid" style="margin-top:16px;">
+                    <div class="cfg-field">
+                        <label class="cfg-label">Día de inicio del período</label>
+                        <input class="cfg-input" type="number" id="fact-dia"
+                               min="1" max="28" step="1" placeholder="1"
+                               style="max-width:120px;">
+                        <span class="cfg-hint">Valor entre 1 y 28. Con valor 1 el período coincide con el mes calendario.</span>
+                    </div>
+                </div>
+                <div class="cfg-actions">
+                    <button class="btn-save" onclick="guardarPeriodoFacturacion()">Guardar período</button>
+                    <span class="save-ok" id="ok-facturacion">✓ Guardado</span>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <!-- ═══ 3. DIVISA DEL SISTEMA ═══════════════════════════════ -->
-    <div class="cfg-section" id="sec-moneda">
+    <!-- ═══ SECCIÓN ELIMINADA (contenido movido a secciones anteriores) ══ -->
+    <div class="cfg-section" id="sec-moneda" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('moneda')">
             <span class="cfg-section-icon">💱</span>
             <span class="cfg-section-title">
                 Divisa del sistema
-                <span class="cfg-section-badge badge-on" id="badge-moneda">€ EUR</span>
             </span>
             <span class="cfg-section-arrow">›</span>
         </div>
@@ -647,8 +879,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 4. IMPUESTOS ════════════════════════════════════════ -->
-    <div class="cfg-section" id="sec-impuestos">
+    <div class="cfg-section" id="sec-impuestos" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('impuestos')">
             <span class="cfg-section-icon">🧾</span>
             <span class="cfg-section-title">
@@ -784,8 +1015,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 7. PERÍODO DE FACTURACIÓN SALARIAL ═════════════════ -->
-    <div class="cfg-section" id="sec-facturacion">
+    <div class="cfg-section" id="sec-facturacion" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('facturacion')">
             <span class="cfg-section-icon">📅</span>
             <span class="cfg-section-title">
@@ -816,8 +1046,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 8. HORARIO DE CIERRE DE TURNO ════════════════════════ -->
-    <div class="cfg-section" id="sec-corte">
+    <div class="cfg-section" id="sec-corte" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('corte')">
             <span class="cfg-section-icon">🌙</span>
             <span class="cfg-section-title">
