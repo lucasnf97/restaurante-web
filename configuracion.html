@@ -241,6 +241,41 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     padding:8px 12px; border-radius:7px; font-size:13px; cursor:pointer;
 }
 
+/* ── Toggle switch ─────────────────────────────────────────── */
+.toggle-row {
+    display:flex; align-items:flex-start; gap:12px;
+    padding:12px 14px; border-radius:9px;
+    border:1px solid #f0f0f0; background:#fafafa;
+    margin-top:10px; cursor:pointer; transition:background .12s, border-color .12s;
+}
+.toggle-row:hover { background:#f5f3ff; border-color:#e0e7ff; }
+.toggle-wrap { position:relative; width:42px; height:24px; flex-shrink:0; margin-top:1px; }
+.toggle-wrap input { opacity:0; width:0; height:0; }
+.toggle-slider {
+    position:absolute; inset:0; border-radius:12px;
+    background:#d1d5db; cursor:pointer; transition:background .2s;
+}
+.toggle-slider::before {
+    content:''; position:absolute;
+    width:18px; height:18px; border-radius:50%;
+    background:white; left:3px; top:3px;
+    transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.toggle-wrap input:checked + .toggle-slider { background:#4f46e5; }
+.toggle-wrap input:checked + .toggle-slider::before { transform:translateX(18px); }
+.toggle-text { flex:1; }
+.toggle-label { font-size:13px; font-weight:600; color:#374151; }
+.toggle-desc  { font-size:11px; color:#9ca3af; margin-top:2px; line-height:1.4; }
+
+/* ── Hora de corte de turno ────────────────────────────────── */
+.hora-corte-preview {
+    display:inline-flex; align-items:center; gap:6px;
+    background:#f0f4ff; border:1px solid #c7d2fe;
+    border-radius:8px; padding:6px 14px;
+    font-size:15px; font-weight:700; color:#4f46e5;
+    margin-top:12px;
+}
+
 /* ── Modal de verificación ─────────────────────────────────── */
 .modal-overlay {
     display:none; position:fixed; inset:0;
@@ -781,7 +816,83 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ 8. BASE DE DATOS (oculta sin modo edición) ══════════ -->
+    <!-- ═══ 8. HORARIO DE CIERRE DE TURNO ════════════════════════ -->
+    <div class="cfg-section" id="sec-corte">
+        <div class="cfg-section-head" onclick="toggleSection('corte')">
+            <span class="cfg-section-icon">🌙</span>
+            <span class="cfg-section-title">
+                Horario de cierre de turno
+                <span class="cfg-section-badge badge-off" id="badge-corte">06:00</span>
+            </span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
+                Define la hora a partir de la cual comienza un nuevo día de turno.
+                Los fichajes realizados <em>antes</em> de este horario se agrupan con el turno del día anterior.<br>
+                <strong>Ejemplo:</strong> con corte a las 06:00, un fichaje a la 01:30 del domingo se contabiliza como turno del sábado.
+            </p>
+
+            <div class="cfg-grid" style="margin-top:18px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Hora de corte del turno</label>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <input class="cfg-input" type="number" id="corte-hora"
+                               min="0" max="23" step="1" value="6"
+                               style="max-width:90px;"
+                               oninput="actualizarPreviewCorte()">
+                        <span style="font-size:13px;color:#9ca3af;">:00 hs</span>
+                    </div>
+                    <span class="cfg-hint">Entre 0 y 23. Recomendado: 4–6 hs para restaurantes con cierre tardío.</span>
+                    <div class="hora-corte-preview" id="corte-preview">🌙 Corte a las 06:00 hs</div>
+                </div>
+            </div>
+
+            <!-- Acciones automáticas al corte -->
+            <div style="margin-top:24px;padding-top:16px;border-top:1px solid #f0f0f0;">
+                <div style="font-size:11px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;">
+                    Acciones automáticas al horario de corte
+                </div>
+                <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;">
+                    Si están activas, el sistema ejecutará estas acciones cada día al llegar al horario de corte.
+                </div>
+
+                <label class="toggle-row" onclick="event.preventDefault(); toggleCheck('corte-cierra-fichajes')">
+                    <div class="toggle-wrap">
+                        <input type="checkbox" id="corte-cierra-fichajes">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <div class="toggle-text">
+                        <div class="toggle-label">Cerrar fichajes activos</div>
+                        <div class="toggle-desc">
+                            Cierra automáticamente todos los fichajes abiertos al llegar a la hora de corte.
+                            Útil para evitar que queden turnos sin cerrar de la noche anterior.
+                        </div>
+                    </div>
+                </label>
+
+                <label class="toggle-row" onclick="event.preventDefault(); toggleCheck('corte-cierra-caja')">
+                    <div class="toggle-wrap">
+                        <input type="checkbox" id="corte-cierra-caja">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <div class="toggle-text">
+                        <div class="toggle-label">Cerrar caja activa</div>
+                        <div class="toggle-desc">
+                            Cierra automáticamente la caja si está abierta al llegar a la hora de corte.
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <div class="cfg-actions" id="corte-actions">
+                <button class="btn-save" id="btn-save-corte" onclick="guardarCorteHorario()">Guardar cambios</button>
+                <span class="save-ok" id="ok-corte">✓ Guardado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 9. BASE DE DATOS (oculta sin modo edición) ══════════ -->
     <div class="cfg-section" id="sec-bbdd" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('bbdd')">
             <span class="cfg-section-icon">🗄️</span>
@@ -1002,6 +1113,78 @@ async function guardarPeriodoFacturacion() {
     }
 }
 
+// ── Horario de cierre de turno ──────────────────────────────
+async function cargarCorteHorario() {
+    try {
+        const cfg  = await api.get('/config/sistema');
+        const hora = cfg.hora_corte_turno ?? 6;
+        document.getElementById('corte-hora').value            = hora;
+        document.getElementById('corte-cierra-fichajes').checked = !!cfg.corte_cierra_fichajes;
+        document.getElementById('corte-cierra-caja').checked    = !!cfg.corte_cierra_caja;
+        actualizarPreviewCorte();
+
+        // Ocultar botón de guardar si el usuario no tiene permisos
+        const u = _currentUser();
+        const puedeSalvar = u.rol === 'admin' || u.rol === 'gerente' || !!u.acceso_configuracion;
+        if (!puedeSalvar) {
+            const btn = document.getElementById('btn-save-corte');
+            if (btn) btn.style.display = 'none';
+            // Deshabilitar controles
+            document.getElementById('corte-hora').disabled = true;
+            document.getElementById('corte-cierra-fichajes').disabled = true;
+            document.getElementById('corte-cierra-caja').disabled = true;
+        }
+    } catch(e) {
+        console.warn('No se pudo cargar horario de corte:', e);
+    }
+}
+
+function actualizarPreviewCorte() {
+    const hora = parseInt(document.getElementById('corte-hora').value) || 0;
+    const h    = String(Math.max(0, Math.min(23, hora))).padStart(2, '0');
+    const preview = document.getElementById('corte-preview');
+    const badge   = document.getElementById('badge-corte');
+    if (preview) preview.textContent = `🌙 Corte a las ${h}:00 hs`;
+    if (badge)   badge.textContent   = `${h}:00`;
+    if (badge)   badge.className = 'cfg-section-badge badge-on';
+}
+
+function toggleCheck(id) {
+    const el = document.getElementById(id);
+    if (el && !el.disabled) el.checked = !el.checked;
+}
+
+async function guardarCorteHorario() {
+    const hora = parseInt(document.getElementById('corte-hora').value);
+    if (isNaN(hora) || hora < 0 || hora > 23) {
+        alert('La hora debe estar entre 0 y 23');
+        return;
+    }
+    try {
+        const cfg = await api.get('/config/sistema');
+        const body = {
+            moneda_codigo:         cfg.moneda_codigo      || 'EUR',
+            moneda_simbolo:        cfg.moneda_simbolo     || '€',
+            moneda_nombre:         cfg.moneda_nombre      || 'Euro',
+            tasas_cambio:          cfg.tasas_cambio       || [],
+            impuesto_pct:          cfg.impuesto_pct       || 0,
+            dia_inicio_periodo:    cfg.dia_inicio_periodo || 1,
+            hora_corte_turno:      hora,
+            corte_cierra_fichajes: document.getElementById('corte-cierra-fichajes').checked,
+            corte_cierra_caja:     document.getElementById('corte-cierra-caja').checked,
+        };
+        await api.put('/config/sistema', body);
+        actualizarPreviewCorte();
+        mostrarOk('ok-corte');
+    } catch(e) {
+        alert('Error al guardar: ' + (e.message || e));
+    }
+}
+
+function _currentUser() {
+    try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
+}
+
 // ── Carga inicial de datos ──────────────────────────────────
 function cargarDatos() {
     // Restaurante
@@ -1027,6 +1210,9 @@ function cargarDatos() {
 
     // Período de facturación salarial
     cargarPeriodoFacturacion();
+
+    // Horario de cierre de turno
+    cargarCorteHorario();
 }
 
 // ── Guardar Restaurante ─────────────────────────────────────

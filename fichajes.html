@@ -316,6 +316,12 @@ function canEditNota(fichaje) {
 
 // ── Init ─────────────────────────────────────────────────────
 async function init() {
+    // Cargar configuración (hora de corte de turno) primero
+    try {
+        const cfg = await api.get("/config/sistema");
+        if (cfg.hora_corte_turno != null) HORA_CORTE_TURNO = cfg.hora_corte_turno;
+    } catch(e) { console.warn("No se pudo cargar config:", e); }
+
     const hoy    = new Date();
     const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;
     const lunes  = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem);
@@ -884,7 +890,7 @@ function fechaLocal(ts) {
  * atribuye al día anterior, ya que pertenece al turno de noche de esa jornada.
  * Ejemplo: entrada a la 01:30 del domingo → turno del sábado.
  */
-const HORA_CORTE_TURNO = 6; // hora local (0-23)
+let HORA_CORTE_TURNO = 6; // hora local (0-23) — se sobreescribe al cargar config
 function fechaTurno(ts) {
     const d = new Date(ts);
     if (d.getHours() < HORA_CORTE_TURNO) {
