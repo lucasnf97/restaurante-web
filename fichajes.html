@@ -409,7 +409,7 @@ async function cargarHistorial() {
         document.getElementById("stat-empleados").textContent = Object.keys(grupos).length;
 
         // Contar días únicos totales
-        const diasUnicos = new Set(fichajes.map(f => fechaLocal(f.ts_entrada))).size;
+        const diasUnicos = new Set(fichajes.map(f => `${f.usuario_id}-${fechaTurno(f.ts_entrada)}`)).size;
         document.getElementById("stat-fichajes").textContent = diasUnicos;
 
         container.innerHTML = '<div class="fichajes-list">' +
@@ -439,7 +439,7 @@ function limpiarFiltros() {
 function agruparPorFecha(fichajes) {
     const map = {};
     fichajes.forEach(f => {
-        const fecha = fechaLocal(f.ts_entrada);
+        const fecha = fechaTurno(f.ts_entrada);
         if (!map[fecha]) {
             map[fecha] = {
                 fecha,
@@ -664,7 +664,7 @@ function _parseDayKey(dayKey) {
 function _getDayFichajes(dayKey) {
     const { uid, fecha } = _parseDayKey(dayKey);
     return Object.values(_fichajesData).filter(f =>
-        f.usuario_id === uid && fechaLocal(f.ts_entrada) === fecha
+        f.usuario_id === uid && fechaTurno(f.ts_entrada) === fecha
     );
 }
 
@@ -806,7 +806,7 @@ function abrirRevision(id) {
     const horasAsigBase = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, 0);
 
     document.getElementById("rev-titulo").textContent =
-        `Revisión — ${f.username} · ${formatFechaShort(fechaLocal(f.ts_entrada))}`;
+        `Revisión — ${f.username} · ${formatFechaShort(fechaTurno(f.ts_entrada))}`;
     document.getElementById("rev-entrada").textContent  = formatTs(f.ts_entrada);
     document.getElementById("rev-salida").textContent   = f.ts_salida ? formatTs(f.ts_salida) : "En turno";
     document.getElementById("rev-duracion").textContent = f.horas != null ? formatHoras(f.horas) : "—";
@@ -867,14 +867,29 @@ async function confirmarRevision() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────
-/** Clave de día: "${usuarioId}-YYYY-MM-DD" usando fecha LOCAL del browser */
+/** Clave de día: "${usuarioId}-YYYY-MM-DD" usando fecha de turno (con umbral nocturno) */
 function _dayKey(f) {
-    return `${f.usuario_id}-${fechaLocal(f.ts_entrada)}`;
+    return `${f.usuario_id}-${fechaTurno(f.ts_entrada)}`;
 }
 
-/** Fecha local en formato YYYY-MM-DD */
+/** Fecha local en formato YYYY-MM-DD (fecha calendario real, sin ajuste de turno) */
 function fechaLocal(ts) {
     const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/**
+ * Fecha de turno en formato YYYY-MM-DD.
+ * Si la hora local es anterior a HORA_CORTE_TURNO (ej. 6am), el fichaje se
+ * atribuye al día anterior, ya que pertenece al turno de noche de esa jornada.
+ * Ejemplo: entrada a la 01:30 del domingo → turno del sábado.
+ */
+const HORA_CORTE_TURNO = 6; // hora local (0-23)
+function fechaTurno(ts) {
+    const d = new Date(ts);
+    if (d.getHours() < HORA_CORTE_TURNO) {
+        d.setDate(d.getDate() - 1);
+    }
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
