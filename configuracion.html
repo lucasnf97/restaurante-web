@@ -690,31 +690,119 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                     <span class="cfg-section-badge badge-off" id="badge-impuestos">Sin configurar</span>
                 </div>
                 <p style="font-size:13px;color:#6b7280;line-height:1.6;">
-                    Configurá el porcentaje de impuestos vigente en tu país (IVA, VAT, MOMS, GST…).
-                    Al cargar una factura el sistema mostrará automáticamente la equivalencia entre el precio
-                    <strong>con</strong> y <strong>sin</strong> impuestos incluidos.
+                    Configurá el sistema impositivo. Podés usar un impuesto predeterminado único o definir tasas
+                    específicas por tipo de pedido y método de pago. Las tasas se suman entre sí cuando aplican dos a la vez.
                 </p>
-                <div class="cfg-grid" style="margin-top:16px;">
-                    <div class="cfg-field">
-                        <label class="cfg-label">Nombre del impuesto</label>
-                        <input class="cfg-input" type="text" id="imp-nombre"
-                               placeholder="Ej: IVA, VAT, MOMS, GST…"
-                               style="text-transform:uppercase;">
-                    </div>
-                    <div class="cfg-field">
-                        <label class="cfg-label">Porcentaje (%)</label>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <input class="cfg-input" type="number" id="imp-pct"
-                                   min="0" max="100" step="0.1" placeholder="Ej: 25"
-                                   oninput="actualizarBadgeImpuesto()"
-                                   style="max-width:120px;">
-                            <span style="font-size:20px;color:#9ca3af;">%</span>
+
+                <!-- Modo impositivo -->
+                <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;
+                                  border:2px solid #e0e0e0;border-radius:10px;flex:1;min-width:200px;
+                                  transition:border-color .15s;" id="lbl-modo-pred">
+                        <input type="radio" name="modo-impositivo" value="predeterminado" id="modo-pred"
+                               onchange="onModoImpositivo()" checked>
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:#1a1a2e;">Impuesto predeterminado</div>
+                            <div style="font-size:11px;color:#6b7280;">Un solo porcentaje para todas las operaciones</div>
+                        </div>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;
+                                  border:2px solid #e0e0e0;border-radius:10px;flex:1;min-width:200px;
+                                  transition:border-color .15s;" id="lbl-modo-config">
+                        <input type="radio" name="modo-impositivo" value="configurable" id="modo-config"
+                               onchange="onModoImpositivo()">
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:#1a1a2e;">Configurable por secciones</div>
+                            <div style="font-size:11px;color:#6b7280;">Tasas distintas por tipo de pedido y pago</div>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Modo predeterminado -->
+                <div id="panel-imp-pred" style="margin-top:16px;">
+                    <div class="cfg-grid" style="margin-top:8px;">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Nombre del impuesto</label>
+                            <input class="cfg-input" type="text" id="imp-nombre"
+                                   placeholder="Ej: IVA, VAT, MOMS, GST…"
+                                   style="text-transform:uppercase;">
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Porcentaje (%)</label>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <input class="cfg-input" type="number" id="imp-pct"
+                                       min="0" max="100" step="0.1" placeholder="Ej: 25"
+                                       oninput="actualizarBadgeImpuesto()"
+                                       style="max-width:120px;">
+                                <span style="font-size:20px;color:#9ca3af;">%</span>
+                            </div>
                         </div>
                     </div>
+                    <div id="imp-ejemplo" style="display:none;margin-top:16px;padding:14px 16px;
+                         background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;
+                         font-size:13px;color:#166534;line-height:1.8;"></div>
                 </div>
-                <div id="imp-ejemplo" style="display:none;margin-top:16px;padding:14px 16px;
-                     background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;
-                     font-size:13px;color:#166534;line-height:1.8;"></div>
+
+                <!-- Modo configurable -->
+                <div id="panel-imp-config" style="display:none;margin-top:16px;">
+                    <p style="font-size:12px;color:#d97706;background:#fff7ed;padding:8px 12px;
+                              border-radius:8px;border:1px solid #fde68a;margin-bottom:14px;">
+                        ⚠️ Todos los campos son obligatorios para poder activar este modo.
+                        Las tasas por tipo de pedido y método de pago se <strong>suman</strong> entre sí.
+                    </p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div style="background:#f0f9ff;border-radius:10px;padding:14px;">
+                            <div style="font-size:12px;font-weight:700;color:#0369a1;margin-bottom:10px;">💳 Por método de pago</div>
+                            <div class="cfg-field" style="margin-bottom:10px;">
+                                <label class="cfg-label">Efectivo (%)</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input class="cfg-input" type="number" id="imp-efectivo"
+                                           min="0" max="100" step="0.1" placeholder="0" style="max-width:90px;padding:7px 10px;">
+                                    <span style="color:#9ca3af;">%</span>
+                                </div>
+                            </div>
+                            <div class="cfg-field">
+                                <label class="cfg-label">Tarjeta (%)</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input class="cfg-input" type="number" id="imp-tarjeta"
+                                           min="0" max="100" step="0.1" placeholder="0" style="max-width:90px;padding:7px 10px;">
+                                    <span style="color:#9ca3af;">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="background:#fdf4ff;border-radius:10px;padding:14px;">
+                            <div style="font-size:12px;font-weight:700;color:#7e22ce;margin-bottom:10px;">🏠 Por tipo de pedido</div>
+                            <div class="cfg-field" style="margin-bottom:10px;">
+                                <label class="cfg-label">Local (%)</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input class="cfg-input" type="number" id="imp-local"
+                                           min="0" max="100" step="0.1" placeholder="0" style="max-width:90px;padding:7px 10px;">
+                                    <span style="color:#9ca3af;">%</span>
+                                </div>
+                            </div>
+                            <div class="cfg-field" style="margin-bottom:10px;">
+                                <label class="cfg-label">Delivery (%)</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input class="cfg-input" type="number" id="imp-delivery"
+                                           min="0" max="100" step="0.1" placeholder="0" style="max-width:90px;padding:7px 10px;">
+                                    <span style="color:#9ca3af;">%</span>
+                                </div>
+                            </div>
+                            <div class="cfg-field">
+                                <label class="cfg-label">Para llevar (%)</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input class="cfg-input" type="number" id="imp-takeaway"
+                                           min="0" max="100" step="0.1" placeholder="0" style="max-width:90px;padding:7px 10px;">
+                                    <span style="color:#9ca3af;">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="imp-ejemplo-config" style="display:none;margin-top:14px;padding:14px 16px;
+                         background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;
+                         font-size:13px;color:#166534;line-height:1.8;"></div>
+                </div>
+
                 <div class="cfg-actions" id="impuestos-actions">
                     <button class="btn-save" onclick="guardarImpuesto()">Guardar impuesto</button>
                     <span class="save-ok" id="ok-impuestos">✓ Guardado</span>
@@ -1329,6 +1417,15 @@ async function guardarPeriodoFacturacion() {
             tasas_cambio:       cfg.tasas_cambio       || [],
             impuesto_pct:       cfg.impuesto_pct       || 0,
             dia_inicio_periodo: dia,
+            hora_corte_turno:   cfg.hora_corte_turno   || 6,
+            corte_cierra_fichajes: cfg.corte_cierra_fichajes || false,
+            corte_cierra_caja:     cfg.corte_cierra_caja    || false,
+            modo_impositivo:    cfg.modo_impositivo    || 'predeterminado',
+            imp_efectivo_pct:   cfg.imp_efectivo_pct   ?? null,
+            imp_tarjeta_pct:    cfg.imp_tarjeta_pct    ?? null,
+            imp_local_pct:      cfg.imp_local_pct      ?? null,
+            imp_delivery_pct:   cfg.imp_delivery_pct   ?? null,
+            imp_takeaway_pct:   cfg.imp_takeaway_pct   ?? null,
         };
         await api.put('/config/sistema', body);
         const badge = document.getElementById('badge-facturacion');
@@ -1401,6 +1498,12 @@ async function guardarCorteHorario() {
             hora_corte_turno:      hora,
             corte_cierra_fichajes: document.getElementById('corte-cierra-fichajes').checked,
             corte_cierra_caja:     document.getElementById('corte-cierra-caja').checked,
+            modo_impositivo:       cfg.modo_impositivo    || 'predeterminado',
+            imp_efectivo_pct:      cfg.imp_efectivo_pct   ?? null,
+            imp_tarjeta_pct:       cfg.imp_tarjeta_pct    ?? null,
+            imp_local_pct:         cfg.imp_local_pct      ?? null,
+            imp_delivery_pct:      cfg.imp_delivery_pct   ?? null,
+            imp_takeaway_pct:      cfg.imp_takeaway_pct   ?? null,
         };
         await api.put('/config/sistema', body);
         actualizarPreviewCorte();
@@ -1826,51 +1929,86 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Sección Impuestos ────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 
+function onModoImpositivo() {
+    const modo = document.querySelector('input[name="modo-impositivo"]:checked')?.value || 'predeterminado';
+    document.getElementById('panel-imp-pred').style.display   = modo === 'predeterminado' ? '' : 'none';
+    document.getElementById('panel-imp-config').style.display = modo === 'configurable'   ? '' : 'none';
+
+    const lblPred   = document.getElementById('lbl-modo-pred');
+    const lblConfig = document.getElementById('lbl-modo-config');
+    if (lblPred)   lblPred.style.borderColor   = modo === 'predeterminado' ? '#4f46e5' : '#e0e0e0';
+    if (lblConfig) lblConfig.style.borderColor = modo === 'configurable'   ? '#4f46e5' : '#e0e0e0';
+}
+
 async function cargarSeccionImpuestos() {
     try {
         const cfg = await apiFetch('/config/sistema');
-        const pct = parseFloat(cfg.impuesto_pct || 0);
-        if (pct > 0) {
-            document.getElementById('imp-pct').value = pct;
-            actualizarBadgeImpuesto();
-        }
+        const pct  = parseFloat(cfg.impuesto_pct || 0);
+        const modo = cfg.modo_impositivo || 'predeterminado';
+
+        if (pct > 0) document.getElementById('imp-pct').value = pct;
+
+        // Seleccionar modo
+        const radio = document.getElementById(modo === 'configurable' ? 'modo-config' : 'modo-pred');
+        if (radio) { radio.checked = true; onModoImpositivo(); }
+
+        // Cargar campos configurables
+        if (cfg.imp_efectivo_pct != null) document.getElementById('imp-efectivo').value = cfg.imp_efectivo_pct;
+        if (cfg.imp_tarjeta_pct  != null) document.getElementById('imp-tarjeta').value  = cfg.imp_tarjeta_pct;
+        if (cfg.imp_local_pct    != null) document.getElementById('imp-local').value    = cfg.imp_local_pct;
+        if (cfg.imp_delivery_pct != null) document.getElementById('imp-delivery').value = cfg.imp_delivery_pct;
+        if (cfg.imp_takeaway_pct != null) document.getElementById('imp-takeaway').value = cfg.imp_takeaway_pct;
+
+        actualizarBadgeImpuesto();
     } catch {}
 
     const user = getUser();
     if (!user || user.rol !== 'admin') {
         document.getElementById('impuestos-actions').style.display = 'none';
-        document.querySelectorAll('#sec-impuestos input').forEach(el => el.disabled = true);
     }
 }
 
 function actualizarBadgeImpuesto() {
-    const pct    = parseFloat(document.getElementById('imp-pct').value || 0);
+    const modo   = document.querySelector('input[name="modo-impositivo"]:checked')?.value || 'predeterminado';
     const badge  = document.getElementById('badge-impuestos');
+
+    if (modo === 'configurable') {
+        const ef  = parseFloat(document.getElementById('imp-efectivo')?.value || 0);
+        const tar = parseFloat(document.getElementById('imp-tarjeta')?.value  || 0);
+        const loc = parseFloat(document.getElementById('imp-local')?.value    || 0);
+        const del = parseFloat(document.getElementById('imp-delivery')?.value || 0);
+        const ta  = parseFloat(document.getElementById('imp-takeaway')?.value || 0);
+        const allSet = [ef, tar, loc, del, ta].every(v => v >= 0 && !isNaN(v));
+        badge.textContent = allSet ? `Configurable (${ef}%+${tar}% / ${loc}%+${del}%+${ta}%)` : 'Incompleto';
+        badge.className   = allSet ? 'cfg-section-badge badge-on' : 'cfg-section-badge badge-hidden';
+        return;
+    }
+
+    const pct    = parseFloat(document.getElementById('imp-pct')?.value || 0);
     const ejemplo = document.getElementById('imp-ejemplo');
 
     if (pct > 0) {
         badge.textContent = `${pct}%`;
         badge.className   = 'cfg-section-badge badge-on';
-
-        // Ejemplo interactivo
         const factor = 1 - pct / 100;
         const bruto  = 200;
         const neto   = Math.round(bruto * factor * 100) / 100;
         const neto2  = Math.round(bruto / factor * 100) / 100;
-
-        const simb = window.SISTEMA_MONEDA?.simbolo || '';
-        ejemplo.style.display = '';
-        ejemplo.innerHTML = `
-            <strong>Ejemplo con tus valores:</strong><br>
-            Factura de <strong>${simb} ${bruto}</strong> c/ impuestos incluidos
-            → <strong>${simb} ${neto}</strong> sin impuestos (${simb} ${bruto} × ${factor.toFixed(4)})<br>
-            Factura de <strong>${simb} ${bruto}</strong> sin impuestos
-            → <strong>${simb} ${neto2}</strong> con impuestos incluidos (${simb} ${bruto} ÷ ${factor.toFixed(4)})
-        `;
+        const simb   = window.SISTEMA_MONEDA?.simbolo || '';
+        if (ejemplo) {
+            ejemplo.style.display = '';
+            ejemplo.innerHTML = `
+                <strong>Ejemplo con tus valores:</strong><br>
+                Factura de <strong>${simb} ${bruto}</strong> c/ impuestos incluidos
+                → <strong>${simb} ${neto}</strong> sin impuestos (${simb} ${bruto} × ${factor.toFixed(4)})<br>
+                Factura de <strong>${simb} ${bruto}</strong> sin impuestos
+                → <strong>${simb} ${neto2}</strong> con impuestos incluidos (${simb} ${bruto} ÷ ${factor.toFixed(4)})
+            `;
+        }
     } else {
         badge.textContent = 'Sin configurar';
         badge.className   = 'cfg-section-badge badge-off';
-        ejemplo.style.display = 'none';
+        if (ejemplo) ejemplo.style.display = 'none';
     }
 }
 
@@ -1880,12 +2018,38 @@ async function guardarImpuesto() {
         alert('Solo el administrador puede cambiar esta configuración.'); return;
     }
 
-    const pct = parseFloat(document.getElementById('imp-pct').value || 0);
-    if (pct < 0 || pct >= 100) {
-        alert('El porcentaje debe estar entre 0 y 99.9.'); return;
+    const modo = document.querySelector('input[name="modo-impositivo"]:checked')?.value || 'predeterminado';
+
+    let impPayload = {};
+
+    if (modo === 'configurable') {
+        const ef  = parseFloat(document.getElementById('imp-efectivo')?.value);
+        const tar = parseFloat(document.getElementById('imp-tarjeta')?.value);
+        const loc = parseFloat(document.getElementById('imp-local')?.value);
+        const del = parseFloat(document.getElementById('imp-delivery')?.value);
+        const ta  = parseFloat(document.getElementById('imp-takeaway')?.value);
+
+        if ([ef, tar, loc, del, ta].some(v => isNaN(v))) {
+            alert('En modo configurable debés completar todos los campos de impuestos.'); return;
+        }
+        impPayload = {
+            modo_impositivo:  'configurable',
+            imp_efectivo_pct: ef,
+            imp_tarjeta_pct:  tar,
+            imp_local_pct:    loc,
+            imp_delivery_pct: del,
+            imp_takeaway_pct: ta,
+        };
+    } else {
+        const pct = parseFloat(document.getElementById('imp-pct')?.value || 0);
+        if (pct < 0 || pct >= 100) { alert('El porcentaje debe estar entre 0 y 99.9.'); return; }
+        impPayload = {
+            modo_impositivo:  'predeterminado',
+            impuesto_pct:     pct,
+        };
     }
 
-    // Leer configuración actual de moneda para no pisarla
+    // Leer configuración actual para no pisarla
     let cfgActual = { moneda_codigo: 'EUR', moneda_simbolo: '€', moneda_nombre: 'Euro', tasas_cambio: [] };
     try { cfgActual = await apiFetch('/config/sistema'); } catch {}
 
@@ -1893,13 +2057,19 @@ async function guardarImpuesto() {
         await apiFetch('/config/sistema', {
             method: 'PUT',
             body: JSON.stringify({
-                moneda_codigo:  cfgActual.moneda_codigo,
-                moneda_simbolo: cfgActual.moneda_simbolo,
-                moneda_nombre:  cfgActual.moneda_nombre,
-                tasas_cambio:   cfgActual.tasas_cambio || [],
-                impuesto_pct:   pct,
+                moneda_codigo:      cfgActual.moneda_codigo,
+                moneda_simbolo:     cfgActual.moneda_simbolo,
+                moneda_nombre:      cfgActual.moneda_nombre,
+                tasas_cambio:       cfgActual.tasas_cambio || [],
+                impuesto_pct:       cfgActual.impuesto_pct || 0,
+                dia_inicio_periodo: cfgActual.dia_inicio_periodo || 1,
+                hora_corte_turno:   cfgActual.hora_corte_turno   || 6,
+                corte_cierra_fichajes: cfgActual.corte_cierra_fichajes || false,
+                corte_cierra_caja:     cfgActual.corte_cierra_caja    || false,
+                ...impPayload,
             }),
         });
+        actualizarBadgeImpuesto();
         mostrarOk('ok-impuestos');
         if (typeof cargarMonedaSistema === 'function') cargarMonedaSistema();
     } catch (e) {
@@ -2024,19 +2194,31 @@ async function guardarMoneda() {
     if (!codigo)  { alert('Seleccioná o ingresá una divisa.'); return; }
     if (!simbolo) { alert('Ingresá el símbolo de la divisa.'); return; }
 
-    // Preservar impuesto_pct actual para no pisarlo
-    let impActual = 0;
-    try { impActual = parseFloat((await apiFetch('/config/sistema')).impuesto_pct || 0); } catch {}
+    // Preservar toda la configuración actual para no pisarla
+    let cfgActual = { impuesto_pct: 0, dia_inicio_periodo: 1, hora_corte_turno: 6,
+                      corte_cierra_fichajes: false, corte_cierra_caja: false,
+                      modo_impositivo: 'predeterminado' };
+    try { cfgActual = await apiFetch('/config/sistema'); } catch {}
 
     try {
         await apiFetch('/config/sistema', {
             method: 'PUT',
             body: JSON.stringify({
-                moneda_codigo:  codigo,
-                moneda_simbolo: simbolo,
-                moneda_nombre:  nombre,
-                tasas_cambio:   _tasas,
-                impuesto_pct:   impActual,
+                moneda_codigo:         codigo,
+                moneda_simbolo:        simbolo,
+                moneda_nombre:         nombre,
+                tasas_cambio:          _tasas,
+                impuesto_pct:          cfgActual.impuesto_pct          || 0,
+                dia_inicio_periodo:    cfgActual.dia_inicio_periodo     || 1,
+                hora_corte_turno:      cfgActual.hora_corte_turno       || 6,
+                corte_cierra_fichajes: cfgActual.corte_cierra_fichajes  || false,
+                corte_cierra_caja:     cfgActual.corte_cierra_caja      || false,
+                modo_impositivo:       cfgActual.modo_impositivo        || 'predeterminado',
+                imp_efectivo_pct:      cfgActual.imp_efectivo_pct       ?? null,
+                imp_tarjeta_pct:       cfgActual.imp_tarjeta_pct        ?? null,
+                imp_local_pct:         cfgActual.imp_local_pct          ?? null,
+                imp_delivery_pct:      cfgActual.imp_delivery_pct       ?? null,
+                imp_takeaway_pct:      cfgActual.imp_takeaway_pct       ?? null,
             }),
         });
         actualizarBadgeMoneda(codigo, simbolo);

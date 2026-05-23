@@ -57,8 +57,35 @@
         .modal-footer { display: flex; justify-content: flex-end; margin-top: 24px; }
         .btn-libreta { background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; transition: background 0.15s; }
         .btn-libreta:hover { background: #f1f5f9; }
+        .btn-takeaway { background: #7c3aed; color: white; }
+        .btn-takeaway:hover { background: #6d28d9; }
         .rev-screen { display: none; }
         .rev-screen.active { display: block; }
+
+        /* ── Take Away Modal ── */
+        .ta-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; max-height:320px; overflow-y:auto; }
+        .ta-prod { background:#f8f9fa; border:2px solid #e5e7eb; border-radius:10px; padding:10px; cursor:pointer; transition:all .15s; text-align:center; position:relative; }
+        .ta-prod:hover { border-color:#7c3aed; background:#fdf4ff; }
+        .ta-prod.selected { border-color:#7c3aed; background:#fdf4ff; }
+        .ta-prod-nombre { font-size:12px; font-weight:600; color:#1a1a2e; margin-bottom:4px; line-height:1.3; }
+        .ta-prod-precio { font-size:13px; font-weight:700; color:#7c3aed; }
+        .ta-prod-badge { position:absolute; top:-7px; right:-7px; background:#7c3aed; color:white;
+                         width:22px; height:22px; border-radius:50%; display:none; align-items:center;
+                         justify-content:center; font-size:12px; font-weight:700; }
+        .ta-prod.selected .ta-prod-badge { display:flex; }
+        .ta-cat-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+        .ta-cat-btn { padding:5px 12px; border:1.5px solid #e0e0e0; border-radius:20px;
+                      background:white; cursor:pointer; font-size:12px; font-weight:600;
+                      color:#6b7280; transition:all .15s; }
+        .ta-cat-btn.active { background:#7c3aed; color:white; border-color:#7c3aed; }
+
+        /* ── Pago modal ── */
+        .pago-metodo-btn { flex:1; padding:14px; border:2px solid #e0e0e0; border-radius:10px;
+                           background:white; cursor:pointer; font-size:14px; font-weight:700;
+                           transition:all .15s; }
+        .pago-metodo-btn.active { border-color:#4f46e5; background:#f5f3ff; color:#4f46e5; }
+        .pago-linea { display:flex; justify-content:space-between; font-size:14px; color:#555; padding:5px 0; }
+        .pago-linea.total { font-size:17px; font-weight:800; color:#1a1a2e; border-top:2px solid #e2e8f0; margin-top:6px; padding-top:10px; }
         .rev-item-row { display: grid; grid-template-columns: 2fr 80px 110px 80px 40px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
         .rev-item-row:last-child { border-bottom: none; }
         .rev-input { width: 100%; padding: 5px 8px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px; outline: none; text-align: right; }
@@ -93,6 +120,7 @@
         <div class="caja-acciones">
             <button class="btn btn-success" id="btn-abrir" onclick="abrirCaja()" disabled>Abrir caja</button>
             <button class="btn btn-danger" id="btn-cerrar" onclick="cerrarCaja()" disabled>Cerrar caja</button>
+            <button class="btn btn-takeaway" onclick="abrirTakeAway()">🥡 Take Away</button>
         </div>
     </div>
 
@@ -239,6 +267,85 @@
         <div id="hrev-contenido" style="margin-top:16px;max-height:60vh;overflow-y:auto;"></div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-historial-rev')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal Take Away: selector de productos ── -->
+<div class="modal-overlay" id="modal-takeaway">
+    <div class="modal" style="max-width:700px;padding:0;overflow:hidden;">
+        <div style="background:#7c3aed;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div style="color:white;font-size:18px;font-weight:700;">🥡 Pedido Take Away</div>
+                <div style="color:#e9d5ff;font-size:12px;margin-top:2px;">Seleccioná los productos — van a producción inmediata</div>
+            </div>
+            <button onclick="cerrarModal('modal-takeaway')"
+                style="background:transparent;border:1px solid rgba(255,255,255,.4);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">
+                Cancelar
+            </button>
+        </div>
+        <div style="padding:20px 24px;">
+            <!-- Categorías -->
+            <div class="ta-cat-tabs" id="ta-cats"></div>
+            <!-- Grid de productos -->
+            <div class="ta-grid" id="ta-grid"></div>
+            <!-- Resumen carrito -->
+            <div id="ta-carrito" style="margin-top:16px;padding:14px;background:#f5f3ff;border-radius:10px;display:none;">
+                <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:8px;">🛒 Pedido</div>
+                <div id="ta-carrito-items"></div>
+                <div style="margin-top:10px;font-size:15px;font-weight:800;color:#1a1a2e;text-align:right;">
+                    Total: <span id="ta-total">$0.00</span>
+                </div>
+            </div>
+        </div>
+        <div style="padding:14px 24px;border-top:1px solid #e2e8f0;background:#f8f9fa;display:flex;justify-content:flex-end;gap:10px;">
+            <button onclick="cerrarModal('modal-takeaway')" style="background:white;border:1.5px solid #e0e0e0;color:#444;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Cancelar</button>
+            <button onclick="confirmarTakeAway()" id="btn-confirmar-ta"
+                style="background:#7c3aed;color:white;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;" disabled>
+                ✅ Confirmar pedido
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal Pago Take Away ── -->
+<div class="modal-overlay" id="modal-pago-ta">
+    <div class="modal" style="max-width:480px;padding:0;overflow:hidden;">
+        <div style="background:#1a1a2e;padding:20px 28px;">
+            <div style="color:white;font-size:17px;font-weight:700;">💳 Cobrar pedido Take Away</div>
+            <div style="color:#a5b4fc;font-size:12px;margin-top:2px;" id="pago-ta-sub"></div>
+        </div>
+        <div style="padding:20px 24px;">
+            <!-- Resumen de precios -->
+            <div id="pago-ta-resumen" style="margin-bottom:20px;"></div>
+            <!-- Método de pago -->
+            <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Método de pago</div>
+            <div style="display:flex;gap:10px;margin-bottom:20px;">
+                <button class="pago-metodo-btn" id="pago-ta-ef" onclick="seleccionarMetodoPago('efectivo')">
+                    💵 Efectivo
+                </button>
+                <button class="pago-metodo-btn" id="pago-ta-tar" onclick="seleccionarMetodoPago('tarjeta')">
+                    💳 Tarjeta
+                </button>
+            </div>
+            <!-- Total final -->
+            <div id="pago-ta-total-box" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:14px 16px;">
+                <div class="pago-linea"><span>Precio de lista</span><span id="pago-lista">—</span></div>
+                <div class="pago-linea" id="pago-imp-tipo-row" style="display:none;color:#7c3aed;">
+                    <span id="pago-imp-tipo-lbl">Impuesto pedido</span><span id="pago-imp-tipo-val">—</span>
+                </div>
+                <div class="pago-linea" id="pago-imp-metodo-row" style="display:none;color:#0369a1;">
+                    <span id="pago-imp-metodo-lbl">Impuesto pago</span><span id="pago-imp-metodo-val">—</span>
+                </div>
+                <div class="pago-linea total"><span>Total a pagar</span><span id="pago-total-final">—</span></div>
+            </div>
+        </div>
+        <div style="padding:14px 24px;border-top:1px solid #e2e8f0;background:#f8f9fa;display:flex;justify-content:flex-end;gap:10px;">
+            <button onclick="cerrarModal('modal-pago-ta')" style="background:white;border:1.5px solid #e0e0e0;color:#444;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Cancelar</button>
+            <button onclick="ejecutarPagoTakeAway()" id="btn-pagar-ta"
+                style="background:#16a34a;color:white;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;" disabled>
+                ✅ Cobrar
+            </button>
         </div>
     </div>
 </div>
@@ -524,6 +631,246 @@ async function buscarPorPedidoId() {
     } catch(e) { alert("Error: " + e.message); }
 }
 
+// ── TAKE AWAY ─────────────────────────────────────────────────
+
+let _taProductos = [];      // todos los productos disponibles
+let _taCarrito   = {};      // { producto_id: { prod, cantidad } }
+let _taPedidoId  = null;    // id del pedido creado
+let _taMetodo    = null;    // 'efectivo' | 'tarjeta'
+let _taCfgImp    = null;    // config impositiva
+
+async function abrirTakeAway() {
+    _taCarrito = {};
+    _taPedidoId = null;
+    _taMetodo = null;
+    actualizarCarritoUI();
+
+    // Cargar productos disponibles en carta
+    try {
+        _taProductos = await api.get("/productos?disponible=true&en_carta=true");
+        _taProductos = _taProductos.filter(p => !p.agotado);
+    } catch(e) { alert("Error cargando productos: " + e.message); return; }
+
+    // Cargar config impositiva
+    try { _taCfgImp = await api.get("/config/sistema"); } catch { _taCfgImp = {}; }
+
+    renderTaCategorias();
+    renderTaProductos();
+    document.getElementById("modal-takeaway").classList.add("active");
+}
+
+function renderTaCategorias() {
+    const cats = [...new Set(_taProductos.map(p => p.categoria || "General"))].filter(Boolean);
+    const cont  = document.getElementById("ta-cats");
+    cont.innerHTML = `<button class="ta-cat-btn active" onclick="filtrarTaCat(this, '')">Todos</button>` +
+        cats.map(c => `<button class="ta-cat-btn" onclick="filtrarTaCat(this, '${c}')">${c}</button>`).join("");
+}
+
+function filtrarTaCat(btn, cat) {
+    document.querySelectorAll(".ta-cat-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderTaProductos(cat);
+}
+
+function renderTaProductos(cat = '') {
+    const prods = cat ? _taProductos.filter(p => (p.categoria || "General") === cat) : _taProductos;
+    const simb  = window.SISTEMA_MONEDA?.simbolo || '$';
+    document.getElementById("ta-grid").innerHTML = prods.map(p => {
+        const cant = _taCarrito[p.id]?.cantidad || 0;
+        return `<div class="ta-prod${cant > 0 ? ' selected' : ''}" onclick="toggleTaProd(${p.id})">
+            <div class="ta-prod-badge">${cant}</div>
+            <div class="ta-prod-nombre">${p.nombre}</div>
+            <div class="ta-prod-precio">${simb} ${parseFloat(p.precio).toFixed(2)}</div>
+        </div>`;
+    }).join("");
+}
+
+function toggleTaProd(id) {
+    const prod = _taProductos.find(p => p.id === id);
+    if (!prod) return;
+    if (_taCarrito[id]) {
+        _taCarrito[id].cantidad++;
+    } else {
+        _taCarrito[id] = { prod, cantidad: 1 };
+    }
+    actualizarCarritoUI();
+    renderTaProductos(document.querySelector(".ta-cat-btn.active")?.textContent === "Todos"
+        ? '' : document.querySelector(".ta-cat-btn.active")?.textContent || '');
+}
+
+function actualizarCarritoUI() {
+    const items = Object.values(_taCarrito).filter(i => i.cantidad > 0);
+    const cont  = document.getElementById("ta-carrito");
+    const btn   = document.getElementById("btn-confirmar-ta");
+    const simb  = window.SISTEMA_MONEDA?.simbolo || '$';
+
+    if (!items.length) {
+        if (cont) cont.style.display = 'none';
+        if (btn) btn.disabled = true;
+        return;
+    }
+
+    let total = 0;
+    const html = items.map(i => {
+        const sub = parseFloat(i.prod.precio) * i.cantidad;
+        total += sub;
+        return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;">
+            <div>
+                <span style="font-weight:600;">${i.prod.nombre}</span>
+                <span style="color:#888;margin-left:6px;">×${i.cantidad}</span>
+                <button onclick="quitarTaProd(${i.prod.id})" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:11px;margin-left:6px;">✕</button>
+            </div>
+            <span style="font-weight:700;">${simb} ${sub.toFixed(2)}</span>
+        </div>`;
+    }).join("");
+
+    if (cont) { cont.style.display = ''; document.getElementById("ta-carrito-items").innerHTML = html; }
+    document.getElementById("ta-total").textContent = `${simb} ${total.toFixed(2)}`;
+    if (btn) btn.disabled = false;
+}
+
+function quitarTaProd(id) {
+    delete _taCarrito[id];
+    actualizarCarritoUI();
+    renderTaProductos(document.querySelector(".ta-cat-btn.active")?.textContent === "Todos"
+        ? '' : document.querySelector(".ta-cat-btn.active")?.textContent || '');
+}
+
+async function confirmarTakeAway() {
+    const items = Object.values(_taCarrito).filter(i => i.cantidad > 0);
+    if (!items.length) return;
+
+    const btn = document.getElementById("btn-confirmar-ta");
+    btn.disabled = true;
+    btn.textContent = "Procesando…";
+
+    try {
+        const payload = {
+            items: items.map(i => ({ producto_id: i.prod.id, cantidad: i.cantidad }))
+        };
+        const res = await api.post("/pedidos/takeaway", payload);
+        _taPedidoId = res.pedido_id;
+
+        cerrarModal("modal-takeaway");
+        abrirPagoTakeAway(res.pedido_id, res.total);
+    } catch(e) {
+        alert("Error al crear pedido: " + e.message);
+        btn.disabled = false;
+        btn.textContent = "✅ Confirmar pedido";
+    }
+}
+
+async function abrirPagoTakeAway(pedidoId, totalLista) {
+    _taMetodo = null;
+    document.getElementById("pago-ta-sub").textContent = `Pedido #${pedidoId}`;
+    document.getElementById("pago-ta-total-box").style.display = 'none';
+    document.getElementById("btn-pagar-ta").disabled = true;
+    document.querySelectorAll(".pago-metodo-btn").forEach(b => b.classList.remove("active"));
+
+    const simb = window.SISTEMA_MONEDA?.simbolo || '$';
+    document.getElementById("pago-lista").textContent = `${simb} ${totalLista.toFixed(2)}`;
+
+    // Resumen de items
+    try {
+        const res = await api.get(`/pagos/resumen/${pedidoId}`);
+        const rows = res.items.map(i => {
+            const sub = parseFloat(i.subtotal);
+            return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:#555;">
+                <span>${i.nombre_snapshot} ×${i.cantidad}</span>
+                <span>${simb} ${sub.toFixed(2)}</span>
+            </div>`;
+        }).join("");
+        document.getElementById("pago-ta-resumen").innerHTML =
+            `<div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;max-height:140px;overflow-y:auto;">${rows}</div>`;
+    } catch {}
+
+    document.getElementById("modal-pago-ta").classList.add("active");
+}
+
+function seleccionarMetodoPago(metodo) {
+    _taMetodo = metodo;
+    document.getElementById("pago-ta-ef").classList.toggle("active",  metodo === "efectivo");
+    document.getElementById("pago-ta-tar").classList.toggle("active", metodo === "tarjeta");
+    recalcularTotalPago();
+}
+
+async function recalcularTotalPago() {
+    if (!_taPedidoId || !_taMetodo) return;
+    const simb = window.SISTEMA_MONEDA?.simbolo || '$';
+
+    try {
+        const res = await api.get(`/pagos/resumen/${_taPedidoId}?metodo_pago=${_taMetodo}`);
+        const totalBox = document.getElementById("pago-ta-total-box");
+        totalBox.style.display = '';
+
+        document.getElementById("pago-lista").textContent = `${simb} ${res.total.toFixed(2)}`;
+
+        // Impuesto por tipo de pedido
+        const tipoRow = document.getElementById("pago-imp-tipo-row");
+        if (res.imp_tipo_pct > 0) {
+            tipoRow.style.display = '';
+            document.getElementById("pago-imp-tipo-lbl").textContent = `Impuesto para llevar (${res.imp_tipo_pct}%)`;
+            document.getElementById("pago-imp-tipo-val").textContent =
+                `${simb} ${(res.total * res.imp_tipo_pct / 100).toFixed(2)}`;
+        } else {
+            tipoRow.style.display = 'none';
+        }
+
+        // Impuesto por método de pago
+        const metRow = document.getElementById("pago-imp-metodo-row");
+        if (res.imp_metodo_pct > 0) {
+            metRow.style.display = '';
+            document.getElementById("pago-imp-metodo-lbl").textContent =
+                `Impuesto ${_taMetodo === 'efectivo' ? 'efectivo' : 'tarjeta'} (${res.imp_metodo_pct}%)`;
+            document.getElementById("pago-imp-metodo-val").textContent =
+                `${simb} ${(res.total * res.imp_metodo_pct / 100).toFixed(2)}`;
+        } else {
+            metRow.style.display = 'none';
+        }
+
+        const totalFinal = res.total_con_impuesto;
+        document.getElementById("pago-total-final").textContent = `${simb} ${totalFinal.toFixed(2)}`;
+
+        document.getElementById("btn-pagar-ta").disabled = false;
+        document.getElementById("btn-pagar-ta").dataset.total = totalFinal;
+    } catch(e) {
+        console.error("Error recalcular impuesto:", e);
+    }
+}
+
+async function ejecutarPagoTakeAway() {
+    if (!_taPedidoId || !_taMetodo) return;
+    const btn = document.getElementById("btn-pagar-ta");
+    btn.disabled = true;
+    btn.textContent = "Procesando…";
+
+    const monto = parseFloat(btn.dataset.total || 0);
+
+    try {
+        const res = await api.post("/pagos/pago-parcial", {
+            pedido_id:  _taPedidoId,
+            pagador_num: 1,
+            monto:      monto,
+            metodo_pago: _taMetodo,
+        });
+
+        cerrarModal("modal-pago-ta");
+        _taPedidoId = null;
+        _taCarrito  = {};
+
+        const simb = window.SISTEMA_MONEDA?.simbolo || '$';
+        alert(`✅ Pedido Take Away cobrado\n${simb} ${monto.toFixed(2)} — ${_taMetodo === 'efectivo' ? 'Efectivo' : 'Tarjeta'}`);
+
+        await Promise.all([cargarResumen(), cargarCierres()]);
+    } catch(e) {
+        alert("Error al cobrar: " + e.message);
+        btn.disabled = false;
+        btn.textContent = "✅ Cobrar";
+    }
+}
+
+// ── FIN TAKE AWAY ─────────────────────────────────────────────
+
 async function init() {
     const hoy = new Date().toISOString().split("T")[0];
     document.getElementById("filtro-desde").value = hoy;
@@ -662,14 +1009,18 @@ async function verDetalle(id) {
                         </td>
                     </tr>`;
                 }
+                const esTakeAway = !d.mesa_numero;
+                const mesaLabel  = esTakeAway
+                    ? `<span style="color:#7c3aed;font-weight:600;">🥡 Take Away</span>`
+                    : `Mesa ${d.mesa_numero}`;
                 return `<tr>
                     <td style="color:#666;font-size:12px;">#${d.pedido_id}</td>
-                    <td>Mesa ${d.mesa_numero}</td>
-                    <td>${d.comensales} personas</td>
+                    <td>${mesaLabel}</td>
+                    <td>${d.comensales} persona${d.comensales != 1 ? 's' : ''}</td>
                     <td>${totalStr}</td>
                     <td>${formatTs(d.ts_cobro)}</td>
                     <td>
-                        <button class="btn-libreta" onclick="verItems(${d.pedido_id}, ${d.mesa_numero})" title="Ver productos">📒</button>
+                        <button class="btn-libreta" onclick="verItems(${d.pedido_id}, ${esTakeAway ? "'Take Away'" : d.mesa_numero})" title="Ver productos">📒</button>
                     </td>
                 </tr>`;
             }).join("");
