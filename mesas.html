@@ -387,6 +387,28 @@
             <label>Notas</label>
             <input type="text" id="fm-notas" placeholder="Opcional">
         </div>
+        <div class="form-group">
+            <label>Modos disponibles en la mesa</label>
+            <div style="display:flex;gap:16px;margin-top:4px;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
+                    <input type="checkbox" id="fm-modo-local" value="local" onchange="actualizarModoDefault()"> En el Local
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
+                    <input type="checkbox" id="fm-modo-llevar" value="llevar" onchange="actualizarModoDefault()"> Para Llevar
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
+                    <input type="checkbox" id="fm-modo-refound" value="refound" onchange="actualizarModoDefault()"> Refound
+                </label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Modo predeterminado</label>
+            <select id="fm-modo-default" style="width:100%;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;">
+                <option value="local">En el Local</option>
+                <option value="llevar">Para Llevar</option>
+                <option value="refound">Refound</option>
+            </select>
+        </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-mesa')">Cancelar</button>
             <button class="btn btn-primary" onclick="guardarMesa()">Guardar</button>
@@ -556,29 +578,84 @@ async function eliminarSala(id) {
 }
 
 // ── MODAL MESA ─────────────────────────────────────────────────
+function actualizarModoDefault() {
+    // Mantener solo las opciones marcadas como disponibles en el select de default
+    const MODOS = [
+        { id: 'fm-modo-local',   val: 'local',   label: 'En el Local' },
+        { id: 'fm-modo-llevar',  val: 'llevar',  label: 'Para Llevar' },
+        { id: 'fm-modo-refound', val: 'refound', label: 'Refound'     },
+    ];
+    const sel = document.getElementById('fm-modo-default');
+    const prevVal = sel.value;
+    sel.innerHTML = '';
+    let anyChecked = false;
+    MODOS.forEach(m => {
+        if (document.getElementById(m.id).checked) {
+            const opt = document.createElement('option');
+            opt.value = m.val; opt.textContent = m.label;
+            sel.appendChild(opt);
+            anyChecked = true;
+        }
+    });
+    if (!anyChecked) {
+        // Siempre debe haber al menos uno — forzar "local"
+        document.getElementById('fm-modo-local').checked = true;
+        actualizarModoDefault();
+        return;
+    }
+    // Restaurar selección si todavía está disponible
+    if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
+}
+
 function abrirModalMesa(id = null) {
     editandoMesaId = id;
+    const MODOS_IDS = ['fm-modo-local', 'fm-modo-llevar', 'fm-modo-refound'];
     if (id) {
         const m = mesas.find(x => x.id === id);
         document.getElementById('modal-mesa-titulo').textContent = 'Editar mesa';
         document.getElementById('fm-numero').value = m.numero;
         document.getElementById('fm-capacidad').value = m.capacidad;
         document.getElementById('fm-notas').value = m.notas || '';
+        // Parsear modo_opciones
+        let opciones = ['local'];
+        try { opciones = JSON.parse(m.modo_opciones || '["local"]'); } catch(e) {}
+        MODOS_IDS.forEach(mid => {
+            const val = document.getElementById(mid).value;
+            document.getElementById(mid).checked = opciones.includes(val);
+        });
+        actualizarModoDefault();
+        document.getElementById('fm-modo-default').value = m.modo_default || 'local';
     } else {
         document.getElementById('modal-mesa-titulo').textContent = 'Nueva mesa';
         document.getElementById('fm-numero').value = '';
         document.getElementById('fm-capacidad').value = '4';
         document.getElementById('fm-notas').value = '';
+        // Reset: solo "local" marcado por defecto
+        document.getElementById('fm-modo-local').checked = true;
+        document.getElementById('fm-modo-llevar').checked = false;
+        document.getElementById('fm-modo-refound').checked = false;
+        actualizarModoDefault();
+        document.getElementById('fm-modo-default').value = 'local';
     }
     document.getElementById('modal-mesa').classList.add('active');
 }
 
 async function guardarMesa() {
+    const MODOS = [
+        { id: 'fm-modo-local',   val: 'local'   },
+        { id: 'fm-modo-llevar',  val: 'llevar'  },
+        { id: 'fm-modo-refound', val: 'refound' },
+    ];
+    const opciones = MODOS.filter(m => document.getElementById(m.id).checked).map(m => m.val);
+    if (!opciones.length) opciones.push('local');
+    const modoDefault = document.getElementById('fm-modo-default').value || 'local';
     const body = {
         sala_id: salaSelId,
         numero: parseInt(document.getElementById('fm-numero').value),
         capacidad: parseInt(document.getElementById('fm-capacidad').value) || 4,
-        notas: document.getElementById('fm-notas').value.trim() || null
+        notas: document.getElementById('fm-notas').value.trim() || null,
+        modo_opciones: JSON.stringify(opciones),
+        modo_default: modoDefault,
     };
     if (!body.numero) { alert('El número es obligatorio.'); return; }
     try {
