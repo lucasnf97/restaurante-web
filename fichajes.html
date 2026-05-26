@@ -776,6 +776,62 @@ function _actualizarDayGroup(dayKey) {
     _actualizarAlertaUsuario(uid);
 }
 
+/**
+ * Re-renderiza la card de un usuario a partir de los datos locales (_fichajesData)
+ * SIN recargar la página, conservando el estado abierto/cerrado de la card y
+ * de cada sub-grupo de día.
+ */
+function _refreshAfterEdit(fichajeId) {
+    const f = _fichajesData[fichajeId];
+    if (!f) return;
+    const uid          = f.usuario_id;
+    const existingCard = document.getElementById(`card-${uid}`);
+    if (!existingCard) return;
+
+    // ── 1. Guardar estado de apertura ──────────────────────────
+    const cardOpen   = document.getElementById(`detail-${uid}`)?.classList.contains("open");
+    const openSubKeys = new Set();
+    existingCard.querySelectorAll('[id^="sub-"]').forEach(el => {
+        if (el.style.display !== "none") openSubKeys.add(el.id.slice(4));
+    });
+
+    // ── 2. Determinar colorIdx por posición en la lista ────────
+    const lista      = existingCard.parentElement;
+    const colorIdx   = lista
+        ? Array.from(lista.children).findIndex(el => el.id === `card-${uid}`)
+        : uid % COLORES.length;
+
+    // ── 3. Reconstruir grupo desde _fichajesData ───────────────
+    const fichajes = Object.values(_fichajesData).filter(f2 => f2.usuario_id === uid);
+    const g = {
+        username:   f.username,
+        usuario_id: uid,
+        fichajes,
+        colorIdx:   colorIdx >= 0 ? colorIdx : uid % COLORES.length,
+    };
+
+    // ── 4. Reemplazar el HTML de la card ───────────────────────
+    const tmp = document.createElement("div");
+    tmp.innerHTML = renderUserCard(g);
+    const newCard = tmp.firstElementChild;
+    existingCard.replaceWith(newCard);
+
+    // ── 5. Restaurar estado de apertura ───────────────────────
+    if (cardOpen) {
+        newCard.querySelector(".user-summary")?.classList.add("expanded");
+        document.getElementById(`detail-${uid}`)?.classList.add("open");
+    }
+    openSubKeys.forEach(key => {
+        const subEl   = document.getElementById(`sub-${key}`);
+        const arrowEl = document.getElementById(`arrow-day-${key}`);
+        if (subEl) {
+            subEl.style.display = "table-row";
+            if (arrowEl) arrowEl.style.transform = "rotate(180deg)";
+            subEl.previousElementSibling?.classList.add("expanded");
+        }
+    });
+}
+
 // ── Notas inline ─────────────────────────────────────────────
 function editarNota(id) {
     const f = _fichajesData[id];
@@ -966,6 +1022,7 @@ async function guardarDescanso() {
                 mins > 0 ? `${mins} min` : "Sin descanso";
         }
         cancelarEditDescanso();
+        _refreshAfterEdit(_revFichajeId);
     } catch(e) {
         alert("Error al guardar descanso: " + (e.message || e));
     }
@@ -1006,6 +1063,7 @@ async function guardarHora(campo) {
             }
         }
         cancelarEditHora(campo);
+        _refreshAfterEdit(_revFichajeId);
     } catch(e) {
         alert("Error al guardar: " + (e.message || e));
     }
@@ -1042,8 +1100,9 @@ async function confirmarRevision() {
             f.revisado     = true;
             f.ajuste_horas = ajuste_horas;
         }
+        const idParaRefresh = _revFichajeId;
         cerrarRevision();
-        cargarHistorial();
+        _refreshAfterEdit(idParaRefresh);
     } catch(e) {
         alert("Error al confirmar revisión: " + (e.message || e));
     }
