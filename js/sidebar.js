@@ -45,6 +45,7 @@
             ]
         },
         { href: "configuracion.html", icon: "⚙️", label: "Configuración", perm: "acceso_configuracion" },
+        { href: "mensajes.html", icon: "💬", label: "Mensajes" },
     ];
 
     const currentPage = window.location.pathname.split("/").pop() || "dashboard.html";
@@ -329,6 +330,43 @@
     `;
     document.body.appendChild(panel);
 
+    // ── CSS extra para el botón de mensajes en navbar ───────────
+    style.textContent += `
+        #nav-mensajes-btn {
+            position: relative;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-size: 18px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            transition: background .15s;
+            flex-shrink: 0;
+        }
+        #nav-mensajes-btn:hover { background: rgba(255,255,255,0.12); }
+        #nav-mensajes-badge {
+            display: none;
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #dc2626;
+            color: white;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 800;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            text-align: center;
+            line-height: 16px;
+            border: 1.5px solid #1a1a2e;
+        }
+    `;
+
     // ── HAMBURGER + HOME en el navbar ───────────────────────────
     function injectHamburger() {
         const navbar = document.querySelector("nav.navbar");
@@ -358,6 +396,39 @@
 
         // Insertar el grupo como primer hijo del navbar
         navbar.insertBefore(leftGroup, navbar.firstChild);
+
+        // ── Botón 💬 mensajes con badge en el lado derecho ──────
+        const navLinks = navbar.querySelector(".navbar-links");
+        if (navLinks) {
+            const msgBtn = document.createElement("a");
+            msgBtn.id   = "nav-mensajes-btn";
+            msgBtn.href = "mensajes.html";
+            msgBtn.setAttribute("aria-label", "Mensajes");
+            msgBtn.innerHTML = `💬<span id="nav-mensajes-badge"></span>`;
+            navLinks.insertBefore(msgBtn, navLinks.firstChild);
+        }
+
+        // Cargar conteo de no leídos (solo si hay token)
+        _cargarBadgeMensajes();
+    }
+
+    async function _cargarBadgeMensajes() {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const API_URL = window._API_URL || "https://restaurante-backend-production-459b.up.railway.app";
+            const res = await fetch(`${API_URL}/mensajes/no-leidos/count`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const count = data.count || 0;
+            const badge = document.getElementById("nav-mensajes-badge");
+            if (badge) {
+                badge.textContent = count;
+                badge.style.display = count > 0 ? "" : "none";
+            }
+        } catch(e) { /* silencioso — no crítico */ }
     }
 
     // ── TOGGLE ───────────────────────────────────────────────────

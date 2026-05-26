@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Mensajes</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+        .content { margin-top: 60px; padding: 32px; max-width: 900px; margin-left: auto; margin-right: auto; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+
+        /* ── Tabs ── */
+        .tabs { display: flex; gap: 4px; background: white; border-radius: 10px; padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; width: fit-content; }
+        .tab-btn { padding: 8px 20px; border: none; border-radius: 7px; background: transparent; color: #6b7280; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 6px; }
+        .tab-btn:hover { background: #f3f4f6; color: #374151; }
+        .tab-btn.active { background: #4f46e5; color: white; }
+        .tab-badge { background: #dc2626; color: white; border-radius: 10px; font-size: 10px; font-weight: 800; padding: 1px 6px; min-width: 18px; text-align: center; }
+        .tab-btn.active .tab-badge { background: rgba(255,255,255,0.3); }
+
+        /* ── Mensaje lista ── */
+        .mensajes-lista { display: flex; flex-direction: column; gap: 8px; }
+        .msg-card {
+            background: white; border-radius: 10px; padding: 14px 18px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05); cursor: pointer;
+            border-left: 3px solid transparent; transition: all .15s;
+            display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start;
+        }
+        .msg-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+        .msg-card.no-leido { border-left-color: #4f46e5; background: #fafaff; }
+        .msg-card.no-leido .msg-asunto { font-weight: 800; }
+        .msg-from { font-size: 12px; color: #6b7280; margin-bottom: 3px; }
+        .msg-from strong { color: #374151; }
+        .msg-asunto { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .msg-preview { font-size: 12px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .msg-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+        .msg-fecha { font-size: 11px; color: #9ca3af; white-space: nowrap; }
+        .msg-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f46e5; }
+
+        /* ── Empty ── */
+        .empty-state { text-align: center; padding: 56px 24px; color: #9ca3af; font-size: 14px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+        .loading { text-align: center; padding: 40px; color: #9ca3af; font-size: 14px; }
+
+        /* ── Botón nuevo mensaje ── */
+        .btn-nuevo { background: #4f46e5; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; transition: background .15s; }
+        .btn-nuevo:hover { background: #4338ca; }
+
+        /* ── Modal detalle mensaje ── */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-msg { background: white; border-radius: 14px; width: 560px; max-width: 96vw; max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+        .modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #f0f0f0; gap: 12px; }
+        .modal-head-info { flex: 1; min-width: 0; }
+        .modal-asunto { font-size: 17px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+        .modal-meta { font-size: 12px; color: #6b7280; }
+        .modal-meta strong { color: #374151; }
+        .modal-close { background: none; border: none; cursor: pointer; font-size: 18px; color: #9ca3af; padding: 4px; border-radius: 4px; flex-shrink: 0; }
+        .modal-close:hover { color: #374151; }
+        .modal-body { padding: 20px 24px; flex: 1; }
+        .modal-cuerpo { font-size: 14px; color: #374151; line-height: 1.7; white-space: pre-wrap; }
+
+        /* ── Modal composición ── */
+        .modal-compose { background: white; border-radius: 14px; width: 560px; max-width: 96vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .compose-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #f0f0f0; }
+        .compose-head h3 { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+        .compose-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; }
+        .form-group select,
+        .form-group input,
+        .form-group textarea { border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: inherit; outline: none; transition: border-color .15s; color: #1a1a2e; resize: vertical; }
+        .form-group select:focus,
+        .form-group input:focus,
+        .form-group textarea:focus { border-color: #4f46e5; }
+        .form-group textarea { min-height: 120px; }
+        .compose-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #f0f0f0; }
+        .btn-cancel { background: white; color: #444; border: 1.5px solid #e0e0e0; padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .btn-cancel:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-send { background: #4f46e5; color: white; border: none; padding: 9px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+        .btn-send:hover { background: #4338ca; }
+        .btn-send:disabled { opacity: .6; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content" style="margin-top:92px;">
+    <div class="page-header">
+        <h2>💬 Mensajes</h2>
+        <button class="btn-nuevo" onclick="abrirCompose()">✉️ Nuevo mensaje</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" id="tab-recibidos" onclick="setTab('recibidos')">
+            📥 Recibidos
+            <span class="tab-badge" id="badge-noLeidos" style="display:none;">0</span>
+        </button>
+        <button class="tab-btn" id="tab-enviados" onclick="setTab('enviados')">
+            📤 Enviados
+        </button>
+    </div>
+
+    <!-- Lista -->
+    <div class="mensajes-lista" id="mensajes-lista">
+        <div class="loading">Cargando...</div>
+    </div>
+</div>
+
+<!-- Modal: ver mensaje -->
+<div class="modal-overlay" id="modal-ver">
+    <div class="modal-msg">
+        <div class="modal-head">
+            <div class="modal-head-info">
+                <div class="modal-asunto" id="det-asunto">—</div>
+                <div class="modal-meta" id="det-meta">—</div>
+            </div>
+            <button class="modal-close" onclick="cerrarVer()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-cuerpo" id="det-cuerpo">—</div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: componer -->
+<div class="modal-overlay" id="modal-compose">
+    <div class="modal-compose">
+        <div class="compose-head">
+            <h3>✉️ Nuevo mensaje</h3>
+            <button class="modal-close" onclick="cerrarCompose()">✕</button>
+        </div>
+        <div class="compose-body">
+            <div class="form-group">
+                <label>Para</label>
+                <select id="compose-para">
+                    <option value="">Seleccioná un destinatario...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Asunto</label>
+                <input type="text" id="compose-asunto" placeholder="Asunto del mensaje" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label>Mensaje</label>
+                <textarea id="compose-cuerpo" placeholder="Escribí tu mensaje..."></textarea>
+            </div>
+        </div>
+        <div class="compose-foot">
+            <button class="btn-cancel" onclick="cerrarCompose()">Cancelar</button>
+            <button class="btn-send" id="btn-enviar" onclick="enviarMensaje()">Enviar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+
+let _tabActual   = "recibidos";
+let _mensajes    = [];
+let _usuariosMap = {};   // id → {username, nombre}
+
+// ── Init ──────────────────────────────────────────────────────
+async function init() {
+    await cargarUsuarios();
+    await cargarMensajes();
+}
+
+async function cargarUsuarios() {
+    try {
+        const lista = await apiFetch("/mensajes/usuarios");
+        _usuariosMap = {};
+        const sel = document.getElementById("compose-para");
+        sel.innerHTML = '<option value="">Seleccioná un destinatario...</option>';
+        for (const u of lista) {
+            _usuariosMap[u.id] = u;
+            const opt = document.createElement("option");
+            opt.value = u.id;
+            opt.textContent = u.username + (u.rol ? ` (${u.rol})` : "");
+            sel.appendChild(opt);
+        }
+    } catch(e) {
+        console.warn("No se pudieron cargar usuarios:", e);
+    }
+}
+
+async function cargarMensajes() {
+    const lista = document.getElementById("mensajes-lista");
+    lista.innerHTML = '<div class="loading">Cargando...</div>';
+    try {
+        const endpoint = _tabActual === "recibidos" ? "/mensajes/recibidos" : "/mensajes/enviados";
+        _mensajes = await apiFetch(endpoint);
+        renderLista();
+        if (_tabActual === "recibidos") actualizarBadge();
+    } catch(e) {
+        lista.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>Error al cargar mensajes</div>`;
+    }
+}
+
+function renderLista() {
+    const lista = document.getElementById("mensajes-lista");
+    if (!_mensajes.length) {
+        lista.innerHTML = `<div class="empty-state">
+            <div class="empty-icon">${_tabActual === "recibidos" ? "📭" : "📤"}</div>
+            No tenés ${_tabActual === "recibidos" ? "mensajes recibidos" : "mensajes enviados"}
+        </div>`;
+        return;
+    }
+
+    lista.innerHTML = _mensajes.map((m, i) => {
+        const noLeido = _tabActual === "recibidos" && !m.leido;
+        const nombre  = _tabActual === "recibidos"
+            ? (m.de_username || "Sistema")
+            : (m.para_username || "—");
+        const prefijo = _tabActual === "recibidos" ? "De" : "Para";
+        const fecha   = _formatFecha(m.creado_en);
+        const preview = (m.cuerpo || "").replace(/\n/g, " ").slice(0, 80);
+
+        return `<div class="msg-card ${noLeido ? "no-leido" : ""}" onclick="verMensaje(${i})">
+            <div style="min-width:0;">
+                <div class="msg-from">${prefijo}: <strong>${_esc(nombre)}</strong></div>
+                <div class="msg-asunto">${_esc(m.asunto || "(sin asunto)")}</div>
+                <div class="msg-preview">${_esc(preview)}</div>
+            </div>
+            <div class="msg-meta">
+                <span class="msg-fecha">${fecha}</span>
+                ${noLeido ? '<span class="msg-dot"></span>' : ""}
+            </div>
+        </div>`;
+    }).join("");
+}
+
+async function verMensaje(idx) {
+    const m = _mensajes[idx];
+    if (!m) return;
+
+    const nombre  = _tabActual === "recibidos"
+        ? (m.de_username || "Sistema")
+        : (m.para_username || "—");
+    const prefijo = _tabActual === "recibidos" ? "De" : "Para";
+
+    document.getElementById("det-asunto").textContent = m.asunto || "(sin asunto)";
+    document.getElementById("det-meta").innerHTML =
+        `${prefijo}: <strong>${_esc(nombre)}</strong> &nbsp;·&nbsp; ${_formatFechaFull(m.creado_en)}`;
+    document.getElementById("det-cuerpo").textContent = m.cuerpo || "";
+    document.getElementById("modal-ver").classList.add("open");
+
+    // Marcar como leído si es recibido y estaba no leído
+    if (_tabActual === "recibidos" && !m.leido) {
+        try {
+            await apiFetch(`/mensajes/${m.id}/leer`, { method: "PATCH" });
+            m.leido = true;
+            renderLista();
+            actualizarBadge();
+        } catch(e) { /* ignorar */ }
+    }
+}
+
+function cerrarVer() {
+    document.getElementById("modal-ver").classList.remove("open");
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function setTab(tab) {
+    _tabActual = tab;
+    document.getElementById("tab-recibidos").classList.toggle("active", tab === "recibidos");
+    document.getElementById("tab-enviados").classList.toggle("active",  tab === "enviados");
+    cargarMensajes();
+}
+
+// ── Badge no leídos ───────────────────────────────────────────
+async function actualizarBadge() {
+    try {
+        const noLeidos = _mensajes.filter(m => !m.leido).length;
+        const badge = document.getElementById("badge-noLeidos");
+        if (noLeidos > 0) {
+            badge.textContent = noLeidos;
+            badge.style.display = "";
+        } else {
+            badge.style.display = "none";
+        }
+        // Actualizar también el badge del navbar (inyectado por sidebar.js)
+        const navBadge = document.getElementById("nav-mensajes-badge");
+        if (navBadge) {
+            navBadge.textContent = noLeidos;
+            navBadge.style.display = noLeidos > 0 ? "" : "none";
+        }
+    } catch(e) { /* ignorar */ }
+}
+
+// ── Compose ───────────────────────────────────────────────────
+function abrirCompose(paraId) {
+    document.getElementById("compose-para").value   = paraId || "";
+    document.getElementById("compose-asunto").value = "";
+    document.getElementById("compose-cuerpo").value = "";
+    document.getElementById("btn-enviar").disabled  = false;
+    document.getElementById("modal-compose").classList.add("open");
+    setTimeout(() => document.getElementById("compose-para").focus(), 80);
+}
+
+function cerrarCompose() {
+    document.getElementById("modal-compose").classList.remove("open");
+}
+
+async function enviarMensaje() {
+    const para   = parseInt(document.getElementById("compose-para").value);
+    const asunto = document.getElementById("compose-asunto").value.trim();
+    const cuerpo = document.getElementById("compose-cuerpo").value.trim();
+
+    if (!para)   { alert("Elegí un destinatario"); return; }
+    if (!asunto) { alert("Escribí un asunto"); return; }
+    if (!cuerpo) { alert("Escribí el mensaje"); return; }
+
+    const btn = document.getElementById("btn-enviar");
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+
+    try {
+        await apiFetch("/mensajes/", {
+            method: "POST",
+            body: JSON.stringify({ para_usuario_id: para, asunto, cuerpo }),
+        });
+        cerrarCompose();
+        if (_tabActual === "enviados") cargarMensajes();
+        else {
+            // Mostrar confirmación breve
+            _toast("Mensaje enviado ✓");
+        }
+    } catch(e) {
+        alert("Error al enviar: " + (e.message || e));
+        btn.disabled = false;
+        btn.textContent = "Enviar";
+    }
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function _esc(s) {
+    return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function _formatFecha(ts) {
+    if (!ts) return "—";
+    const d = new Date(ts);
+    const hoy = new Date();
+    const ayer = new Date(hoy); ayer.setDate(hoy.getDate() - 1);
+    const pad = n => String(n).padStart(2, "0");
+    const hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    if (d.toDateString() === hoy.toDateString())  return `Hoy ${hora}`;
+    if (d.toDateString() === ayer.toDateString()) return `Ayer ${hora}`;
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${hora}`;
+}
+
+function _formatFechaFull(ts) {
+    if (!ts) return "—";
+    const d = new Date(ts);
+    const pad = n => String(n).padStart(2, "0");
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function _toast(msg) {
+    const t = document.createElement("div");
+    t.textContent = msg;
+    t.style.cssText = `position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:white;padding:10px 22px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:1;transition:opacity .4s`;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 400); }, 2200);
+}
+
+// Cerrar modales con Escape
+document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+        cerrarVer();
+        cerrarCompose();
+    }
+});
+
+init();
+</script>
+</body>
+</html>

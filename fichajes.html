@@ -154,14 +154,26 @@
         .notas-box { background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
         .notas-box-label { font-size: 11px; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
         .notas-box-text { font-size: 13px; color: #374151; line-height: 1.5; }
-        .ajuste-section { margin-bottom: 16px; }
-        .ajuste-section label { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 6px; }
-        .ajuste-hint { font-size: 12px; color: #9ca3af; margin-bottom: 8px; }
-        .ajuste-inp { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; transition: border-color .15s; }
-        .ajuste-inp:focus { border-color: #4f46e5; }
-        .preview-box { background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
-        .preview-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
-        .preview-row.total { font-size: 14px; font-weight: 700; color: #1a1a2e; padding-top: 8px; border-top: 1px solid #bae6fd; margin-top: 4px; }
+        /* Edición inline de hora */
+        .info-val-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+        .btn-editar-hora { background: none; border: none; cursor: pointer; color: #cbd5e1; font-size: 13px; padding: 2px 4px; border-radius: 4px; transition: color .15s; line-height: 1; }
+        .btn-editar-hora:hover { color: #4f46e5; }
+        .hora-input { border: 1.5px solid #4f46e5; border-radius: 6px; padding: 3px 7px; font-size: 13px; font-weight: 600; color: #1a1a2e; outline: none; background: white; }
+        .btn-hora-save   { background: #4f46e5; color: white; border: none; border-radius: 5px; padding: 3px 9px; font-size: 12px; cursor: pointer; font-weight: 600; }
+        .btn-hora-save:hover { background: #4338ca; }
+        .btn-hora-cancel { background: #f3f4f6; color: #666; border: none; border-radius: 5px; padding: 3px 8px; font-size: 12px; cursor: pointer; }
+
+        /* Anular diferencia toggle */
+        .anular-section { margin-bottom: 16px; }
+        .anular-btn {
+            width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #e0e0e0;
+            background: white; color: #6b7280; font-size: 13px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; gap: 8px; transition: all .18s;
+        }
+        .anular-btn:hover { border-color: #f59e0b; color: #92400e; }
+        .anular-btn.active { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+        .anular-btn .check-icon { font-size: 16px; }
+
         .modal-rev-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #f0f0f0; }
         .btn-rev-cancel { background: white; color: #444; border: 1.5px solid #e0e0e0; padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
         .btn-rev-cancel:hover { border-color: #4f46e5; color: #4f46e5; }
@@ -235,11 +247,33 @@
             <div class="info-grid">
                 <div class="info-row">
                     <span class="info-label">Entrada</span>
-                    <span class="info-val" id="rev-entrada">—</span>
+                    <div class="info-val-wrap" id="rev-entrada-wrap">
+                        <span class="info-val" id="rev-entrada">—</span>
+                        <button class="btn-editar-hora" title="Editar hora de entrada" onclick="toggleEditHora('entrada')">✏️</button>
+                    </div>
+                </div>
+                <div class="info-row" id="rev-entrada-edit-row" style="display:none;">
+                    <span class="info-label" style="opacity:0;">_</span>
+                    <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;">
+                        <input type="datetime-local" class="hora-input" id="rev-entrada-input" step="60">
+                        <button class="btn-hora-save" onclick="guardarHora('entrada')">✓</button>
+                        <button class="btn-hora-cancel" onclick="cancelarEditHora('entrada')">✕</button>
+                    </div>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Salida</span>
-                    <span class="info-val" id="rev-salida">—</span>
+                    <div class="info-val-wrap" id="rev-salida-wrap">
+                        <span class="info-val" id="rev-salida">—</span>
+                        <button class="btn-editar-hora" title="Editar hora de salida" onclick="toggleEditHora('salida')">✏️</button>
+                    </div>
+                </div>
+                <div class="info-row" id="rev-salida-edit-row" style="display:none;">
+                    <span class="info-label" style="opacity:0;">_</span>
+                    <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;">
+                        <input type="datetime-local" class="hora-input" id="rev-salida-input" step="60">
+                        <button class="btn-hora-save" onclick="guardarHora('salida')">✓</button>
+                        <button class="btn-hora-cancel" onclick="cancelarEditHora('salida')">✕</button>
+                    </div>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Duración fichada</span>
@@ -258,24 +292,11 @@
                 <div class="notas-box-label">📝 Nota del empleado</div>
                 <div class="notas-box-text" id="rev-notas">—</div>
             </div>
-            <div class="ajuste-section">
-                <label>Ajuste de horas asignadas</label>
-                <p class="ajuste-hint">Positivo suma horas, negativo descuenta. Ej: <strong>1.5</strong> para añadir 1h 30m, <strong>-0.5</strong> para quitar 30m.</p>
-                <input type="number" class="ajuste-inp" id="rev-ajuste" step="0.25" placeholder="0" oninput="calcRevision()">
-            </div>
-            <div class="preview-box">
-                <div class="preview-row">
-                    <span style="color:#666;">Horas asignadas base</span>
-                    <span id="rev-prev-base">—</span>
-                </div>
-                <div class="preview-row">
-                    <span style="color:#666;">Ajuste</span>
-                    <span id="rev-prev-ajuste" class="diff-neu">0</span>
-                </div>
-                <div class="preview-row total">
-                    <span>Total horas asignadas</span>
-                    <span id="rev-prev-total">—</span>
-                </div>
+            <div class="anular-section">
+                <button class="anular-btn" id="btn-anular-dif" onclick="toggleAnularDif()">
+                    <span class="check-icon" id="anular-check-icon">○</span>
+                    Anular diferencia (igualar horas fichadas con asignadas)
+                </button>
             </div>
         </div>
         <div class="modal-rev-foot">
@@ -803,11 +824,13 @@ function _actualizarAlertaUsuario(usuarioId) {
 
 // ── Modal de revisión ─────────────────────────────────────────
 let _revFichajeId = null;
+let _anularDif    = false;   // toggle "Anular diferencia"
 
 function abrirRevision(id) {
     const f = _fichajesData[id];
     if (!f) return;
     _revFichajeId = id;
+    _anularDif    = false;
 
     const horasAsigBase = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, 0);
 
@@ -824,47 +847,129 @@ function abrirRevision(id) {
     notaEl.textContent = f.notas || "(sin notas)";
     notaEl.style.color = f.notas ? "#374151" : "#9ca3af";
 
-    document.getElementById("rev-ajuste").value =
-        (f.ajuste_horas || 0) !== 0 ? (f.ajuste_horas || 0) : "";
-    calcRevision();
+    // Ocultar filas de edición inline
+    cancelarEditHora("entrada");
+    cancelarEditHora("salida");
+
+    // Reset toggle anular diferencia
+    _setAnularDif(false);
+
+    // Ocultar botones de lápiz si está en turno activo (sin salida)
+    const puedeEditarSalida = !!f.ts_salida;
+    document.querySelector("[onclick=\"toggleEditHora('salida')\"]").style.display =
+        puedeEditarSalida ? "" : "none";
 
     document.getElementById("modal-revision").classList.add("open");
-    setTimeout(() => document.getElementById("rev-ajuste").focus(), 100);
 }
 
-function calcRevision() {
+function toggleAnularDif() {
+    _setAnularDif(!_anularDif);
+}
+
+function _setAnularDif(val) {
+    _anularDif = val;
+    const btn  = document.getElementById("btn-anular-dif");
+    const icon = document.getElementById("anular-check-icon");
+    btn.classList.toggle("active", val);
+    icon.textContent = val ? "✓" : "○";
+}
+
+// ── Edición inline de hora ────────────────────────────────────
+
+/** Convierte un timestamp ISO al formato requerido por datetime-local: "YYYY-MM-DDTHH:MM" */
+function _toDatetimeLocal(ts) {
+    if (!ts) return "";
+    const d = new Date(ts);
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function toggleEditHora(campo) {
     const f = _revFichajeId && _fichajesData[_revFichajeId];
     if (!f) return;
-    const horasAsigBase = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, 0) || 0;
-    const ajuste = parseFloat(document.getElementById("rev-ajuste").value) || 0;
-    const total  = horasAsigBase + ajuste;
+    const editRow = document.getElementById(`rev-${campo}-edit-row`);
+    const input   = document.getElementById(`rev-${campo}-input`);
+    const ts      = campo === "entrada" ? f.ts_entrada : f.ts_salida;
+    input.value   = _toDatetimeLocal(ts);
+    editRow.style.display = "flex";
+    input.focus();
+}
 
-    document.getElementById("rev-prev-base").textContent = formatHoras(horasAsigBase);
-    const ajusteEl = document.getElementById("rev-prev-ajuste");
-    if (ajuste === 0) {
-        ajusteEl.textContent = "0"; ajusteEl.className = "diff-neu";
-    } else {
-        ajusteEl.textContent = (ajuste > 0 ? "+" : "") + formatHoras(Math.abs(ajuste));
-        ajusteEl.className   = ajuste > 0 ? "diff-pos" : "diff-neg";
+function cancelarEditHora(campo) {
+    const editRow = document.getElementById(`rev-${campo}-edit-row`);
+    if (editRow) editRow.style.display = "none";
+}
+
+async function guardarHora(campo) {
+    if (!_revFichajeId) return;
+    const input  = document.getElementById(`rev-${campo}-input`);
+    const newVal = input.value;  // "YYYY-MM-DDTHH:MM"
+    if (!newVal) { alert("Ingresá una hora válida"); return; }
+
+    // Convertir a ISO con segundos (el backend acepta ISO 8601)
+    const isoStr = newVal + ":00";
+
+    const body = campo === "entrada"
+        ? { ts_entrada: isoStr }
+        : { ts_salida:  isoStr };
+
+    try {
+        const res = await apiFetch(`/turnos/${_revFichajeId}/editar-horario`, {
+            method: "PATCH",
+            body:   JSON.stringify(body),
+        });
+
+        // Actualizar datos locales
+        const f = _fichajesData[_revFichajeId];
+        if (f) {
+            if (campo === "entrada") {
+                f.ts_entrada = isoStr;
+                document.getElementById("rev-entrada").textContent = formatTs(isoStr);
+            } else {
+                f.ts_salida = isoStr;
+                document.getElementById("rev-salida").textContent = formatTs(isoStr);
+            }
+            if (res.horas != null) {
+                f.horas = res.horas;
+                document.getElementById("rev-duracion").textContent = formatHoras(res.horas);
+            }
+        }
+        cancelarEditHora(campo);
+    } catch(e) {
+        alert("Error al guardar: " + (e.message || e));
     }
-    document.getElementById("rev-prev-total").textContent = formatHoras(total);
 }
 
 function cerrarRevision() {
     document.getElementById("modal-revision").classList.remove("open");
     _revFichajeId = null;
+    _anularDif    = false;
+    cancelarEditHora("entrada");
+    cancelarEditHora("salida");
 }
 
 async function confirmarRevision() {
     if (!_revFichajeId) return;
-    const ajuste = parseFloat(document.getElementById("rev-ajuste").value) || 0;
+    const f = _fichajesData[_revFichajeId];
+
+    let ajuste_horas = 0;
+    if (_anularDif && f) {
+        // Calcula el ajuste necesario para que (horas_asig_base + ajuste) == horas_fichadas
+        // → diferencia queda en 0 para este fichaje
+        const horasAsigBase = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, 0) || 0;
+        const horasFichadas  = f.horas || 0;
+        ajuste_horas = horasFichadas - horasAsigBase;
+    }
+
     try {
         await apiFetch(`/turnos/${_revFichajeId}/revisar`, {
             method: "PATCH",
-            body: JSON.stringify({ ajuste_horas: ajuste })
+            body:   JSON.stringify({ ajuste_horas }),
         });
-        const f = _fichajesData[_revFichajeId];
-        if (f) { f.revisado = true; f.ajuste_horas = ajuste; }
+        if (f) {
+            f.revisado     = true;
+            f.ajuste_horas = ajuste_horas;
+        }
         cerrarRevision();
         cargarHistorial();
     } catch(e) {
