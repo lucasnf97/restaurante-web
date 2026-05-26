@@ -276,8 +276,24 @@
                     </div>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Duración fichada</span>
+                    <span class="info-label">Duración bruta</span>
                     <span class="info-val" id="rev-duracion">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Descanso</span>
+                    <div class="info-val-wrap">
+                        <span class="info-val" id="rev-descanso">—</span>
+                        <button class="btn-editar-hora" title="Editar descanso" onclick="toggleEditDescanso()">✏️</button>
+                    </div>
+                </div>
+                <div class="info-row" id="rev-descanso-edit-row" style="display:none;">
+                    <span class="info-label" style="opacity:0;">_</span>
+                    <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;">
+                        <input type="number" class="hora-input" id="rev-descanso-input" min="0" max="480" step="5" placeholder="0" style="width:80px;">
+                        <span style="font-size:12px;color:#6b7280;">min</span>
+                        <button class="btn-hora-save" onclick="guardarDescanso()">✓</button>
+                        <button class="btn-hora-cancel" onclick="cancelarEditDescanso()">✕</button>
+                    </div>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Horario asignado</span>
@@ -638,15 +654,23 @@ function renderDayGroup(dg, usuarioId) {
 
     // Sub-filas (fichajes individuales del día)
     const subRows = dg.fichajes.map(f => {
-        const entrada  = formatHoraTs(f.ts_entrada);
+        const entrada   = formatHoraTs(f.ts_entrada);
         const salidaTxt = f.ts_salida
             ? formatHoraTs(f.ts_salida)
             : `<span class="sub-activo">En turno</span>`;
-        const durTxt = f.horas != null ? formatHoras(f.horas) : "—";
+        const durTxt  = f.horas != null ? formatHoras(f.horas) : "—";
+        const brkTxt  = f.break_mins ? `<span class="sub-dur" title="Descanso">☕ ${f.break_mins}m</span>` : "";
+        const editBtn = hasEdicionFichajes() && !f.activo
+            ? `<button class="btn-nota-edit"
+                  onclick="event.stopPropagation();abrirRevision(${f.id})"
+                  title="Editar este fichaje">✏️</button>`
+            : "";
         return `<div class="sub-fichaje-row">
             <span class="sub-arrow">↳</span>
             <span class="sub-times">${entrada} → ${salidaTxt}</span>
             <span class="sub-dur">${durTxt}</span>
+            ${brkTxt}
+            ${editBtn}
         </div>`;
     }).join("");
 
@@ -847,9 +871,15 @@ function abrirRevision(id) {
     notaEl.textContent = f.notas || "(sin notas)";
     notaEl.style.color = f.notas ? "#374151" : "#9ca3af";
 
+    // Descanso
+    const descansoMins = f.break_mins || 0;
+    document.getElementById("rev-descanso").textContent =
+        descansoMins > 0 ? `${descansoMins} min` : "Sin descanso";
+
     // Ocultar filas de edición inline
     cancelarEditHora("entrada");
     cancelarEditHora("salida");
+    cancelarEditDescanso();
 
     // Reset toggle anular diferencia
     _setAnularDif(false);
@@ -900,6 +930,47 @@ function cancelarEditHora(campo) {
     if (editRow) editRow.style.display = "none";
 }
 
+// ── Edición inline de descanso ────────────────────────────────
+
+function toggleEditDescanso() {
+    const f = _revFichajeId && _fichajesData[_revFichajeId];
+    if (!f) return;
+    const editRow = document.getElementById("rev-descanso-edit-row");
+    const input   = document.getElementById("rev-descanso-input");
+    input.value   = f.break_mins || 0;
+    editRow.style.display = "flex";
+    input.focus();
+    input.select();
+}
+
+function cancelarEditDescanso() {
+    const editRow = document.getElementById("rev-descanso-edit-row");
+    if (editRow) editRow.style.display = "none";
+}
+
+async function guardarDescanso() {
+    if (!_revFichajeId) return;
+    const input    = document.getElementById("rev-descanso-input");
+    const mins     = parseInt(input.value) || 0;
+
+    try {
+        await apiFetch(`/turnos/${_revFichajeId}/editar-horario`, {
+            method: "PATCH",
+            body:   JSON.stringify({ break_mins: mins }),
+        });
+
+        const f = _fichajesData[_revFichajeId];
+        if (f) {
+            f.break_mins = mins;
+            document.getElementById("rev-descanso").textContent =
+                mins > 0 ? `${mins} min` : "Sin descanso";
+        }
+        cancelarEditDescanso();
+    } catch(e) {
+        alert("Error al guardar descanso: " + (e.message || e));
+    }
+}
+
 async function guardarHora(campo) {
     if (!_revFichajeId) return;
     const input  = document.getElementById(`rev-${campo}-input`);
@@ -946,6 +1017,7 @@ function cerrarRevision() {
     _anularDif    = false;
     cancelarEditHora("entrada");
     cancelarEditHora("salida");
+    cancelarEditDescanso();
 }
 
 async function confirmarRevision() {
