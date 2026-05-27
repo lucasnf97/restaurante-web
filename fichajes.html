@@ -1037,6 +1037,39 @@ async function guardarHora(campo) {
     // Convertir a ISO con segundos (el backend acepta ISO 8601)
     const isoStr = newVal + ":00";
 
+    // ── Validación de superposición ───────────────────────────
+    const f = _fichajesData[_revFichajeId];
+    if (f) {
+        const nuevaEntrada = new Date(campo === "entrada" ? isoStr : f.ts_entrada);
+        const nuevaSalida  = campo === "salida" ? new Date(isoStr)
+                           : (f.ts_salida ? new Date(f.ts_salida) : null);
+
+        // Entrada debe ser anterior a salida
+        if (nuevaSalida && nuevaEntrada >= nuevaSalida) {
+            alert("⚠️ La hora de entrada debe ser anterior a la hora de salida.");
+            return;
+        }
+
+        // Verificar superposición con otros fichajes del mismo usuario
+        if (nuevaSalida) {
+            const solapados = Object.values(_fichajesData).filter(other => {
+                if (other.id === _revFichajeId || other.usuario_id !== f.usuario_id) return false;
+                if (!other.ts_salida) return false;
+                const oEnt = new Date(other.ts_entrada);
+                const oSal = new Date(other.ts_salida);
+                return nuevaEntrada < oSal && oEnt < nuevaSalida;
+            });
+            if (solapados.length > 0) {
+                const otro = solapados[0];
+                const rango = `${formatTs(otro.ts_entrada)} – ${formatTs(otro.ts_salida)}`;
+                const ok = confirm(
+                    `⚠️ El horario se superpone con otro fichaje del mismo empleado:\n${rango}\n\n¿Guardarlo de todos modos?`
+                );
+                if (!ok) return;
+            }
+        }
+    }
+
     const body = campo === "entrada"
         ? { ts_entrada: isoStr }
         : { ts_salida:  isoStr };
