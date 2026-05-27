@@ -283,16 +283,6 @@
                     <span class="info-label">Descanso</span>
                     <div class="info-val-wrap">
                         <span class="info-val" id="rev-descanso">—</span>
-                        <button class="btn-editar-hora" title="Editar descanso" onclick="toggleEditDescanso()">✏️</button>
-                    </div>
-                </div>
-                <div class="info-row" id="rev-descanso-edit-row" style="display:none;">
-                    <span class="info-label" style="opacity:0;">_</span>
-                    <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;">
-                        <input type="number" class="hora-input" id="rev-descanso-input" min="0" max="480" step="5" placeholder="0" style="width:80px;">
-                        <span style="font-size:12px;color:#6b7280;">min</span>
-                        <button class="btn-hora-save" onclick="guardarDescanso()">✓</button>
-                        <button class="btn-hora-cancel" onclick="cancelarEditDescanso()">✕</button>
                     </div>
                 </div>
                 <div class="info-row">
@@ -644,8 +634,13 @@ function renderDayGroup(dg, usuarioId) {
                    title="Editar nota">✏️</button>`
         : "";
 
-    // Descanso
+    // Descanso (con botón de edición inline en la columna de la tabla)
     const descansoStr = dg.break_mins ? `${dg.break_mins} min` : "—";
+    const descansoEditBtn = fichajeEdit && hasEdicionFichajes()
+        ? `<button class="btn-nota-edit"
+               onclick="event.stopPropagation();editarDescansoInline(${fichajeEdit.id},'${dayKey}')"
+               title="Editar descanso">✏️</button>`
+        : "";
 
     // Ajuste hint en horario
     const ajusteHint = dg.ajuste_horas
@@ -679,7 +674,7 @@ function renderDayGroup(dg, usuarioId) {
             <td><strong>${formatFechaShort(dg.fecha)}</strong></td>
             <td><strong>${formatHoras(horasFich)}</strong></td>
             <td>${renderFranjas(dg.franjas_asignadas)}${ajusteHint}</td>
-            <td>${descansoStr}</td>
+            <td id="descanso-td-day-${dayKey}">${descansoStr}${descansoEditBtn}</td>
             <td>${renderDiff(horasFich, horasAsig)}</td>
             <td><span class="badge ${badgeCls}" id="status-day-${dayKey}">${badgeText}</span></td>
             <td id="nota-td-day-${dayKey}" data-uid="${usuarioId}" data-edit-id="${fichajeEdit ? fichajeEdit.id : ''}">${notaTxt}${notaEditBtn}</td>
@@ -986,7 +981,55 @@ function cancelarEditHora(campo) {
     if (editRow) editRow.style.display = "none";
 }
 
-// ── Edición inline de descanso ────────────────────────────────
+// ── Edición inline de descanso en la tabla ───────────────────
+
+function editarDescansoInline(fichajeId, dayKey) {
+    const td = document.getElementById(`descanso-td-day-${dayKey}`);
+    if (!td) return;
+    const f = _fichajesData[fichajeId];
+    const cur = f ? (f.break_mins || 0) : 0;
+    td.innerHTML = `
+        <div class="nota-edit-wrap" onclick="event.stopPropagation()">
+            <input class="hora-input" id="descanso-inp-${fichajeId}"
+                   type="number" value="${cur}" min="0" max="480" step="5"
+                   style="width:65px;padding:2px 6px;font-size:12px;"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();guardarDescansoInline(${fichajeId},'${dayKey}');}if(event.key==='Escape')_refreshAfterEdit(${fichajeId})">
+            <span style="font-size:11px;color:#6b7280;">min</span>
+            <button class="btn-hora-save" style="padding:2px 8px;font-size:11px;"
+                    onclick="event.stopPropagation();guardarDescansoInline(${fichajeId},'${dayKey}')">✓</button>
+            <button class="btn-hora-cancel" style="padding:2px 6px;font-size:11px;"
+                    onclick="event.stopPropagation();_refreshAfterEdit(${fichajeId})">✕</button>
+        </div>`;
+    const inp = document.getElementById(`descanso-inp-${fichajeId}`);
+    if (inp) { inp.focus(); inp.select(); }
+}
+
+async function guardarDescansoInline(fichajeId, dayKey) {
+    const inp = document.getElementById(`descanso-inp-${fichajeId}`);
+    if (!inp) return;
+    const mins = parseInt(inp.value) || 0;
+    try {
+        await apiFetch(`/turnos/${fichajeId}/editar-horario`, {
+            method: "PATCH",
+            body:   JSON.stringify({ break_mins: mins }),
+        });
+        // Actualizar break_mins en todos los fichajes del mismo usuario+día
+        const f = _fichajesData[fichajeId];
+        if (f) {
+            const fdate = fechaTurno(f.ts_entrada);
+            Object.values(_fichajesData).forEach(other => {
+                if (other.usuario_id === f.usuario_id && fechaTurno(other.ts_entrada) === fdate) {
+                    other.break_mins = mins;
+                }
+            });
+        }
+        _refreshAfterEdit(fichajeId);
+    } catch(e) {
+        alert("Error al guardar descanso: " + (e.message || e));
+    }
+}
+
+// ── Edición inline de descanso (modal revisión — mantenido por compatibilidad) ──
 
 function toggleEditDescanso() {
     const f = _revFichajeId && _fichajesData[_revFichajeId];
@@ -1218,8 +1261,10 @@ function renderDiffMins(diffMins) {
 }
 
 function formatMins(mins) {
-    const h = Math.floor(mins / 60);
-    const m = Math.round(mins % 60);
+    // Trabajar en minutos enteros para evitar "4h 60m" por punto flotante
+    const total = Math.round(mins);
+    const h = Math.floor(total / 60);
+    const m = total % 60;
     if (h === 0) return `${m}m`;
     if (m === 0) return `${h}h`;
     return `${h}h ${m}m`;
