@@ -1090,10 +1090,15 @@ async function guardarHora(campo) {
                 f.ts_salida = isoStr;
                 document.getElementById("rev-salida").textContent = formatTs(isoStr);
             }
-            if (res.horas != null) {
+            // Recalcular horas localmente desde los timestamps actualizados
+            // (más fiable que res.horas que puede venir con desfase de TZ)
+            if (f.ts_entrada && f.ts_salida) {
+                f.horas = (new Date(f.ts_salida) - new Date(f.ts_entrada)) / 3600000;
+            } else if (res.horas != null) {
                 f.horas = res.horas;
-                document.getElementById("rev-duracion").textContent = formatHoras(res.horas);
             }
+            document.getElementById("rev-duracion").textContent =
+                f.horas != null ? formatHoras(f.horas) : "—";
         }
         cancelarEditHora(campo);
         _refreshAfterEdit(_revFichajeId);
@@ -1234,11 +1239,13 @@ function formatFechaShort(fechaStr) {
 
 function formatHoras(h) {
     if (h == null) return "—";
-    const abs   = Math.abs(h);
-    const horas = Math.floor(abs);
-    const mins  = Math.round((abs - horas) * 60);
+    // Trabajar en minutos enteros para evitar "6h 60m" por errores de punto flotante
+    const sign      = h < 0 ? "−" : "";
+    const totalMins = Math.round(Math.abs(h) * 60);
+    const horas     = Math.floor(totalMins / 60);
+    const mins      = totalMins % 60;
     let str = horas === 0 ? `${mins}m` : mins === 0 ? `${horas}h` : `${horas}h ${mins}m`;
-    return h < 0 ? `−${str}` : str;
+    return sign + str;
 }
 
 init();
