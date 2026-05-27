@@ -1031,17 +1031,21 @@ async function guardarDescanso() {
 async function guardarHora(campo) {
     if (!_revFichajeId) return;
     const input  = document.getElementById(`rev-${campo}-input`);
-    const newVal = input.value;  // "YYYY-MM-DDTHH:MM"
+    const newVal = input.value;  // "YYYY-MM-DDTHH:MM" en hora LOCAL del navegador
     if (!newVal) { alert("Ingresá una hora válida"); return; }
 
-    // Convertir a ISO con segundos (el backend acepta ISO 8601)
-    const isoStr = newVal + ":00";
+    // Convertir la hora local del input a UTC para el backend.
+    // datetime-local da hora local; sin esta conversión el backend (Railway/UTC)
+    // lo almacena desfasado y al recargar la página se ve una hora distinta.
+    const dateObj   = new Date(newVal);              // Date en epoch correcto
+    const isoUtc    = dateObj.toISOString();         // "YYYY-MM-DDTHH:MM:SS.mmmZ"
+    const isoApiStr = isoUtc.slice(0, 19);           // "YYYY-MM-DDTHH:MM:SS" para el backend
 
     // ── Validación de superposición ───────────────────────────
     const f = _fichajesData[_revFichajeId];
     if (f) {
-        const nuevaEntrada = new Date(campo === "entrada" ? isoStr : f.ts_entrada);
-        const nuevaSalida  = campo === "salida" ? new Date(isoStr)
+        const nuevaEntrada = campo === "entrada" ? dateObj : new Date(f.ts_entrada);
+        const nuevaSalida  = campo === "salida"  ? dateObj
                            : (f.ts_salida ? new Date(f.ts_salida) : null);
 
         // Entrada debe ser anterior a salida
@@ -1071,8 +1075,8 @@ async function guardarHora(campo) {
     }
 
     const body = campo === "entrada"
-        ? { ts_entrada: isoStr }
-        : { ts_salida:  isoStr };
+        ? { ts_entrada: isoApiStr }
+        : { ts_salida:  isoApiStr };
 
     try {
         const res = await apiFetch(`/turnos/${_revFichajeId}/editar-horario`, {
@@ -1080,18 +1084,18 @@ async function guardarHora(campo) {
             body:   JSON.stringify(body),
         });
 
-        // Actualizar datos locales
+        // Actualizar datos locales con el ISO UTC (incluye Z) para que
+        // formatTs lo muestre correctamente en hora local
         const f = _fichajesData[_revFichajeId];
         if (f) {
             if (campo === "entrada") {
-                f.ts_entrada = isoStr;
-                document.getElementById("rev-entrada").textContent = formatTs(isoStr);
+                f.ts_entrada = isoUtc;
+                document.getElementById("rev-entrada").textContent = formatTs(f.ts_entrada);
             } else {
-                f.ts_salida = isoStr;
-                document.getElementById("rev-salida").textContent = formatTs(isoStr);
+                f.ts_salida = isoUtc;
+                document.getElementById("rev-salida").textContent = formatTs(f.ts_salida);
             }
             // Recalcular horas localmente desde los timestamps actualizados
-            // (más fiable que res.horas que puede venir con desfase de TZ)
             if (f.ts_entrada && f.ts_salida) {
                 f.horas = (new Date(f.ts_salida) - new Date(f.ts_entrada)) / 3600000;
             } else if (res.horas != null) {
