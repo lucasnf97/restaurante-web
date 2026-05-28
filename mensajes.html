@@ -36,6 +36,7 @@
         .msg-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
         .msg-card.no-leido { border-left-color: #4f46e5; background: #fafaff; }
         .msg-card.no-leido .msg-asunto { font-weight: 800; }
+        .msg-card.es-cc .msg-asunto { color: #6b7280; }
         .msg-from { font-size: 12px; color: #6b7280; margin-bottom: 3px; }
         .msg-from strong { color: #374151; }
         .msg-asunto { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -43,8 +44,9 @@
         .msg-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
         .msg-fecha { font-size: 11px; color: #9ca3af; white-space: nowrap; }
         .msg-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f46e5; }
+        .badge-cc { font-size: 10px; background: #f3f4f6; color: #6b7280; border-radius: 4px; padding: 1px 5px; font-weight: 700; }
 
-        /* ── Empty ── */
+        /* ── Empty / Loading ── */
         .empty-state { text-align: center; padding: 56px 24px; color: #9ca3af; font-size: 14px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
         .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
         .loading { text-align: center; padding: 40px; color: #9ca3af; font-size: 14px; }
@@ -53,40 +55,73 @@
         .btn-nuevo { background: #4f46e5; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; transition: background .15s; }
         .btn-nuevo:hover { background: #4338ca; }
 
-        /* ── Modal detalle mensaje ── */
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; }
+        /* ── Modal base ── */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; padding: 16px; }
         .modal-overlay.open { display: flex; }
-        .modal-msg { background: white; border-radius: 14px; width: 560px; max-width: 96vw; max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
-        .modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #f0f0f0; gap: 12px; }
+
+        /* ── Modal ver mensaje ── */
+        .modal-msg { background: white; border-radius: 14px; width: 600px; max-width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+        .modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px 14px; border-bottom: 1px solid #f0f0f0; gap: 12px; }
         .modal-head-info { flex: 1; min-width: 0; }
-        .modal-asunto { font-size: 17px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
-        .modal-meta { font-size: 12px; color: #6b7280; }
+        .modal-asunto { font-size: 17px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; word-break: break-word; }
+        .modal-meta { font-size: 12px; color: #6b7280; line-height: 1.6; }
         .modal-meta strong { color: #374151; }
         .modal-close { background: none; border: none; cursor: pointer; font-size: 18px; color: #9ca3af; padding: 4px; border-radius: 4px; flex-shrink: 0; }
         .modal-close:hover { color: #374151; }
         .modal-body { padding: 20px 24px; flex: 1; }
-        .modal-cuerpo { font-size: 14px; color: #374151; line-height: 1.7; white-space: pre-wrap; }
+        .modal-cuerpo { font-size: 14px; color: #374151; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+        .modal-foot { display: flex; gap: 10px; padding: 14px 24px; border-top: 1px solid #f0f0f0; }
+        .btn-responder { background: #f0f0ff; color: #4f46e5; border: 1.5px solid #c7d2fe; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; transition: all .15s; }
+        .btn-responder:hover { background: #4f46e5; color: white; }
 
-        /* ── Modal composición ── */
-        .modal-compose { background: white; border-radius: 14px; width: 560px; max-width: 96vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
-        .compose-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #f0f0f0; }
+        /* ── Cita en respuesta ── */
+        .cita-original { margin-top: 16px; padding: 12px 14px; background: #f8f8f8; border-left: 3px solid #c7d2fe; border-radius: 0 6px 6px 0; }
+        .cita-header { font-size: 11px; color: #9ca3af; font-weight: 600; margin-bottom: 8px; }
+        .cita-texto { font-size: 13px; color: #6b7280; white-space: pre-wrap; word-break: break-word; }
+
+        /* ── Modal compose ── */
+        .modal-compose { background: white; border-radius: 14px; width: 600px; max-width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+        .compose-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 14px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
         .compose-head h3 { font-size: 16px; font-weight: 700; color: #1a1a2e; }
         .compose-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
         .form-group label { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; }
-        .form-group select,
         .form-group input,
         .form-group textarea { border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: inherit; outline: none; transition: border-color .15s; color: #1a1a2e; resize: vertical; }
-        .form-group select:focus,
         .form-group input:focus,
         .form-group textarea:focus { border-color: #4f46e5; }
-        .form-group textarea { min-height: 120px; }
-        .compose-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #f0f0f0; }
+        .form-group textarea { min-height: 130px; }
+        .compose-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #f0f0f0; flex-shrink: 0; }
         .btn-cancel { background: white; color: #444; border: 1.5px solid #e0e0e0; padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
         .btn-cancel:hover { border-color: #4f46e5; color: #4f46e5; }
         .btn-send { background: #4f46e5; color: white; border: none; padding: 9px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
         .btn-send:hover { background: #4338ca; }
         .btn-send:disabled { opacity: .6; cursor: not-allowed; }
+
+        /* ── Tags de destinatarios ── */
+        .tags-input-wrap {
+            border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 6px 8px;
+            display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+            min-height: 42px; transition: border-color .15s; cursor: text;
+        }
+        .tags-input-wrap:focus-within { border-color: #4f46e5; }
+        .dest-tag {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: #ede9fe; color: #4f46e5; border-radius: 6px;
+            padding: 3px 8px; font-size: 12px; font-weight: 600;
+        }
+        .dest-tag.cc { background: #fef3c7; color: #92400e; }
+        .dest-tag button {
+            background: none; border: none; cursor: pointer; color: inherit;
+            font-size: 11px; padding: 0 1px; line-height: 1; opacity: .7;
+        }
+        .dest-tag button:hover { opacity: 1; }
+        .tags-add-sel {
+            border: none; outline: none; font-size: 12px; color: #9ca3af;
+            background: transparent; cursor: pointer; padding: 2px 4px;
+            min-width: 160px; flex: 1;
+        }
+        .tags-empty { font-size: 12px; color: #c4b5fd; font-style: italic; }
     </style>
 </head>
 <body>
@@ -122,7 +157,7 @@
 </div>
 
 <!-- Modal: ver mensaje -->
-<div class="modal-overlay" id="modal-ver">
+<div class="modal-overlay" id="modal-ver" onclick="if(event.target===this)cerrarVer()">
     <div class="modal-msg">
         <div class="modal-head">
             <div class="modal-head-info">
@@ -134,23 +169,43 @@
         <div class="modal-body">
             <div class="modal-cuerpo" id="det-cuerpo">—</div>
         </div>
+        <div class="modal-foot" id="modal-ver-foot" style="display:none;">
+            <button class="btn-responder" onclick="responderMensaje()">↩️ Responder</button>
+        </div>
     </div>
 </div>
 
 <!-- Modal: componer -->
-<div class="modal-overlay" id="modal-compose">
+<div class="modal-overlay" id="modal-compose" onclick="if(event.target===this)cerrarCompose()">
     <div class="modal-compose">
         <div class="compose-head">
-            <h3>✉️ Nuevo mensaje</h3>
+            <h3 id="compose-titulo">✉️ Nuevo mensaje</h3>
             <button class="modal-close" onclick="cerrarCompose()">✕</button>
         </div>
         <div class="compose-body">
+
+            <!-- Para (multi-tag) -->
             <div class="form-group">
-                <label>Para</label>
-                <select id="compose-para">
-                    <option value="">Seleccioná un destinatario...</option>
-                </select>
+                <label>Para <span style="font-weight:400;color:#9ca3af;text-transform:none;font-size:11px;">— destinatarios principales</span></label>
+                <div class="tags-input-wrap" id="para-wrap" onclick="document.getElementById('para-add').focus()">
+                    <div id="para-tags" style="display:contents;"></div>
+                    <select class="tags-add-sel" id="para-add" onchange="addDest('para',this)">
+                        <option value="">+ Añadir destinatario...</option>
+                    </select>
+                </div>
             </div>
+
+            <!-- CC (multi-tag) -->
+            <div class="form-group">
+                <label>CC <span style="font-weight:400;color:#9ca3af;text-transform:none;font-size:11px;">— en copia (opcional)</span></label>
+                <div class="tags-input-wrap" id="cc-wrap" onclick="document.getElementById('cc-add').focus()">
+                    <div id="cc-tags" style="display:contents;"></div>
+                    <select class="tags-add-sel" id="cc-add" onchange="addDest('cc',this)">
+                        <option value="">+ Añadir en copia...</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label>Asunto</label>
                 <input type="text" id="compose-asunto" placeholder="Asunto del mensaje" maxlength="200">
@@ -174,7 +229,12 @@ requireAuth();
 
 let _tabActual   = "recibidos";
 let _mensajes    = [];
-let _usuariosMap = {};   // id → {username, nombre}
+let _usuariosMap = {};   // id → {id, username, rol}
+let _msgActual   = null; // mensaje abierto actualmente en el modal-ver
+
+// Estado del compose
+let _paraDests = [];  // [{id, username}]
+let _ccDests   = [];
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
@@ -186,18 +246,30 @@ async function cargarUsuarios() {
     try {
         const lista = await apiFetch("/mensajes/usuarios");
         _usuariosMap = {};
-        const sel = document.getElementById("compose-para");
-        sel.innerHTML = '<option value="">Seleccioná un destinatario...</option>';
         for (const u of lista) {
             _usuariosMap[u.id] = u;
-            const opt = document.createElement("option");
-            opt.value = u.id;
-            opt.textContent = u.username + (u.rol ? ` (${u.rol})` : "");
-            sel.appendChild(opt);
         }
+        _poblarSelectsUsuarios();
     } catch(e) {
         console.warn("No se pudieron cargar usuarios:", e);
     }
+}
+
+function _poblarSelectsUsuarios() {
+    ["para-add", "cc-add"].forEach(selId => {
+        const sel = document.getElementById(selId);
+        const placeholder = selId === "para-add"
+            ? "+ Añadir destinatario..."
+            : "+ Añadir en copia...";
+        sel.innerHTML = `<option value="">${placeholder}</option>`;
+        for (const u of Object.values(_usuariosMap)) {
+            const opt = document.createElement("option");
+            opt.value       = u.id;
+            opt.textContent = u.username + (u.rol ? ` (${u.rol})` : "");
+            sel.appendChild(opt);
+        }
+    });
+    _actualizarSelectsDisponibles();
 }
 
 async function cargarMensajes() {
@@ -224,18 +296,20 @@ function renderLista() {
     }
 
     lista.innerHTML = _mensajes.map((m, i) => {
+        const esCC    = _tabActual === "recibidos" && (m.asunto || "").startsWith("[CC] ");
         const noLeido = _tabActual === "recibidos" && !m.leido;
         const nombre  = _tabActual === "recibidos"
             ? (m.de_username || "Sistema")
             : (m.para_username || "—");
         const prefijo = _tabActual === "recibidos" ? "De" : "Para";
         const fecha   = _formatFecha(m.creado_en);
+        const asuntoMostrar = esCC ? (m.asunto || "").slice(5) : (m.asunto || "(sin asunto)");
         const preview = (m.cuerpo || "").replace(/\n/g, " ").slice(0, 80);
 
-        return `<div class="msg-card ${noLeido ? "no-leido" : ""}" onclick="verMensaje(${i})">
+        return `<div class="msg-card ${noLeido ? "no-leido" : ""} ${esCC ? "es-cc" : ""}" onclick="verMensaje(${i})">
             <div style="min-width:0;">
-                <div class="msg-from">${prefijo}: <strong>${_esc(nombre)}</strong></div>
-                <div class="msg-asunto">${_esc(m.asunto || "(sin asunto)")}</div>
+                <div class="msg-from">${prefijo}: <strong>${_esc(nombre)}</strong>${esCC ? ' <span class="badge-cc">CC</span>' : ""}</div>
+                <div class="msg-asunto">${_esc(asuntoMostrar)}</div>
                 <div class="msg-preview">${_esc(preview)}</div>
             </div>
             <div class="msg-meta">
@@ -249,19 +323,50 @@ function renderLista() {
 async function verMensaje(idx) {
     const m = _mensajes[idx];
     if (!m) return;
+    _msgActual = m;
 
+    const esCC    = _tabActual === "recibidos" && (m.asunto || "").startsWith("[CC] ");
     const nombre  = _tabActual === "recibidos"
         ? (m.de_username || "Sistema")
         : (m.para_username || "—");
     const prefijo = _tabActual === "recibidos" ? "De" : "Para";
+    const asuntoMostrar = esCC ? (m.asunto || "").slice(5) : (m.asunto || "(sin asunto)");
 
-    document.getElementById("det-asunto").textContent = m.asunto || "(sin asunto)";
-    document.getElementById("det-meta").innerHTML =
-        `${prefijo}: <strong>${_esc(nombre)}</strong> &nbsp;·&nbsp; ${_formatFechaFull(m.creado_en)}`;
-    document.getElementById("det-cuerpo").textContent = m.cuerpo || "";
+    document.getElementById("det-asunto").textContent = asuntoMostrar;
+
+    let metaHtml = `${prefijo}: <strong>${_esc(nombre)}</strong>`;
+    if (esCC) metaHtml += ` &nbsp;<span class="badge-cc">Recibiste este mensaje como copia</span>`;
+    metaHtml += ` &nbsp;·&nbsp; ${_formatFechaFull(m.creado_en)}`;
+    document.getElementById("det-meta").innerHTML = metaHtml;
+
+    // Cuerpo: separar texto propio de cita si es respuesta
+    const cuerpoEl = document.getElementById("det-cuerpo");
+    const SEP = "\n\n---\n";
+    const sepIdx = m.cuerpo ? m.cuerpo.indexOf(SEP) : -1;
+    if (sepIdx !== -1) {
+        const textoPropio = m.cuerpo.slice(0, sepIdx);
+        const citaRaw     = m.cuerpo.slice(sepIdx + SEP.length);
+        // Parsear cabecera de cita: primera línea es "Mensaje de X (fecha):"
+        const primerSalto = citaRaw.indexOf("\n");
+        const citaHeader  = primerSalto !== -1 ? citaRaw.slice(0, primerSalto) : "";
+        const citaTexto   = primerSalto !== -1 ? citaRaw.slice(primerSalto + 1) : citaRaw;
+        cuerpoEl.innerHTML =
+            `<div>${_esc(textoPropio)}</div>
+             <div class="cita-original">
+               <div class="cita-header">${_esc(citaHeader)}</div>
+               <div class="cita-texto">${_esc(citaTexto)}</div>
+             </div>`;
+    } else {
+        cuerpoEl.textContent = m.cuerpo || "";
+    }
+
+    // Mostrar botón Responder solo en mensajes recibidos (no en propios enviados)
+    const foot = document.getElementById("modal-ver-foot");
+    foot.style.display = _tabActual === "recibidos" ? "" : "none";
+
     document.getElementById("modal-ver").classList.add("open");
 
-    // Marcar como leído si es recibido y estaba no leído
+    // Marcar como leído
     if (_tabActual === "recibidos" && !m.leido) {
         try {
             await apiFetch(`/mensajes/${m.id}/leer`, { method: "PATCH" });
@@ -274,6 +379,25 @@ async function verMensaje(idx) {
 
 function cerrarVer() {
     document.getElementById("modal-ver").classList.remove("open");
+    _msgActual = null;
+}
+
+function responderMensaje() {
+    if (!_msgActual) return;
+    const m = _msgActual;
+    cerrarVer();
+
+    // Asunto: "Re: {asunto original}" (sin duplicar Re:)
+    const asuntoBase = (m.asunto || "").startsWith("[CC] ")
+        ? (m.asunto || "").slice(5)
+        : (m.asunto || "");
+    const asunto = asuntoBase.startsWith("Re: ") ? asuntoBase : `Re: ${asuntoBase}`;
+
+    // Cuerpo: espacio para escribir + cita del original
+    const citaHeader = `Mensaje de ${m.de_username || "Sistema"} (${_formatFechaFull(m.creado_en)}):`;
+    const cuerpoBase = `\n\n---\n${citaHeader}\n${m.cuerpo || ""}`;
+
+    abrirCompose([m.de_usuario_id], asunto, cuerpoBase, /* cursorAlInicio */ true);
 }
 
 // ── Tabs ──────────────────────────────────────────────────────
@@ -295,7 +419,6 @@ async function actualizarBadge() {
         } else {
             badge.style.display = "none";
         }
-        // Actualizar también el badge del navbar (inyectado por sidebar.js)
         const navBadge = document.getElementById("nav-mensajes-badge");
         if (navBadge) {
             navBadge.textContent = noLeidos;
@@ -304,47 +427,149 @@ async function actualizarBadge() {
     } catch(e) { /* ignorar */ }
 }
 
-// ── Compose ───────────────────────────────────────────────────
-function abrirCompose(paraId) {
-    document.getElementById("compose-para").value   = paraId || "";
-    document.getElementById("compose-asunto").value = "";
-    document.getElementById("compose-cuerpo").value = "";
+// ── Compose: gestión de tags ──────────────────────────────────
+
+function addDest(tipo, sel) {
+    const id = parseInt(sel.value);
+    sel.value = "";
+    if (!id) return;
+    const u = _usuariosMap[id];
+    if (!u) return;
+
+    const arr   = tipo === "para" ? _paraDests : _ccDests;
+    const other = tipo === "para" ? _ccDests   : _paraDests;
+
+    // Si ya está en este grupo, no duplicar
+    if (arr.find(x => x.id === id)) return;
+
+    // Si está en el otro grupo, moverlo
+    const enOtro = other.findIndex(x => x.id === id);
+    if (enOtro !== -1) {
+        other.splice(enOtro, 1);
+        renderDestTags(tipo === "para" ? "cc" : "para");
+    }
+
+    arr.push({ id, username: u.username });
+    renderDestTags(tipo);
+    _actualizarSelectsDisponibles();
+}
+
+function removeDest(tipo, id) {
+    const arr = tipo === "para" ? _paraDests : _ccDests;
+    const idx = arr.findIndex(x => x.id === id);
+    if (idx !== -1) arr.splice(idx, 1);
+    renderDestTags(tipo);
+    _actualizarSelectsDisponibles();
+}
+
+function renderDestTags(tipo) {
+    const arr     = tipo === "para" ? _paraDests : _ccDests;
+    const wrapId  = tipo === "para" ? "para-tags" : "cc-tags";
+    const wrap    = document.getElementById(wrapId);
+    if (!wrap) return;
+    wrap.innerHTML = arr.map(u =>
+        `<span class="dest-tag ${tipo === "cc" ? "cc" : ""}">
+            ${_esc(u.username)}
+            <button onclick="removeDest('${tipo}',${u.id})" type="button">✕</button>
+        </span>`
+    ).join("");
+}
+
+function _actualizarSelectsDisponibles() {
+    const tomados = new Set([..._paraDests, ..._ccDests].map(x => x.id));
+    ["para-add", "cc-add"].forEach(selId => {
+        const sel = document.getElementById(selId);
+        if (!sel) return;
+        Array.from(sel.options).forEach(opt => {
+            if (!opt.value) return;
+            opt.disabled = tomados.has(parseInt(opt.value));
+        });
+    });
+}
+
+// ── Compose: abrir / cerrar ───────────────────────────────────
+
+function abrirCompose(paraIds = [], asunto = "", cuerpo = "", cursorAlInicio = false) {
+    // Resetear estado
+    _paraDests = [];
+    _ccDests   = [];
+
+    // Pre-poblar destinatarios
+    for (const id of paraIds) {
+        const u = _usuariosMap[id];
+        if (u) _paraDests.push({ id: u.id, username: u.username });
+    }
+
+    renderDestTags("para");
+    renderDestTags("cc");
+    _actualizarSelectsDisponibles();
+
+    document.getElementById("compose-asunto").value = asunto;
+    document.getElementById("compose-cuerpo").value = cuerpo;
     document.getElementById("btn-enviar").disabled  = false;
+    document.getElementById("btn-enviar").textContent = "Enviar";
+
+    const esRespuesta = asunto.startsWith("Re: ");
+    document.getElementById("compose-titulo").textContent =
+        esRespuesta ? "↩️ Responder" : "✉️ Nuevo mensaje";
+
     document.getElementById("modal-compose").classList.add("open");
-    setTimeout(() => document.getElementById("compose-para").focus(), 80);
+
+    setTimeout(() => {
+        if (cursorAlInicio) {
+            const ta = document.getElementById("compose-cuerpo");
+            ta.focus();
+            ta.setSelectionRange(0, 0);
+            ta.scrollTop = 0;
+        } else if (paraIds.length === 0) {
+            document.getElementById("para-add").focus();
+        } else {
+            document.getElementById("compose-asunto").focus();
+        }
+    }, 80);
 }
 
 function cerrarCompose() {
     document.getElementById("modal-compose").classList.remove("open");
+    _paraDests = [];
+    _ccDests   = [];
+    renderDestTags("para");
+    renderDestTags("cc");
 }
 
+// ── Enviar ────────────────────────────────────────────────────
+
 async function enviarMensaje() {
-    const para   = parseInt(document.getElementById("compose-para").value);
+    if (_paraDests.length === 0) {
+        alert("Agregá al menos un destinatario en el campo Para");
+        return;
+    }
     const asunto = document.getElementById("compose-asunto").value.trim();
     const cuerpo = document.getElementById("compose-cuerpo").value.trim();
 
-    if (!para)   { alert("Elegí un destinatario"); return; }
     if (!asunto) { alert("Escribí un asunto"); return; }
     if (!cuerpo) { alert("Escribí el mensaje"); return; }
 
     const btn = document.getElementById("btn-enviar");
-    btn.disabled = true;
+    btn.disabled    = true;
     btn.textContent = "Enviando...";
 
     try {
         await apiFetch("/mensajes/", {
             method: "POST",
-            body: JSON.stringify({ para_usuario_id: para, asunto, cuerpo }),
+            body: JSON.stringify({
+                para_usuario_ids: _paraDests.map(u => u.id),
+                cc_usuario_ids:   _ccDests.map(u => u.id),
+                asunto,
+                cuerpo,
+            }),
         });
         cerrarCompose();
         if (_tabActual === "enviados") cargarMensajes();
-        else {
-            // Mostrar confirmación breve
-            _toast("Mensaje enviado ✓");
-        }
+        else _toast("Mensaje enviado ✓");
     } catch(e) {
         alert("Error al enviar: " + (e.message || e));
-        btn.disabled = false;
+        btn.disabled    = false;
         btn.textContent = "Enviar";
     }
 }
@@ -357,9 +582,9 @@ function _esc(s) {
 function _formatFecha(ts) {
     if (!ts) return "—";
     const d = new Date(ts);
-    const hoy = new Date();
+    const hoy  = new Date();
     const ayer = new Date(hoy); ayer.setDate(hoy.getDate() - 1);
-    const pad = n => String(n).padStart(2, "0");
+    const pad  = n => String(n).padStart(2, "0");
     const hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     if (d.toDateString() === hoy.toDateString())  return `Hoy ${hora}`;
     if (d.toDateString() === ayer.toDateString()) return `Ayer ${hora}`;
@@ -368,7 +593,7 @@ function _formatFecha(ts) {
 
 function _formatFechaFull(ts) {
     if (!ts) return "—";
-    const d = new Date(ts);
+    const d   = new Date(ts);
     const pad = n => String(n).padStart(2, "0");
     return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
