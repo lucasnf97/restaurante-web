@@ -243,8 +243,8 @@
                     <th>Sueldo / Hora</th>
                     <th>Hs. Asignadas</th>
                     <th>Hs. Fichadas</th>
-                    <th>Dif. Horas</th>
                     <th>Salario Total</th>
+                    <th>Dif. Horas</th>
                     <th>Dif. de Saldo</th>
                     <th>Notas</th>
                 </tr>
@@ -562,15 +562,15 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 <td>${userCellHTML(u, ini)}</td>
                 <td>${fmt(u.sueldo_hora)}/h</td>
                 <td>${fmtH(u.horas_asignadas)}</td>
-                <td>${fmtH(u.horas_fichadas)}</td>
-                <td class="${difHCls}">${difHStr}</td>
-                <td><strong>${fmt(u.salario_total)}</strong></td>
                 <td>
                     <div class="dif-saldo-cell">
-                        <span class="${difSCls}">${(difS > 0 ? '+' : '') + fmt(difS)}</span>
-                        ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},${idxArg})" title="Ajustar horas">✏️</button>` : ''}
+                        <span>${fmtH(u.horas_fichadas)}</span>
+                        ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},${idxArg})" title="Ajustar horas fichadas">✏️</button>` : ''}
                     </div>
                 </td>
+                <td><strong>${fmt(u.salario_total)}</strong></td>
+                <td class="${difHCls}">${difHStr}</td>
+                <td class="${difSCls}">${(difS > 0 ? '+' : '') + fmt(difS)}</td>
                 <td>${notaHtml}</td>
             </tr>`;
         } else {
@@ -579,14 +579,15 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 <td>•••••</td>
                 <td>${fmtH(u.horas_asignadas)}</td>
                 <td>${fmtH(u.horas_fichadas)}</td>
+                <td>•••••</td>
                 <td class="${difHCls}">${difHStr}</td>
-                <td>•••••</td><td>•••••</td><td></td>
+                <td>•••••</td><td></td>
             </tr>`;
         }
     }).join('');
     return `<table><thead><tr>
         <th>Empleado</th><th>Sueldo/h</th><th>Hs.Asig.</th>
-        <th>Hs.Fich.</th><th>Dif.h</th><th>Salario</th><th>Dif.$</th><th>Notas</th>
+        <th>Hs.Fich.</th><th>Salario</th><th>Dif.h</th><th>Dif.$</th><th>Notas</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -788,7 +789,7 @@ function renderCards() {
 function renderTabla() {
     const tbody = document.getElementById('tbody');
     if (!_data.usuarios.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay empleados activos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">No hay empleados activos</td></tr>';
         return;
     }
     tbody.innerHTML = _data.usuarios.map(u => buildRow(u)).join('');
@@ -820,15 +821,15 @@ function buildRow(u) {
                 </div>
             </td>
             <td>${fmtH(u.horas_asignadas)}</td>
-            <td>${fmtH(u.horas_fichadas)}</td>
-            <td class="${difHCls}">${difHStr}</td>
-            <td><strong>${fmt(u.salario_total)}</strong></td>
             <td>
                 <div class="dif-saldo-cell">
-                    <span class="${difSCls}">${difSStr}</span>
-                    ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},null)" title="Ajustar horas">✏️</button>` : ''}
+                    <span>${fmtH(u.horas_fichadas)}</span>
+                    ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},null)" title="Ajustar horas fichadas">✏️</button>` : ''}
                 </div>
             </td>
+            <td><strong>${fmt(u.salario_total)}</strong></td>
+            <td class="${difHCls}">${difHStr}</td>
+            <td class="${difSCls}">${difSStr}</td>
             <td>${notaHtml}</td>
         </tr>`;
     } else {
@@ -837,8 +838,8 @@ function buildRow(u) {
             <td><span class="masked-cell" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span></td>
             <td>${fmtH(u.horas_asignadas)}</td>
             <td>${fmtH(u.horas_fichadas)}</td>
-            <td class="${difHCls}">${difHStr}</td>
             <td><span class="masked-cell" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span></td>
+            <td class="${difHCls}">${difHStr}</td>
             <td><span class="masked-cell" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span></td>
             <td></td>
         </tr>`;
@@ -1040,7 +1041,7 @@ async function guardarSueldo(uid) {
             const u = _data.usuarios.find(x => x.id === uid);
             if (u) {
                 u.sueldo_hora      = val;
-                u.salario_total    = +(val * u.horas_asignadas).toFixed(2);
+                u.salario_total    = +(val * u.horas_fichadas).toFixed(2);
                 u.diferencia_saldo = +(val * u.diferencia_horas).toFixed(2);
                 _data.total_salarios = +(_data.usuarios.reduce((s,x) => s + x.salario_total, 0)).toFixed(2);
                 renderAll();
@@ -1133,8 +1134,8 @@ function confirmarAjuste() {
     const nota     = document.getElementById('aj-nota').value.trim();
     const signo    = ajuste >= 0 ? '+' : '';
     const username = u.username;
-    u.horas_asignadas  = +((u.horas_asignadas + ajuste).toFixed(4));
-    u.salario_total    = +(u.sueldo_hora * u.horas_asignadas).toFixed(2);
+    u.horas_fichadas   = +((u.horas_fichadas + ajuste).toFixed(4));
+    u.salario_total    = +(u.sueldo_hora * u.horas_fichadas).toFixed(2);
     u.diferencia_horas = +((u.horas_fichadas - u.horas_asignadas).toFixed(4));
     u.diferencia_saldo = +(u.sueldo_hora * u.diferencia_horas).toFixed(2);
     u.nota_ajuste      = nota || null;
