@@ -512,11 +512,14 @@ function agruparPorFecha(fichajes) {
         }
         map[fecha].fichajes.push(f);
 
-        // Tomar el horario asignado del primer fichaje que lo tenga
+        // Tomar franjas del primer fichaje publicado que las tenga
         if (!map[fecha].franjas_asignadas &&
             f.franjas_asignadas && f.franjas_asignadas.length) {
             map[fecha].franjas_asignadas = f.franjas_asignadas;
-            map[fecha].break_mins        = f.break_mins || 0;
+        }
+        // break_mins es compartido por día (horarios_personales); tomar el primer valor > 0
+        if (!map[fecha].break_mins && f.break_mins) {
+            map[fecha].break_mins = f.break_mins;
         }
         // Sumar ajustes de todos los fichajes del día
         map[fecha].ajuste_horas += (f.ajuste_horas || 0);
@@ -549,7 +552,7 @@ function renderUserCard(g) {
 
     const hayActivo    = g.fichajes.some(f => !f.ts_salida);
     const hayPendiente = hasEdicionFichajes() &&
-        g.fichajes.some(f => !f.activo && f.notas && !f.revisado);
+        g.fichajes.some(f => !f.activo && !f.revisado);
 
     const numDias     = dayGroups.length;
     const numFichajes = g.fichajes.length;
@@ -625,7 +628,7 @@ function renderDayGroup(dg, usuarioId) {
     const horasFich   = dg.fichajes.reduce((s, f) => s + (f.horas || 0), 0);
     const horasAsig   = calcHorasAsignadas(dg.franjas_asignadas, dg.break_mins, dg.ajuste_horas);
     const hayActivo   = dg.fichajes.some(f => f.activo);
-    const pendiente   = !hayActivo && dg.fichajes.some(f => f.notas && !f.revisado);
+    const pendiente   = !hayActivo && dg.fichajes.some(f => !f.revisado);
 
     // Estado del día
     let badgeCls, badgeText;
@@ -639,7 +642,7 @@ function renderDayGroup(dg, usuarioId) {
     const fichajeEdit  = [...dg.fichajes].reverse().find(f => !f.activo);
 
     // Botón de revisión (por el primer fichaje pendiente del día)
-    const fPendiente   = dg.fichajes.find(f => !f.activo && f.notas && !f.revisado);
+    const fPendiente   = dg.fichajes.find(f => !f.activo && !f.revisado);
     let revBtn = "";
     if (hasEdicionFichajes() && !hayActivo) {
         if (fPendiente) {
@@ -684,10 +687,10 @@ function renderDayGroup(dg, usuarioId) {
         const durTxt  = f.horas != null ? formatHoras(f.horas) : "—";
         const editBtn = hasEdicionFichajes() && !f.activo
             ? `<button class="btn-nota-edit"
-                  onclick="event.stopPropagation();abrirRevision(${f.id})"
-                  title="Editar este fichaje">✏️</button>`
+                  onclick="event.stopPropagation();abrirEditInlineFichaje(${f.id})"
+                  title="Editar entrada/salida">✏️</button>`
             : "";
-        return `<div class="sub-fichaje-row">
+        return `<div class="sub-fichaje-row" id="sub-fich-${f.id}">
             <span class="sub-arrow">↳</span>
             <span class="sub-times">${entrada} → ${salidaTxt}</span>
             <span class="sub-dur">${durTxt}</span>
@@ -752,7 +755,7 @@ function _actualizarDayGroup(dayKey) {
     if (badgeEl) {
         let cls, txt;
         if (hayActivo) { cls = "badge-green"; txt = "En turno"; }
-        else if (fichajes.some(f => f.notas && !f.revisado)) { cls = "badge-amber"; txt = "Pendiente de aprobación"; }
+        else if (fichajes.some(f => !f.revisado)) { cls = "badge-amber"; txt = "Pendiente de aprobación"; }
         else { cls = "badge-gray"; txt = "Finalizado"; }
         badgeEl.className  = `badge ${cls}`;
         badgeEl.textContent = txt;
@@ -777,7 +780,7 @@ function _actualizarDayGroup(dayKey) {
     // Botón revisión
     const revBtn = document.getElementById(`revbtn-day-${dayKey}`);
     if (revBtn && hasEdicionFichajes() && !hayActivo) {
-        const fPend = fichajes.find(f => !f.activo && f.notas && !f.revisado);
+        const fPend = fichajes.find(f => !f.activo && !f.revisado);
         if (fPend) {
             revBtn.className  = "btn-revisar";
             revBtn.textContent = "📋";
@@ -917,7 +920,7 @@ function _actualizarRevBtn(id) {
 
 function _actualizarAlertaUsuario(usuarioId) {
     const hayPendiente = hasEdicionFichajes() && Object.values(_fichajesData).some(
-        f => f.usuario_id === usuarioId && !f.activo && f.notas && !f.revisado
+        f => f.usuario_id === usuarioId && !f.activo && !f.revisado
     );
     const alertEl = document.getElementById(`alerta-${usuarioId}`);
     if (alertEl) alertEl.style.display = hayPendiente ? "inline-flex" : "none";
@@ -1095,8 +1098,9 @@ async function guardarDescansoInline(fichajeId, dayKey) {
             const fdate = fechaTurno(f.ts_entrada);
             Object.values(_fichajesData).forEach(other => {
                 if (other.usuario_id === f.usuario_id && fechaTurno(other.ts_entrada) === fdate) {
-                    other.break_mins  = mins;
-                    other.ajuste_horas = 0;  // descanso cambió → diferencia debe recalcularse
+                    other.break_mins   = mins;
+                    other.ajuste_horas = 0;
+                    other.revisado     = false;
                 }
             });
         }
@@ -1223,8 +1227,9 @@ async function guardarHora(campo) {
             }
             document.getElementById("rev-duracion").textContent =
                 f.horas != null ? formatHoras(f.horas) : "—";
-            // Invalidar ajuste forzado previo: la diferencia debe recalcularse
+            // Invalidar ajuste forzado y marcar como pendiente de revisión
             f.ajuste_horas = 0;
+            f.revisado     = false;
         }
         cancelarEditHora(campo);
         _refreshAfterEdit(_revFichajeId);
@@ -1280,6 +1285,80 @@ async function confirmarRevision() {
     }
 }
 
+// ── Editor inline de entrada/salida en sub-filas ─────────────
+
+function abrirEditInlineFichaje(fichajeId) {
+    const rowEl = document.getElementById(`sub-fich-${fichajeId}`);
+    if (!rowEl) return;
+    const f = _fichajesData[fichajeId];
+    if (!f) return;
+    rowEl.innerHTML = `
+        <span class="sub-arrow">↳</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;"
+             onclick="event.stopPropagation()">
+            <label style="font-size:11px;color:#6b7280;white-space:nowrap;">Entrada:</label>
+            <input type="datetime-local" class="hora-input" id="ei-ent-${fichajeId}"
+                   value="${_toDatetimeLocal(f.ts_entrada)}" step="60"
+                   style="padding:2px 6px;font-size:12px;width:175px;">
+            <label style="font-size:11px;color:#6b7280;white-space:nowrap;">Salida:</label>
+            <input type="datetime-local" class="hora-input" id="ei-sal-${fichajeId}"
+                   value="${f.ts_salida ? _toDatetimeLocal(f.ts_salida) : ''}" step="60"
+                   style="padding:2px 6px;font-size:12px;width:175px;">
+            <button class="btn-hora-save" style="padding:2px 8px;font-size:11px;"
+                    onclick="event.stopPropagation();guardarEditInlineFichaje(${fichajeId})">✓</button>
+            <button class="btn-hora-cancel" style="padding:2px 6px;font-size:11px;"
+                    onclick="event.stopPropagation();_refreshAfterEdit(${fichajeId})">✕</button>
+        </div>`;
+    document.getElementById(`ei-ent-${fichajeId}`)?.focus();
+}
+
+async function guardarEditInlineFichaje(fichajeId) {
+    const entInp = document.getElementById(`ei-ent-${fichajeId}`);
+    const salInp = document.getElementById(`ei-sal-${fichajeId}`);
+    if (!entInp) return;
+    const f = _fichajesData[fichajeId];
+    if (!f) return;
+
+    const body = {};
+    if (entInp.value) {
+        const isoApi = new Date(entInp.value).toISOString().slice(0, 19);
+        if (isoApi !== (f.ts_entrada || "").slice(0, 19)) body.ts_entrada = isoApi;
+    }
+    if (salInp && salInp.value) {
+        const isoApi = new Date(salInp.value).toISOString().slice(0, 19);
+        if (isoApi !== (f.ts_salida || "").slice(0, 19)) body.ts_salida = isoApi;
+    }
+
+    if (!Object.keys(body).length) { _refreshAfterEdit(fichajeId); return; }
+
+    // Validación básica
+    const nuevaEnt = body.ts_entrada ? new Date(entInp.value) : new Date(f.ts_entrada);
+    const nuevaSal = body.ts_salida  ? new Date(salInp.value) : (f.ts_salida ? new Date(f.ts_salida) : null);
+    if (nuevaSal && nuevaEnt >= nuevaSal) {
+        alert("⚠️ La hora de entrada debe ser anterior a la hora de salida.");
+        return;
+    }
+
+    try {
+        const res = await apiFetch(`/turnos/${fichajeId}/editar-horario`, {
+            method: "PATCH",
+            body:   JSON.stringify(body),
+        });
+        if (body.ts_entrada) f.ts_entrada = new Date(entInp.value).toISOString();
+        if (body.ts_salida)  f.ts_salida  = new Date(salInp.value).toISOString();
+        if (f.ts_entrada && f.ts_salida) {
+            f.horas = (new Date(f.ts_salida) - new Date(f.ts_entrada)) / 3600000;
+        } else if (res.horas != null) {
+            f.horas = res.horas;
+        }
+        f.ajuste_horas = 0;
+        f.revisado     = false;
+        _refreshAfterEdit(fichajeId);
+    } catch(e) {
+        alert("Error al guardar: " + (e.message || e));
+    }
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 /** Clave de día: "${usuarioId}-YYYY-MM-DD" usando fecha de turno (con umbral nocturno) */
 function _dayKey(f) {
@@ -1310,7 +1389,11 @@ function fechaTurno(ts) {
 function calcHorasAsignadas(franjas, breakMins, ajusteHoras) {
     ajusteHoras = ajusteHoras || 0;
     if (!franjas || !franjas.length) {
-        return ajusteHoras !== 0 ? ajusteHoras : null;
+        // Sin franjas: si hay break o ajuste se puede calcular diferencia
+        // diff = fichadas − breakMins (las horas "asignadas" equivalen al descanso)
+        const bm = (breakMins || 0) / 60;
+        const total = bm + ajusteHoras;
+        return total !== 0 ? total : null;
     }
     let total = 0;
     for (const f of franjas) {
