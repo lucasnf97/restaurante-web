@@ -156,10 +156,10 @@
         .nota-sal { font-size: 12px; color: #6b7280; font-style: italic; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .nota-sal[title] { cursor: help; }
         /* Lupa de fichajes */
-        .btn-lupa { text-decoration: none; font-size: 18px; opacity: 0.45; padding: 0 4px; display: flex; align-items: center; justify-content: center; align-self: stretch; transition: opacity .15s; }
+        .btn-lupa { text-decoration: none; font-size: 13px; opacity: 0.5; padding: 0 3px; vertical-align: middle; transition: opacity .15s; }
         .btn-lupa:hover { opacity: 1; }
-        .dif-cell { display: flex; flex-direction: row; align-items: stretch; gap: 6px; }
-        .dif-cell-texts { display: flex; flex-direction: column; gap: 2px; }
+        .dif-cell { display: flex; flex-direction: column; gap: 2px; }
+        .dif-cell-top { display: flex; align-items: center; gap: 4px; }
     </style>
 </head>
 <body>
@@ -568,12 +568,12 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 <td><strong>${fmt(u.salario_total)}</strong></td>
                 <td class="${difHCls}">
                     <div class="dif-cell">
-                        <div class="dif-cell-texts">
+                        <div class="dif-cell-top">
                             <span>${difHStr}</span>
-                            <span class="${difSCls}" style="font-size:11px;font-weight:400;">${(difS > 0 ? '+' : '') + fmt(difS)}</span>
+                            <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
+                               class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
                         </div>
-                        <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
-                           class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
+                        <span class="${difSCls}" style="font-size:11px;font-weight:400;">${(difS > 0 ? '+' : '') + fmt(difS)}</span>
                     </div>
                 </td>
                 <td>${notaHtml}</td>
@@ -587,12 +587,12 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 <td>•••••</td>
                 <td class="${difHCls}">
                     <div class="dif-cell">
-                        <div class="dif-cell-texts">
+                        <div class="dif-cell-top">
                             <span>${difHStr}</span>
-                            <span style="font-size:11px;">•••••</span>
+                            <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
+                               class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
                         </div>
-                        <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
-                           class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
+                        <span style="font-size:11px;">•••••</span>
                     </div>
                 </td>
                 <td></td>
