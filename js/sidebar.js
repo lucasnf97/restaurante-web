@@ -244,6 +244,20 @@
         /* ── Modo Edición: btn-config oculto por defecto ── */
         .btn-config { display: none !important; }
         html.edit-mode .btn-config { display: flex !important; }
+
+        /* Badge de mensajes en el sidebar */
+        #sidebar-mensajes-badge {
+            background: #dc2626;
+            color: white;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 800;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            text-align: center;
+            line-height: 18px;
+        }
     `;
     document.head.appendChild(style);
 
@@ -267,10 +281,14 @@
             // Ítem simple
             if (!p.group) {
                 if (!_canSee(p.perm)) return "";
+                // Ítem de Mensajes: incluir badge de no leídos
+                const badgeHtml = p.href === "mensajes.html"
+                    ? `<span id="sidebar-mensajes-badge" style="display:none;margin-left:auto;"></span>`
+                    : "";
                 return `
                 <a href="${p.href}" class="sidebar-link${currentPage === p.href ? " active" : ""}">
                     <span class="si-icon">${p.icon}</span>
-                    ${p.label}
+                    ${p.label}${badgeHtml}
                 </a>`;
             }
 
@@ -420,10 +438,21 @@
             if (!res.ok) return;
             const data = await res.json();
             const count = data.count || 0;
-            const badge = document.getElementById("nav-mensajes-badge");
-            if (badge) {
-                badge.textContent = count;
-                badge.style.display = count > 0 ? "" : "none";
+            const show  = count > 0 ? "inline-block" : "none";
+            const txt   = count > 0 ? String(count)   : "";
+
+            // Badge en el navbar
+            const navBadge = document.getElementById("nav-mensajes-badge");
+            if (navBadge) {
+                navBadge.textContent  = txt;
+                navBadge.style.display = show;
+            }
+
+            // Badge en el sidebar
+            const sideBadge = document.getElementById("sidebar-mensajes-badge");
+            if (sideBadge) {
+                sideBadge.textContent  = txt;
+                sideBadge.style.display = show;
             }
         } catch(e) { /* silencioso — no crítico */ }
     }
