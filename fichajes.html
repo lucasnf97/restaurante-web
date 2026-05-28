@@ -537,18 +537,23 @@ function renderUserCard(g) {
     const dayGroups = agruparPorFecha(g.fichajes);
 
     // Totales a nivel usuario
-    let totalFichadasMins = 0, totalAsignadasMins = 0, tieneAsignadas = false;
+    // break se descuenta de fichadas; asignadas = solo franjas del horario
+    let totalFichadasMins = 0, totalAsignadasMins = 0, totalBreakMins = 0, tieneAsignadas = false;
     dayGroups.forEach(dg => {
         dg.fichajes.forEach(f => { totalFichadasMins += (f.horas || 0) * 60; });
-        const ha = calcHorasAsignadas(dg.franjas_asignadas, dg.break_mins, dg.ajuste_horas);
+        totalBreakMins += (dg.break_mins || 0);
+        const ha = calcHorasAsignadas(dg.franjas_asignadas, dg.ajuste_horas);
         if (ha !== null) { totalAsignadasMins += ha * 60; tieneAsignadas = true; }
     });
 
-    const fichadasStr  = formatMins(totalFichadasMins);
-    const asignadasStr = tieneAsignadas ? formatMins(totalAsignadasMins) : "—";
-    const diffHtml     = tieneAsignadas
-        ? renderDiffMins(totalFichadasMins - totalAsignadasMins)
-        : '<span class="diff-neu">—</span>';
+    const fichadasStr    = formatMins(totalFichadasMins);
+    const asignadasStr   = tieneAsignadas ? formatMins(totalAsignadasMins) : "—";
+    const efectivasMins  = totalFichadasMins - totalBreakMins;
+    const diffHtml       = tieneAsignadas
+        ? renderDiffMins(efectivasMins - totalAsignadasMins)
+        : (totalBreakMins > 0
+            ? renderDiffMins(efectivasMins)
+            : '<span class="diff-neu">—</span>');
 
     const hayActivo    = g.fichajes.some(f => !f.ts_salida);
     const hayPendiente = hasEdicionFichajes() &&
@@ -626,7 +631,7 @@ function toggleCard(usuarioId) {
 function renderDayGroup(dg, usuarioId) {
     const dayKey      = `${usuarioId}-${dg.fecha}`;
     const horasFich   = dg.fichajes.reduce((s, f) => s + (f.horas || 0), 0);
-    const horasAsig   = calcHorasAsignadas(dg.franjas_asignadas, dg.break_mins, dg.ajuste_horas);
+    const horasAsig   = calcHorasAsignadas(dg.franjas_asignadas, dg.ajuste_horas);
     const hayActivo   = dg.fichajes.some(f => f.activo);
     const pendiente   = !hayActivo && dg.fichajes.some(f => !f.revisado);
 
@@ -704,7 +709,7 @@ function renderDayGroup(dg, usuarioId) {
             <td><strong>${formatHoras(horasFich)}</strong></td>
             <td>${renderFranjas(dg.franjas_asignadas)}${ajusteHint}</td>
             <td id="descanso-td-day-${dayKey}">${descansoStr}${descansoEditBtn}</td>
-            <td>${renderDiff(horasFich, horasAsig)}</td>
+            <td>${renderDiff(horasFich, horasAsig, dg.break_mins)}</td>
             <td><span class="badge ${badgeCls}" id="status-day-${dayKey}">${badgeText}</span></td>
             <td id="nota-td-day-${dayKey}" data-uid="${usuarioId}" data-edit-id="${fichajeEdit ? fichajeEdit.id : ''}">${notaTxt}${notaEditBtn}</td>
             <td>${revBtn}</td>
@@ -956,7 +961,7 @@ function abrirRevision(id) {
     // Info del día (descanso, horario, horas asignadas)
     const fConHorario = _revDayFichajes.find(fi => fi.franjas_asignadas && fi.franjas_asignadas.length) || f;
     const breakMins   = fConHorario.break_mins || 0;
-    const horasAsigBase = calcHorasAsignadas(fConHorario.franjas_asignadas, breakMins, 0);
+    const horasAsigBase = calcHorasAsignadas(fConHorario.franjas_asignadas, 0);
     document.getElementById("rev-descanso").textContent =
         breakMins > 0 ? `${breakMins} min` : "Sin descanso";
     document.getElementById("rev-horario").innerHTML = renderFranjas(fConHorario.franjas_asignadas);
@@ -1257,9 +1262,11 @@ async function confirmarRevision() {
     if (_anularDif) {
         const fConHorario = _revDayFichajes.find(fi => fi.franjas_asignadas && fi.franjas_asignadas.length);
         if (fConHorario) {
-            const horasAsigBase   = calcHorasAsignadas(fConHorario.franjas_asignadas, fConHorario.break_mins, 0) || 0;
-            const totalFichadasH  = _revDayFichajes.reduce((s, fi) => s + (fi.horas || 0), 0);
-            ajusteTotal    = totalFichadasH - horasAsigBase;
+            const horasAsigBase  = calcHorasAsignadas(fConHorario.franjas_asignadas, 0) || 0;
+            const totalFichadasH = _revDayFichajes.reduce((s, fi) => s + (fi.horas || 0), 0);
+            const totalBreakH    = _revDayFichajes.reduce((s, fi) => s + (fi.break_mins || 0), 0) / 60;
+            // efectivas = fichadas − descanso; ajuste para que diff = 0
+            ajusteTotal    = (totalFichadasH - totalBreakH) - horasAsigBase;
             fichajeAjusteId = fConHorario.id;
         }
     }
@@ -1386,14 +1393,15 @@ function fechaTurno(ts) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-function calcHorasAsignadas(franjas, breakMins, ajusteHoras) {
+/**
+ * Calcula las horas ASIGNADAS según el horario (franjas) + ajuste.
+ * El descanso (break_mins) NO se suma aquí — se descuenta de las
+ * horas fichadas en renderDiff para calcular la diferencia efectiva.
+ */
+function calcHorasAsignadas(franjas, ajusteHoras) {
     ajusteHoras = ajusteHoras || 0;
     if (!franjas || !franjas.length) {
-        // Sin franjas: si hay break o ajuste se puede calcular diferencia
-        // diff = fichadas − breakMins (las horas "asignadas" equivalen al descanso)
-        const bm = (breakMins || 0) / 60;
-        const total = bm + ajusteHoras;
-        return total !== 0 ? total : null;
+        return ajusteHoras !== 0 ? ajusteHoras : null;
     }
     let total = 0;
     for (const f of franjas) {
@@ -1404,7 +1412,22 @@ function calcHorasAsignadas(franjas, breakMins, ajusteHoras) {
         if (fin <= ini) fin += 24 * 60;
         total += fin - ini;
     }
-    return Math.max(0, total + (breakMins || 0)) / 60 + ajusteHoras;
+    return Math.max(0, total) / 60 + ajusteHoras;
+}
+
+/**
+ * Renderiza la diferencia entre horas efectivas y asignadas.
+ * efectivas = fichadas − break_mins (tiempo real trabajado)
+ * diff = efectivas − asignadas
+ * Cuando no hay asignadas pero hay break, muestra las horas efectivas.
+ */
+function renderDiff(horasReales, horasAsig, breakMins) {
+    const efectivas = (horasReales || 0) - (breakMins || 0) / 60;
+    if (horasAsig === null) {
+        if (!(breakMins > 0)) return '<span class="diff-neu">—</span>';
+        return renderDiffMins(efectivas * 60);
+    }
+    return renderDiffMins((efectivas - horasAsig) * 60);
 }
 
 function renderFranjas(franjas) {
@@ -1412,11 +1435,6 @@ function renderFranjas(franjas) {
     return franjas.map(f =>
         `<span class="franja-tag">${f.inicio}–${f.fin}</span>`
     ).join(" ");
-}
-
-function renderDiff(horasReales, horasAsig) {
-    if (horasAsig === null || horasReales == null) return '<span class="diff-neu">—</span>';
-    return renderDiffMins((horasReales - horasAsig) * 60);
 }
 
 function renderDiffMins(diffMins) {
