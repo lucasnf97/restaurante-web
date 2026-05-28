@@ -163,6 +163,24 @@
         .btn-hora-save:hover { background: #4338ca; }
         .btn-hora-cancel { background: #f3f4f6; color: #666; border: none; border-radius: 5px; padding: 3px 8px; font-size: 12px; cursor: pointer; }
 
+        /* Lista de fichajes del día en modal de revisión */
+        .rev-fich-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+        .rev-fich-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px; border-radius: 8px; border: 1.5px solid #e0e0e0;
+            font-size: 13px; cursor: pointer; transition: all .15s; background: white;
+        }
+        .rev-fich-item:hover { border-color: #a5b4fc; background: #f8f8ff; }
+        .rev-fich-item.active { border-color: #4f46e5; background: #f0f0ff; }
+        .rev-fich-item .fich-n { font-size: 11px; color: #9ca3af; font-weight: 700; min-width: 18px; }
+        .rev-fich-item .fich-times { flex: 1; font-weight: 600; color: #1a1a2e; }
+        .rev-fich-item .fich-dur { color: #6b7280; font-size: 12px; font-weight: 600; }
+        .rev-fich-item .fich-hint { font-size: 10px; color: #a5b4fc; margin-left: 4px; }
+        .rev-fich-item.active .fich-hint { color: #4f46e5; }
+        .rev-section-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+        .rev-day-info { background: #f8f9fa; border-radius: 10px; padding: 10px 16px; margin-bottom: 16px; }
+        .rev-edit-box { background: #f8f9fa; border-radius: 10px; padding: 10px 16px; margin-bottom: 10px; border: 1.5px solid #e0e7ff; }
+
         /* Anular diferencia toggle */
         .anular-section { margin-bottom: 16px; }
         .anular-btn {
@@ -244,7 +262,14 @@
             <button class="modal-close" onclick="cerrarRevision()">✕</button>
         </div>
         <div class="modal-rev-body">
-            <div class="info-grid">
+            <!-- Lista de fichajes del día (visible solo si hay más de 1) -->
+            <div id="rev-fich-list-section" style="display:none;">
+                <div class="rev-section-label">Fichajes del día</div>
+                <div class="rev-fich-list" id="rev-fich-list"></div>
+            </div>
+
+            <!-- Box de edición del fichaje seleccionado -->
+            <div class="rev-edit-box">
                 <div class="info-row">
                     <span class="info-label">Entrada</span>
                     <div class="info-val-wrap" id="rev-entrada-wrap">
@@ -275,25 +300,28 @@
                         <button class="btn-hora-cancel" onclick="cancelarEditHora('salida')">✕</button>
                     </div>
                 </div>
-                <div class="info-row">
+                <div class="info-row" style="border-bottom:none;padding-bottom:0;">
                     <span class="info-label">Duración bruta</span>
                     <span class="info-val" id="rev-duracion">—</span>
                 </div>
+            </div>
+
+            <!-- Info del día (descanso, horario, horas asignadas) -->
+            <div class="rev-day-info">
                 <div class="info-row">
                     <span class="info-label">Descanso</span>
-                    <div class="info-val-wrap">
-                        <span class="info-val" id="rev-descanso">—</span>
-                    </div>
+                    <span class="info-val" id="rev-descanso">—</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Horario asignado</span>
                     <span class="info-val" id="rev-horario">—</span>
                 </div>
-                <div class="info-row">
+                <div class="info-row" style="border-bottom:none;padding-bottom:0;">
                     <span class="info-label">Horas asignadas</span>
                     <span class="info-val" id="rev-asignadas">—</span>
                 </div>
             </div>
+
             <div class="notas-box">
                 <div class="notas-box-label">📝 Nota del empleado</div>
                 <div class="notas-box-text" id="rev-notas">—</div>
@@ -654,7 +682,6 @@ function renderDayGroup(dg, usuarioId) {
             ? formatHoraTs(f.ts_salida)
             : `<span class="sub-activo">En turno</span>`;
         const durTxt  = f.horas != null ? formatHoras(f.horas) : "—";
-        const brkTxt  = f.break_mins ? `<span class="sub-dur" title="Descanso">☕ ${f.break_mins}m</span>` : "";
         const editBtn = hasEdicionFichajes() && !f.activo
             ? `<button class="btn-nota-edit"
                   onclick="event.stopPropagation();abrirRevision(${f.id})"
@@ -664,7 +691,6 @@ function renderDayGroup(dg, usuarioId) {
             <span class="sub-arrow">↳</span>
             <span class="sub-times">${entrada} → ${salidaTxt}</span>
             <span class="sub-dur">${durTxt}</span>
-            ${brkTxt}
             ${editBtn}
         </div>`;
     }).join("");
@@ -898,49 +924,99 @@ function _actualizarAlertaUsuario(usuarioId) {
 }
 
 // ── Modal de revisión ─────────────────────────────────────────
-let _revFichajeId = null;
-let _anularDif    = false;   // toggle "Anular diferencia"
+let _revFichajeId   = null;
+let _revDayFichajes = [];    // todos los fichajes del día en revisión
+let _anularDif      = false; // toggle "Anular diferencia"
 
 function abrirRevision(id) {
     const f = _fichajesData[id];
     if (!f) return;
+
+    // Recopilar todos los fichajes cerrados del mismo día
+    const fecha = fechaTurno(f.ts_entrada);
+    const uid   = f.usuario_id;
+    _revDayFichajes = Object.values(_fichajesData)
+        .filter(fi => fi.usuario_id === uid && fechaTurno(fi.ts_entrada) === fecha && !fi.activo)
+        .sort((a, b) => new Date(a.ts_entrada) - new Date(b.ts_entrada));
+
     _revFichajeId = id;
     _anularDif    = false;
 
-    const horasAsigBase = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, 0);
-
     document.getElementById("rev-titulo").textContent =
-        `Revisión — ${f.username} · ${formatFechaShort(fechaTurno(f.ts_entrada))}`;
+        `Revisión — ${f.username} · ${formatFechaShort(fecha)}`;
+
+    // Lista de fichajes (solo visible si hay más de 1)
+    const listSection = document.getElementById("rev-fich-list-section");
+    listSection.style.display = _revDayFichajes.length > 1 ? "" : "none";
+    _renderRevFichajesList();
+
+    // Info del día (descanso, horario, horas asignadas)
+    const fConHorario = _revDayFichajes.find(fi => fi.franjas_asignadas && fi.franjas_asignadas.length) || f;
+    const breakMins   = fConHorario.break_mins || 0;
+    const horasAsigBase = calcHorasAsignadas(fConHorario.franjas_asignadas, breakMins, 0);
+    document.getElementById("rev-descanso").textContent =
+        breakMins > 0 ? `${breakMins} min` : "Sin descanso";
+    document.getElementById("rev-horario").innerHTML = renderFranjas(fConHorario.franjas_asignadas);
+    document.getElementById("rev-asignadas").textContent =
+        horasAsigBase != null ? formatHoras(horasAsigBase) : "Sin horario asignado";
+
+    // Seleccionar el fichaje inicial (el que se pasó como argumento)
+    _selectRevFichaje(id);
+
+    // Reset toggle anular diferencia
+    _setAnularDif(false);
+
+    document.getElementById("modal-revision").classList.add("open");
+}
+
+/** Renderiza los ítems de la lista de fichajes del día en el modal */
+function _renderRevFichajesList() {
+    const listEl = document.getElementById("rev-fich-list");
+    if (!listEl) return;
+    listEl.innerHTML = _revDayFichajes.map((fi, idx) => {
+        const entrada  = formatTs(fi.ts_entrada);
+        const salida   = fi.ts_salida ? formatTs(fi.ts_salida) : "En turno";
+        const dur      = fi.horas != null ? formatHoras(fi.horas) : "—";
+        const activo   = fi.id === _revFichajeId;
+        return `<div class="rev-fich-item${activo ? ' active' : ''}"
+                     data-id="${fi.id}"
+                     onclick="_selectRevFichaje(${fi.id})">
+            <span class="fich-n">#${idx + 1}</span>
+            <span class="fich-times">${entrada} → ${salida}</span>
+            <span class="fich-dur">${dur}</span>
+            <span class="fich-hint">${activo ? '✏️' : ''}</span>
+        </div>`;
+    }).join("");
+}
+
+/** Selecciona un fichaje de la lista y actualiza la sección de edición */
+function _selectRevFichaje(id) {
+    _revFichajeId = id;
+    const f = _fichajesData[id];
+    if (!f) return;
+
+    // Actualizar estado activo en la lista
+    document.querySelectorAll('.rev-fich-item').forEach(el => {
+        const isActive = parseInt(el.dataset.id) === id;
+        el.classList.toggle('active', isActive);
+        el.querySelector('.fich-hint').textContent = isActive ? '✏️' : '';
+    });
+
+    // Rellenar campos del fichaje seleccionado
     document.getElementById("rev-entrada").textContent  = formatTs(f.ts_entrada);
     document.getElementById("rev-salida").textContent   = f.ts_salida ? formatTs(f.ts_salida) : "En turno";
     document.getElementById("rev-duracion").textContent = f.horas != null ? formatHoras(f.horas) : "—";
-    document.getElementById("rev-horario").innerHTML    = renderFranjas(f.franjas_asignadas);
-    document.getElementById("rev-asignadas").textContent =
-        horasAsigBase != null ? formatHoras(horasAsigBase) : "Sin horario asignado";
 
     const notaEl = document.getElementById("rev-notas");
     notaEl.textContent = f.notas || "(sin notas)";
     notaEl.style.color = f.notas ? "#374151" : "#9ca3af";
 
-    // Descanso
-    const descansoMins = f.break_mins || 0;
-    document.getElementById("rev-descanso").textContent =
-        descansoMins > 0 ? `${descansoMins} min` : "Sin descanso";
+    // Mostrar/ocultar lápiz de salida según si tiene hora de salida
+    const btnSalida = document.querySelector("[onclick=\"toggleEditHora('salida')\"]");
+    if (btnSalida) btnSalida.style.display = f.ts_salida ? "" : "none";
 
-    // Ocultar filas de edición inline
     cancelarEditHora("entrada");
     cancelarEditHora("salida");
-    cancelarEditDescanso();
-
-    // Reset toggle anular diferencia
-    _setAnularDif(false);
-
-    // Ocultar botones de lápiz si está en turno activo (sin salida)
-    const puedeEditarSalida = !!f.ts_salida;
-    document.querySelector("[onclick=\"toggleEditHora('salida')\"]").style.display =
-        puedeEditarSalida ? "" : "none";
-
-    document.getElementById("modal-revision").classList.add("open");
 }
 
 function toggleAnularDif() {
@@ -1156,34 +1232,42 @@ async function guardarHora(campo) {
 
 function cerrarRevision() {
     document.getElementById("modal-revision").classList.remove("open");
-    _revFichajeId = null;
-    _anularDif    = false;
+    _revFichajeId   = null;
+    _revDayFichajes = [];
+    _anularDif      = false;
     cancelarEditHora("entrada");
     cancelarEditHora("salida");
-    cancelarEditDescanso();
 }
 
 async function confirmarRevision() {
-    if (!_revFichajeId) return;
-    const f = _fichajesData[_revFichajeId];
+    if (!_revFichajeId || !_revDayFichajes.length) return;
 
-    let ajuste_horas = 0;
-    if (_anularDif && f) {
-        // Calcula el ajuste necesario para que (horas_asig_base + ajuste) == horas_fichadas
-        // → diferencia queda en 0 para este fichaje
-        const horasAsigBase = calcHorasAsignadas(f.franjas_asignadas, f.break_mins, 0) || 0;
-        const horasFichadas  = f.horas || 0;
-        ajuste_horas = horasFichadas - horasAsigBase;
+    // Calcular ajuste solo si se marcó "Anular diferencia"
+    // Comparamos el total fichado del día con el horario asignado base
+    let ajusteTotal = 0;
+    let fichajeAjusteId = null;
+    if (_anularDif) {
+        const fConHorario = _revDayFichajes.find(fi => fi.franjas_asignadas && fi.franjas_asignadas.length);
+        if (fConHorario) {
+            const horasAsigBase   = calcHorasAsignadas(fConHorario.franjas_asignadas, fConHorario.break_mins, 0) || 0;
+            const totalFichadasH  = _revDayFichajes.reduce((s, fi) => s + (fi.horas || 0), 0);
+            ajusteTotal    = totalFichadasH - horasAsigBase;
+            fichajeAjusteId = fConHorario.id;
+        }
     }
 
     try {
-        await apiFetch(`/turnos/${_revFichajeId}/revisar`, {
-            method: "PATCH",
-            body:   JSON.stringify({ ajuste_horas }),
-        });
-        if (f) {
-            f.revisado     = true;
-            f.ajuste_horas = ajuste_horas;
+        // Marcar TODOS los fichajes del día como revisados
+        for (const fi of _revDayFichajes) {
+            const adj = (_anularDif && fi.id === fichajeAjusteId) ? ajusteTotal : 0;
+            await apiFetch(`/turnos/${fi.id}/revisar`, {
+                method: "PATCH",
+                body:   JSON.stringify({ ajuste_horas: adj }),
+            });
+            if (_fichajesData[fi.id]) {
+                _fichajesData[fi.id].revisado     = true;
+                _fichajesData[fi.id].ajuste_horas = adj;
+            }
         }
         const idParaRefresh = _revFichajeId;
         cerrarRevision();
