@@ -154,6 +154,14 @@
         .ajuste-total-row { font-size: 14px !important; padding: 8px 0 2px !important; }
         .ajuste-total-row span { font-size: 15px !important; font-weight: 700 !important; color: #1a1a2e !important; }
         .dif-saldo-cell { display: flex; align-items: center; gap: 8px; }
+        .aj-inputs-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 4px; }
+        .aj-input-group { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .aj-input-group label { font-size: 12px; color: #6b7280; font-weight: 500; }
+        .aj-input-group input { width: 100%; box-sizing: border-box; }
+        .aj-input-sep { font-size: 18px; color: #9ca3af; padding-bottom: 6px; flex-shrink: 0; }
+        /* Notas en grilla */
+        .nota-sal { font-size: 12px; color: #6b7280; font-style: italic; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nota-sal[title] { cursor: help; }
     </style>
 </head>
 <body>
@@ -238,10 +246,11 @@
                     <th>Dif. Horas</th>
                     <th>Salario Total</th>
                     <th>Dif. de Saldo</th>
+                    <th>Notas</th>
                 </tr>
             </thead>
             <tbody id="tbody">
-                <tr><td colspan="7" class="empty" id="empty-msg">Cargando empleados...</td></tr>
+                <tr><td colspan="8" class="empty" id="empty-msg">Cargando empleados...</td></tr>
             </tbody>
         </table>
     </div>
@@ -288,10 +297,10 @@
 
 <!-- Modal ajuste de horas -->
 <div class="modal-overlay" id="modal-ajuste">
-    <div class="modal-box" style="width:440px;">
+    <div class="modal-box" style="width:460px;">
         <h3 id="ajuste-titulo">⏱️ Ajuste de horas</h3>
         <p style="font-size:13px;color:#666;margin:6px 0 16px;">
-            Ingresá las horas a ajustar. Positivo suma horas y aumenta el salario; negativo descuenta.
+            Positivo suma horas y aumenta el salario; negativo descuenta. Podés editar horas o dinero — el otro campo se calcula solo.
         </p>
         <div class="modal-info">
             <div class="modal-info-row">
@@ -311,9 +320,21 @@
                 <span id="aj-dif-h">—</span>
             </div>
         </div>
-        <div class="modal-row">
-            <label>Horas a ajustar</label>
-            <input type="number" id="aj-inp" step="0.25" placeholder="0.00" oninput="calcAjuste()">
+        <div class="aj-inputs-row">
+            <div class="aj-input-group">
+                <label>Horas a ajustar</label>
+                <input type="number" id="aj-inp" step="0.25" placeholder="0.00" oninput="calcAjusteDesdeHoras()">
+            </div>
+            <div class="aj-input-sep">⇄</div>
+            <div class="aj-input-group">
+                <label>Equivalente en $</label>
+                <input type="number" id="aj-inp-dinero" step="0.01" placeholder="0.00" oninput="calcAjusteDesdeDinero()">
+            </div>
+        </div>
+        <div class="modal-row" style="margin-top:10px;">
+            <label>Motivo del ajuste <span style="color:#9ca3af;font-weight:400;">(opcional)</span></label>
+            <textarea id="aj-nota" rows="2" placeholder="Ej: bono por alta productividad, horas extra no fichadas..."
+                      style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;"></textarea>
         </div>
         <div class="ajuste-preview">
             <div class="modal-info-row">
@@ -534,6 +555,9 @@ function buildTablaHTML(data, canEdit, pendIdx) {
         if (_unlocked) {
             const difS    = u.diferencia_saldo;
             const difSCls = difS > 0.01 ? 'pos' : difS < -0.01 ? 'neg' : 'neu';
+            const notaHtml = u.nota_ajuste
+                ? `<span class="nota-sal" title="${u.nota_ajuste.replace(/"/g,'&quot;')}">${u.nota_ajuste}</span>`
+                : `<span style="color:#d1d5db;">—</span>`;
             return `<tr>
                 <td>${userCellHTML(u, ini)}</td>
                 <td>${fmt(u.sueldo_hora)}/h</td>
@@ -547,6 +571,7 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                         ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},${idxArg})" title="Ajustar horas">✏️</button>` : ''}
                     </div>
                 </td>
+                <td>${notaHtml}</td>
             </tr>`;
         } else {
             return `<tr>
@@ -555,13 +580,13 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 <td>${fmtH(u.horas_asignadas)}</td>
                 <td>${fmtH(u.horas_fichadas)}</td>
                 <td class="${difHCls}">${difHStr}</td>
-                <td>•••••</td><td>•••••</td>
+                <td>•••••</td><td>•••••</td><td></td>
             </tr>`;
         }
     }).join('');
     return `<table><thead><tr>
         <th>Empleado</th><th>Sueldo/h</th><th>Hs.Asig.</th>
-        <th>Hs.Fich.</th><th>Dif.h</th><th>Salario</th><th>Dif.$</th>
+        <th>Hs.Fich.</th><th>Dif.h</th><th>Salario</th><th>Dif.$</th><th>Notas</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -592,6 +617,8 @@ async function confirmarPeriodo(desde, hasta, idx) {
     const pendData   = _pendientesData[idx];
     const pendNemp   = pendData ? pendData.usuarios.length : undefined;
     const pendThoras = pendData ? +(pendData.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2) : undefined;
+    const pendNotas  = {};
+    if (pendData) pendData.usuarios.forEach(u => { if (u.nota_ajuste) pendNotas[u.id] = u.nota_ajuste; });
 
     try {
         await apiFetch('/salarios/confirmar-periodo', {
@@ -603,6 +630,7 @@ async function confirmarPeriodo(desde, hasta, idx) {
                 registrar_gasto: true,
                 num_empleados:   pendNemp,
                 total_horas:     pendThoras,
+                notas_ajuste:    pendNotas,
             })
         });
         // Marcar como confirmado localmente
@@ -662,9 +690,9 @@ async function cargar() {
     }
 
     const tbody = document.getElementById('tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="empty">Cargando...</td></tr>`;
 
-    // Cargar datos del período y break-even en paralelo
+    // Cargar datos del período, break-even y notas guardadas en paralelo
     const [resumen] = await Promise.all([
         api.get(`/salarios/resumen?desde=${_periodoActualDesde}&hasta=${_periodoActualHasta}`)
             .then(d => { _data = d; return d; })
@@ -672,7 +700,20 @@ async function cargar() {
         _cargarBreakeven(mes, year),
     ]);
 
-    if (resumen) renderAll();
+    if (resumen) {
+        // Cargar notas guardadas para este período y aplicarlas a los usuarios
+        try {
+            const notas = await api.get(
+                `/salarios/notas-periodo?desde=${_periodoActualDesde}&hasta=${_periodoActualHasta}`
+            );
+            if (notas && _data) {
+                _data.usuarios.forEach(u => {
+                    u.nota_ajuste = notas[String(u.id)] || null;
+                });
+            }
+        } catch(e) { /* sin notas guardadas */ }
+        renderAll();
+    }
 }
 
 // ── Break-even reference ─────────────────────────────────────────────────────
@@ -764,6 +805,9 @@ function buildRow(u) {
         const difS    = u.diferencia_saldo;
         const difSCls = difS > 0.01 ? 'pos' : difS < -0.01 ? 'neg' : 'neu';
         const difSStr = (difS > 0 ? '+' : '') + fmt(difS);
+        const notaHtml = u.nota_ajuste
+            ? `<span class="nota-sal" title="${u.nota_ajuste.replace(/"/g,'&quot;')}">${u.nota_ajuste}</span>`
+            : `<span style="color:#d1d5db;">—</span>`;
         return `<tr>
             <td>${userCell(u, ini)}</td>
             <td>
@@ -785,6 +829,7 @@ function buildRow(u) {
                     ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},null)" title="Ajustar horas">✏️</button>` : ''}
                 </div>
             </td>
+            <td>${notaHtml}</td>
         </tr>`;
     } else {
         return `<tr>
@@ -795,6 +840,7 @@ function buildRow(u) {
             <td class="${difHCls}">${difHStr}</td>
             <td><span class="masked-cell" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span></td>
             <td><span class="masked-cell" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span></td>
+            <td></td>
         </tr>`;
     }
 }
@@ -842,6 +888,8 @@ async function confirmarAjustesPeriodo() {
     const nemp    = _data.usuarios.length;
     const thoras  = +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2);
     try {
+        const notasMap = {};
+        _data.usuarios.forEach(u => { if (u.nota_ajuste) notasMap[u.id] = u.nota_ajuste; });
         await apiFetch('/salarios/confirmar-periodo', {
             method: 'POST',
             body: JSON.stringify({
@@ -851,6 +899,7 @@ async function confirmarAjustesPeriodo() {
                 registrar_gasto: false,
                 num_empleados:   nemp,
                 total_horas:     thoras,
+                notas_ajuste:    notasMap,
             })
         });
         // Actualizar confirmados localmente para que muestre el total en pendientes
@@ -888,6 +937,8 @@ async function confirmarPeriodoActual() {
     btn.innerHTML = '<span class="spinner"></span>Confirmando...';
 
     try {
+        const notasMapAct = {};
+        _data.usuarios.forEach(u => { if (u.nota_ajuste) notasMapAct[u.id] = u.nota_ajuste; });
         await apiFetch('/salarios/confirmar-periodo', {
             method: 'POST',
             body: JSON.stringify({
@@ -897,6 +948,7 @@ async function confirmarPeriodoActual() {
                 registrar_gasto: true,
                 num_empleados:   _data.usuarios.length,
                 total_horas:     +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2),
+                notas_ajuste:    notasMapAct,
             })
         });
         const existing = _confirmados.find(
@@ -1015,7 +1067,7 @@ function abrirAjusteHoras(uid, pendIdx) {
     const u = dataRef && dataRef.usuarios.find(x => x.id === uid);
     if (!u) return;
     _ajusteUid = uid;
-    document.getElementById('ajuste-titulo').textContent = `⏱️ Ajuste de horas — ${u.username}`;
+    document.getElementById('ajuste-titulo').textContent = `⏱️ Ajuste — ${u.username}`;
     document.getElementById('aj-sueldo').textContent  = fmt(u.sueldo_hora) + '/h';
     document.getElementById('aj-h-asig').textContent  = fmtH(u.horas_asignadas);
     document.getElementById('aj-h-fich').textContent  = fmtH(u.horas_fichadas);
@@ -1023,19 +1075,37 @@ function abrirAjusteHoras(uid, pendIdx) {
     const difHEl = document.getElementById('aj-dif-h');
     difHEl.textContent = (difH > 0 ? '+' : '') + fmtH(difH);
     difHEl.className   = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
-    const inp = document.getElementById('aj-inp');
-    inp.value = difH.toFixed(2);
-    calcAjuste();
+    // Pre-fill hours with current diff; sync money field
+    const inpH = document.getElementById('aj-inp');
+    inpH.value = difH.toFixed(2);
+    document.getElementById('aj-nota').value = u.nota_ajuste || '';
+    _syncAjusteDesdeHoras();
     document.getElementById('modal-ajuste').classList.add('open');
-    setTimeout(() => { inp.focus(); inp.select(); }, 100);
+    setTimeout(() => { inpH.focus(); inpH.select(); }, 100);
 }
 
-function calcAjuste() {
+function _syncAjusteDesdeHoras() {
     const dataRef = _ajusteDataRef();
     const u = _ajusteUid && dataRef && dataRef.usuarios.find(x => x.id === _ajusteUid);
     if (!u) return;
-    const ajuste   = parseFloat(document.getElementById('aj-inp').value) || 0;
-    const difSaldo = +(u.sueldo_hora * ajuste).toFixed(2);
+    const horas    = parseFloat(document.getElementById('aj-inp').value) || 0;
+    const dinero   = +(u.sueldo_hora * horas).toFixed(2);
+    document.getElementById('aj-inp-dinero').value = dinero || '';
+    _actualizarPreviewAjuste(u, horas);
+}
+
+function _syncAjusteDesdeDinero() {
+    const dataRef = _ajusteDataRef();
+    const u = _ajusteUid && dataRef && dataRef.usuarios.find(x => x.id === _ajusteUid);
+    if (!u) return;
+    const dinero = parseFloat(document.getElementById('aj-inp-dinero').value) || 0;
+    const horas  = u.sueldo_hora > 0 ? +(dinero / u.sueldo_hora).toFixed(4) : 0;
+    document.getElementById('aj-inp').value = horas || '';
+    _actualizarPreviewAjuste(u, horas);
+}
+
+function _actualizarPreviewAjuste(u, horas) {
+    const difSaldo = +(u.sueldo_hora * horas).toFixed(2);
     const salFinal = +(u.salario_total + difSaldo).toFixed(2);
     const difSEl = document.getElementById('aj-dif-s');
     difSEl.textContent = (difSaldo >= 0 ? '+' : '') + fmt(difSaldo);
@@ -1043,6 +1113,11 @@ function calcAjuste() {
     document.getElementById('aj-sal-act').textContent = fmt(u.salario_total);
     document.getElementById('aj-sal-fin').textContent = fmt(salFinal);
 }
+
+function calcAjusteDesdeHoras() { _syncAjusteDesdeHoras(); }
+function calcAjusteDesdeDinero() { _syncAjusteDesdeDinero(); }
+// Alias legacy por si algún código lo llama
+function calcAjuste() { _syncAjusteDesdeHoras(); }
 
 function cerrarAjuste() {
     document.getElementById('modal-ajuste').classList.remove('open');
@@ -1055,12 +1130,14 @@ function confirmarAjuste() {
     const u = _ajusteUid && dataRef && dataRef.usuarios.find(x => x.id === _ajusteUid);
     if (!u) return;
     const ajuste   = parseFloat(document.getElementById('aj-inp').value) || 0;
+    const nota     = document.getElementById('aj-nota').value.trim();
     const signo    = ajuste >= 0 ? '+' : '';
     const username = u.username;
     u.horas_asignadas  = +((u.horas_asignadas + ajuste).toFixed(4));
     u.salario_total    = +(u.sueldo_hora * u.horas_asignadas).toFixed(2);
     u.diferencia_horas = +((u.horas_fichadas - u.horas_asignadas).toFixed(4));
     u.diferencia_saldo = +(u.sueldo_hora * u.diferencia_horas).toFixed(2);
+    u.nota_ajuste      = nota || null;
     dataRef.total_salarios = +(dataRef.usuarios.reduce((s, x) => s + x.salario_total, 0)).toFixed(2);
 
     const pendIdx = _ajustePendIdx;
