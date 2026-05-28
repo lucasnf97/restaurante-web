@@ -394,19 +394,16 @@
             leftGroup.appendChild(home);
         }
 
+        // Botón 💬 mensajes con badge — junto al 🏠 en el lado izquierdo
+        const msgBtn = document.createElement("a");
+        msgBtn.id   = "nav-mensajes-btn";
+        msgBtn.href = "mensajes.html";
+        msgBtn.setAttribute("aria-label", "Mensajes");
+        msgBtn.innerHTML = `💬<span id="nav-mensajes-badge"></span>`;
+        leftGroup.appendChild(msgBtn);
+
         // Insertar el grupo como primer hijo del navbar
         navbar.insertBefore(leftGroup, navbar.firstChild);
-
-        // ── Botón 💬 mensajes con badge en el lado derecho ──────
-        const navLinks = navbar.querySelector(".navbar-links");
-        if (navLinks) {
-            const msgBtn = document.createElement("a");
-            msgBtn.id   = "nav-mensajes-btn";
-            msgBtn.href = "mensajes.html";
-            msgBtn.setAttribute("aria-label", "Mensajes");
-            msgBtn.innerHTML = `💬<span id="nav-mensajes-badge"></span>`;
-            navLinks.insertBefore(msgBtn, navLinks.firstChild);
-        }
 
         // Cargar conteo de no leídos (solo si hay token)
         _cargarBadgeMensajes();
