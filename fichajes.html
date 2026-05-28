@@ -1089,13 +1089,14 @@ async function guardarDescansoInline(fichajeId, dayKey) {
             method: "PATCH",
             body:   JSON.stringify({ break_mins: mins }),
         });
-        // Actualizar break_mins en todos los fichajes del mismo usuario+día
+        // Actualizar break_mins y resetear ajuste forzado en todos los fichajes del día
         const f = _fichajesData[fichajeId];
         if (f) {
             const fdate = fechaTurno(f.ts_entrada);
             Object.values(_fichajesData).forEach(other => {
                 if (other.usuario_id === f.usuario_id && fechaTurno(other.ts_entrada) === fdate) {
-                    other.break_mins = mins;
+                    other.break_mins  = mins;
+                    other.ajuste_horas = 0;  // descanso cambió → diferencia debe recalcularse
                 }
             });
         }
@@ -1222,6 +1223,8 @@ async function guardarHora(campo) {
             }
             document.getElementById("rev-duracion").textContent =
                 f.horas != null ? formatHoras(f.horas) : "—";
+            // Invalidar ajuste forzado previo: la diferencia debe recalcularse
+            f.ajuste_horas = 0;
         }
         cancelarEditHora(campo);
         _refreshAfterEdit(_revFichajeId);
