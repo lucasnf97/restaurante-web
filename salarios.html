@@ -160,6 +160,13 @@
         .btn-lupa:hover { opacity: 1; }
         .dif-cell { display: flex; flex-direction: column; gap: 2px; }
         .dif-cell-top { display: flex; align-items: center; gap: 4px; }
+        /* Sub-fila de ajuste en celda Hs. Fichadas */
+        .ajuste-subrow { display: flex; align-items: center; gap: 5px; margin-top: 4px; padding: 3px 7px; background: #eff6ff; border-radius: 5px; border-left: 3px solid #4f46e5; font-size: 11px; }
+        .ajuste-subrow-delta { font-weight: 700; }
+        .ajuste-subrow-dinero { color: #6b7280; }
+        .ajuste-subrow-nota { color: #6b7280; font-style: italic; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; cursor: help; }
+        .ajuste-subrow .btn-edit { font-size: 11px; padding: 0 2px; line-height: 1; background: none; border: none; cursor: pointer; opacity: 0.55; margin-left: auto; }
+        .ajuste-subrow .btn-edit:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -305,6 +312,10 @@
                 <span>Horas fichadas</span>
                 <span id="aj-h-fich">—</span>
             </div>
+            <div class="modal-info-row" id="aj-previo-row" style="display:none;">
+                <span>Ajuste previo</span>
+                <span id="aj-previo-val">—</span>
+            </div>
             <div class="modal-info-row">
                 <span>Diferencia actual</span>
                 <span id="aj-dif-h">—</span>
@@ -312,7 +323,7 @@
         </div>
         <div class="aj-inputs-row">
             <div class="aj-input-group">
-                <label>Horas a ajustar</label>
+                <label id="aj-inp-label">Horas a añadir</label>
                 <input type="number" id="aj-inp" step="0.25" placeholder="0.00" oninput="calcAjusteDesdeHoras()">
             </div>
             <div class="aj-input-sep">⇄</div>
@@ -541,6 +552,26 @@ async function cargarPendiente(idx) {
     }
 }
 
+function _ajusteSubrowHTML(u, idxArg, canEdit) {
+    const delta = u.ajuste_delta || 0;
+    if (!delta) return '';
+    const deltaCls  = delta > 0.001 ? 'pos' : delta < -0.001 ? 'neg' : 'neu';
+    const deltaStr  = (delta > 0 ? '+' : '') + fmtH(delta);
+    const dinero    = +(u.sueldo_hora * delta).toFixed(2);
+    const dineroStr = (dinero > 0 ? '+' : '') + fmt(dinero);
+    const notaHtml  = u.nota_ajuste
+        ? `<span class="ajuste-subrow-nota" title="${u.nota_ajuste.replace(/"/g,'&quot;')}">${u.nota_ajuste}</span>`
+        : '';
+    const editBtn   = canEdit
+        ? `<button class="btn-edit" onclick="event.stopPropagation();editarAjuste(${u.id},${idxArg})" title="Editar ajuste">✏️</button>`
+        : '';
+    return `<div class="ajuste-subrow">
+        <span class="ajuste-subrow-delta ${deltaCls}">${deltaStr}</span>
+        <span class="ajuste-subrow-dinero ${deltaCls}">${dineroStr}</span>
+        ${notaHtml}${editBtn}
+    </div>`;
+}
+
 function buildTablaHTML(data, canEdit, pendIdx) {
     if (!data || !data.usuarios.length) return '<p style="padding:20px;color:#888;">Sin datos</p>';
     const idxArg = (pendIdx !== undefined && pendIdx !== null) ? pendIdx : 'null';
@@ -564,6 +595,7 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                         <span>${fmtH(u.horas_fichadas)}</span>
                         ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},${idxArg})" title="Ajustar horas fichadas">✏️</button>` : ''}
                     </div>
+                    ${_ajusteSubrowHTML(u, idxArg, canEdit)}
                 </td>
                 <td><strong>${fmt(u.salario_total)}</strong></td>
                 <td class="${difHCls}">
@@ -840,6 +872,7 @@ function buildRow(u) {
                     <span>${fmtH(u.horas_fichadas)}</span>
                     ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},null)" title="Ajustar horas fichadas">✏️</button>` : ''}
                 </div>
+                ${_ajusteSubrowHTML(u, 'null', canEdit)}
             </td>
             <td><strong>${fmt(u.salario_total)}</strong></td>
             <td class="${difHCls}">
@@ -1075,7 +1108,8 @@ async function guardarSueldo(uid) {
 }
 
 // ── Ajuste de horas ──────────────────────────────────────────────────────────
-let _ajusteUid = null;
+let _ajusteUid  = null;
+let _ajusteModo = 'add'; // 'add' | 'edit'
 
 function _ajusteDataRef() {
     return (_ajustePendIdx !== null && _ajustePendIdx !== undefined)
@@ -1083,13 +1117,12 @@ function _ajusteDataRef() {
         : _data;
 }
 
-function abrirAjusteHoras(uid, pendIdx) {
-    _ajustePendIdx = (pendIdx !== undefined && pendIdx !== null && pendIdx !== 'null') ? pendIdx : null;
-    const dataRef  = _ajusteDataRef();
-    const u = dataRef && dataRef.usuarios.find(x => x.id === uid);
-    if (!u) return;
-    _ajusteUid = uid;
-    document.getElementById('ajuste-titulo').textContent = `⏱️ Ajuste — ${u.username}`;
+function _poblarModalAjuste(u) {
+    const delta = u.ajuste_delta || 0;
+    document.getElementById('ajuste-titulo').textContent =
+        _ajusteModo === 'edit' ? `✏️ Editar ajuste — ${u.username}` : `⏱️ Agregar ajuste — ${u.username}`;
+    document.getElementById('aj-inp-label').textContent =
+        _ajusteModo === 'edit' ? 'Horas ajuste (total)' : 'Horas a añadir';
     document.getElementById('aj-sueldo').textContent  = fmt(u.sueldo_hora) + '/h';
     document.getElementById('aj-h-asig').textContent  = fmtH(u.horas_asignadas);
     document.getElementById('aj-h-fich').textContent  = fmtH(u.horas_fichadas);
@@ -1097,10 +1130,45 @@ function abrirAjusteHoras(uid, pendIdx) {
     const difHEl = document.getElementById('aj-dif-h');
     difHEl.textContent = (difH > 0 ? '+' : '') + fmtH(difH);
     difHEl.className   = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
-    // Pre-fill hours with current diff; sync money field
-    const inpH = document.getElementById('aj-inp');
-    inpH.value = difH.toFixed(2);
+    // Fila "Ajuste previo"
+    const prevRow = document.getElementById('aj-previo-row');
+    const prevVal = document.getElementById('aj-previo-val');
+    if (delta !== 0) {
+        const dinPrev = +(u.sueldo_hora * delta).toFixed(2);
+        prevVal.textContent = `${delta > 0 ? '+' : ''}${fmtH(delta)} / ${dinPrev > 0 ? '+' : ''}${fmt(dinPrev)}`;
+        prevVal.className   = delta > 0.001 ? 'pos' : delta < -0.001 ? 'neg' : 'neu';
+        prevRow.style.display = '';
+    } else {
+        prevRow.style.display = 'none';
+    }
     document.getElementById('aj-nota').value = u.nota_ajuste || '';
+}
+
+function abrirAjusteHoras(uid, pendIdx) {
+    _ajusteModo    = 'add';
+    _ajustePendIdx = (pendIdx !== undefined && pendIdx !== null && pendIdx !== 'null') ? pendIdx : null;
+    const dataRef  = _ajusteDataRef();
+    const u = dataRef && dataRef.usuarios.find(x => x.id === uid);
+    if (!u) return;
+    _ajusteUid = uid;
+    _poblarModalAjuste(u);
+    const inpH = document.getElementById('aj-inp');
+    inpH.value = '';
+    _syncAjusteDesdeHoras();
+    document.getElementById('modal-ajuste').classList.add('open');
+    setTimeout(() => { inpH.focus(); }, 100);
+}
+
+function editarAjuste(uid, pendIdx) {
+    _ajusteModo    = 'edit';
+    _ajustePendIdx = (pendIdx !== undefined && pendIdx !== null && pendIdx !== 'null') ? pendIdx : null;
+    const dataRef  = _ajusteDataRef();
+    const u = dataRef && dataRef.usuarios.find(x => x.id === uid);
+    if (!u) return;
+    _ajusteUid = uid;
+    _poblarModalAjuste(u);
+    const inpH = document.getElementById('aj-inp');
+    inpH.value = (u.ajuste_delta || 0).toFixed(2);
     _syncAjusteDesdeHoras();
     document.getElementById('modal-ajuste').classList.add('open');
     setTimeout(() => { inpH.focus(); inpH.select(); }, 100);
@@ -1127,8 +1195,16 @@ function _syncAjusteDesdeDinero() {
 }
 
 function _actualizarPreviewAjuste(u, horas) {
-    const difSaldo = +(u.sueldo_hora * horas).toFixed(2);
-    const salFinal = +(u.salario_total + difSaldo).toFixed(2);
+    let difSaldo, salFinal;
+    if (_ajusteModo === 'edit') {
+        const oldDelta = u.ajuste_delta || 0;
+        const baseSal  = +(u.sueldo_hora * (u.horas_fichadas - oldDelta)).toFixed(2);
+        difSaldo = +(u.sueldo_hora * horas).toFixed(2);
+        salFinal = +(baseSal + difSaldo).toFixed(2);
+    } else {
+        difSaldo = +(u.sueldo_hora * horas).toFixed(2);
+        salFinal = +(u.salario_total + difSaldo).toFixed(2);
+    }
     const difSEl = document.getElementById('aj-dif-s');
     difSEl.textContent = (difSaldo >= 0 ? '+' : '') + fmt(difSaldo);
     difSEl.className   = difSaldo > 0.005 ? 'pos' : difSaldo < -0.005 ? 'neg' : 'neu';
@@ -1145,6 +1221,7 @@ function cerrarAjuste() {
     document.getElementById('modal-ajuste').classList.remove('open');
     _ajusteUid     = null;
     _ajustePendIdx = null;
+    _ajusteModo    = 'add';
 }
 
 function confirmarAjuste() {
@@ -1153,9 +1230,15 @@ function confirmarAjuste() {
     if (!u) return;
     const ajuste   = parseFloat(document.getElementById('aj-inp').value) || 0;
     const nota     = document.getElementById('aj-nota').value.trim();
-    const signo    = ajuste >= 0 ? '+' : '';
     const username = u.username;
-    u.horas_fichadas   = +((u.horas_fichadas + ajuste).toFixed(4));
+    if (_ajusteModo === 'edit') {
+        const oldDelta     = u.ajuste_delta || 0;
+        u.horas_fichadas   = +((u.horas_fichadas - oldDelta + ajuste).toFixed(4));
+        u.ajuste_delta     = +ajuste.toFixed(4);
+    } else {
+        u.horas_fichadas   = +((u.horas_fichadas + ajuste).toFixed(4));
+        u.ajuste_delta     = +((u.ajuste_delta || 0) + ajuste).toFixed(4);
+    }
     u.salario_total    = +(u.sueldo_hora * u.horas_fichadas).toFixed(2);
     u.diferencia_horas = +((u.horas_fichadas - u.horas_asignadas).toFixed(4));
     u.diferencia_saldo = +(u.sueldo_hora * u.diferencia_horas).toFixed(2);
