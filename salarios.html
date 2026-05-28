@@ -63,7 +63,8 @@
         .pendiente-actions { display: flex; justify-content: flex-end; padding: 12px 20px; gap: 10px; background: #fafafa; border-top: 1px solid #f0f0f0; }
 
         /* Summary cards */
-        .summary-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .summary-row { display: flex; align-items: stretch; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .sum-card { flex: 1; min-width: 170px; }
         .sum-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 3px solid #e0e0e0; }
         .sum-card.indigo { border-top-color: #4f46e5; }
         .sum-card.green  { border-top-color: #16a34a; }
@@ -113,8 +114,6 @@
         .btn-edit { background: none; border: none; cursor: pointer; font-size: 15px; opacity: 0.5; transition: opacity .15s; }
         .btn-edit:hover { opacity: 1; }
 
-        /* Tabla actions (above table) */
-        .tabla-actions { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-bottom: 8px; min-height: 36px; }
 
         /* Toast */
         #toast { position: fixed; bottom: 28px; right: 28px; background: #1a1a2e; color: white; padding: 12px 20px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .3s; z-index: 9999; pointer-events: none; max-width: 340px; }
@@ -157,6 +156,11 @@
         /* Notas en grilla */
         .nota-sal { font-size: 12px; color: #6b7280; font-style: italic; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .nota-sal[title] { cursor: help; }
+        /* Lupa de fichajes */
+        .btn-lupa { background: none; border: none; cursor: pointer; font-size: 13px; opacity: 0.5; padding: 0 2px; line-height: 1; transition: opacity .15s; }
+        .btn-lupa:hover { opacity: 1; }
+        .dif-cell { display: flex; flex-direction: column; gap: 1px; }
+        .dif-cell-top { display: flex; align-items: center; gap: 4px; }
     </style>
 </head>
 <body>
@@ -210,7 +214,7 @@
         </button>
     </div>
 
-    <!-- Summary cards -->
+    <!-- Summary cards + action buttons on the same row -->
     <div class="summary-row">
         <div class="sum-card indigo">
             <div class="sum-label">Total nómina</div>
@@ -227,18 +231,17 @@
             <div class="sum-value" id="card-horas" style="font-size:20px;">—</div>
             <div class="sum-sub ref-anterior" id="card-horas-ref" style="display:none;"></div>
         </div>
-    </div>
-
-    <!-- Table actions (above table) -->
-    <div class="tabla-actions" id="tabla-actions">
-        <button class="btn btn-success" id="btn-confirmar-per" onclick="confirmarPeriodoActual()"
-                style="display:none;" disabled>
-            ✅ Confirmar período
-        </button>
-        <button class="btn btn-secondary" id="btn-confirmar-ajustes" onclick="confirmarAjustesPeriodo()"
-                disabled style="display:none;">
-            💾 Confirmar ajustes
-        </button>
+        <!-- Action buttons aligned to the right -->
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <button class="btn btn-success" id="btn-confirmar-per" onclick="confirmarPeriodoActual()"
+                    style="display:none;" disabled>
+                ✅ Confirmar período
+            </button>
+            <button class="btn btn-secondary" id="btn-confirmar-ajustes" onclick="confirmarAjustesPeriodo()"
+                    disabled style="display:none;">
+                💾 Confirmar ajustes
+            </button>
+        </div>
     </div>
 
     <!-- Table -->
@@ -379,6 +382,13 @@ const MESES_CORTO = ['','Ene','Feb','Mar','Abr','May','Jun',
 function fmt(n)  { return _SIM + ' ' + parseFloat(n).toFixed(2); }
 function fmtH(n) { return parseFloat(n).toFixed(2) + ' h'; }
 const fmtDate = d => d.toISOString().split('T')[0];
+
+function _lupaFichajesUrl(username) {
+    const desde   = _periodoActualDesde || '';
+    const hasta   = _periodoActualHasta || '';
+    const params  = new URLSearchParams({ desde, hasta, usuario: username });
+    return `fichajes.html?${params.toString()}`;
+}
 
 // ── Cálculo del período ───────────────────────────────────────────────────────
 function calcPeriodo(mes, year) {
@@ -558,8 +568,14 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 </td>
                 <td><strong>${fmt(u.salario_total)}</strong></td>
                 <td class="${difHCls}">
-                    ${difHStr}
-                    <br><span class="${difSCls}" style="font-size:11px;font-weight:400;">${(difS > 0 ? '+' : '') + fmt(difS)}</span>
+                    <div class="dif-cell">
+                        <div class="dif-cell-top">
+                            <span>${difHStr}</span>
+                            <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
+                               class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
+                        </div>
+                        <span class="${difSCls}" style="font-size:11px;font-weight:400;">${(difS > 0 ? '+' : '') + fmt(difS)}</span>
+                    </div>
                 </td>
                 <td>${notaHtml}</td>
             </tr>`;
@@ -571,8 +587,14 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 <td>${fmtH(u.horas_fichadas)}</td>
                 <td>•••••</td>
                 <td class="${difHCls}">
-                    ${difHStr}
-                    <br><span style="font-size:11px;">•••••</span>
+                    <div class="dif-cell">
+                        <div class="dif-cell-top">
+                            <span>${difHStr}</span>
+                            <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
+                               class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
+                        </div>
+                        <span style="font-size:11px;">•••••</span>
+                    </div>
                 </td>
                 <td></td>
             </tr>`;
@@ -822,8 +844,14 @@ function buildRow(u) {
             </td>
             <td><strong>${fmt(u.salario_total)}</strong></td>
             <td class="${difHCls}">
-                ${difHStr}
-                <br><span class="${difSCls}" style="font-size:11px;font-weight:400;">${difSStr}</span>
+                <div class="dif-cell">
+                    <div class="dif-cell-top">
+                        <span>${difHStr}</span>
+                        <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
+                           class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
+                    </div>
+                    <span class="${difSCls}" style="font-size:11px;font-weight:400;">${difSStr}</span>
+                </div>
             </td>
             <td>${notaHtml}</td>
         </tr>`;
@@ -835,8 +863,14 @@ function buildRow(u) {
             <td>${fmtH(u.horas_fichadas)}</td>
             <td><span class="masked-cell" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span></td>
             <td class="${difHCls}">
-                ${difHStr}
-                <br><span style="font-size:11px;">•••••</span>
+                <div class="dif-cell">
+                    <div class="dif-cell-top">
+                        <span>${difHStr}</span>
+                        <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
+                           class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
+                    </div>
+                    <span style="font-size:11px;">•••••</span>
+                </div>
             </td>
             <td></td>
         </tr>`;

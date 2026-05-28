@@ -379,19 +379,35 @@ async function init() {
         if (cfg.hora_corte_turno != null) HORA_CORTE_TURNO = cfg.hora_corte_turno;
     } catch(e) { console.warn("No se pudo cargar config:", e); }
 
-    const hoy    = new Date();
-    const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;
-    const lunes  = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem);
-    const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
-    const fmt = d => d.toISOString().split("T")[0];
-    document.getElementById("filtro-desde").value = fmt(lunes);
-    document.getElementById("filtro-hasta").value = fmt(domingo);
+    // Leer parámetros de URL (acceso directo desde revisión de salarios)
+    const _params   = new URLSearchParams(window.location.search);
+    const _pDesde   = _params.get("desde");
+    const _pHasta   = _params.get("hasta");
+    const _pUsuario = _params.get("usuario");
+
+    if (_pDesde && _pHasta) {
+        document.getElementById("filtro-desde").value = _pDesde;
+        document.getElementById("filtro-hasta").value = _pHasta;
+    } else {
+        const hoy    = new Date();
+        const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;
+        const lunes  = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem);
+        const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+        const fmt = d => d.toISOString().split("T")[0];
+        document.getElementById("filtro-desde").value = fmt(lunes);
+        document.getElementById("filtro-hasta").value = fmt(domingo);
+    }
 
     if (hasEdicionFichajes()) {
         document.getElementById("lbl-usuario").style.display = "inline";
         const sel = document.getElementById("filtro-usuario");
         sel.style.display = "inline";
         await cargarUsuariosFiltro();
+        // Pre-seleccionar usuario si viene en la URL
+        if (_pUsuario) {
+            const opt = Array.from(sel.options).find(o => o.value === _pUsuario);
+            if (opt) sel.value = _pUsuario;
+        }
     }
     await Promise.all([cargarActivos(), cargarHistorial()]);
 }
