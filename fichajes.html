@@ -1330,20 +1330,30 @@ function cerrarRevision() {
 async function confirmarRevision() {
     if (!_revFichajeId || !_revDayFichajes.length) return;
 
-    // Calcular ajuste solo si se marcó "Anular diferencia"
-    // Comparamos el total fichado del día con el horario asignado base
-    let ajusteTotal = 0;
+    // Calcular ajuste solo si se marcó "Anular diferencia".
+    // La lógica: almacenar en UN fichaje del día un ajuste_horas tal que
+    // calcHorasAsignadas() devuelva exactamente las horas efectivas del día,
+    // con lo que renderDiff() dará 0.
+    //   efectivas = totalFichadas − break
+    //   si hay franjas : ajuste = efectivas − sum(franjas)
+    //   si no hay franjas: ajuste = efectivas   (calcHorasAsig devuelve el ajuste directamente)
+    let ajusteTotal     = 0;
     let fichajeAjusteId = null;
     if (_anularDif) {
+        const totalFichadasH = _revDayFichajes.reduce((s, fi) => s + (fi.horas || 0), 0);
+        // break_mins es único por día (horarios_personales), no sumar por fichaje
+        const dayBreakH  = (_revDayFichajes[0]?.break_mins || 0) / 60;
+        const efectivasH = totalFichadasH - dayBreakH;
+
         const fConHorario = _revDayFichajes.find(fi => fi.franjas_asignadas && fi.franjas_asignadas.length);
         if (fConHorario) {
-            const horasAsigBase  = calcHorasAsignadas(fConHorario.franjas_asignadas, 0) || 0;
-            const totalFichadasH = _revDayFichajes.reduce((s, fi) => s + (fi.horas || 0), 0);
-            // break_mins es único por día (horarios_personales), no sumar por fichaje
-            const dayBreakH = (_revDayFichajes[0]?.break_mins || 0) / 60;
-            // efectivas = fichadas − descanso; ajuste para que diff = 0
-            ajusteTotal    = (totalFichadasH - dayBreakH) - horasAsigBase;
+            const horasAsigBase = calcHorasAsignadas(fConHorario.franjas_asignadas, 0) || 0;
+            ajusteTotal     = efectivasH - horasAsigBase;
             fichajeAjusteId = fConHorario.id;
+        } else {
+            // Sin franjas: ajuste = efectivas para que calcHorasAsig devuelva efectivas
+            ajusteTotal     = efectivasH;
+            fichajeAjusteId = _revDayFichajes[0].id;
         }
     }
 
