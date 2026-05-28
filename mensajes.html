@@ -412,17 +412,28 @@ function setTab(tab) {
 async function actualizarBadge() {
     try {
         const noLeidos = _mensajes.filter(m => !m.leido).length;
-        const badge = document.getElementById("badge-noLeidos");
-        if (noLeidos > 0) {
-            badge.textContent = noLeidos;
-            badge.style.display = "";
-        } else {
-            badge.style.display = "none";
+        const show  = noLeidos > 0 ? "inline-block" : "none";
+        const txt   = noLeidos > 0 ? String(noLeidos) : "";
+
+        // Badge en la pestaña Recibidos
+        const tabBadge = document.getElementById("badge-noLeidos");
+        if (tabBadge) {
+            tabBadge.textContent  = txt;
+            tabBadge.style.display = show;
         }
+
+        // Badge en el navbar (💬)
         const navBadge = document.getElementById("nav-mensajes-badge");
         if (navBadge) {
-            navBadge.textContent = noLeidos;
-            navBadge.style.display = noLeidos > 0 ? "" : "none";
+            navBadge.textContent  = txt;
+            navBadge.style.display = show;
+        }
+
+        // Badge en el sidebar
+        const sideBadge = document.getElementById("sidebar-mensajes-badge");
+        if (sideBadge) {
+            sideBadge.textContent  = txt;
+            sideBadge.style.display = show;
         }
     } catch(e) { /* ignorar */ }
 }
