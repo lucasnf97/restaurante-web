@@ -63,9 +63,8 @@
         .pendiente-actions { display: flex; justify-content: flex-end; padding: 12px 20px; gap: 10px; background: #fafafa; border-top: 1px solid #f0f0f0; }
 
         /* Summary cards */
-        .summary-row { display: flex; align-items: stretch; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-        .sum-card { flex: 1; min-width: 170px; }
-        .sum-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 3px solid #e0e0e0; }
+        .summary-row { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .sum-card { flex: 0 0 auto; background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 3px solid #e0e0e0; }
         .sum-card.indigo { border-top-color: #4f46e5; }
         .sum-card.green  { border-top-color: #16a34a; }
         .sum-card.amber  { border-top-color: #d97706; }
@@ -157,10 +156,10 @@
         .nota-sal { font-size: 12px; color: #6b7280; font-style: italic; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .nota-sal[title] { cursor: help; }
         /* Lupa de fichajes */
-        .btn-lupa { background: none; border: none; cursor: pointer; font-size: 13px; opacity: 0.5; padding: 0 2px; line-height: 1; transition: opacity .15s; }
+        .btn-lupa { text-decoration: none; font-size: 18px; opacity: 0.45; padding: 0 4px; display: flex; align-items: center; justify-content: center; align-self: stretch; transition: opacity .15s; }
         .btn-lupa:hover { opacity: 1; }
-        .dif-cell { display: flex; flex-direction: column; gap: 1px; }
-        .dif-cell-top { display: flex; align-items: center; gap: 4px; }
+        .dif-cell { display: flex; flex-direction: row; align-items: stretch; gap: 6px; }
+        .dif-cell-texts { display: flex; flex-direction: column; gap: 2px; }
     </style>
 </head>
 <body>
@@ -569,12 +568,12 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 <td><strong>${fmt(u.salario_total)}</strong></td>
                 <td class="${difHCls}">
                     <div class="dif-cell">
-                        <div class="dif-cell-top">
+                        <div class="dif-cell-texts">
                             <span>${difHStr}</span>
-                            <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
-                               class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
+                            <span class="${difSCls}" style="font-size:11px;font-weight:400;">${(difS > 0 ? '+' : '') + fmt(difS)}</span>
                         </div>
-                        <span class="${difSCls}" style="font-size:11px;font-weight:400;">${(difS > 0 ? '+' : '') + fmt(difS)}</span>
+                        <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
+                           class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
                     </div>
                 </td>
                 <td>${notaHtml}</td>
@@ -588,12 +587,12 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 <td>•••••</td>
                 <td class="${difHCls}">
                     <div class="dif-cell">
-                        <div class="dif-cell-top">
+                        <div class="dif-cell-texts">
                             <span>${difHStr}</span>
-                            <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
-                               class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
+                            <span style="font-size:11px;">•••••</span>
                         </div>
-                        <span style="font-size:11px;">•••••</span>
+                        <a href="${_lupaFichajesUrl(u.username)}" target="_blank"
+                           class="btn-lupa" title="Ver fichajes de ${u.username}">🔍</a>
                     </div>
                 </td>
                 <td></td>
