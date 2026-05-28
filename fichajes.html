@@ -680,11 +680,6 @@ function renderDayGroup(dg, usuarioId) {
                title="Editar descanso">✏️</button>`
         : "";
 
-    // Ajuste hint en horario
-    const ajusteHint = dg.ajuste_horas
-        ? `<br><span style="font-size:11px;color:#6b7280;">ajuste: ${dg.ajuste_horas > 0 ? '+' : ''}${dg.ajuste_horas}h</span>`
-        : "";
-
     // Sub-filas (fichajes individuales del día)
     const subRows = dg.fichajes.map(f => {
         const entrada   = formatHoraTs(f.ts_entrada);
@@ -718,7 +713,7 @@ function renderDayGroup(dg, usuarioId) {
         <tr class="day-group-row" onclick="toggleDayGroup('${dayKey}')">
             <td><strong>${formatFechaShort(dg.fecha)}</strong></td>
             <td><strong>${formatHoras(horasFich)}</strong></td>
-            <td>${renderFranjas(dg.franjas_asignadas)}${ajusteHint}</td>
+            <td>${renderFranjas(dg.franjas_asignadas)}</td>
             <td id="descanso-td-day-${dayKey}">${descansoStr}${descansoEditBtn}</td>
             <td>${renderDiff(horasFich, horasAsig, dg.break_mins)}</td>
             <td><span class="badge ${badgeCls}" id="status-day-${dayKey}">${badgeText}</span></td>
