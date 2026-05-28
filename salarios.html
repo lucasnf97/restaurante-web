@@ -752,6 +752,10 @@ async function cargar() {
     ]);
 
     if (resumen) {
+        // Restaurar ajuste_delta desde lo guardado en el período
+        _data.usuarios.forEach(u => {
+            u.ajuste_delta = u.ajuste_periodo || 0;
+        });
         // Cargar notas guardadas para este período y aplicarlas a los usuarios
         try {
             const notas = await api.get(
@@ -946,8 +950,12 @@ async function confirmarAjustesPeriodo() {
     const nemp    = _data.usuarios.length;
     const thoras  = +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2);
     try {
-        const notasMap = {};
-        _data.usuarios.forEach(u => { if (u.nota_ajuste) notasMap[u.id] = u.nota_ajuste; });
+        const notasMap   = {};
+        const ajustesMap = {};
+        _data.usuarios.forEach(u => {
+            if (u.nota_ajuste)  notasMap[u.id]   = u.nota_ajuste;
+            if (u.ajuste_delta) ajustesMap[u.id] = u.ajuste_delta;
+        });
         await apiFetch('/salarios/confirmar-periodo', {
             method: 'POST',
             body: JSON.stringify({
@@ -958,6 +966,7 @@ async function confirmarAjustesPeriodo() {
                 num_empleados:   nemp,
                 total_horas:     thoras,
                 notas_ajuste:    notasMap,
+                ajustes_horas:   ajustesMap,
             })
         });
         // Actualizar confirmados localmente para que muestre el total en pendientes
@@ -995,8 +1004,12 @@ async function confirmarPeriodoActual() {
     btn.innerHTML = '<span class="spinner"></span>Confirmando...';
 
     try {
-        const notasMapAct = {};
-        _data.usuarios.forEach(u => { if (u.nota_ajuste) notasMapAct[u.id] = u.nota_ajuste; });
+        const notasMapAct   = {};
+        const ajustesMapAct = {};
+        _data.usuarios.forEach(u => {
+            if (u.nota_ajuste)  notasMapAct[u.id]   = u.nota_ajuste;
+            if (u.ajuste_delta) ajustesMapAct[u.id] = u.ajuste_delta;
+        });
         await apiFetch('/salarios/confirmar-periodo', {
             method: 'POST',
             body: JSON.stringify({
@@ -1007,6 +1020,7 @@ async function confirmarPeriodoActual() {
                 num_empleados:   _data.usuarios.length,
                 total_horas:     +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2),
                 notas_ajuste:    notasMapAct,
+                ajustes_horas:   ajustesMapAct,
             })
         });
         const existing = _confirmados.find(
