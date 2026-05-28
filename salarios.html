@@ -77,6 +77,7 @@
         .sum-value.masked { color: #aaa; letter-spacing: 3px; cursor: pointer; font-size: 18px; }
         .sum-value.masked:hover { color: #4f46e5; }
         .sum-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+        .ref-anterior { color: #b0b8c8; font-style: italic; }
 
         /* Table */
         .tabla-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 24px; }
@@ -211,22 +212,17 @@
         <div class="sum-card indigo">
             <div class="sum-label">Total nómina</div>
             <div class="sum-value masked" id="card-total" onclick="pedirAuth()" title="Clic para desbloquear">•••••</div>
+            <div class="sum-sub ref-anterior" id="card-total-ref" style="display:none;"></div>
         </div>
         <div class="sum-card green">
             <div class="sum-label">Empleados activos</div>
             <div class="sum-value" id="card-empleados">—</div>
+            <div class="sum-sub ref-anterior" id="card-empleados-ref" style="display:none;"></div>
         </div>
         <div class="sum-card amber">
             <div class="sum-label">Horas asignadas</div>
             <div class="sum-value" id="card-horas" style="font-size:20px;">—</div>
-        </div>
-        <div class="sum-card teal">
-            <div class="sum-label">
-                Ref. break-even
-                <span class="fuente-tag" id="breakeven-fuente-tag" style="display:none;"></span>
-            </div>
-            <div class="sum-value masked" id="card-breakeven" onclick="pedirAuth()" title="Clic para desbloquear">—</div>
-            <div class="sum-sub" id="breakeven-sub"></div>
+            <div class="sum-sub ref-anterior" id="card-horas-ref" style="display:none;"></div>
         </div>
     </div>
 
@@ -593,6 +589,10 @@ async function confirmarPeriodo(desde, hasta, idx) {
     const btn = document.getElementById(`pend-btn-confirmar-${idx}`);
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Confirmando...'; }
 
+    const pendData   = _pendientesData[idx];
+    const pendNemp   = pendData ? pendData.usuarios.length : undefined;
+    const pendThoras = pendData ? +(pendData.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2) : undefined;
+
     try {
         await apiFetch('/salarios/confirmar-periodo', {
             method: 'POST',
@@ -601,6 +601,8 @@ async function confirmarPeriodo(desde, hasta, idx) {
                 periodo_fin:     hasta,
                 total_salarios:  total,
                 registrar_gasto: true,
+                num_empleados:   pendNemp,
+                total_horas:     pendThoras,
             })
         });
         // Marcar como confirmado localmente
@@ -680,47 +682,8 @@ async function _cargarBreakeven(mes, year) {
     } catch(e) {
         _breakevenData = null;
     }
-    renderBreakeven();
-}
-
-function renderBreakeven() {
-    const valEl    = document.getElementById('card-breakeven');
-    const tagEl    = document.getElementById('breakeven-fuente-tag');
-    const subEl    = document.getElementById('breakeven-sub');
-
-    if (!_breakevenData) {
-        valEl.textContent = '—';
-        valEl.className   = 'sum-value';
-        tagEl.style.display = 'none';
-        subEl.textContent = '';
-        return;
-    }
-
-    if (_unlocked) {
-        valEl.textContent = fmt(_breakevenData.total_salarios);
-        valEl.className   = 'sum-value';
-        valEl.onclick     = null;
-        valEl.title       = '';
-    } else {
-        valEl.textContent = '•••••';
-        valEl.className   = 'sum-value masked';
-        valEl.onclick     = pedirAuth;
-        valEl.title       = 'Clic para desbloquear';
-    }
-
-    if (_breakevenData.fuente === 'confirmado_anterior') {
-        tagEl.style.display  = '';
-        tagEl.className      = 'fuente-tag confirmado';
-        tagEl.textContent    = '✓ año anterior';
-        const pi = new Date(_breakevenData.periodo_inicio + 'T12:00:00');
-        const pf = new Date(_breakevenData.periodo_fin    + 'T12:00:00');
-        subEl.textContent = periodoLabel(pi, pf);
-    } else {
-        tagEl.style.display  = '';
-        tagEl.className      = 'fuente-tag estimado';
-        tagEl.textContent    = '~ estimado actual';
-        subEl.textContent    = 'Sin datos del año anterior';
-    }
+    // Si los cards ya están renderizados, actualizar las referencias
+    if (_data) renderCards();
 }
 
 // ── Render ───────────────────────────────────────────────────────────────────
@@ -729,7 +692,6 @@ function renderAll() {
     renderCards();
     renderTabla();
     renderFooter();
-    renderBreakeven();
     updateLockBanner();
 }
 
@@ -749,6 +711,36 @@ function renderCards() {
         cardTotal.className   = 'sum-value masked';
         cardTotal.onclick     = pedirAuth;
         cardTotal.title       = 'Clic para desbloquear';
+    }
+
+    // Referencias del año anterior (solo si fuente = confirmado_anterior)
+    const refTotal  = document.getElementById('card-total-ref');
+    const refEmp    = document.getElementById('card-empleados-ref');
+    const refHoras  = document.getElementById('card-horas-ref');
+    const hayRef    = _breakevenData && _breakevenData.fuente === 'confirmado_anterior';
+
+    if (hayRef && _unlocked && _breakevenData.total_salarios != null) {
+        refTotal.textContent    = `Año ant.: ${fmt(_breakevenData.total_salarios)}`;
+        refTotal.style.display  = '';
+    } else if (hayRef && !_unlocked) {
+        refTotal.textContent    = 'Año ant.: •••••';
+        refTotal.style.display  = '';
+    } else {
+        refTotal.style.display  = 'none';
+    }
+
+    if (hayRef && _breakevenData.num_empleados != null) {
+        refEmp.textContent   = `Año ant.: ${_breakevenData.num_empleados}`;
+        refEmp.style.display = '';
+    } else {
+        refEmp.style.display = 'none';
+    }
+
+    if (hayRef && _breakevenData.total_horas != null) {
+        refHoras.textContent   = `Año ant.: ${fmtH(_breakevenData.total_horas)}`;
+        refHoras.style.display = '';
+    } else {
+        refHoras.style.display = 'none';
     }
 }
 
@@ -846,7 +838,9 @@ function updateLockBanner() {
 // ── Confirmar ajustes (solo estadísticas, SIN gasto de servicio) ─────────────
 async function confirmarAjustesPeriodo() {
     if (!_unlocked || !_data || !isManager) return;
-    const total = _data.total_salarios;
+    const total   = _data.total_salarios;
+    const nemp    = _data.usuarios.length;
+    const thoras  = +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2);
     try {
         await apiFetch('/salarios/confirmar-periodo', {
             method: 'POST',
@@ -855,6 +849,8 @@ async function confirmarAjustesPeriodo() {
                 periodo_fin:     _periodoActualHasta,
                 total_salarios:  total,
                 registrar_gasto: false,
+                num_empleados:   nemp,
+                total_horas:     thoras,
             })
         });
         // Actualizar confirmados localmente para que muestre el total en pendientes
@@ -899,6 +895,8 @@ async function confirmarPeriodoActual() {
                 periodo_fin:     _periodoActualHasta,
                 total_salarios:  _data.total_salarios,
                 registrar_gasto: true,
+                num_empleados:   _data.usuarios.length,
+                total_horas:     +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2),
             })
         });
         const existing = _confirmados.find(
