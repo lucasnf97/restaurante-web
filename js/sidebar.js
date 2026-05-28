@@ -4,6 +4,7 @@
     // Sin perm → siempre visible para cualquier usuario autenticado.
     const PAGES = [
         { href: "dashboard.html", icon: "🏠", label: "Panel principal" },
+        { href: "mensajes.html", icon: "💬", label: "Mensajes" },
         {
             group: true,
             key: "estadisticas",
@@ -45,7 +46,6 @@
             ]
         },
         { href: "configuracion.html", icon: "⚙️", label: "Configuración", perm: "acceso_configuracion" },
-        { href: "mensajes.html", icon: "💬", label: "Mensajes" },
     ];
 
     const currentPage = window.location.pathname.split("/").pop() || "dashboard.html";
