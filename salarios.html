@@ -64,7 +64,7 @@
 
         /* Summary cards */
         .summary-row { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-        .sum-card { flex: 0 0 auto; background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 3px solid #e0e0e0; }
+        .sum-card { flex: 0 0 auto; width: 175px; background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 3px solid #e0e0e0; display: flex; flex-direction: column; }
         .sum-card.indigo { border-top-color: #4f46e5; }
         .sum-card.green  { border-top-color: #16a34a; }
         .sum-card.amber  { border-top-color: #d97706; }
@@ -76,7 +76,7 @@
         .sum-value { font-size: 24px; font-weight: 700; color: #1a1a2e; }
         .sum-value.masked { color: #aaa; letter-spacing: 3px; cursor: pointer; font-size: 18px; }
         .sum-value.masked:hover { color: #4f46e5; }
-        .sum-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+        .sum-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; min-height: 16px; }
         .ref-anterior { color: #b0b8c8; font-style: italic; }
 
         /* Table */
@@ -225,22 +225,22 @@
         <div class="sum-card indigo">
             <div class="sum-label">Total nómina</div>
             <div class="sum-value masked" id="card-total" onclick="pedirAuth()" title="Clic para desbloquear">•••••</div>
-            <div class="sum-sub ref-anterior" id="card-total-ref" style="display:none;"></div>
+            <div class="sum-sub ref-anterior" id="card-total-ref" style="visibility:hidden;"></div>
         </div>
         <div class="sum-card green">
             <div class="sum-label">Empleados activos</div>
             <div class="sum-value" id="card-empleados">—</div>
-            <div class="sum-sub ref-anterior" id="card-empleados-ref" style="display:none;"></div>
+            <div class="sum-sub ref-anterior" id="card-empleados-ref" style="visibility:hidden;"></div>
         </div>
         <div class="sum-card amber">
             <div class="sum-label">Horas asignadas</div>
-            <div class="sum-value" id="card-horas" style="font-size:20px;">—</div>
-            <div class="sum-sub ref-anterior" id="card-horas-ref" style="display:none;"></div>
+            <div class="sum-value" id="card-horas">—</div>
+            <div class="sum-sub ref-anterior" id="card-horas-ref" style="visibility:hidden;"></div>
         </div>
         <div class="sum-card teal">
             <div class="sum-label">Horas fichadas</div>
-            <div class="sum-value" id="card-horas-fich" style="font-size:20px;">—</div>
-            <div class="sum-sub ref-anterior" id="card-horas-fich-ref" style="display:none;"></div>
+            <div class="sum-value" id="card-horas-fich">—</div>
+            <div class="sum-sub ref-anterior" id="card-horas-fich-ref" style="visibility:hidden;"></div>
         </div>
         <!-- Action buttons aligned to the right -->
         <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;">
@@ -824,34 +824,34 @@ function renderCards() {
     const hayRef       = _breakevenData && _breakevenData.fuente === 'confirmado_anterior';
 
     if (hayRef && _unlocked && _breakevenData.total_salarios != null) {
-        refTotal.textContent    = `Año ant.: ${fmt(_breakevenData.total_salarios)}`;
-        refTotal.style.display  = '';
+        refTotal.textContent      = `Año ant.: ${fmt(_breakevenData.total_salarios)}`;
+        refTotal.style.visibility = 'visible';
     } else if (hayRef && !_unlocked) {
-        refTotal.textContent    = 'Año ant.: •••••';
-        refTotal.style.display  = '';
+        refTotal.textContent      = 'Año ant.: •••••';
+        refTotal.style.visibility = 'visible';
     } else {
-        refTotal.style.display  = 'none';
+        refTotal.style.visibility = 'hidden';
     }
 
     if (hayRef && _breakevenData.num_empleados != null) {
-        refEmp.textContent   = `Año ant.: ${_breakevenData.num_empleados}`;
-        refEmp.style.display = '';
+        refEmp.textContent        = `Año ant.: ${_breakevenData.num_empleados}`;
+        refEmp.style.visibility   = 'visible';
     } else {
-        refEmp.style.display = 'none';
+        refEmp.style.visibility   = 'hidden';
     }
 
     if (hayRef && _breakevenData.total_horas != null) {
-        refHoras.textContent   = `Año ant.: ${fmtH(_breakevenData.total_horas)}`;
-        refHoras.style.display = '';
+        refHoras.textContent      = `Año ant.: ${fmtH(_breakevenData.total_horas)}`;
+        refHoras.style.visibility = 'visible';
     } else {
-        refHoras.style.display = 'none';
+        refHoras.style.visibility = 'hidden';
     }
 
     if (hayRef && _breakevenData.total_horas_fichadas != null) {
-        refHorasFich.textContent   = `Año ant.: ${fmtH(_breakevenData.total_horas_fichadas)}`;
-        refHorasFich.style.display = '';
+        refHorasFich.textContent      = `Año ant.: ${fmtH(_breakevenData.total_horas_fichadas)}`;
+        refHorasFich.style.visibility = 'visible';
     } else {
-        refHorasFich.style.display = 'none';
+        refHorasFich.style.visibility = 'hidden';
     }
 }
 
