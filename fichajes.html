@@ -102,6 +102,8 @@
         .sub-times { color: #374151; font-weight: 600; letter-spacing: .2px; }
         .sub-dur { color: #6b7280; background: #e5e7eb; padding: 1px 7px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
         .sub-activo { color: #16a34a; font-style: italic; font-size: 11px; }
+        .sub-nota-area { flex: 1; min-width: 0; }
+        .sub-nota-txt { color: #6b7280; font-style: italic; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; display: inline-block; vertical-align: middle; }
 
         /* Estado badges */
         .badge { padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
@@ -695,11 +697,20 @@ function renderDayGroup(dg, usuarioId) {
                   onclick="event.stopPropagation();abrirEditInlineFichaje(${f.id})"
                   title="Editar entrada/salida">✏️</button>`
             : "";
+        const notaBtn = !f.activo
+            ? `<button class="btn-nota-edit"
+                  onclick="event.stopPropagation();editarNotaSubrow(${f.id})"
+                  title="${f.notas ? 'Ver/editar nota' : 'Agregar nota'}">📝</button>`
+            : "";
+        const notaTxt = f.notas
+            ? `<span class="sub-nota-txt" title="${f.notas.replace(/"/g,'&quot;')}">${f.notas}</span>`
+            : "";
         return `<div class="sub-fichaje-row" id="sub-fich-${f.id}">
             <span class="sub-arrow">↳</span>
             <span class="sub-times">${entrada} → ${salidaTxt}</span>
             <span class="sub-dur">${durTxt}</span>
-            ${editBtn}
+            ${editBtn}${notaBtn}
+            <span class="sub-nota-area" id="nota-sub-${f.id}">${notaTxt}</span>
         </div>`;
     }).join("");
 
@@ -820,7 +831,7 @@ function _refreshAfterEdit(fichajeId) {
     // ── 1. Guardar estado de apertura ──────────────────────────
     const cardOpen   = document.getElementById(`detail-${uid}`)?.classList.contains("open");
     const openSubKeys = new Set();
-    existingCard.querySelectorAll('[id^="sub-"]').forEach(el => {
+    existingCard.querySelectorAll('tr[id^="sub-"]').forEach(el => {
         if (el.style.display !== "none") openSubKeys.add(el.id.slice(4));
     });
 
@@ -910,6 +921,70 @@ async function guardarNota(id) {
 function cancelarNota(id) {
     const f = _fichajesData[id];
     if (f) _actualizarDayGroup(_dayKey(f));
+}
+
+// ── Notas por fichaje (sub-filas) ─────────────────────────────
+function editarNotaSubrow(fichajeId) {
+    const areaEl = document.getElementById(`nota-sub-${fichajeId}`);
+    if (!areaEl) return;
+    const f = _fichajesData[fichajeId];
+    const cur = (f && f.notas) ? f.notas : "";
+    areaEl.innerHTML = `
+        <div class="nota-edit-wrap" onclick="event.stopPropagation()">
+            <input class="nota-input" id="nota-sub-inp-${fichajeId}"
+                   type="text" value="${cur.replace(/"/g, "&quot;")}"
+                   placeholder="Agregar nota..." maxlength="200">
+            <button class="btn-nota-save"   onclick="event.stopPropagation();guardarNotaSubrow(${fichajeId})">✓</button>
+            <button class="btn-nota-cancel" onclick="event.stopPropagation();cancelarNotaSubrow(${fichajeId})">✗</button>
+        </div>`;
+    const inp = document.getElementById(`nota-sub-inp-${fichajeId}`);
+    if (inp) {
+        inp.focus();
+        inp.addEventListener("keydown", e => {
+            e.stopPropagation();
+            if (e.key === "Enter")  guardarNotaSubrow(fichajeId);
+            if (e.key === "Escape") cancelarNotaSubrow(fichajeId);
+        });
+    }
+}
+
+function cancelarNotaSubrow(fichajeId) {
+    const areaEl = document.getElementById(`nota-sub-${fichajeId}`);
+    if (!areaEl) return;
+    const f = _fichajesData[fichajeId];
+    const notaTxt = (f && f.notas)
+        ? `<span class="sub-nota-txt" title="${f.notas.replace(/"/g,'&quot;')}">${f.notas}</span>`
+        : "";
+    areaEl.innerHTML = notaTxt;
+}
+
+async function guardarNotaSubrow(fichajeId) {
+    const inp = document.getElementById(`nota-sub-inp-${fichajeId}`);
+    if (!inp) return;
+    const notas = inp.value.trim() || null;
+    try {
+        await apiFetch(`/turnos/${fichajeId}/notas`, {
+            method: "PATCH",
+            body: JSON.stringify({ notas })
+        });
+        if (_fichajesData[fichajeId]) {
+            _fichajesData[fichajeId].notas    = notas;
+            _fichajesData[fichajeId].revisado = false;
+        }
+        // Actualizar solo el área de nota del sub-row (sin re-renderizar todo)
+        const areaEl = document.getElementById(`nota-sub-${fichajeId}`);
+        if (areaEl) {
+            const notaTxt = notas
+                ? `<span class="sub-nota-txt" title="${notas.replace(/"/g,'&quot;')}">${notas}</span>`
+                : "";
+            areaEl.innerHTML = notaTxt;
+        }
+        // Actualizar badge de estado del día
+        const f = _fichajesData[fichajeId];
+        if (f) _actualizarDayGroup(_dayKey(f));
+    } catch(e) {
+        alert("Error al guardar la nota");
+    }
 }
 
 // Mantener para compatibilidad (ya no usadas directamente, pero no borrar)
@@ -1264,9 +1339,10 @@ async function confirmarRevision() {
         if (fConHorario) {
             const horasAsigBase  = calcHorasAsignadas(fConHorario.franjas_asignadas, 0) || 0;
             const totalFichadasH = _revDayFichajes.reduce((s, fi) => s + (fi.horas || 0), 0);
-            const totalBreakH    = _revDayFichajes.reduce((s, fi) => s + (fi.break_mins || 0), 0) / 60;
+            // break_mins es único por día (horarios_personales), no sumar por fichaje
+            const dayBreakH = (_revDayFichajes[0]?.break_mins || 0) / 60;
             // efectivas = fichadas − descanso; ajuste para que diff = 0
-            ajusteTotal    = (totalFichadasH - totalBreakH) - horasAsigBase;
+            ajusteTotal    = (totalFichadasH - dayBreakH) - horasAsigBase;
             fichajeAjusteId = fConHorario.id;
         }
     }
