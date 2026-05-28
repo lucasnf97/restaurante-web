@@ -237,6 +237,11 @@
             <div class="sum-value" id="card-horas" style="font-size:20px;">—</div>
             <div class="sum-sub ref-anterior" id="card-horas-ref" style="display:none;"></div>
         </div>
+        <div class="sum-card teal">
+            <div class="sum-label">Horas fichadas</div>
+            <div class="sum-value" id="card-horas-fich" style="font-size:20px;">—</div>
+            <div class="sum-sub ref-anterior" id="card-horas-fich-ref" style="display:none;"></div>
+        </div>
         <!-- Action buttons aligned to the right -->
         <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;">
             <button class="btn btn-success" id="btn-confirmar-per" onclick="confirmarPeriodoActual()"
@@ -792,9 +797,11 @@ function renderAll() {
 }
 
 function renderCards() {
-    const totalH = _data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0);
-    document.getElementById('card-empleados').textContent = _data.usuarios.length;
-    document.getElementById('card-horas').textContent     = fmtH(totalH);
+    const totalH     = _data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0);
+    const totalHFich = _data.usuarios.reduce((s, u) => s + u.horas_fichadas,  0);
+    document.getElementById('card-empleados').textContent  = _data.usuarios.length;
+    document.getElementById('card-horas').textContent      = fmtH(totalH);
+    document.getElementById('card-horas-fich').textContent = fmtH(totalHFich);
 
     const cardTotal = document.getElementById('card-total');
     if (_unlocked) {
@@ -810,10 +817,11 @@ function renderCards() {
     }
 
     // Referencias del año anterior (solo si fuente = confirmado_anterior)
-    const refTotal  = document.getElementById('card-total-ref');
-    const refEmp    = document.getElementById('card-empleados-ref');
-    const refHoras  = document.getElementById('card-horas-ref');
-    const hayRef    = _breakevenData && _breakevenData.fuente === 'confirmado_anterior';
+    const refTotal     = document.getElementById('card-total-ref');
+    const refEmp       = document.getElementById('card-empleados-ref');
+    const refHoras     = document.getElementById('card-horas-ref');
+    const refHorasFich = document.getElementById('card-horas-fich-ref');
+    const hayRef       = _breakevenData && _breakevenData.fuente === 'confirmado_anterior';
 
     if (hayRef && _unlocked && _breakevenData.total_salarios != null) {
         refTotal.textContent    = `Año ant.: ${fmt(_breakevenData.total_salarios)}`;
@@ -837,6 +845,13 @@ function renderCards() {
         refHoras.style.display = '';
     } else {
         refHoras.style.display = 'none';
+    }
+
+    if (hayRef && _breakevenData.total_horas_fichadas != null) {
+        refHorasFich.textContent   = `Año ant.: ${fmtH(_breakevenData.total_horas_fichadas)}`;
+        refHorasFich.style.display = '';
+    } else {
+        refHorasFich.style.display = 'none';
     }
 }
 
@@ -946,9 +961,10 @@ function updateLockBanner() {
 // ── Confirmar ajustes (solo estadísticas, SIN gasto de servicio) ─────────────
 async function confirmarAjustesPeriodo() {
     if (!_unlocked || !_data || !isManager) return;
-    const total   = _data.total_salarios;
-    const nemp    = _data.usuarios.length;
-    const thoras  = +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2);
+    const total       = _data.total_salarios;
+    const nemp        = _data.usuarios.length;
+    const thoras      = +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2);
+    const thorasFich  = +(_data.usuarios.reduce((s, u) => s + u.horas_fichadas,  0)).toFixed(2);
     try {
         const notasMap   = {};
         const ajustesMap = {};
@@ -965,8 +981,9 @@ async function confirmarAjustesPeriodo() {
                 registrar_gasto: false,
                 num_empleados:   nemp,
                 total_horas:     thoras,
-                notas_ajuste:    notasMap,
-                ajustes_horas:   ajustesMap,
+                notas_ajuste:         notasMap,
+                ajustes_horas:        ajustesMap,
+                total_horas_fichadas: thorasFich,
             })
         });
         // Actualizar confirmados localmente para que muestre el total en pendientes
@@ -1010,17 +1027,19 @@ async function confirmarPeriodoActual() {
             if (u.nota_ajuste)  notasMapAct[u.id]   = u.nota_ajuste;
             if (u.ajuste_delta) ajustesMapAct[u.id] = u.ajuste_delta;
         });
+        const thorasFichAct = +(_data.usuarios.reduce((s, u) => s + u.horas_fichadas, 0)).toFixed(2);
         await apiFetch('/salarios/confirmar-periodo', {
             method: 'POST',
             body: JSON.stringify({
-                periodo_inicio:  _periodoActualDesde,
-                periodo_fin:     _periodoActualHasta,
-                total_salarios:  _data.total_salarios,
-                registrar_gasto: true,
-                num_empleados:   _data.usuarios.length,
-                total_horas:     +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2),
-                notas_ajuste:    notasMapAct,
-                ajustes_horas:   ajustesMapAct,
+                periodo_inicio:       _periodoActualDesde,
+                periodo_fin:          _periodoActualHasta,
+                total_salarios:       _data.total_salarios,
+                registrar_gasto:      true,
+                num_empleados:        _data.usuarios.length,
+                total_horas:          +(_data.usuarios.reduce((s, u) => s + u.horas_asignadas, 0)).toFixed(2),
+                total_horas_fichadas: thorasFichAct,
+                notas_ajuste:         notasMapAct,
+                ajustes_horas:        ajustesMapAct,
             })
         });
         const existing = _confirmados.find(
