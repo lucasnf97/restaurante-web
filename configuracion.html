@@ -2409,7 +2409,7 @@ function seleccionarRol(id) {
 }
 
 function nuevoRol() {
-    _rolSel = { id: null, nombre: '', descripcion: '', permisos: {}, es_sistema: false };
+    _rolSel = { id: null, nombre: '', descripcion: '', permisos: {}, es_sistema: false, pantalla_default: 'dashboard', preview_logout: false };
     renderListaRoles();
     renderEditorRol();
 }
@@ -2478,7 +2478,28 @@ function renderEditorRol() {
                     <input class="cfg-input" id="re-desc" value="${r.descripcion||''}"
                            placeholder="Breve descripción del rol" ${esSistema ? 'disabled' : ''}>
                 </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Pantalla de inicio (ejecutable)</label>
+                    <select class="cfg-input" id="re-pantalla" ${esSistema ? 'disabled' : ''} style="cursor:pointer;">
+                        <option value="dashboard"     ${(r.pantalla_default||'dashboard')==='dashboard'     ? 'selected' : ''}>Panel principal</option>
+                        <option value="mesas"         ${(r.pantalla_default||'')==='mesas'                  ? 'selected' : ''}>Selección de mesa</option>
+                        <option value="cocina_cocina" ${(r.pantalla_default||'')==='cocina_cocina'           ? 'selected' : ''}>Cocina (preselec. Cocina)</option>
+                        <option value="cocina_bar"    ${(r.pantalla_default||'')==='cocina_bar'              ? 'selected' : ''}>Cocina (preselec. Bar)</option>
+                    </select>
+                    <span class="cfg-hint">Pantalla a la que accede este rol al iniciar sesión en el ejecutable.</span>
+                </div>
             </div>
+            <label class="toggle-row" style="${esSistema ? 'opacity:.5;pointer-events:none;' : ''}"
+                   onclick="event.preventDefault();toggleCheck('re-preview')">
+                <div class="toggle-wrap">
+                    <input type="checkbox" id="re-preview" ${r.preview_logout ? 'checked' : ''} ${esSistema ? 'disabled' : ''}>
+                    <span class="toggle-slider"></span>
+                </div>
+                <div class="toggle-text">
+                    <div class="toggle-label">Vista previa al cerrar sesión</div>
+                    <div class="toggle-desc">Al cerrar sesión, muestra el estado actual del restaurante (salas y cocina) antes de volver al login.</div>
+                </div>
+            </label>
             ${familiasBtns}
             <div>
                 <label class="cfg-label" style="margin-bottom:8px;display:block;">Permisos</label>
@@ -2510,15 +2531,18 @@ function _leerPermisosRol() {
 }
 
 async function guardarRol() {
-    const nombre = document.getElementById('re-nombre').value.trim();
-    const descripcion = document.getElementById('re-desc').value.trim();
+    const nombre          = document.getElementById('re-nombre').value.trim();
+    const descripcion     = document.getElementById('re-desc').value.trim();
     if (!nombre) { alert('El nombre del rol es obligatorio.'); return; }
-    const permisos = _leerPermisosRol();
+    const permisos        = _leerPermisosRol();
+    const pantalla_default = document.getElementById('re-pantalla')?.value || 'dashboard';
+    const preview_logout  = document.getElementById('re-preview')?.checked || false;
+    const payload         = { nombre, descripcion, permisos, pantalla_default, preview_logout };
     try {
         if (_rolSel.id) {
-            await apiFetch(`/roles/${_rolSel.id}`, { method:'PATCH', body: JSON.stringify({ nombre, descripcion, permisos }) });
+            await apiFetch(`/roles/${_rolSel.id}`, { method:'PATCH', body: JSON.stringify(payload) });
         } else {
-            const res = await apiFetch('/roles', { method:'POST', body: JSON.stringify({ nombre, descripcion, permisos }) });
+            const res = await apiFetch('/roles', { method:'POST', body: JSON.stringify(payload) });
         }
         await cargarRoles();
         // reseleccionar el rol por nombre

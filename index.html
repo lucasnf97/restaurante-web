@@ -127,9 +127,19 @@
 
     <script src="js/api.js"></script>
     <script>
-        // Si ya está logueado, ir al dashboard
+        // Si ya está logueado, ir a la pantalla por defecto del rol
         if (getToken()) {
-            window.location.href = "dashboard.html";
+            const _u = JSON.parse(localStorage.getItem('user') || '{}');
+            window.location.href = _pantallaDestino(_u.pantalla_default);
+        }
+
+        function _pantallaDestino(pd) {
+            const map = {
+                'mesas':         'mesas.html',
+                'cocina_cocina': 'cocina.html?area=cocina',
+                'cocina_bar':    'cocina.html?area=bar',
+            };
+            return map[pd] || 'dashboard.html';
         }
 
         // Permitir login con Enter
@@ -154,7 +164,8 @@
 
             try {
                 await login(username, password);
-                window.location.href = "dashboard.html";
+                const _u2 = JSON.parse(localStorage.getItem('user') || '{}');
+                window.location.href = _pantallaDestino(_u2.pantalla_default);
             } catch (err) {
                 mostrarError(err.message);
             } finally {

@@ -19,6 +19,16 @@ function setUser(user) {
 }
 
 function logout() {
+    const _u = JSON.parse(localStorage.getItem("user") || "{}");
+    if (_u.preview_logout) {
+        // Llevar a vista previa antes de limpiar sesión
+        window.location.href = "preview-sesion.html";
+        return;
+    }
+    _doLogout();
+}
+
+function _doLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("edit_mode");
