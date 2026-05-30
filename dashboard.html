@@ -117,6 +117,51 @@ body.config-open .block-drag { display:inline; }
 .dot-red  { background:#dc2626; }
 .stock-num { font-size:22px; font-weight:700; }
 
+/* CAJA WIDGET */
+.caja-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
+.caja-status { font-size:20px; font-weight:800; margin:10px 0 2px; }
+.caja-sub { font-size:12px; color:#9ca3af; margin-bottom:2px; }
+.caja-stat-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13px; color:#6b7280; border-bottom:1px solid #f3f4f6; }
+.caja-stat-row:last-child { border-bottom:none; }
+.caja-stat-row strong { color:#1a1a2e; font-size:14px; font-weight:700; }
+
+/* PERSONAL EN TURNO */
+.personal-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
+.turno-row { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #f3f4f6; }
+.turno-row:last-child { border-bottom:none; }
+.turno-ini { width:32px; height:32px; border-radius:50%; color:white; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.turno-info { flex:1; min-width:0; }
+.turno-name { font-size:13px; font-weight:600; color:#1a1a2e; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.turno-rol  { font-size:11px; color:#9ca3af; }
+.turno-hora { font-size:12px; color:#6b7280; font-weight:600; flex-shrink:0; }
+
+/* ESTADO DEL SALÓN */
+.mesas-sal-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
+.sala-row { margin-top:10px; }
+.sala-row-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; font-size:12px; }
+.sala-row-name  { font-weight:700; color:#374151; }
+.sala-row-stats { color:#6b7280; font-size:11px; display:flex; gap:6px; }
+.sala-bar-bg   { height:6px; background:#f3f4f6; border-radius:3px; overflow:hidden; }
+.sala-bar-fill { height:100%; border-radius:3px; transition:width .4s; }
+
+/* ÓRDENES EN COCINA */
+.cocina-ord-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
+.cocina-area { margin-top:12px; }
+.cocina-area:first-child { margin-top:8px; }
+.cocina-area-name { font-size:11px; font-weight:800; color:#374151; text-transform:uppercase; letter-spacing:.6px; margin-bottom:6px; }
+.cocina-badges { display:flex; flex-wrap:wrap; gap:6px; }
+
+/* TENDENCIA DE VENTAS */
+.trend-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
+.trend-bars { display:flex; align-items:flex-end; gap:6px; height:110px; margin-top:14px; }
+.trend-day  { flex:1; display:flex; flex-direction:column; align-items:center; height:100%; min-width:0; }
+.trend-bar-wrap { flex:1; width:100%; display:flex; align-items:flex-end; padding:0 1px; }
+.trend-bar  { width:100%; background:#c4b5fd; border-radius:4px 4px 0 0; min-height:4px; transition:height .35s; }
+.trend-day.trend-hoy .trend-bar { background:#4f46e5; }
+.trend-label { font-size:10px; color:#9ca3af; margin-top:4px; white-space:nowrap; }
+.trend-day.trend-hoy .trend-label { color:#4f46e5; font-weight:700; }
+.trend-val  { font-size:9px; color:#6b7280; text-align:center; white-space:nowrap; overflow:hidden; max-width:100%; }
+
 /* CONFIG PANEL */
 .cfg-overlay { display:none; }
 .cfg-panel { position:fixed; top:0; right:0; width:390px; height:100%; background:white; z-index:401; box-shadow:-4px 0 24px rgba(0,0,0,.15); display:flex; flex-direction:column; transform:translateX(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); }
@@ -220,58 +265,133 @@ const ALL_MODULES = [
 ];
 function getMod(id) { return ALL_MODULES.find(m => m.id === id); }
 
-// ── CONFIG POR DEFECTO ───────────────────────────────────────
+// ── CONFIG POR DEFECTO (v5) ──────────────────────────────────
 const DEFAULT_CONFIG = { blocks: [
-    { id:"stats",        type:"stats",   label:"Resumen del día",   visible:true, span:3 },
-    { id:"reservas",     type:"reservas",label:"Reservas del día",  visible:true, span:3 },
-    { id:"accesos",      type:"accesos", label:"Accesos rápidos",   visible:true, span:6,
+    { id:"stats",          type:"stats",          label:"Resumen de facturación", visible:true,  span:3 },
+    { id:"reservas",       type:"reservas",        label:"Reservas del día",       visible:true,  span:3 },
+    { id:"accesos",        type:"accesos",         label:"Accesos rápidos",        visible:true,  span:6,
       modules:["mesas","productos","caja","fichajes","usuarios","stock","facturas"] },
-    { id:"stock-status", type:"stock",   label:"Estado del stock",  visible:true, span:3 },
+    { id:"stock-status",   type:"stock",           label:"Estado del stock",       visible:true,  span:3 },
+    { id:"caja-estado",    type:"caja-estado",     label:"Estado de caja",         visible:false, span:3 },
+    { id:"personal-turno", type:"personal-turno",  label:"Personal en turno",      visible:false, span:3 },
+    { id:"mesas-estado",   type:"mesas-estado",    label:"Estado del salón",       visible:false, span:3 },
+    { id:"ordenes-cocina", type:"ordenes-cocina",  label:"Órdenes en cocina",      visible:false, span:3 },
+    { id:"ventas-7dias",   type:"ventas-7dias",    label:"Tendencia de ventas",    visible:false, span:6 },
 ]};
 
 // ── LOAD / SAVE ──────────────────────────────────────────────
-function loadConfig() {
-    try { const s = localStorage.getItem("dash_cfg_v4"); if (s) return JSON.parse(s); } catch(e) {}
-    return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+// IDs canónicos de los nuevos widgets: se agregan si faltan en cualquier config guardada
+const _NEW_BLOCK_IDS = ["caja-estado","personal-turno","mesas-estado","ordenes-cocina","ventas-7dias"];
+
+function _ensureNewBlocks(cfg) {
+    // Garantiza que los nuevos widgets estén siempre en el config, aunque falten
+    const existingIds = new Set(cfg.blocks.map(b => b.id));
+    DEFAULT_CONFIG.blocks.forEach(nb => {
+        if (_NEW_BLOCK_IDS.includes(nb.id) && !existingIds.has(nb.id)) {
+            cfg.blocks.push({ ...nb, visible: false });
+        }
+    });
+    return cfg;
 }
-function saveConfig() { localStorage.setItem("dash_cfg_v4", JSON.stringify(config)); }
+
+function loadConfig() {
+    // 1. Intentar cargar v5
+    try {
+        const s = localStorage.getItem("dash_cfg_v5");
+        if (s) {
+            const cfg = JSON.parse(s);
+            return _ensureNewBlocks(cfg);   // asegura que nuevos widgets estén presentes
+        }
+    } catch(e) {}
+
+    // 2. Migrar desde v4 preservando layout del usuario
+    let base = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    try {
+        const v4 = JSON.parse(localStorage.getItem("dash_cfg_v4") || "null");
+        if (v4?.blocks) {
+            const mergedIds = new Set();
+            const merged = v4.blocks.map(ob => {
+                const nb = base.blocks.find(b => b.id === ob.id);
+                if (nb) { mergedIds.add(ob.id); return { ...nb, ...ob }; }
+                return ob; // quick blocks personalizados del usuario
+            });
+            base.blocks.forEach(nb => {
+                if (!mergedIds.has(nb.id)) merged.push({ ...nb, visible: false });
+            });
+            base.blocks = merged;
+        }
+    } catch(e) {}
+    return base;
+}
+function saveConfig() { localStorage.setItem("dash_cfg_v5", JSON.stringify(config)); }
 
 let config = loadConfig();
+// Si se agregaron nuevos bloques que no estaban guardados, persistir silenciosamente
+saveConfig();
 
 // ── DATOS ────────────────────────────────────────────────────
-let periodos    = null;   // response from /reportes/resumen-periodos
-let reservasHoy = [];
-let stockData   = { ok:0, warn:0, agotado:0 };
-let resPag      = 0;
-let _monedaSim  = "$";
+let periodos       = null;
+let reservasHoy    = [];
+let stockData      = { ok:0, warn:0, agotado:0 };
+let cajaData       = null;
+let cajaDia        = null;
+let turnosData     = [];
+let salasMesa      = null;
+let coccinaData    = [];
+let ventasHistData = null;
+let resPag         = 0;
+let _monedaSim     = "$";
 
 async function cargarDatos() {
-    // Cargar símbolo de moneda (una vez)
-    try {
-        const cfg = await api.get("/config/sistema");
-        _monedaSim = cfg.moneda_simbolo || "$";
-    } catch(e) {}
-
-    // Resumen de períodos (hoy / semana / mes / año)
-    try {
-        periodos = await api.get("/reportes/resumen-periodos");
-    } catch(e) { periodos = null; }
-
-    try {
-        const hoy = new Date().toISOString().split("T")[0];
-        const rv  = await api.get(`/reservas/?fecha=${hoy}`);
-        reservasHoy = rv.sort((a,b) => (a.hora||"").localeCompare(b.hora||""));
-        calcPaginaActual();
-    } catch(e) {}
-    try {
-        const ins = await api.get("/stock/insumos");
-        stockData = { ok:0, warn:0, agotado:0 };
-        ins.forEach(i => {
-            if (i.agotado) stockData.agotado++;
-            else if (i.en_advertencia) stockData.warn++;
-            else stockData.ok++;
-        });
-    } catch(e) {}
+    // Cargar todo en paralelo para máxima velocidad
+    await Promise.all([
+        (async () => {
+            try { const c = await api.get("/config/sistema"); _monedaSim = c?.moneda_simbolo || "$"; } catch(e) {}
+        })(),
+        (async () => {
+            try { periodos = await api.get("/reportes/resumen-periodos"); } catch(e) {}
+        })(),
+        (async () => {
+            try {
+                const hoy = new Date().toISOString().split("T")[0];
+                const rv  = await api.get(`/reservas/?fecha=${hoy}`);
+                reservasHoy = (rv||[]).sort((a,b) => (a.hora_inicio||a.hora||"").localeCompare(b.hora_inicio||b.hora||""));
+                calcPaginaActual();
+            } catch(e) {}
+        })(),
+        (async () => {
+            try {
+                const ins = await api.get("/stock/insumos");
+                stockData = { ok:0, warn:0, agotado:0 };
+                (ins||[]).forEach(i => {
+                    if (i.agotado) stockData.agotado++;
+                    else if (i.en_advertencia) stockData.warn++;
+                    else stockData.ok++;
+                });
+            } catch(e) {}
+        })(),
+        (async () => { try { cajaData = await api.get("/caja/estado"); } catch(e) {} })(),
+        (async () => { try { cajaDia  = await api.get("/caja/resumen/hoy"); } catch(e) {} })(),
+        (async () => { try { turnosData = (await api.get("/turnos/activos")) || []; } catch(e) {} })(),
+        (async () => {
+            try {
+                const [salas, mesasAll] = await Promise.all([
+                    api.get("/mesas/salas"), api.get("/mesas/")
+                ]);
+                salasMesa = { salas: salas||[], mesas: mesasAll||[] };
+            } catch(e) {}
+        })(),
+        (async () => {
+            try {
+                const areas = await api.get("/productos/areas");
+                const ords  = await Promise.all(
+                    (areas||[]).map(a => api.get(`/pedidos/ordenes/area/${a.id}`).catch(() => []))
+                );
+                coccinaData = (areas||[]).map((a, i) => ({ area: a, ordenes: ords[i] || [] }));
+            } catch(e) {}
+        })(),
+        (async () => { try { ventasHistData = await api.get("/reportes/ventas-diarias"); } catch(e) {} })(),
+    ]);
     renderDash();
 }
 
@@ -311,11 +431,16 @@ function renderDash() {
 }
 
 function buildBlock(b) {
-    if (b.type === "stats") return buildStats(b);
-    if (b.type === "reservas") return buildReservas(b);
-    if (b.type === "accesos")  return buildAccesos(b);
-    if (b.type === "stock")    return buildStock(b);
-    if (b.type === "quick")    return buildQuick(b);
+    if (b.type === "stats")          return buildStats(b);
+    if (b.type === "reservas")       return buildReservas(b);
+    if (b.type === "accesos")        return buildAccesos(b);
+    if (b.type === "stock")          return buildStock(b);
+    if (b.type === "quick")          return buildQuick(b);
+    if (b.type === "caja-estado")    return buildCajaEstado(b);
+    if (b.type === "personal-turno") return buildPersonalTurno(b);
+    if (b.type === "mesas-estado")   return buildMesasEstado(b);
+    if (b.type === "ordenes-cocina") return buildOrdenesCocina(b);
+    if (b.type === "ventas-7dias")   return buildVentas7Dias(b);
     return "";
 }
 
@@ -524,6 +649,164 @@ function span2cols(span) {
     return span === 1 ? 1 : span === 2 ? 2 : span === 3 ? 3 : 6;
 }
 
+// ── BUILDERS NUEVOS ───────────────────────────────────────────
+
+function buildCajaEstado(b) {
+    const c = cajaData, d = cajaDia, sym = _monedaSim;
+    const abierta = c?.abierta;
+    const hora    = (c?.hora_apertura || "").slice(0,5) || "—";
+    const cajero  = c?.cajero || c?.usuario || c?.username || "";
+    const total   = d?.total_vendido ?? d?.total ?? d?.facturado ?? null;
+    const ops     = d?.cantidad_operaciones ?? d?.operaciones ?? d?.transacciones ?? null;
+    const sc = abierta === true ? "#16a34a" : abierta === false ? "#dc2626" : "#9ca3af";
+    const st = abierta === true ? "🟢 ABIERTA" : abierta === false ? "🔴 CERRADA" : "⚪ Sin datos";
+    const fmtN = v => Number(v).toLocaleString("es-AR", {minimumFractionDigits:2, maximumFractionDigits:2});
+    return `${blockHeader("")}
+    <div class="caja-card">
+        <a href="caja.html" class="widget-title">💰 Estado de caja</a>
+        <div class="caja-status" style="color:${sc}">${st}</div>
+        ${hora !== "—" ? `<div class="caja-sub">Apertura: ${hora}${cajero ? ` · ${cajero}` : ""}</div>` : ""}
+        <hr class="sum-hr" style="margin:10px 0">
+        <div class="caja-stat-row"><span>Facturado hoy</span><strong>${total !== null ? sym + " " + fmtN(total) : "—"}</strong></div>
+        <div class="caja-stat-row"><span>Operaciones</span><strong>${ops !== null ? Number(ops).toLocaleString("es-AR") : "—"}</strong></div>
+        ${c?.monto_inicio !== undefined ? `<div class="caja-stat-row"><span>Fondo inicial</span><strong>${sym} ${fmtN(c.monto_inicio)}</strong></div>` : ""}
+    </div>`;
+}
+
+function buildPersonalTurno(b) {
+    const activos = (turnosData || []).filter(t => !t.hora_salida && !t.salida);
+    const maxItems = b.span >= 6 ? 10 : b.span >= 3 ? 6 : 4;
+    const COLS = ["#4f46e5","#16a34a","#dc2626","#ca8a04","#0891b2","#7c3aed","#be185d","#0f766e"];
+    const rows = activos.slice(0, maxItems).map((t, i) => {
+        const ini  = t.iniciales || (t.username || t.nombre || "?").slice(0,2).toUpperCase();
+        const hora = (t.hora_entrada || t.inicio || t.entrada || "").slice(0,5);
+        const rol  = t.rol || "";
+        return `<div class="turno-row">
+            <div class="turno-ini" style="background:${COLS[i % COLS.length]}">${ini}</div>
+            <div class="turno-info">
+                <span class="turno-name">${t.username || t.nombre || "—"}</span>
+                ${rol ? `<span class="turno-rol">${rol}</span>` : ""}
+            </div>
+            ${hora ? `<span class="turno-hora">${hora}</span>` : ""}
+        </div>`;
+    }).join("");
+    const badge = `<span style="font-size:11px;background:${activos.length ? "#f0fdf4":"#f3f4f6"};color:${activos.length ? "#16a34a":"#9ca3af"};padding:2px 8px;border-radius:20px;font-weight:700">${activos.length} fichados</span>`;
+    return `${blockHeader("")}
+    <div class="personal-card">
+        <div class="widget-head"><a href="fichajes.html" class="widget-title">👥 Personal en turno</a>${badge}</div>
+        ${activos.length ? rows : '<div class="res-empty">Sin personal fichado</div>'}
+        ${activos.length > maxItems ? `<div style="font-size:11px;color:#9ca3af;text-align:center;padding:6px 0">+${activos.length - maxItems} más</div>` : ""}
+    </div>`;
+}
+
+function buildMesasEstado(b) {
+    if (!salasMesa) return `${blockHeader("")}<div class="mesas-sal-card"><a href="mesas.html" class="widget-title">🗺️ Estado del salón</a><div class="res-empty">Sin datos</div></div>`;
+    const { salas, mesas } = salasMesa;
+    const totOcup = mesas.filter(m => m.pedido_activo_id).length;
+    const salasHTML = salas.map(sala => {
+        const ms   = mesas.filter(m => m.sala_id === sala.id);
+        const ocup = ms.filter(m => m.pedido_activo_id).length;
+        const bloq = ms.filter(m => m.bloqueada_por).length;
+        const lib  = ms.filter(m => !m.pedido_activo_id && !m.bloqueada_por).length;
+        const tot  = ms.length;
+        const pct  = tot ? Math.round(ocup / tot * 100) : 0;
+        const barC = pct >= 80 ? "#dc2626" : pct >= 50 ? "#f59e0b" : "#16a34a";
+        return `<div class="sala-row">
+            <div class="sala-row-head">
+                <span class="sala-row-name">${sala.nombre}</span>
+                <span class="sala-row-stats">
+                    <span style="color:#dc2626;font-weight:700">${ocup} ocup.</span>
+                    ${bloq ? `<span style="color:#f59e0b"> · ${bloq} bloq.</span>` : ""}
+                    <span style="color:#16a34a"> · ${lib} libres</span>
+                </span>
+            </div>
+            <div class="sala-bar-bg"><div class="sala-bar-fill" style="width:${pct}%;background:${barC}"></div></div>
+        </div>`;
+    }).join("");
+    return `${blockHeader("")}
+    <div class="mesas-sal-card">
+        <div class="widget-head">
+            <a href="mesas.html" class="widget-title">🗺️ Estado del salón</a>
+            <span style="font-size:11px;color:#9ca3af;">${totOcup}/${mesas.length} mesas</span>
+        </div>
+        ${salas.length ? salasHTML : '<div class="res-empty">Sin salas configuradas</div>'}
+    </div>`;
+}
+
+function buildOrdenesCocina(b) {
+    const data = coccinaData || [];
+    const E_LBL = { pendiente:"Pendientes", en_preparacion:"En preparación", lista:"Listas" };
+    const E_COL = { pendiente:"#92400e",    en_preparacion:"#1e40af",        lista:"#166534" };
+    const E_BG  = { pendiente:"#fef9c3",    en_preparacion:"#dbeafe",        lista:"#dcfce7" };
+    const ORDEN = ["pendiente","en_preparacion","lista"];
+    const totOrd = data.reduce((s, {ordenes}) => s + (ordenes||[]).filter(o => o.estado !== "entregada").length, 0);
+    const areasHTML = data.map(({area, ordenes}) => {
+        const activas = (ordenes||[]).filter(o => o.estado !== "entregada");
+        const cnt = {};
+        activas.forEach(o => { cnt[o.estado] = (cnt[o.estado]||0)+1; });
+        const badges = ORDEN.map(e => cnt[e]
+            ? `<span style="background:${E_BG[e]};color:${E_COL[e]};font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap">${E_LBL[e]}: ${cnt[e]}</span>`
+            : ""
+        ).join("");
+        return `<div class="cocina-area">
+            <div class="cocina-area-name">${area.nombre}</div>
+            <div class="cocina-badges">${badges || '<span style="color:#9ca3af;font-size:11px">Sin órdenes activas</span>'}</div>
+        </div>`;
+    }).join("");
+    const badge = totOrd ? `<span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;font-weight:700">${totOrd} activas</span>` : "";
+    return `${blockHeader("")}
+    <div class="cocina-ord-card">
+        <div class="widget-head"><a href="cocina.html" class="widget-title">🍳 Órdenes en cocina</a>${badge}</div>
+        ${data.length ? areasHTML : '<div class="res-empty">Sin áreas configuradas</div>'}
+    </div>`;
+}
+
+function buildVentas7Dias(b) {
+    // Normalizar distintos formatos de respuesta posibles
+    let raw = [];
+    if (Array.isArray(ventasHistData)) raw = ventasHistData;
+    else if (ventasHistData?.dias)    raw = ventasHistData.dias;
+    else if (ventasHistData?.data && Array.isArray(ventasHistData.data))
+        raw = (ventasHistData.labels||[]).map((l,i) => ({ fecha:l, total: ventasHistData.data[i]||0 }));
+
+    const dias = raw
+        .filter(d => d.total !== undefined || d.monto !== undefined)
+        .map(d => ({ fecha: d.fecha||"", total: +(d.total ?? d.monto ?? 0) }))
+        .slice(-7);
+
+    if (!dias.length) return `${blockHeader("")}<div class="trend-card">
+        <div class="widget-head"><a href="estadisticas.html" class="widget-title">📈 Tendencia de ventas</a></div>
+        <div class="res-empty">Sin datos históricos disponibles</div></div>`;
+
+    const maxVal  = Math.max(...dias.map(d => d.total), 1);
+    const sym     = _monedaSim;
+    const hoy     = new Date().toISOString().split("T")[0];
+    const DOW     = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+    const promDia = dias.reduce((s,d) => s+d.total, 0) / dias.length;
+
+    const barsHTML = dias.map(d => {
+        const pct   = Math.max(Math.round(d.total / maxVal * 100), 4);
+        const dt    = new Date(d.fecha + "T12:00:00");
+        const dow   = DOW[dt.getDay()];
+        const isHoy = d.fecha === hoy;
+        const fmt   = Number(d.total).toLocaleString("es-AR", { maximumFractionDigits:0 });
+        return `<div class="trend-day${isHoy ? " trend-hoy" : ""}">
+            <div class="trend-bar-wrap"><div class="trend-bar" style="height:${pct}%"></div></div>
+            <div class="trend-label">${dow}${isHoy ? " ★" : ""}</div>
+            <div class="trend-val">${sym}${fmt}</div>
+        </div>`;
+    }).join("");
+
+    return `${blockHeader("")}
+    <div class="trend-card">
+        <div class="widget-head">
+            <a href="estadisticas.html" class="widget-title">📈 Tendencia de ventas — últimos ${dias.length} días</a>
+            <span style="font-size:11px;color:#9ca3af;">Prom. ${sym}${promDia.toLocaleString("es-AR",{maximumFractionDigits:0})}/día</span>
+        </div>
+        <div class="trend-bars">${barsHTML}</div>
+    </div>`;
+}
+
 // ── DRAG & DROP BLOQUES ──────────────────────────────────────
 function initDrag() {
     const grid = document.getElementById("dash-grid");
@@ -607,19 +890,22 @@ function renderConfigPanel() {
         config.blocks.map((b,i) => buildCblock(b,i)).join("");
 }
 
+const TIPOS_FIJOS = new Set(["stats"]);          // sin selector de columnas
+const TIPOS_NUEVOS = new Set(["caja-estado","personal-turno","mesas-estado","ordenes-cocina","ventas-7dias"]);
+
 function buildCblock(b, i) {
     const spanLabel = `${b.span} col${b.span===1?"":"s"}`;
     let opts = "";
 
-    // Span selector: oculto para el bloque stats (tamaño fijo 3 cols)
-    if (b.type !== "stats") {
+    // Span selector (oculto para stats que siempre es span-3)
+    if (!TIPOS_FIJOS.has(b.type)) {
         const spanOpts = [1,2,3,6].map(s =>
             `<button class="span-btn ${b.span===s?"active":""}" onclick="setSpan(${i},${s})">${s}</button>`
         ).join("");
         opts += `<div class="opt-row"><span>Columnas</span><div class="span-btns">${spanOpts}</div></div>`;
     }
 
-    // Accesos rápidos: selector de módulo
+    // Acceso rápido individual: selector de módulo
     if (b.type === "quick") {
         const modOptions = ALL_MODULES.map(m =>
             `<option value="${m.id}" ${b.moduleId===m.id?"selected":""}>${m.icon} ${m.title}</option>`
@@ -630,7 +916,7 @@ function buildCblock(b, i) {
             </select></div>`;
     }
 
-    // Accesos: lista de módulos
+    // Accesos rápidos múltiples: lista de módulos
     if (b.type === "accesos") {
         const items = ALL_MODULES.map(m => {
             const on = (b.modules||[]).includes(m.id);
@@ -643,10 +929,16 @@ function buildCblock(b, i) {
     }
 
     const canDelete = b.type === "quick";
+    // Badge "Nuevo" para widgets recién agregados
+    const isNuevo = TIPOS_NUEVOS.has(b.type);
+    const nuevoBadge = isNuevo
+        ? `<span style="font-size:9px;background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:10px;font-weight:700;margin-right:2px">NUEVO</span>`
+        : "";
+
     return `<div class="cblock">
         <div class="cblock-head" onclick="toggleOpts(${i})">
             <span class="cblock-drag">⠿</span>
-            <span class="cblock-name">${b.label}</span>
+            <span class="cblock-name">${b.label} ${nuevoBadge}</span>
             <span class="span-badge">${spanLabel}</span>
             ${canDelete ? `<button class="mi-del" onclick="event.stopPropagation();eliminarBloque(${i})">✕</button>` : ""}
             <label class="tsw" onclick="event.stopPropagation()">
