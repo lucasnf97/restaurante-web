@@ -1324,16 +1324,28 @@ async function msGuardar() {
     const rolTurno  = document.getElementById('ms-rol-turno')?.value || null;
     const breakMins = parseInt(document.getElementById('ms-break-mins')?.value || 0);
 
-    // ── Validación 1: horario del restaurante ───────────────────
+    // ── Validación 1: horario del restaurante (bloquea) ────────
     if (franjas.length > 0) {
         const vRest = validateFranjasVsRestaurante(franjas, modalState.diaSemana);
         if (!vRest.ok) { alert('⛔ ' + vRest.msg); return; }
     }
 
-    // ── Validación 2: bloqueos del empleado ─────────────────────
+    // ── Validación 2: bloqueos del empleado (advierte pero permite) ──
+    let bloqueosAfectados = [];
     if (franjas.length > 0) {
         const vBloq = validateFranjasVsBloqueos(franjas, modalState.userId, modalState.fecha, modalState.diaSemana);
-        if (!vBloq.ok) { alert('🚫 ' + vBloq.msg); return; }
+        if (!vBloq.ok) {
+            const ok = confirm(
+                `⚠️ Advertencia — bloqueo detectado\n\n${vBloq.msg}\n\n` +
+                `¿Querés asignar el turno de todas formas?\n` +
+                `El empleado recibirá una notificación.`
+            );
+            if (!ok) return;
+            // Guardar los bloqueos que se superponen para notificar
+            bloqueosAfectados = getBloqueosParaUsuarioFecha(
+                modalState.userId, modalState.fecha, modalState.diaSemana
+            );
+        }
     }
 
     const btn = document.getElementById('ms-btn-save');
@@ -1349,6 +1361,16 @@ async function msGuardar() {
                 rol_turno:  rolTurno,
                 break_mins: breakMins,
             });
+
+            // ── Notificación al empleado si se pisó un bloqueo ──
+            if (bloqueosAfectados.length > 0) {
+                await _notificarTurnoSobreBloqueo(
+                    modalState.userId,
+                    modalState.fecha,
+                    franjas,
+                    bloqueosAfectados
+                );
+            }
         }
         cerrarModal();
         await cargarYRenderizar();
@@ -1356,6 +1378,43 @@ async function msGuardar() {
         alert('Error al guardar: ' + (e.message || e));
     } finally {
         btn.disabled = false; btn.textContent = 'Guardar';
+    }
+}
+
+/**
+ * Envía un mensaje de notificación al empleado cuando se le asigna un turno
+ * que coincide con uno de sus bloqueos.
+ */
+async function _notificarTurnoSobreBloqueo(userId, fecha, franjas, bloques) {
+    try {
+        const u         = usuarios.find(u => u.id === userId);
+        const nombreEmp = u?.username || `usuario #${userId}`;
+        const d         = new Date(fecha + 'T12:00:00');
+        const fechaLeg  = `${DIAS_LARGO[jsDay2Api(d)]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
+        const franjaTxt = franjas.map(f => `${f.inicio}–${f.fin}`).join(', ');
+        const bloqTxt   = bloques.map(b => {
+            const mot = b.motivo ? ` "${b.motivo}"` : '';
+            return `${b.inicio}–${b.fin}${mot}`;
+        }).join(', ');
+        const quienAsigna = getUser()?.username || 'un administrador';
+
+        const asunto = `📅 Turno asignado — ${fechaLeg}`;
+        const cuerpo =
+            `Hola ${nombreEmp},\n\n` +
+            `${quienAsigna} te asignó un turno para el ${fechaLeg} (${franjaTxt}) ` +
+            `aunque tenés un bloqueo registrado ese día (${bloqTxt}).\n\n` +
+            `Si esto es un error o necesitás aclararlo, contactate con tu encargado.\n\n` +
+            `— Sistema de gestión`;
+
+        await api.post('/mensajes/', {
+            para_usuario_ids: [userId],
+            cc_usuario_ids:   [],
+            asunto,
+            cuerpo,
+        });
+    } catch(e) {
+        // No bloquear el flujo si falla el mensaje — el turno ya se guardó
+        console.warn('No se pudo enviar notificación de bloqueo:', e);
     }
 }
 
@@ -1644,9 +1703,14 @@ function validateFranjasVsRestaurante(franjas, diaSemana) {
     return { ok: true };
 }
 
-/** Devuelve {ok, msg}. Verifica que las franjas no se superpongan con bloqueos del usuario. */
+/**
+ * Devuelve {ok, msg, bloques}.
+ * Verifica si las franjas se superponen con bloqueos del usuario.
+ * No bloquea definitivamente — es el caller quien decide si dejar pasar o no.
+ */
 function validateFranjasVsBloqueos(franjas, userId, dateStr, diaSemana) {
     const bloqs = getBloqueosParaUsuarioFecha(userId, dateStr, diaSemana);
+    const afectados = [];
     for (const ef of franjas) {
         let es = timeToMins(ef.inicio);
         let ee = timeToMins(ef.fin);
@@ -1656,15 +1720,20 @@ function validateFranjasVsBloqueos(franjas, userId, dateStr, diaSemana) {
             let be = timeToMins(b.fin);
             if (be <= bs) be += 24 * 60;
             if (es < be && ee > bs) {
-                const m = b.motivo ? ` (${b.motivo})` : '';
-                return {
-                    ok: false,
-                    msg: `La franja ${ef.inicio}–${ef.fin} se superpone con un bloqueo del empleado${m}: ${b.inicio}–${b.fin}.`,
-                };
+                afectados.push(b);
             }
         }
     }
-    return { ok: true };
+    if (afectados.length === 0) return { ok: true };
+    const detalle = afectados.map(b => {
+        const m = b.motivo ? ` "${b.motivo}"` : '';
+        return `${b.inicio}–${b.fin}${m}`;
+    }).join(', ');
+    return {
+        ok:     false,
+        msg:    `El empleado tiene ${afectados.length > 1 ? 'bloqueos' : 'un bloqueo'} que se superpone con el turno asignado: ${detalle}.`,
+        bloques: afectados,
+    };
 }
 
 function getBloqueosParaUsuarioFecha(userId, dateStr, diaSemana) {
