@@ -588,11 +588,11 @@ function buildTablaHTML(data, canEdit, pendIdx) {
     const rows = data.usuarios.map(u => {
         const ini     = (u.iniciales || u.username.substring(0,2)).toUpperCase();
         const difH    = u.diferencia_horas;
-        const difHCls = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
+        const difHCls = difH > 0 ? 'pos' : difH < 0 ? 'neg' : 'neu';
         const difHStr = (difH > 0 ? '+' : '') + fmtH(difH);
         if (_unlocked) {
             const difS    = u.diferencia_saldo;
-            const difSCls = difS > 0.01 ? 'pos' : difS < -0.01 ? 'neg' : 'neu';
+            const difSCls = difS > 0 ? 'pos' : difS < 0 ? 'neg' : 'neu';
             const notaHtml = u.nota_ajuste
                 ? `<span class="nota-sal" title="${u.nota_ajuste.replace(/"/g,'&quot;')}">${u.nota_ajuste}</span>`
                 : `<span style="color:#d1d5db;">—</span>`;
@@ -867,13 +867,13 @@ function renderTabla() {
 function buildRow(u) {
     const ini     = (u.iniciales || u.username.substring(0,2)).toUpperCase();
     const difH    = u.diferencia_horas;
-    const difHCls = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
+    const difHCls = difH > 0 ? 'pos' : difH < 0 ? 'neg' : 'neu';
     const difHStr = (difH > 0 ? '+' : '') + fmtH(difH);
     const canEdit = isManager && _unlocked;
 
     if (_unlocked) {
         const difS    = u.diferencia_saldo;
-        const difSCls = difS > 0.01 ? 'pos' : difS < -0.01 ? 'neg' : 'neu';
+        const difSCls = difS > 0 ? 'pos' : difS < 0 ? 'neg' : 'neu';
         const difSStr = (difS > 0 ? '+' : '') + fmt(difS);
         const notaHtml = u.nota_ajuste
             ? `<span class="nota-sal" title="${u.nota_ajuste.replace(/"/g,'&quot;')}">${u.nota_ajuste}</span>`
@@ -1165,7 +1165,7 @@ function _poblarModalAjuste(u) {
     const difH   = u.diferencia_horas;
     const difHEl = document.getElementById('aj-dif-h');
     difHEl.textContent = (difH > 0 ? '+' : '') + fmtH(difH);
-    difHEl.className   = difH > 0.01 ? 'pos' : difH < -0.01 ? 'neg' : 'neu';
+    difHEl.className   = difH > 0 ? 'pos' : difH < 0 ? 'neg' : 'neu';
     // Fila "Ajuste previo"
     const prevRow = document.getElementById('aj-previo-row');
     const prevVal = document.getElementById('aj-previo-val');
