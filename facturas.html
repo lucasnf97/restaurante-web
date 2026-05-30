@@ -239,6 +239,33 @@
         <div id="conf-items"></div>
         <button type="button" onclick="agregarItemConf()" style="width:100%;padding:10px;border:1.5px dashed #c4b5fd;border-radius:8px;background:#faf5ff;color:#7c3aed;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;">+ Agregar ítem manualmente</button>
 
+        <!-- Adjuntar archivo (solo visible en modo manual) -->
+        <div id="conf-archivo-manual" style="display:none;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px;">
+                📎 Adjuntar archivo de la factura
+                <span style="font-weight:400;color:#9ca3af;font-size:12px;"> — opcional</span>
+            </div>
+            <label id="conf-archivo-label" for="conf-archivo-input"
+                   style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:white;border:1.5px solid #e5e7eb;border-radius:8px;transition:border-color .15s;">
+                <span id="conf-archivo-icon" style="font-size:22px;flex-shrink:0;">📄</span>
+                <div style="flex:1;min-width:0;">
+                    <div id="conf-archivo-name" style="font-size:13px;font-weight:600;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        Ningún archivo seleccionado
+                    </div>
+                    <div style="font-size:11px;color:#9ca3af;margin-top:1px;">PDF, JPG, PNG, WEBP</div>
+                </div>
+                <span style="flex-shrink:0;font-size:11px;color:#6366f1;font-weight:600;padding:4px 12px;border:1.5px solid #c4b5fd;border-radius:6px;background:#faf5ff;">
+                    Elegir archivo
+                </span>
+            </label>
+            <input type="file" id="conf-archivo-input" accept=".pdf,.jpg,.jpeg,.png,.webp"
+                   style="display:none" onchange="onArchivoManualChange(this)">
+            <button id="conf-archivo-quitar" onclick="quitarArchivoManual()"
+                    style="display:none;margin-top:6px;background:none;border:none;color:#dc2626;font-size:12px;cursor:pointer;padding:0;">
+                ✕ Quitar archivo seleccionado
+            </button>
+        </div>
+
         <div class="modal-footer">
             <button class="btn btn-secondary" id="btn-ver-factura" onclick="previsualizarFactura()">👁 Ver factura</button>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-confirmacion')">Cancelar</button>
@@ -482,16 +509,46 @@ async function procesarArchivo(id) {
 
 function abrirRevision(id) {
     _archivoActivo = id;
+    _manualFile    = null;
     const entrada = getEntrada(id);
-    document.getElementById("modal-conf-titulo").textContent = "✅ Confirmar datos de la factura";
-    document.getElementById("btn-ver-factura").style.display = "";
+    document.getElementById("modal-conf-titulo").textContent     = "✅ Confirmar datos de la factura";
+    document.getElementById("btn-ver-factura").style.display     = "";
+    document.getElementById("conf-archivo-manual").style.display = "none";
     abrirModalConfirmacion(entrada.datos);
+}
+
+// ── Archivo adjunto en modo manual ───────────────────────────
+let _manualFile = null;
+
+function onArchivoManualChange(input) {
+    const file = input.files[0];
+    if (!file) return;
+    _manualFile = file;
+    const icon = file.type === 'application/pdf' ? '📄' : file.type.startsWith('image/') ? '🖼️' : '📎';
+    document.getElementById('conf-archivo-icon').textContent  = icon;
+    document.getElementById('conf-archivo-name').textContent  = file.name;
+    document.getElementById('conf-archivo-name').style.color  = '#374151';
+    document.getElementById('conf-archivo-label').style.borderColor = '#6366f1';
+    document.getElementById('conf-archivo-quitar').style.display = '';
+}
+
+function quitarArchivoManual() {
+    _manualFile = null;
+    document.getElementById('conf-archivo-input').value         = '';
+    document.getElementById('conf-archivo-icon').textContent    = '📄';
+    document.getElementById('conf-archivo-name').textContent    = 'Ningún archivo seleccionado';
+    document.getElementById('conf-archivo-name').style.color    = '#9ca3af';
+    document.getElementById('conf-archivo-label').style.borderColor = '#e5e7eb';
+    document.getElementById('conf-archivo-quitar').style.display = 'none';
 }
 
 function cargarManual() {
     _archivoActivo = null;
+    _manualFile    = null;
     document.getElementById("modal-conf-titulo").textContent = "✏️ Nueva factura manual";
     document.getElementById("btn-ver-factura").style.display = "none";
+    document.getElementById("conf-archivo-manual").style.display = "";
+    quitarArchivoManual();
     abrirModalConfirmacion({ items: [{ tipo: "insumo", descripcion_factura: "" }] });
 }
 
@@ -763,25 +820,28 @@ async function confirmarFactura() {
             }
         }
 
-        // Subir imagen
-        let facturaUrl = null;
-        if (entradaActiva) {
+        // Subir archivo (desde IA o adjunto manual)
+        let facturaUrl  = null;
+        let archivoNom  = entradaActiva?.datos?.archivo || entradaActiva?.file?.name || null;
+        const fileASubir = entradaActiva?.file || _manualFile || null;
+        if (fileASubir) {
             try {
-                const fd = new FormData();
-                fd.append("file", entradaActiva.file);
+                const fd    = new FormData();
+                fd.append("file", fileASubir);
                 const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
-                const up = await fetch(`${API_URL}/stock/facturas/upload`, {
+                const up    = await fetch(`${API_URL}/stock/facturas/upload`, {
                     method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd
                 });
                 if (up.ok) facturaUrl = (await up.json()).url;
-            } catch(e) { console.error("Error subiendo imagen:", e); }
+            } catch(e) { console.error("Error subiendo archivo:", e); }
+            archivoNom = archivoNom || fileASubir.name;
         }
 
         // Registrar factura
         const totalDetectado = [...itemsInsumo.map(i => (i.precio || 0) * i.cant), ...itemsServicio.map(s => s.monto)].reduce((a, b) => a + b, 0);
         const facturaReg = await api.post("/stock/facturas/registrar", {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
-            archivo_nombre: entradaActiva?.datos?.archivo || entradaActiva?.file?.name || null,
+            archivo_nombre: archivoNom,
             archivo_url: facturaUrl, moneda, total_detectado: totalDetectado || null
         });
         const facturaId = facturaReg.id;
@@ -807,6 +867,7 @@ async function confirmarFactura() {
         }
 
         cerrarModal("modal-confirmacion");
+        _manualFile = null;
         if (_archivoActivo !== null) {
             const ea = getEntrada(_archivoActivo);
             if (ea) ea.estado = 'confirmado';
