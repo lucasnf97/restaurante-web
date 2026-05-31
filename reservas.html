@@ -795,10 +795,17 @@ document.addEventListener('mouseup',e=>{
     }
     if(dragReserva){
         if(dragMoved&&dropCol>=0&&dropRow>=0&&mesas[dropRow]){
-            const mt=HORA_INICIO*60+dropCol*SLOT_MIN;
-            const hh=Math.floor(mt/60)%24,mm=mt%60;
-            _moverReserva(dragReserva.r,mesas[dropRow].id,
-                hh.toString().padStart(2,'0')+':'+mm.toString().padStart(2,'0'));
+            const hiM=HORA_INICIO*60+dropCol*SLOT_MIN;
+            const r=dragReserva.r;
+            const sm=minsDesdeInicio(r.hora_inicio);
+            let em;if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
+            if(_posicionValida(hiM, em-sm)){
+                const hh=Math.floor(hiM/60)%24,mm=hiM%60;
+                _moverReserva(r,mesas[dropRow].id,
+                    hh.toString().padStart(2,'0')+':'+mm.toString().padStart(2,'0'));
+            } else {
+                dibujar(); // revertir visual sin mensaje (ya lo vio en el preview rojo)
+            }
         }
         dragReserva=null;dragMoved=false;dropCol=-1;dropRow=-1;
         canvasWrap.classList.remove('grabbing');dibujar();return;
@@ -806,20 +813,59 @@ document.addEventListener('mouseup',e=>{
     isDragging=false;canvasWrap.classList.remove('grabbing');
 });
 
+/** Devuelve true si la posición (horaInicioMins, durMins) es válida ese día. */
+function _posicionValida(hiM, durMins){
+    const hfM=hiM+durMins;
+    const fechaStr=fechaISO(fechaActual);
+    const diaSem=(fechaActual.getDay()+6)%7;
+    const diaH=horarios.find(h=>h.dia_semana===diaSem);
+    if(diaH){
+        if(!diaH.activo) return false;
+        const franjas=diaH.franjas||[];
+        if(franjas.length){
+            const encaja=franjas.some(f=>{
+                const[fsh,fsm]=f.inicio.split(':').map(Number);
+                const[feh,fem]=f.fin.split(':').map(Number);
+                let fIni=fsh*60+fsm, fFin=feh*60+fem;
+                if(fFin<=fIni) fFin+=24*60;
+                return hiM>=fIni&&hfM<=fFin;
+            });
+            if(!encaja) return false;
+        }
+    }
+    for(const b of bloqueos){
+        if((b.fecha||'').substring(0,10)!==fechaStr) continue;
+        if(!b.hora_inicio||!b.hora_fin) return false;
+        const[bsh,bsm]=b.hora_inicio.substring(0,5).split(':').map(Number);
+        const[beh,bem]=b.hora_fin.substring(0,5).split(':').map(Number);
+        const bIni=bsh*60+bsm, bFin=beh*60+bem;
+        if(hiM<bFin&&hfM>bIni) return false;
+    }
+    return true;
+}
+
 function _dibujarConIndicador(){
     dibujar();
     if(dropCol<0||dropRow<0||!mesas[dropRow])return;
     const r=dragReserva.r;
     const sm=minsDesdeInicio(r.hora_inicio);
     let em;if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
-    const durCols=Math.round((em-sm)/SLOT_MIN);
+    const durMins=em-sm;
+    const durCols=Math.round(durMins/SLOT_MIN);
     const targetMesa=mesas[dropRow];
-    const rowY=mesaYMap[targetMesa.id]||HEADER_H;
+    const rowY=mesaYMap[targetMesa.id];
+    if(rowY===undefined)return;
     const x=dropCol*COL_W,y=rowY+2,w=durCols*COL_W-2,h=ROW_H-4;
+    // Validar posición durante el preview
+    const hiM=HORA_INICIO*60+dropCol*SLOT_MIN;
+    const valido=_posicionValida(hiM, durMins);
     ctxC.save();
-    ctxC.globalAlpha=0.55;ctxC.fillStyle=colorReserva(r);
+    ctxC.globalAlpha=0.55;
+    ctxC.fillStyle=valido?colorReserva(r):'#dc2626';
     roundRect(ctxC,x,y,w,h,5);ctxC.fill();
-    ctxC.globalAlpha=1;ctxC.strokeStyle='#4f46e5';ctxC.lineWidth=2.5;ctxC.setLineDash([4,3]);
+    ctxC.globalAlpha=1;
+    ctxC.strokeStyle=valido?'#4f46e5':'#991b1b';
+    ctxC.lineWidth=2.5;ctxC.setLineDash([4,3]);
     roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
     ctxC.setLineDash([]);ctxC.restore();
 }
@@ -874,12 +920,13 @@ async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
     const fechaStr=fechaISO(fechaActual);
     const hiM=sh*60+smm, hfM=sh*60+smm+durMins;
     for(const b of bloqueos){
-        if(b.fecha!==fechaStr)continue;
+        // Comparar solo los primeros 10 chars (por si fecha incluye hora "2026-05-31T00:00")
+        if((b.fecha||'').substring(0,10)!==fechaStr)continue;
         if(!b.hora_inicio||!b.hora_fin){
             alert('El restaurante está bloqueado ese día'+(b.motivo?' ('+b.motivo+')':'')+'.');dibujar();return;
         }
-        const[bsh,bsm]=b.hora_inicio.split(':').map(Number);
-        const[beh,bem]=b.hora_fin.split(':').map(Number);
+        const[bsh,bsm]=b.hora_inicio.substring(0,5).split(':').map(Number);
+        const[beh,bem]=b.hora_fin.substring(0,5).split(':').map(Number);
         const bIni=bsh*60+bsm, bFin=beh*60+bem;
         if(hiM<bFin&&hfM>bIni){
             alert('El horario coincide con un bloqueo de '+b.hora_inicio.substring(0,5)+' – '+b.hora_fin.substring(0,5)+(b.motivo?' ('+b.motivo+')':'')+'.');
