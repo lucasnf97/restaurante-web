@@ -109,10 +109,18 @@
             background: none; font-size: 13px; cursor: pointer; border-radius: 7px; color: #1e293b; }
         .ep-action:hover { background: #f1f5f9; }
         .ep-action.danger { color: #dc2626; } .ep-action.danger:hover { background: #fee2e2; }
-        /* Sala header en la columna de mesas */
-        .grid-sala-label { background: #1e293b; color: #e2e8f0; font-size: 10px; font-weight: 800;
-            text-transform: uppercase; letter-spacing: .8px; padding: 0 8px; display: flex;
-            align-items: center; border-bottom: 1px solid #334155; }
+        /* Sala strip vertical en columna de mesas */
+        .grid-mesa-label { display: flex !important; align-items: center; padding: 0 !important; }
+        .sala-strip { width: 14px; align-self: stretch; flex-shrink: 0; display: flex;
+            align-items: center; justify-content: center; overflow: hidden; }
+        .sala-strip span { writing-mode: vertical-lr; transform: rotate(180deg);
+            font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.9);
+            letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; }
+        .mesa-name { flex: 1; padding: 0 5px; font-size: 10px; }
+        /* Date picker oculto */
+        #res-date-input { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
+        #lbl-fecha { cursor:pointer; padding:4px 10px; border-radius:6px; transition:background .15s; }
+        #lbl-fecha:hover { background:#ede9fe; color:#4f46e5; }
         .print-section { display: none; }
         @media print {
             .no-print { display: none !important; }
@@ -143,7 +151,8 @@
     <div class="tab-panel active" id="panel-reservas">
         <div class="grid-toolbar">
             <button class="btn btn-secondary" onclick="cambiarDia(-1)">◀</button>
-            <strong id="lbl-fecha" style="font-size:14px;color:#1a1a2e;min-width:200px;text-align:center;"></strong>
+            <strong id="lbl-fecha" style="font-size:14px;color:#1a1a2e;min-width:200px;text-align:center;" onclick="abrirDatePickerReservas()" title="Clic para ir a una fecha"></strong>
+            <input type="date" id="res-date-input">
             <button class="btn btn-secondary" onclick="cambiarDia(1)">▶</button>
             <button class="btn btn-secondary" onclick="irHoy()">Hoy</button>
             <div style="width:1px;height:24px;background:#e2e8f0;margin:0 2px;"></div>
@@ -323,12 +332,11 @@ requirePermiso('gestion_reservas', 'ver_reservas');
 // ── Constantes base ────────────────────────────────────────────
 const SLOT_MIN    = 15;
 const COL_W       = 32;
-const ROW_H       = 48;    // altura fila de mesa
-const SALA_H      = 24;    // altura fila separadora de sala
-const HDR_SUM_H   = 20;    // altura fila de resumen (mesas/personas por slot)
-const HDR_TIME_H  = 36;    // altura fila de horas
-const HEADER_H    = HDR_SUM_H + HDR_TIME_H;  // 56px total header
-const RESIZE_HIT  = 8;     // px desde borde derecho para resize handle
+const ROW_H       = 24;    // altura fila de mesa (reducida a la mitad)
+const HEADER_H    = 44;    // altura header total (resumen+horas, sin fila vacía)
+const HDR_SUM_H   = 26;    // zona de sumatorio dentro del header
+const HDR_TIME_H  = 18;    // zona de horas dentro del header
+const RESIZE_HIT  = 8;
 
 // Rango dinámico (se recalcula al cargar horarios)
 let HORA_INICIO  = 9;
@@ -386,6 +394,19 @@ function formatFechaBonita(d){
 function cambiarDia(d){fechaActual=new Date(fechaActual.getTime()+d*86400000);actualizarFechaLabel();cargarDatos();}
 function irHoy(){fechaActual=new Date();actualizarFechaLabel();cargarDatos();}
 function actualizarFechaLabel(){document.getElementById('lbl-fecha').textContent=formatFechaBonita(fechaActual);}
+function abrirDatePickerReservas(){
+    const inp=document.getElementById('res-date-input');
+    inp.value=fechaISO(fechaActual);
+    inp.onchange=(e)=>{
+        if(!e.target.value)return;
+        const[y,m,d]=e.target.value.split('-').map(Number);
+        fechaActual=new Date(y,m-1,d);
+        actualizarFechaLabel();
+        cargarDatos();
+        e.target.value='';
+    };
+    inp.showPicker?.() || inp.click();
+}
 
 // ── Colores (basados en estado manual) ───────────────────────
 function colorReserva(r){
@@ -398,41 +419,52 @@ function colorReserva(r){
     }
 }
 
-// ── Layout: agrupa mesas por sala ────────────────────────────
+// Colores de sala (uno por sala, orden fijo)
+const SALA_COLORS=['#1e293b','#1e4d6b','#2d4a1e','#4a1e2d','#2d2a4a','#4a3a1e'];
+function salaColor(idx){ return SALA_COLORS[idx%SALA_COLORS.length]; }
+
+function buildSalaGroups(){
+    if(salas.length){
+        const groups=[];
+        salas.forEach((sala,idx)=>{
+            const sm=mesas.filter(m=>m.sala_id===sala.id);
+            if(sm.length) groups.push({sala,mesas:sm,colorIdx:idx});
+        });
+        const noSala=mesas.filter(m=>!m.sala_id||!salas.find(s=>s.id===m.sala_id));
+        if(noSala.length) groups.push({sala:null,mesas:noSala,colorIdx:salas.length});
+        return groups;
+    }
+    return [{sala:null,mesas,colorIdx:0}];
+}
+
+// ── Layout: SOLO filas de mesa, salas como strip lateral ─────
 function buildLayout(){
     layoutRows=[]; mesaYMap={};
     let y=HEADER_H;
-    if(salas.length){
-        for(const sala of salas){
-            const sm=mesas.filter(m=>m.sala_id===sala.id);
-            if(!sm.length) continue;
-            layoutRows.push({type:'sala',obj:sala,y,h:SALA_H}); y+=SALA_H;
-            for(const m of sm){layoutRows.push({type:'mesa',obj:m,y,h:ROW_H});mesaYMap[m.id]=y;y+=ROW_H;}
-        }
-        // mesas sin sala asignada
-        const noSala=mesas.filter(m=>!m.sala_id||!salas.find(s=>s.id===m.sala_id));
-        for(const m of noSala){layoutRows.push({type:'mesa',obj:m,y,h:ROW_H});mesaYMap[m.id]=y;y+=ROW_H;}
-    } else {
-        for(const m of mesas){layoutRows.push({type:'mesa',obj:m,y,h:ROW_H});mesaYMap[m.id]=y;y+=ROW_H;}
+    for(const grp of buildSalaGroups()){
+        grp.mesas.forEach((m,i)=>{
+            layoutRows.push({
+                type:'mesa', obj:m, y, h:ROW_H,
+                salaObj:grp.sala, colorIdx:grp.colorIdx,
+                isFirst:i===0, salaSpan:grp.mesas.length
+            });
+            mesaYMap[m.id]=y; y+=ROW_H;
+        });
     }
-    canvasH=y;
-    return y;
+    canvasH=y; return y;
 }
 
-// ── Resumen por slot ──────────────────────────────────────────
-function calcResumenPorSlot(){
-    // Para cada slot: {mesas: N, personas: N}
-    const res=Array.from({length:TOTAL_SLOTS},()=>({mesas:0,personas:0}));
+// ── Resumen por HORA (agrupado, no por slot de 15 min) ───────
+function calcResumenPorHora(){
+    const numHoras=Math.ceil((HORA_FIN-HORA_INICIO));
+    const res=Array.from({length:numHoras},()=>({mesas:0,personas:0}));
     for(const r of reservas){
         if(r.estado==='cancelada'||r.mesa_id==null) continue;
         const sm=minsDesdeInicio(r.hora_inicio);
         let em; if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
-        for(let s=0;s<TOTAL_SLOTS;s++){
-            const slotStart=s*SLOT_MIN, slotEnd=(s+1)*SLOT_MIN;
-            if(sm<slotEnd && em>slotStart){
-                res[s].mesas++;
-                res[s].personas+=(r.comensales||0);
-            }
+        for(let h=0;h<numHoras;h++){
+            const hS=h*60, hE=(h+1)*60;
+            if(sm<hE&&em>hS){ res[h].mesas++; res[h].personas+=(r.comensales||0); }
         }
     }
     return res;
@@ -459,17 +491,12 @@ function dibujar(){
     canvasTime.width=CANVAS_W; canvasTime.height=HEADER_H;
     canvasWrap.style.height=canvasH+'px';
 
-    // Row backgrounds (salas + mesas)
+    // Row backgrounds (solo mesas; salas van como strip lateral)
     let mesaIdx=0;
     for(const row of layoutRows){
-        if(row.type==='sala'){
-            ctxC.fillStyle='#1e293b';
-            ctxC.fillRect(0,row.y,CANVAS_W,row.h);
-        } else {
-            ctxC.fillStyle=mesaIdx%2===0?'#ffffff':'#f8fafc';
-            ctxC.fillRect(0,row.y,CANVAS_W,row.h);
-            mesaIdx++;
-        }
+        ctxC.fillStyle=mesaIdx%2===0?'#ffffff':'#f8fafc';
+        ctxC.fillRect(0,row.y,CANVAS_W,row.h);
+        mesaIdx++;
     }
 
     // Fuera de horario
@@ -570,65 +597,75 @@ function dibujar(){
         rBounds.push({r,x,y,w,h});
     }
 
-    // ── Fila de resumen (encima de las horas) ──────────────────
-    const resumen=calcResumenPorSlot();
+    // ── Header (resumen por hora + horas, sin fila vacía) ──────
+    const resumen=calcResumenPorHora();
+    const numHoras=Math.ceil(HORA_FIN-HORA_INICIO);
     ctxT.clearRect(0,0,CANVAS_W,HEADER_H);
+    // Fila de resumen (arriba, HDR_SUM_H px)
     ctxT.fillStyle='#1e293b'; ctxT.fillRect(0,0,CANVAS_W,HDR_SUM_H);
     ctxT.font='bold 9px Segoe UI';
-    for(let s=0;s<TOTAL_SLOTS;s++){
-        const {mesas:nm,personas:np}=resumen[s];
+    for(let h=0;h<numHoras;h++){
+        const {mesas:nm,personas:np}=resumen[h];
+        const x=h*(60/SLOT_MIN)*COL_W;
+        const w=(60/SLOT_MIN)*COL_W-1;
         if(nm>0){
-            const x=s*COL_W, w=COL_W-1;
-            // fondo coloreado según ocupación
             const pct=nm/(mesas.length||1);
-            const alpha=0.3+pct*0.5;
-            ctxT.fillStyle=`rgba(239,68,68,${alpha})`;
+            ctxT.fillStyle=`rgba(239,68,68,${0.3+pct*0.55})`;
             ctxT.fillRect(x+1,1,w-1,HDR_SUM_H-2);
             ctxT.fillStyle='#fff';
-            ctxT.fillText(nm+'m '+np+'p', x+2, HDR_SUM_H-4);
+            ctxT.fillText(nm+'m '+np+'p', x+4, HDR_SUM_H-5);
         }
     }
-    ctxT.strokeStyle='rgba(255,255,255,0.3)';ctxT.lineWidth=0.5;
+    ctxT.strokeStyle='rgba(255,255,255,0.2)';ctxT.lineWidth=0.5;
     ctxT.beginPath();ctxT.moveTo(0,HDR_SUM_H);ctxT.lineTo(CANVAS_W,HDR_SUM_H);ctxT.stroke();
-
-    // ── Fila de horas ───────────────────────────────────────────
+    // Fila de horas (abajo, HDR_TIME_H px) — directamente debajo sin espacio
     ctxT.fillStyle='#e2e8f0';ctxT.fillRect(0,HDR_SUM_H,CANVAS_W,HDR_TIME_H);
-    ctxT.fillStyle='#374151';ctxT.font='bold 10px Segoe UI';
+    ctxT.fillStyle='#374151';ctxT.font='bold 9px Segoe UI';
     for(let s=0;s<TOTAL_SLOTS;s++){
         if((s*SLOT_MIN)%60===0){
             const hAbs=HORA_INICIO+s*SLOT_MIN/60;
             const label=(hAbs%24).toString().padStart(2,'0')+':00'+(hAbs>=24?'*':'');
-            ctxT.fillText(label,s*COL_W+3,HDR_SUM_H+HDR_TIME_H-9);
+            ctxT.fillText(label,s*COL_W+2,HDR_SUM_H+HDR_TIME_H-4);
         }
     }
-    ctxT.strokeStyle='#94a3b8';ctxT.lineWidth=1.5;
-    ctxT.beginPath();ctxT.moveTo(0,HEADER_H-0.75);ctxT.lineTo(CANVAS_W,HEADER_H-0.75);ctxT.stroke();
+    ctxT.strokeStyle='#94a3b8';ctxT.lineWidth=1.2;
+    ctxT.beginPath();ctxT.moveTo(0,HEADER_H-0.5);ctxT.lineTo(CANVAS_W,HEADER_H-0.5);ctxT.stroke();
 
-    // ── Columna izquierda con salas y mesas ────────────────────
+    // ── Columna izquierda: strips verticales de sala + nombres de mesa ──
     mesaCol.innerHTML=''; mesaCol.style.height=canvasH+'px';
-    // Cabecera (resumen + tiempo)
+    // Header de la columna
     const hdrDiv=document.createElement('div');
-    hdrDiv.style.cssText=`height:${HEADER_H}px;border-bottom:1.5px solid #94a3b8;display:flex;flex-direction:column;`;
-    const sumDiv=document.createElement('div');
-    sumDiv.style.cssText=`height:${HDR_SUM_H}px;background:#1e293b;display:flex;align-items:center;padding:0 6px;font-size:9px;font-weight:800;color:#94a3b8;letter-spacing:.5px;`;
-    sumDiv.textContent='MESAS/PERS';
-    const timeDiv=document.createElement('div');
-    timeDiv.style.cssText=`height:${HDR_TIME_H}px;background:#e2e8f0;`;
-    hdrDiv.appendChild(sumDiv); hdrDiv.appendChild(timeDiv);
+    hdrDiv.style.cssText=`height:${HEADER_H}px;border-bottom:1.5px solid #94a3b8;background:#1e293b;
+        display:flex;align-items:center;padding:0 5px;font-size:8px;font-weight:800;color:#94a3b8;letter-spacing:.5px;`;
+    hdrDiv.textContent='MESAS/PERS';
     mesaCol.appendChild(hdrDiv);
-    // Filas de layout (salas + mesas)
-    for(const row of layoutRows){
-        const d=document.createElement('div');
-        if(row.type==='sala'){
-            d.className='grid-sala-label';
-            d.style.height=row.h+'px';
-            d.textContent='▸ '+row.obj.nombre;
-        } else {
+    // Filas de mesas con strip de sala
+    const grps=buildSalaGroups();
+    let globalMesaIdx=0;
+    for(const grp of grps){
+        const color=salaColor(grp.colorIdx);
+        grp.mesas.forEach((m,i)=>{
+            const d=document.createElement('div');
             d.className='grid-mesa-label';
-            d.style.height=row.h+'px';
-            d.textContent='Mesa '+(row.obj.numero||row.obj.id);
-        }
-        mesaCol.appendChild(d);
+            d.style.height=ROW_H+'px';
+            // Strip de sala (vertical, a la izquierda)
+            const strip=document.createElement('div');
+            strip.className='sala-strip';
+            strip.style.background=color;
+            strip.style.height=ROW_H+'px';
+            if(i===0&&grp.sala){
+                const s=document.createElement('span');
+                s.textContent=grp.sala.nombre;
+                strip.appendChild(s);
+            }
+            // Nombre de mesa
+            const nm=document.createElement('span');
+            nm.className='mesa-name';
+            nm.textContent='M '+(m.numero||m.id);
+            d.appendChild(strip); d.appendChild(nm);
+            mesaCol.appendChild(d);
+            globalMesaIdx++;
+        });
     }
 
     // Scroll a ahora
