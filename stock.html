@@ -124,10 +124,13 @@
                 <option value="advertencia">En advertencia</option>
                 <option value="ok">OK</option>
             </select>
+            <select id="filtro-ins-prov" onchange="cargarInsumos()" style="min-width:160px;">
+                <option value="">Todos los proveedores</option>
+            </select>
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Estándar</th><th>Advertencia</th><th>Mínimo</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Marca</th><th>Proveedor</th><th>Estado</th><th>Acciones</th><th></th></tr></thead>
                 <tbody id="tbody-insumos"><tr><td colspan="8" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
@@ -148,10 +151,13 @@
                 <option value="advertencia">En advertencia</option>
                 <option value="ok">OK</option>
             </select>
+            <select id="filtro-prod-prov" onchange="cargarInsumosProduccion()" style="min-width:160px;">
+                <option value="">Todos los proveedores</option>
+            </select>
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Estándar</th><th>Advertencia</th><th>Mínimo</th><th>Estado</th><th>Receta</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Marca</th><th>Proveedor</th><th>Estado</th><th>Receta</th><th>Acciones</th><th></th></tr></thead>
                 <tbody id="tbody-produccion"><tr><td colspan="9" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
@@ -281,6 +287,26 @@ function fmtNum(n) { return +parseFloat(n).toFixed(3) + ""; }
 
 let _insumos = [];
 let _editandoInsumoId = null;
+let _ultimasCompras = {};   // { insumo_id: { marca, proveedor_nombre } }
+
+async function cargarUltimasCompras() {
+    try {
+        const data = await api.get("/stock/insumos/ultimas-compras");
+        _ultimasCompras = {};
+        data.forEach(d => { _ultimasCompras[d.insumo_id] = d; });
+
+        // Poblar filtros de proveedor con valores únicos
+        const provs = [...new Set(data.map(d => d.proveedor_nombre).filter(Boolean))].sort();
+        ['filtro-ins-prov','filtro-prod-prov'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">Todos los proveedores</option>' +
+                provs.map(p => `<option value="${p}">${p}</option>`).join('');
+            if (cur) sel.value = cur;
+        });
+    } catch(e) { console.warn('No se pudo cargar últimas compras:', e); }
+}
 
 function setTab(tab) {
     ["insumos","produccion","historial"].forEach(t => {
@@ -295,18 +321,15 @@ function setTab(tab) {
 async function cargarInsumos() {
     const nombre = document.getElementById("filtro-ins-nombre").value.trim();
     const estado = document.getElementById("filtro-ins-estado").value;
+    const prov   = document.getElementById("filtro-ins-prov")?.value || "";
     try {
-        // Siempre traer TODOS los insumos; el filtro se aplica solo en la vista
         _insumos = await api.get("/stock/insumos");
-
-        // Filtrar solo para mostrar en la tabla (nunca afecta _insumos)
         let data = _insumos;
         if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre.toLowerCase()));
         if (estado === "agotado")          data = data.filter(i => i.agotado);
         else if (estado === "advertencia") data = data.filter(i => i.en_advertencia && !i.agotado);
         else if (estado === "ok")          data = data.filter(i => !i.en_advertencia);
-
-        // Las estadísticas siempre reflejan el stock total, no el filtrado
+        if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || "") === prov);
         actualizarStats();
 
         const tbody = document.getElementById("tbody-insumos");
@@ -319,6 +342,14 @@ async function cargarInsumos() {
             const badge = i.agotado ? `<span class="badge badge-alert">Agotado</span>`
                 : i.en_advertencia ? `<span class="badge badge-warn">Advertencia</span>`
                 : `<span class="badge badge-ok">OK</span>`;
+            const uc    = _ultimasCompras[i.id] || {};
+            const marca = uc.marca || '<span style="color:#d1d5db">—</span>';
+            const provNombre = uc.proveedor_nombre
+                ? `<span class="prov-chip">🏢 ${uc.proveedor_nombre}</span>`
+                : '<span style="color:#d1d5db">—</span>';
+            const btnHistorial = `<button class="btn btn-secondary btn-sm"
+                onclick="window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
+                title="Ver historial de compras de este insumo">📋 Facturas</button>`;
             return `<tr>
                 <td><strong>${i.nombre}</strong></td>
                 <td>${i.unidad}</td>
@@ -326,14 +357,14 @@ async function cargarInsumos() {
                     <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
                     <div class="stock-bar" style="width:80px;"><div class="stock-bar-fill" style="width:${pct}%;background:${fillColor};"></div></div>
                 </div></td>
-                <td>${+parseFloat(i.cantidad_estandar)}</td>
-                <td>${+parseFloat(i.cantidad_advertencia)}</td>
-                <td>${+parseFloat(i.cantidad_minima)}</td>
+                <td style="font-size:12px;color:#374151;">${marca}</td>
+                <td>${provNombre}</td>
                 <td>${badge}</td>
                 <td><div style="display:flex;gap:6px;">
                     <button class="btn btn-secondary btn-sm" onclick="editarInsumo(${i.id})">Editar</button>
                     <button class="btn btn-danger btn-sm" onclick="eliminarInsumo(${i.id})">✕</button>
                 </div></td>
+                <td>${btnHistorial}</td>
             </tr>`;
         }).join("");
     } catch(e) { console.error(e); }
@@ -461,6 +492,7 @@ let _comboSelId       = null; // id del insumo actualmente seleccionado en el co
 async function cargarInsumosProduccion() {
     const nombre = document.getElementById("filtro-prod-nombre").value.trim();
     const estado = document.getElementById("filtro-prod-estado").value;
+    const prov   = document.getElementById("filtro-prod-prov")?.value || "";
     try {
         let data = await api.get("/stock/insumos-produccion");
         _insumosProduccion = data;
@@ -468,6 +500,7 @@ async function cargarInsumosProduccion() {
         else if (estado === "advertencia") data = data.filter(i => i.en_advertencia && !i.agotado);
         else if (estado === "ok")          data = data.filter(i => !i.en_advertencia);
         if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre.toLowerCase()));
+        if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || "") === prov);
 
         const tbody = document.getElementById("tbody-produccion");
         if (!data.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin insumos de producción</td></tr>`; return; }
@@ -479,6 +512,14 @@ async function cargarInsumosProduccion() {
             const badge = i.agotado ? `<span class="badge badge-alert">Agotado</span>`
                 : i.en_advertencia ? `<span class="badge badge-warn">Advertencia</span>`
                 : `<span class="badge badge-ok">OK</span>`;
+            const uc    = _ultimasCompras[i.id] || {};
+            const marca = uc.marca || '<span style="color:#d1d5db">—</span>';
+            const provNombre = uc.proveedor_nombre
+                ? `<span class="prov-chip">🏢 ${uc.proveedor_nombre}</span>`
+                : '<span style="color:#d1d5db">—</span>';
+            const btnHistorial = `<button class="btn btn-secondary btn-sm"
+                onclick="window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
+                title="Ver historial de compras">📋 Facturas</button>`;
             return `<tr>
                 <td><strong>${i.nombre}</strong></td>
                 <td>${i.unidad}</td>
@@ -486,15 +527,15 @@ async function cargarInsumosProduccion() {
                     <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
                     <div class="stock-bar" style="width:80px;"><div class="stock-bar-fill" style="width:${pct}%;background:${fillColor};"></div></div>
                 </div></td>
-                <td>${+parseFloat(i.cantidad_estandar)}</td>
-                <td>${+parseFloat(i.cantidad_advertencia)}</td>
-                <td>${+parseFloat(i.cantidad_minima)}</td>
+                <td style="font-size:12px;color:#374151;">${marca}</td>
+                <td>${provNombre}</td>
                 <td>${badge}</td>
                 <td><button class="btn btn-secondary btn-sm" onclick="verReceta(${i.id}, '${i.nombre.replace(/'/g,"\\'")}')">Ver receta</button></td>
                 <td><div style="display:flex;gap:6px;">
                     <button class="btn btn-secondary btn-sm" onclick="editarInsumoProduccion(${i.id})">Editar</button>
                     <button class="btn btn-danger btn-sm" onclick="eliminarInsumoProduccion(${i.id})">✕</button>
                 </div></td>
+                <td>${btnHistorial}</td>
             </tr>`;
         }).join("");
         actualizarStats();
@@ -1057,8 +1098,23 @@ async function confirmarRevision() {
     }
 }
 
-// Carga inicial: ambas listas en paralelo para tener las stats completas desde el arranque
-Promise.all([cargarInsumos(), cargarInsumosProduccion()]);
+// Carga inicial
+(async () => {
+    await cargarUltimasCompras();           // cargar marca/proveedor primero
+    await Promise.all([cargarInsumos(), cargarInsumosProduccion()]);
+
+    // Manejar URL params para historial prefilterado (desde botón "Facturas" de un insumo)
+    const params  = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    const insumoParam = params.get('insumo');
+    if (tabParam === 'historial') {
+        setTab('historial');
+        if (insumoParam) {
+            document.getElementById('filtro-hist-nombre').value = insumoParam;
+            cargarHistorial();
+        }
+    }
+})();
 </script>
 
 <!-- Modal Ver Receta -->
