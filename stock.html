@@ -86,6 +86,17 @@
 </head>
 <body>
 
+<!-- Overlay de carga para transiciones de URL (ej: abrir historial prefilterado) -->
+<div id="page-loading-overlay" style="
+    display:none; position:fixed; inset:0; z-index:9999;
+    background:#f0f2f5; align-items:center; justify-content:center;
+    flex-direction:column; gap:16px;">
+    <div style="width:40px;height:40px;border:4px solid #e0e0e0;border-top-color:#4f46e5;
+                border-radius:50%;animation:spin .7s linear infinite;"></div>
+    <div style="font-size:13px;color:#64748b;font-weight:600;" id="page-loading-msg">Cargando…</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
 <nav class="navbar">
     <div class="navbar-brand">🍽️ Gestión Restaurante</div>
     <div class="navbar-links">
@@ -308,12 +319,16 @@ async function cargarUltimasCompras() {
     } catch(e) { console.warn('No se pudo cargar últimas compras:', e); }
 }
 
-function setTab(tab) {
+function _switchTabUI(tab) {
+    // Cambia visualmente el tab activo sin disparar ninguna carga de datos
     ["insumos","produccion","historial"].forEach(t => {
         document.getElementById(`tab-${t}`).classList.toggle("active", t === tab);
         document.getElementById(`vista-${t}`).style.display = t === tab ? "block" : "none";
     });
-    if (tab === "historial") cargarHistorial();
+}
+function setTab(tab) {
+    _switchTabUI(tab);
+    if (tab === "historial")  cargarHistorial();
     if (tab === "produccion") cargarInsumosProduccion();
 }
 
@@ -1100,20 +1115,35 @@ async function confirmarRevision() {
 
 // Carga inicial
 (async () => {
-    await cargarUltimasCompras();           // cargar marca/proveedor primero
-    await Promise.all([cargarInsumos(), cargarInsumosProduccion()]);
-
-    // Manejar URL params para historial prefilterado (desde botón "Facturas" de un insumo)
-    const params  = new URLSearchParams(window.location.search);
-    const tabParam = params.get('tab');
+    const params     = new URLSearchParams(window.location.search);
+    const tabParam   = params.get('tab');
     const insumoParam = params.get('insumo');
-    if (tabParam === 'historial') {
-        // Setear el valor ANTES de llamar setTab para que cargarHistorial()
-        // ya lo lea correctamente cuando se dispara desde el cambio de tab
-        if (insumoParam) {
-            document.getElementById('filtro-hist-nombre').value = insumoParam;
+    const hayParams  = !!tabParam;
+
+    // Si venimos con params de URL, mostrar overlay opaco para ocultar transiciones
+    const overlay = document.getElementById('page-loading-overlay');
+    const loadMsg  = document.getElementById('page-loading-msg');
+    if (hayParams) {
+        overlay.style.display = 'flex';
+        if (insumoParam) loadMsg.textContent = `Cargando historial de "${insumoParam}"…`;
+    }
+
+    try {
+        await cargarUltimasCompras();
+        await Promise.all([cargarInsumos(), cargarInsumosProduccion()]);
+
+        if (tabParam === 'historial') {
+            if (insumoParam) {
+                document.getElementById('filtro-hist-nombre').value = insumoParam;
+            }
+            // Cambio visual del tab sin disparar carga de datos automática
+            _switchTabUI('historial');
+            // Cargar datos UNA sola vez y esperar antes de revelar la página
+            await cargarHistorial();
         }
-        setTab('historial');
+    } finally {
+        // Ocultar overlay — la página ya tiene el estado final correcto
+        if (hayParams) overlay.style.display = 'none';
     }
 })();
 </script>
