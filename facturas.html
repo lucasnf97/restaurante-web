@@ -232,7 +232,14 @@
             <div style="font-size:13px;font-weight:700;color:#1d4ed8;">💱 Moneda</div>
             <span id="conf-moneda-badge" style="font-size:13px;font-weight:700;color:#1e40af;background:#dbeafe;padding:3px 12px;border-radius:20px;">—</span>
             <span style="font-size:12px;color:#64748b;">Si difiere, corregí:</span>
-            <input type="text" id="conf-moneda-codigo" placeholder="ARS, USD, EUR..." maxlength="10" style="padding:5px 10px;border:1.5px solid #93c5fd;border-radius:7px;font-size:13px;width:110px;outline:none;">
+            <!-- input hidden siempre sincronizado — todo el código JS existente lo sigue leyendo -->
+            <input type="hidden" id="conf-moneda-codigo">
+            <select id="conf-moneda-select" onchange="onMonedaSelect()"
+                    style="padding:5px 10px;border:1.5px solid #93c5fd;border-radius:7px;font-size:13px;outline:none;cursor:pointer;">
+            </select>
+            <input type="text" id="conf-moneda-custom" placeholder="Ej: CHF" maxlength="10"
+                   style="display:none;padding:5px 10px;border:1.5px solid #f59e0b;border-radius:7px;font-size:13px;width:90px;outline:none;"
+                   oninput="onMonedaCustomInput()">
         </div>
 
         <!-- Banner de conversión de divisa (visible solo cuando moneda ≠ sistema) -->
@@ -684,15 +691,68 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioP
     </div>`;
 }
 
+// ── Selector de moneda ───────────────────────────────────────
+const _MONEDAS_COMUNES = ["ARS","USD","EUR","BRL","UYU","GBP","CLP","PYG","COP","MXN","CRC","BOB","PEN"];
+
+function _buildMonedaOpts(seleccionada) {
+    // Monedas del historial + comunes (sin duplicados)
+    const delHist = [...new Set((_historialFacturas||[]).map(f=>f.moneda).filter(Boolean))];
+    const lista   = [...new Set([..._MONEDAS_COMUNES, ...delHist])].sort();
+    const estaEnLista = lista.includes(seleccionada);
+    return lista.map(m =>
+        `<option value="${m}" ${m===seleccionada?'selected':''}>${m}</option>`
+    ).join('') +
+    `<option value="__otra__" ${!estaEnLista && seleccionada?'selected':''}>Otra...</option>`;
+}
+
+function _setMonedaCodigo(val) {
+    document.getElementById("conf-moneda-codigo").value = val;
+    actualizarBannerConversion(val);
+}
+
+function onMonedaSelect() {
+    const sel = document.getElementById("conf-moneda-select");
+    const cus = document.getElementById("conf-moneda-custom");
+    if (sel.value === "__otra__") {
+        cus.style.display = "";
+        cus.focus();
+        _setMonedaCodigo(cus.value.trim().toUpperCase());
+    } else {
+        cus.style.display = "none";
+        _setMonedaCodigo(sel.value);
+    }
+}
+
+function onMonedaCustomInput() {
+    const val = document.getElementById("conf-moneda-custom").value.trim().toUpperCase();
+    _setMonedaCodigo(val);
+}
+
+function _iniciarSelectorMoneda(monedaCodigo) {
+    const sel = document.getElementById("conf-moneda-select");
+    const cus = document.getElementById("conf-moneda-custom");
+    sel.innerHTML = _buildMonedaOpts(monedaCodigo);
+    const lista = [...new Set([..._MONEDAS_COMUNES,
+        ...(_historialFacturas||[]).map(f=>f.moneda).filter(Boolean)])];
+    if (monedaCodigo && !lista.includes(monedaCodigo)) {
+        sel.value = "__otra__";
+        cus.value = monedaCodigo;
+        cus.style.display = "";
+    } else {
+        cus.style.display = "none";
+        if (monedaCodigo) sel.value = monedaCodigo;
+    }
+    _setMonedaCodigo(monedaCodigo);
+}
+
 function abrirModalConfirmacion(datos) {
     _confItemCounter = 0;
     document.getElementById("conf-prov-nombre").value = datos.proveedor_nombre || "";
     document.getElementById("conf-prov-cuit").value   = datos.proveedor_cuit   || "";
 
     const monedaCodigo  = datos.moneda || "";
-    const monedaSimbolo = datos.moneda_simbolo || (monedaCodigo ? monedaCodigo + " " : "$");
     document.getElementById("conf-moneda-badge").textContent = monedaCodigo || "—";
-    document.getElementById("conf-moneda-codigo").value      = monedaCodigo;
+    _iniciarSelectorMoneda(monedaCodigo);
 
     // Banner de conversión: si la factura viene en divisa distinta a la del sistema
     actualizarBannerConversion(monedaCodigo);
@@ -1272,6 +1332,7 @@ function actualizarBannerConversion(codigoFactura) {
 }
 
 // Actualizar banner cuando el usuario cambia manualmente el código de moneda
+// Ya no hay input directo de moneda — se maneja con onMonedaSelect/onMonedaCustomInput
 document.getElementById('conf-moneda-codigo')?.addEventListener('input', function() {
     actualizarBannerConversion(this.value.trim().toUpperCase());
 });
