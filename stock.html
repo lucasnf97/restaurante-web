@@ -875,15 +875,16 @@ async function agregarItemReceta() {
     const fila = document.createElement("div");
     fila.style.cssText = "display:flex;gap:8px;align-items:center;padding:8px 10px;background:#ede9fe;border-radius:8px;";
     fila.innerHTML = `
-        <div style="flex:1;">
+        <div style="flex:1;display:flex;align-items:center;border:1.5px solid #c4b5fd;border-radius:6px;background:white;overflow:hidden;">
             <input type="text" id="new-receta-input" autocomplete="off"
                    placeholder="Buscar insumo..."
                    oninput="comboboxInput(event)"
                    onkeydown="comboboxKeydown(event)"
                    onfocus="comboboxMostrar()"
                    onblur="setTimeout(()=>{const l=document.getElementById('combobox-lista');if(l)l.style.display='none'},150)"
-                   style="width:100%;padding:6px 10px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;box-sizing:border-box;outline:none;">
-            <!-- El dropdown se posiciona con position:fixed en comboboxRenderLista() -->
+                   style="flex:1;min-width:0;padding:6px 6px 6px 10px;border:none;font-size:13px;outline:none;background:transparent;">
+            <span id="new-receta-unit-lbl"
+                  style="font-size:11px;color:#9ca3af;padding:0 10px 0 2px;white-space:nowrap;display:none;"></span>
         </div>
         <input type="number" id="new-receta-cant" step="0.001" min="0.001" placeholder="Cantidad"
                style="width:100px;padding:6px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;">
@@ -903,8 +904,11 @@ async function agregarItemReceta() {
 // ── COMBOBOX con autocompletado inline ───────────────────────
 
 function comboboxInput(e) {
-    const input = document.getElementById("new-receta-input");
+    const input   = document.getElementById("new-receta-input");
     if (!input) return;
+    // Al tipear, ocultar la unidad (el usuario está buscando de nuevo)
+    const unitLbl = document.getElementById("new-receta-unit-lbl");
+    if (unitLbl) unitLbl.style.display = "none";
     const isDeleting = e && (e.inputType === "deleteContentBackward" || e.inputType === "deleteContentForward");
     const typed = input.value;
     _comboSelId = null;
@@ -958,10 +962,16 @@ function comboboxSeleccionar(id) {
     const ins = _comboInsumosDisp.find(i => i.id === id);
     if (!ins) return;
     _comboSelId = id;
-    const input = document.getElementById("new-receta-input");
-    const lista = document.getElementById("combobox-lista");
+    const input   = document.getElementById("new-receta-input");
+    const lista   = document.getElementById("combobox-lista");
+    const unitLbl = document.getElementById("new-receta-unit-lbl");
     if (input) input.value = ins.nombre;
     if (lista) lista.style.display = "none";
+    // Mostrar unidad en gris junto al nombre
+    if (unitLbl) {
+        unitLbl.textContent = `(${ins.unidad})`;
+        unitLbl.style.display = "";
+    }
     const cantEl = document.getElementById("new-receta-cant");
     if (cantEl) cantEl.focus();
 }
