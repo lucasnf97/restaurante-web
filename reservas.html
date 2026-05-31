@@ -147,6 +147,19 @@
         .btn-wl-del { background:none; border:none; color:#fca5a5; cursor:pointer;
             font-size:16px; padding:0 4px; margin-left:4px; }
         .btn-wl-del:hover { color:#dc2626; }
+        /* Banner modo colocación */
+        #placement-banner { display:none; position:fixed; bottom:24px; left:50%;
+            transform:translateX(-50%); z-index:500;
+            background:#1a1a2e; color:white; border-radius:12px;
+            padding:12px 20px; font-size:13px; font-weight:600;
+            box-shadow:0 8px 32px rgba(0,0,0,.35); display:none;
+            align-items:center; gap:14px; }
+        #placement-banner.visible { display:flex; }
+        #placement-banner .pb-name { color:#fbbf24; font-size:14px; }
+        #placement-banner .pb-cancel { background:none; border:1.5px solid rgba(255,255,255,.3);
+            color:rgba(255,255,255,.8); border-radius:7px; padding:5px 12px;
+            font-size:12px; cursor:pointer; }
+        #placement-banner .pb-cancel:hover { background:rgba(255,255,255,.1); }
         .print-section { display: none; }
         @media print {
             .no-print { display: none !important; }
@@ -311,6 +324,13 @@
             <button class="btn btn-primary" onclick="window.print()">Imprimir / PDF</button>
         </div>
     </div>
+</div>
+
+<!-- Banner modo colocación (flota sobre la grilla) -->
+<div id="placement-banner">
+    <span>🍽 Seleccioná una mesa disponible para</span>
+    <span class="pb-name" id="pb-nombre">—</span>
+    <button class="pb-cancel" onclick="cancelarPlacement()">✕ Cancelar</button>
 </div>
 
 <!-- MODAL WAITING LIST -->
@@ -673,6 +693,21 @@ function dibujar(){
         rBounds.push({r,x,y,w,h});
     }
 
+    // ── Overlay de placement mode (elegir mesa) ────────────────
+    if(_wlPlacingClient){
+        for(const row of layoutRows){
+            const disponible=_esMesaDisponible(row.obj.id);
+            ctxC.fillStyle=disponible?'rgba(22,163,74,0.2)':'rgba(220,38,38,0.2)';
+            ctxC.fillRect(0,row.y,CANVAS_W,row.h);
+            ctxC.fillStyle=disponible?'#16a34a':'#dc2626';
+            ctxC.font='bold 10px Segoe UI';
+            ctxC.fillText(disponible?'✓':'✕',4,row.y+row.h/2+4);
+        }
+        canvas.style.cursor='crosshair';
+    } else {
+        canvas.style.cursor='';
+    }
+
     // ── Header (resumen por hora + horas, sin fila vacía) ──────
     const resumen=calcResumenPorHora();
     const numHoras=Math.ceil(HORA_FIN-HORA_INICIO);
@@ -760,6 +795,11 @@ function dibujar(){
     // Ajustar height del grid-corner para que coincida con el header
     document.querySelector('.grid-corner').style.height=HEADER_H+'px';
 }
+
+// Escape cancela el placement mode
+document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&_wlPlacingClient) cancelarPlacement();
+});
 
 // ── Scroll sync ───────────────────────────────────────────────
 canvasWrap.addEventListener('scroll',()=>{canvasTime.style.transform='translateX(-'+canvasWrap.scrollLeft+'px)';});
@@ -1033,13 +1073,30 @@ function canvasPos(e){const rect=canvas.getBoundingClientRect();return{x:e.clien
 canvas.addEventListener('click',e=>{
     if(dragMoved||resizeModo)return;
     const{x,y}=canvasPos(e);
+
+    // ── Modo colocación desde waiting list ──────────────────
+    if(_wlPlacingClient){
+        const mesa=mesaEnY(y);
+        if(mesa){
+            if(_esMesaDisponible(mesa.id)){
+                _confirmarColocacion(mesa);
+            } else {
+                // Vibrar el banner para indicar que está ocupada
+                const b=document.getElementById('placement-banner');
+                b.style.transform='translateX(calc(-50% - 6px))';
+                setTimeout(()=>b.style.transform='translateX(calc(-50% + 6px))',80);
+                setTimeout(()=>b.style.transform='translateX(-50%)',160);
+            }
+        }
+        return;
+    }
+
     const hit=hitReserva(x,y);
     if(hit){
         mostrarEstadoPopup(hit.r,e.clientX,e.clientY);
         return;
     }
     cerrarEstadoPopup();
-    // Click en celda vacía → nada (doble click para nueva reserva)
 });
 
 canvas.addEventListener('dblclick',e=>{
@@ -1331,8 +1388,9 @@ async function apiDelete(url){
 
 // ══ WAITING LIST ══════════════════════════════════════════════
 let _waitingList = [];
-let _waitingPasados = [];   // clientes ya pasados a mesa
+let _waitingPasados = [];
 let _wlMostrarPasados = false;
+let _wlPlacingClient = null;   // cliente en modo "elegir mesa"
 const _WL_KEY = 'res_waiting_list';
 
 function _wlCargar(){
@@ -1390,14 +1448,73 @@ function pasarAMesa(id){
     const idx=_waitingList.findIndex(x=>x.id===id);
     if(idx<0)return;
     const item=_waitingList[idx];
-    if(!confirm(`¿${item.nombre} pasó a mesa?`))return;
+    // Entrar en modo colocación: el usuario elige la mesa en la grilla
+    _wlPlacingClient={...item, posicion:idx};
+    cerrarModal('modal-waiting');
+    // Mostrar banner
+    document.getElementById('pb-nombre').textContent=`${item.nombre} (${item.personas} pers.)`;
+    document.getElementById('placement-banner').classList.add('visible');
+    // Redibujar grilla con overlay de disponibilidad
+    dibujar();
+}
+
+function cancelarPlacement(){
+    _wlPlacingClient=null;
+    document.getElementById('placement-banner').classList.remove('visible');
+    dibujar();
+}
+
+/** True si la mesa no tiene reservas activas (no terminadas/canceladas) que
+ *  se solapen con "ahora" o con los próximos SLOT_MIN minutos. */
+function _esMesaDisponible(mesaId){
+    const now=new Date();
+    const nowM=(now.getHours()-HORA_INICIO)*60+now.getMinutes();
+    for(const r of reservas){
+        if(r.mesa_id!==mesaId) continue;
+        if(r.estado==='terminada'||r.estado==='cancelada') continue;
+        const sm=minsDesdeInicio(r.hora_inicio);
+        let em; if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
+        // Considera ocupada si la reserva está activa ahora o empieza en los próximos 15 min
+        if(nowM < em && nowM+15 > sm) return false;
+    }
+    return true;
+}
+
+async function _confirmarColocacion(mesa){
+    const cli=_wlPlacingClient;
+    if(!cli)return;
+    if(!confirm(`¿Sentar a "${cli.nombre}" (${cli.personas} pers.) en Mesa ${mesa.numero}?`))return;
+
     const ahora=new Date();
-    const horaPaso=ahora.getHours().toString().padStart(2,'0')+':'+ahora.getMinutes().toString().padStart(2,'0');
-    // Guardar posición original para poder restaurar
-    _waitingPasados.unshift({...item, posicion:idx, horaPaso});
-    _waitingList=_waitingList.filter(x=>x.id!==id);
-    _wlGuardar();
-    _wlRender();
+    const hh=ahora.getHours().toString().padStart(2,'0');
+    const mm=ahora.getMinutes().toString().padStart(2,'0');
+    const horaInicio=`${hh}:${mm}`;
+    const finTotalM=ahora.getHours()*60+ahora.getMinutes()+60;
+    const horaFin=(Math.floor(finTotalM/60)%24).toString().padStart(2,'0')+':'+(finTotalM%60).toString().padStart(2,'0');
+
+    try{
+        await api.post('/reservas/',{
+            nombre_cliente: cli.nombre,
+            comensales:     cli.personas,
+            fecha:          fechaISO(fechaActual),
+            hora_inicio:    horaInicio,
+            hora_fin:       horaFin,
+            mesa_id:        mesa.id,
+            estado:         'sentado',
+            notas:          'Desde lista de espera',
+        });
+
+        // Mover cliente a pasados
+        const horaPaso=horaInicio;
+        _waitingPasados.unshift({...cli, horaPaso});
+        _waitingList=_waitingList.filter(x=>x.id!==cli.id);
+        _wlGuardar();
+
+        cancelarPlacement();
+        await cargarDatos();
+    }catch(err){
+        alert('Error al crear la reserva: '+err.message);
+    }
 }
 
 function volverALista(id){
