@@ -1108,11 +1108,12 @@ async function confirmarRevision() {
     const tabParam = params.get('tab');
     const insumoParam = params.get('insumo');
     if (tabParam === 'historial') {
-        setTab('historial');
+        // Setear el valor ANTES de llamar setTab para que cargarHistorial()
+        // ya lo lea correctamente cuando se dispara desde el cambio de tab
         if (insumoParam) {
             document.getElementById('filtro-hist-nombre').value = insumoParam;
-            cargarHistorial();
         }
+        setTab('historial');
     }
 })();
 </script>
