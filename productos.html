@@ -126,6 +126,7 @@
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.5);
             display: none; align-items: center; justify-content: center; z-index: 200;
+            padding-top: 64px; /* clearance for fixed navbar */
         }
         .modal-overlay.active { display: flex; }
         .modal {
@@ -182,6 +183,23 @@
         body.solo-vista .solo-vista-oculto { display: none !important; }
 
         /* ── MODAL PRECIOS MASIVOS ── */
+        .pm-filtros {
+            display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+            padding: 10px 16px; border-bottom: 1px solid #f0f0f0; background: #fafafa;
+            flex-shrink: 0;
+        }
+        .pm-filtros input, .pm-filtros select {
+            flex: 1; min-width: 120px; padding: 5px 9px;
+            border: 1.5px solid #e5e7eb; border-radius: 7px; font-size: 12px; outline: none;
+        }
+        .pm-filtros input:focus, .pm-filtros select:focus { border-color: #4f46e5; }
+        .pm-filtros .pm-f-lbl { font-size: 11px; font-weight: 700; color: #6b7280; white-space: nowrap; }
+        .btn-pm-limpiar {
+            padding: 5px 12px; font-size: 12px; font-weight: 600;
+            background: #f3f4f6; border: 1.5px solid #e5e7eb; border-radius: 7px;
+            cursor: pointer; color: #6b7280; white-space: nowrap;
+        }
+        .btn-pm-limpiar:hover { background: #e5e7eb; color: #374151; }
         .pm-col-selector {
             display:flex; align-items:center; gap:14px; padding:12px 20px;
             background:#f8f9fa; border-bottom:1px solid #f0f0f0; flex-wrap:wrap;
@@ -705,6 +723,18 @@
             <button onclick="cerrarModal('modal-precios-masivo')"
                     style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;line-height:1;padding:0 4px;">✕</button>
         </div>
+        <!-- Filtros -->
+        <div class="pm-filtros">
+            <span class="pm-f-lbl">Filtrar:</span>
+            <input type="text" id="pm-f-nombre" placeholder="🔍 Nombre de producto"
+                   oninput="pmAplicarFiltros()">
+            <input type="text" id="pm-f-insumo" placeholder="🥩 Insumo que contiene"
+                   oninput="pmAplicarFiltros()">
+            <select id="pm-f-cat" onchange="pmAplicarFiltros()">
+                <option value="">Todas las categorías</option>
+            </select>
+            <button class="btn-pm-limpiar" onclick="pmLimpiarFiltros()">✕ Limpiar</button>
+        </div>
         <div class="pm-col-selector" id="pm-col-selector">
             <span>Columna a aplicar:</span>
             <label class="pm-col-opt" id="pm-lbl-1">
@@ -820,10 +850,25 @@ function filtrarLocal() {
 }
 
 // ── MODAL PRECIOS MASIVOS ────────────────────────────────────
+let _pmListaBase = [];   // todos los productos al abrir el modal
+
 async function abrirModalPrecios() {
-    const lista = _productosFiltrados || productos;
-    document.getElementById('pm-subtitulo').textContent =
-        `${lista.length} producto${lista.length !== 1 ? 's' : ''} listado${lista.length !== 1 ? 's' : ''} actualmente`;
+    _pmListaBase = _productosFiltrados || productos;
+
+    // Poblar select de categorías con las que existen en la lista
+    const cats = [...new Set(_pmListaBase.map(p => p.categoria).filter(Boolean))].sort();
+    const catSel = document.getElementById('pm-f-cat');
+    catSel.innerHTML = '<option value="">Todas las categorías</option>' +
+        cats.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    // Limpiar filtros
+    document.getElementById('pm-f-nombre').value = '';
+    document.getElementById('pm-f-insumo').value = '';
+    catSel.value = '';
+
+    // Actualizar subtítulo
+    _pmActualizarSubtitulo(_pmListaBase.length);
+
     // Pre-seleccionar la columna activa actual desde el servidor
     let slotActivo = 1;
     try {
@@ -833,9 +878,46 @@ async function abrirModalPrecios() {
     document.querySelectorAll('input[name="pm-col"]').forEach(r => {
         r.checked = parseInt(r.value) === slotActivo;
     });
-    pmRenderTabla(lista);
+    pmRenderTabla(_pmListaBase);
     pmActualizarDestacado();
     document.getElementById('modal-precios-masivo').classList.add('active');
+}
+
+function _pmActualizarSubtitulo(n) {
+    document.getElementById('pm-subtitulo').textContent =
+        `${n} producto${n !== 1 ? 's' : ''} listado${n !== 1 ? 's' : ''}`;
+}
+
+function pmAplicarFiltros() {
+    const qNombre = document.getElementById('pm-f-nombre').value.toLowerCase().trim();
+    const qInsumo = document.getElementById('pm-f-insumo').value.toLowerCase().trim();
+    const qCat    = document.getElementById('pm-f-cat').value;
+
+    let lista = _pmListaBase;
+
+    if (qNombre) lista = lista.filter(p => p.nombre.toLowerCase().includes(qNombre));
+    if (qCat)    lista = lista.filter(p => (p.categoria || '') === qCat);
+
+    if (qInsumo) {
+        // Filtrar por insumos: buscar en _recetas los productos que usan ese insumo
+        const idsConInsumo = new Set(
+            (_recetas || [])
+                .filter(r => (r.insumo_nombre || r.nombre_insumo || '').toLowerCase().includes(qInsumo))
+                .map(r => r.producto_id)
+        );
+        lista = lista.filter(p => idsConInsumo.has(p.id));
+    }
+
+    _pmActualizarSubtitulo(lista.length);
+    pmRenderTabla(lista);
+    pmActualizarDestacado();
+}
+
+function pmLimpiarFiltros() {
+    document.getElementById('pm-f-nombre').value = '';
+    document.getElementById('pm-f-insumo').value = '';
+    document.getElementById('pm-f-cat').value = '';
+    pmAplicarFiltros();
 }
 
 function pmRenderTabla(lista) {
