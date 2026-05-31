@@ -825,11 +825,10 @@ async function confirmarFactura() {
             const cant        = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
             const precioPagado= parseFloat(document.getElementById(`ci-precio-${idx}`)?.value) || null;
             const marca       = document.getElementById(`ci-marca-${idx}`)?.value?.trim() || null;
-            // Precio unitario = total pagado / cantidad en unidad base (para cálculos de costo)
             const precioUnit  = (precioPagado && cant && cant !== 0) ? precioPagado / cant : null;
             if (!insId)  { alert("Todos los ítems de insumo deben tener un insumo asignado."); return; }
             if (!cant || cant === 0 || isNaN(cant)) { alert("Cantidad inválida en un ítem de insumo (puede ser negativa para reintegros)."); return; }
-            itemsInsumo.push({ insId, cant, precio: precioUnit, marca });
+            itemsInsumo.push({ insId, cant, precio: precioUnit, precioPagado, marca });
         } else if (tipo === "servicio") {
             const srvId = parseInt(document.getElementById(`ci-servicio-${idx}`)?.value);
             const monto = parseFloat(document.getElementById(`ci-monto-${idx}`)?.value);
@@ -853,11 +852,13 @@ async function confirmarFactura() {
             }
         }
 
-        // Subir archivo (desde IA o adjunto manual)
+        // Subir archivo (desde IA, adjunto manual, o generado automáticamente)
         let facturaUrl  = null;
         let archivoNom  = entradaActiva?.datos?.archivo || entradaActiva?.file?.name || null;
         const fileASubir = entradaActiva?.file || _manualFile || null;
+
         if (fileASubir) {
+            // Subir archivo real adjunto
             try {
                 const fd    = new FormData();
                 fd.append("file", fileASubir);
@@ -868,6 +869,43 @@ async function confirmarFactura() {
                 if (up.ok) facturaUrl = (await up.json()).url;
             } catch(e) { console.error("Error subiendo archivo:", e); }
             archivoNom = archivoNom || fileASubir.name;
+
+        } else if (_archivoActivo === null) {
+            // Modo manual sin archivo → generar PDF comprobante automáticamente
+            try {
+                const pdfItems = [
+                    ...itemsInsumo.map(item => {
+                        const ins = (_insumos || []).find(i => i.id === item.insId);
+                        return {
+                            tipo: "insumo",
+                            insumo_nombre: ins?.nombre || `Insumo #${item.insId}`,
+                            cantidad:      item.cant,
+                            marca:         item.marca || null,
+                            precio_pagado: item.precioPagado || null,
+                            precio_unitario: item.precio || null,
+                        };
+                    }),
+                    ...itemsServicio.map(item => {
+                        const srv = (_servicios || []).find(s => s.id === item.srvId);
+                        return {
+                            tipo: "servicio",
+                            servicio_nombre: srv?.nombre || `Servicio #${item.srvId}`,
+                            monto: item.monto,
+                        };
+                    }),
+                ];
+                const monedaSim = document.getElementById('conf-moneda-badge')?.textContent?.trim() || moneda || '';
+                const pdfResp = await api.post('/stock/facturas/generar-pdf-manual', {
+                    proveedor_nombre: provNombre,
+                    moneda,
+                    moneda_simbolo: monedaSim,
+                    items: pdfItems,
+                });
+                facturaUrl = pdfResp.url;
+                archivoNom = pdfResp.nombre;
+            } catch(e) {
+                console.warn('No se pudo generar el PDF automático:', e);
+            }
         }
 
         // Registrar factura
