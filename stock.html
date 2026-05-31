@@ -146,6 +146,7 @@
     <div id="vista-insumos">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumo()">+ Nuevo insumo</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalDesecho()" style="border-color:#dc2626;color:#dc2626;">🗑 Registrar desecho</button>
             <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
@@ -173,6 +174,7 @@
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumoProduccion()">+ Nuevo insumo de producción</button>
             <button class="btn btn-secondary btn-sm" onclick="abrirModalRegistrarProduccion()" style="border-color:#7c3aed;color:#7c3aed;">📋 Registrar producción</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalDesecho()" style="border-color:#dc2626;color:#dc2626;">🗑 Registrar desecho</button>
             <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
@@ -579,11 +581,14 @@ async function cargarHistorial() {
         tbody.innerHTML = data.map(m => {
             const esProduccion = m.tipo === "produccion";
             const esRevision   = m.tipo === "revision_resumen";
+            const esDesecho    = m.tipo === "desecho";
 
             // Cantidad
             let cantCell;
             if (esRevision) {
                 cantCell = `<span style="color:#9ca3af">—</span>`;
+            } else if (esDesecho) {
+                cantCell = `<span style="color:#dc2626;font-weight:600;">−${fmtNum(Math.abs(m.cantidad))} <span style="font-size:10px;background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-weight:700;">DESECHO</span></span>`;
             } else if (esProduccion) {
                 cantCell = `<span style="color:#7c3aed;font-weight:600;">+${fmtNum(m.cantidad)} <span style="font-size:10px;background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-weight:700;">PROD</span></span>`;
             } else {
@@ -1147,6 +1152,75 @@ function actualizarStats() {
     document.getElementById("stat-ok-sub").textContent    = `${sOk} stock · ${pOk} prod`;
 }
 
+// ── REGISTRAR DESECHO ─────────────────────────────────────────
+
+let _desechoUltimoPrecio = 0;
+
+function abrirModalDesecho() {
+    // Poblar select con insumos de stock
+    const sel = document.getElementById('des-insumo');
+    sel.innerHTML = '<option value="">— Seleccioná un insumo —</option>' +
+        _insumos.map(i => `<option value="${i.id}" data-unidad="${i.unidad}">${i.nombre} (${i.unidad})</option>`).join('');
+    document.getElementById('des-cantidad').value = '';
+    document.getElementById('des-nota').value = '';
+    document.getElementById('des-unidad-lbl').value = '';
+    document.getElementById('des-perdida-preview').style.display = 'none';
+    _desechoUltimoPrecio = 0;
+
+    // Al cambiar insumo: actualizar unidad y calcular pérdida estimada
+    sel.onchange = () => {
+        const opt = sel.selectedOptions[0];
+        document.getElementById('des-unidad-lbl').value = opt?.dataset?.unidad || '';
+        // Buscar último precio en ultimasCompras o en historial
+        const id = parseInt(sel.value);
+        const uc = _ultimasCompras[id];
+        _desechoUltimoPrecio = 0;  // se recalcula al guardar en backend
+        desechoActualizarPerdida();
+    };
+
+    // Al cambiar cantidad: actualizar pérdida estimada
+    document.getElementById('des-cantidad').oninput = desechoActualizarPerdida;
+
+    document.getElementById('modal-desecho').classList.add('active');
+    setTimeout(() => document.getElementById('des-insumo').focus(), 50);
+}
+
+function desechoActualizarPerdida() {
+    // La pérdida exacta la calcula el backend; aquí solo mostramos si hay precio conocido
+    const cant = parseFloat(document.getElementById('des-cantidad').value) || 0;
+    if (cant > 0 && _desechoUltimoPrecio > 0) {
+        const perdida = (cant * _desechoUltimoPrecio).toFixed(2);
+        document.getElementById('des-perdida-val').textContent = perdida;
+        document.getElementById('des-perdida-preview').style.display = '';
+    } else {
+        document.getElementById('des-perdida-preview').style.display = 'none';
+    }
+}
+
+async function guardarDesecho() {
+    const insId  = parseInt(document.getElementById('des-insumo').value);
+    const cant   = parseFloat(document.getElementById('des-cantidad').value);
+    const nota   = document.getElementById('des-nota').value.trim();
+
+    if (!insId) { alert('Seleccioná un insumo.'); return; }
+    if (!cant || cant <= 0) { alert('La cantidad debe ser mayor a cero.'); return; }
+    if (!nota) { alert('El motivo es obligatorio. Describí por qué se descarta el producto.'); return; }
+
+    const btn = document.getElementById('des-btn-guardar');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+        const res = await api.post('/stock/registrar-desecho', { insumo_id: insId, cantidad: cant, nota });
+        cerrarModal('modal-desecho');
+        await cargarInsumos();
+        await cargarInsumosProduccion();
+        alert(`✅ ${res.mensaje}`);
+    } catch(e) {
+        alert('Error al registrar desecho: ' + (e.message || e));
+    } finally {
+        btn.disabled = false; btn.textContent = '🗑 Confirmar desecho';
+    }
+}
+
 // ── REVISIÓN DE STOCK ─────────────────────────────────────────
 
 // _revData declarado arriba como global
@@ -1348,6 +1422,48 @@ async function confirmarRevision() {
         <div id="modal-receta-contenido"></div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-ver-receta')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Registrar desecho -->
+<div class="modal-overlay" id="modal-desecho">
+    <div class="modal" style="max-width:480px;">
+        <h3>🗑 Registrar desecho</h3>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">
+            Registrá productos descartados por vencimiento, mal estado u otros motivos.
+            El stock se actualizará automáticamente.
+        </p>
+        <div class="form-group">
+            <label>Insumo *</label>
+            <select id="des-insumo" style="width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;">
+                <option value="">— Seleccioná un insumo —</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Cantidad a descartar *</label>
+                <input type="number" id="des-cantidad" min="0.001" step="0.001" placeholder="0" style="width:100%;">
+            </div>
+            <div class="form-group">
+                <label>Unidad</label>
+                <input type="text" id="des-unidad-lbl" disabled
+                       style="width:100%;background:#f9fafb;color:#6b7280;border-color:#e5e7eb;">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Motivo (obligatorio) *</label>
+            <textarea id="des-nota" rows="3" maxlength="300"
+                      placeholder="Ej: Producto vencido. Ej: Contaminación cruzada. Ej: Se cayó y no se puede usar."
+                      style="width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+        </div>
+        <div id="des-perdida-preview" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:13px;color:#dc2626;margin-bottom:4px;">
+            Pérdida estimada: <strong id="des-perdida-val"></strong>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-desecho')">Cancelar</button>
+            <button class="btn btn-primary" id="des-btn-guardar" onclick="guardarDesecho()"
+                    style="background:#dc2626;border-color:#dc2626;">🗑 Confirmar desecho</button>
         </div>
     </div>
 </div>
