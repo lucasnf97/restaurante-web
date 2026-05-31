@@ -93,6 +93,26 @@
         #ctx-menu button { display: block; width: 100%; text-align: left; padding: 8px 14px; border: none; background: none; font-size: 13px; cursor: pointer; border-radius: 5px; color: #1e293b; }
         #ctx-menu button:hover { background: #f1f5f9; }
         #ctx-menu button.danger { color: #dc2626; } #ctx-menu button.danger:hover { background: #fee2e2; }
+        /* Popup de estado */
+        #estado-popup { position: fixed; background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.18); padding: 14px 16px; z-index: 1000; display: none;
+            min-width: 220px; }
+        #estado-popup .ep-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;
+            letter-spacing: .6px; margin-bottom: 10px; }
+        .ep-estado-btn { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+            padding: 8px 10px; border: 1.5px solid #e5e7eb; border-radius: 8px; background: white;
+            font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 6px; transition: all .15s; }
+        .ep-estado-btn:hover { border-color: currentColor; opacity: .85; }
+        .ep-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .ep-sep { border: none; border-top: 1px solid #f3f4f6; margin: 8px 0; }
+        .ep-action { display: block; width: 100%; text-align: left; padding: 7px 10px; border: none;
+            background: none; font-size: 13px; cursor: pointer; border-radius: 7px; color: #1e293b; }
+        .ep-action:hover { background: #f1f5f9; }
+        .ep-action.danger { color: #dc2626; } .ep-action.danger:hover { background: #fee2e2; }
+        /* Sala header en la columna de mesas */
+        .grid-sala-label { background: #1e293b; color: #e2e8f0; font-size: 10px; font-weight: 800;
+            text-transform: uppercase; letter-spacing: .8px; padding: 0 8px; display: flex;
+            align-items: center; border-bottom: 1px solid #334155; }
         .print-section { display: none; }
         @media print {
             .no-print { display: none !important; }
@@ -128,11 +148,10 @@
             <button class="btn btn-secondary" onclick="irHoy()">Hoy</button>
             <div style="width:1px;height:24px;background:#e2e8f0;margin:0 2px;"></div>
             <div class="legend">
-                <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div>Futura</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>En curso</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Por terminar</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Post-reserva</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#b0b8c1"></div>Finalizada</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Programada</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div>Cliente en espera</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Sentado</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#b0b8c1"></div>Terminada</div>
             </div>
             <div style="margin-left:auto;display:flex;gap:8px;">
                 <button class="btn btn-secondary" onclick="abrirListadoPrint()">🖨️ Listado del día</button>
@@ -223,6 +242,16 @@
             <div class="form-group"><label>Alérgeno</label><input type="text" id="fr-alergeno" placeholder="Opcional"></div>
         </div>
         <div class="form-group"><label>Notas</label><textarea id="fr-notas" rows="2" placeholder="Opcional"></textarea></div>
+        <div class="form-group" id="fr-estado-group" style="display:none;">
+            <label>Estado</label>
+            <select id="fr-estado">
+                <option value="programada">🟠 Programada</option>
+                <option value="en_espera">🔵 Cliente en espera</option>
+                <option value="sentado">🔴 Sentado</option>
+                <option value="terminada">⚪ Terminada</option>
+                <option value="cancelada">⚪ Cancelada</option>
+            </select>
+        </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-reserva')">Cancelar</button>
             <button class="btn btn-primary" onclick="guardarReserva()">Guardar</button>
@@ -248,6 +277,27 @@
     <button id="ctx-btn-cancelar" class="danger" onclick="ctxCancelar()">✕  Cancelar reserva</button>
 </div>
 
+<!-- POPUP DE ESTADO (click en reserva) -->
+<div id="estado-popup" class="no-print">
+    <div class="ep-title">Estado de la reserva</div>
+    <button class="ep-estado-btn" style="color:#92400e;" onclick="epCambiarEstado('programada')">
+        <span class="ep-dot" style="background:#f59e0b;"></span>Programada
+    </button>
+    <button class="ep-estado-btn" style="color:#0e7490;" onclick="epCambiarEstado('en_espera')">
+        <span class="ep-dot" style="background:#06b6d4;"></span>Cliente en espera
+    </button>
+    <button class="ep-estado-btn" style="color:#991b1b;" onclick="epCambiarEstado('sentado')">
+        <span class="ep-dot" style="background:#ef4444;"></span>Sentado
+    </button>
+    <hr class="ep-sep">
+    <button class="ep-action" style="font-weight:700;color:#1a1a2e;background:#f0fdf4;" onclick="epTerminar()">
+        ✓ Terminar reserva
+    </button>
+    <hr class="ep-sep">
+    <button class="ep-action" onclick="epEditar()">✏️ Editar datos</button>
+    <button class="ep-action danger" onclick="epCancelar()">✕ Cancelar reserva</button>
+</div>
+
 <!-- SECCIÓN IMPRIMIBLE -->
 <div class="print-section" id="print-section"></div>
 
@@ -271,10 +321,14 @@ requirePermiso('gestion_reservas', 'ver_reservas');
 })();
 
 // ── Constantes base ────────────────────────────────────────────
-const SLOT_MIN = 15;
-const COL_W    = 32;
-const ROW_H    = 48;
-const HEADER_H = 36;
+const SLOT_MIN    = 15;
+const COL_W       = 32;
+const ROW_H       = 48;    // altura fila de mesa
+const SALA_H      = 24;    // altura fila separadora de sala
+const HDR_SUM_H   = 20;    // altura fila de resumen (mesas/personas por slot)
+const HDR_TIME_H  = 36;    // altura fila de horas
+const HEADER_H    = HDR_SUM_H + HDR_TIME_H;  // 56px total header
+const RESIZE_HIT  = 8;     // px desde borde derecho para resize handle
 
 // Rango dinámico (se recalcula al cargar horarios)
 let HORA_INICIO  = 9;
@@ -308,8 +362,11 @@ function recalcularRango() {
 
 // ── Estado ────────────────────────────────────────────────────
 let fechaActual = new Date();
-let mesas=[], reservas=[], bloqueos=[], horarios=[];
-let editandoId=null, ctxReserva=null;
+let mesas=[], reservas=[], bloqueos=[], horarios=[], salas=[];
+let editandoId=null, ctxReserva=null, epReserva=null;
+// Layout calculado: [{type:'sala'|'mesa', obj, y, h}]
+let layoutRows=[], mesaYMap={};   // mesaYMap: {mesa_id → y en canvas}
+let canvasH=0;
 
 // ── Refs ──────────────────────────────────────────────────────
 const canvasWrap = document.getElementById('canvas-wrap');
@@ -330,21 +387,55 @@ function cambiarDia(d){fechaActual=new Date(fechaActual.getTime()+d*86400000);ac
 function irHoy(){fechaActual=new Date();actualizarFechaLabel();cargarDatos();}
 function actualizarFechaLabel(){document.getElementById('lbl-fecha').textContent=formatFechaBonita(fechaActual);}
 
-// ── Colores ───────────────────────────────────────────────────
+// ── Colores (basados en estado manual) ───────────────────────
 function colorReserva(r){
-    const now=new Date(), hoy=fechaISO(now);
-    if(r.fecha!==hoy) return '#b0b8c1';
-    const [hh,mm]=r.hora_inicio.split(':').map(Number);
-    const hi=new Date(now); hi.setHours(hh,mm,0,0);
-    let hf;
-    if(r.hora_fin){const[eh,em]=r.hora_fin.split(':').map(Number);hf=new Date(now);hf.setHours(eh,em,0,0);if(hf<=hi)hf=new Date(hf.getTime()+86400000);}
-    else hf=new Date(hi.getTime()+60*60000);
-    const fin_real=new Date(hf.getTime()-15*60000), alerta=new Date(fin_real.getTime()-15*60000);
-    if(now>=hf) return '#b0b8c1';
-    if(now>=fin_real) return '#ef4444';
-    if(now>=alerta) return '#f59e0b';
-    if(now>=hi) return '#22c55e';
-    return '#a78bfa';
+    switch(r.estado){
+        case 'sentado':            return '#ef4444';
+        case 'en_espera':          return '#06b6d4';
+        case 'terminada':
+        case 'cancelada':          return '#b0b8c1';
+        default:                   return '#f59e0b';  // programada u otro
+    }
+}
+
+// ── Layout: agrupa mesas por sala ────────────────────────────
+function buildLayout(){
+    layoutRows=[]; mesaYMap={};
+    let y=HEADER_H;
+    if(salas.length){
+        for(const sala of salas){
+            const sm=mesas.filter(m=>m.sala_id===sala.id);
+            if(!sm.length) continue;
+            layoutRows.push({type:'sala',obj:sala,y,h:SALA_H}); y+=SALA_H;
+            for(const m of sm){layoutRows.push({type:'mesa',obj:m,y,h:ROW_H});mesaYMap[m.id]=y;y+=ROW_H;}
+        }
+        // mesas sin sala asignada
+        const noSala=mesas.filter(m=>!m.sala_id||!salas.find(s=>s.id===m.sala_id));
+        for(const m of noSala){layoutRows.push({type:'mesa',obj:m,y,h:ROW_H});mesaYMap[m.id]=y;y+=ROW_H;}
+    } else {
+        for(const m of mesas){layoutRows.push({type:'mesa',obj:m,y,h:ROW_H});mesaYMap[m.id]=y;y+=ROW_H;}
+    }
+    canvasH=y;
+    return y;
+}
+
+// ── Resumen por slot ──────────────────────────────────────────
+function calcResumenPorSlot(){
+    // Para cada slot: {mesas: N, personas: N}
+    const res=Array.from({length:TOTAL_SLOTS},()=>({mesas:0,personas:0}));
+    for(const r of reservas){
+        if(r.estado==='cancelada'||r.mesa_id==null) continue;
+        const sm=minsDesdeInicio(r.hora_inicio);
+        let em; if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
+        for(let s=0;s<TOTAL_SLOTS;s++){
+            const slotStart=s*SLOT_MIN, slotEnd=(s+1)*SLOT_MIN;
+            if(sm<slotEnd && em>slotStart){
+                res[s].mesas++;
+                res[s].personas+=(r.comensales||0);
+            }
+        }
+    }
+    return res;
 }
 function darken(hex,a){const n=parseInt(hex.replace('#',''),16);return '#'+[Math.max(0,(n>>16)-a),Math.max(0,((n>>8)&0xff)-a),Math.max(0,(n&0xff)-a)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 function roundRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();}
@@ -363,26 +454,34 @@ function hitReserva(x,y){return rBounds.find(b=>x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b
 
 // ── Dibujar ───────────────────────────────────────────────────
 function dibujar(){
-    const nM=mesas.length, canvasH=HEADER_H+nM*ROW_H;
+    buildLayout();
     canvas.width=CANVAS_W; canvas.height=canvasH;
     canvasTime.width=CANVAS_W; canvasTime.height=HEADER_H;
     canvasWrap.style.height=canvasH+'px';
 
-    // Row backgrounds
-    for(let i=0;i<nM;i++){
-        ctxC.fillStyle=i%2===0?'#ffffff':'#f8fafc';
-        ctxC.fillRect(0,HEADER_H+i*ROW_H,CANVAS_W,ROW_H);
+    // Row backgrounds (salas + mesas)
+    let mesaIdx=0;
+    for(const row of layoutRows){
+        if(row.type==='sala'){
+            ctxC.fillStyle='#1e293b';
+            ctxC.fillRect(0,row.y,CANVAS_W,row.h);
+        } else {
+            ctxC.fillStyle=mesaIdx%2===0?'#ffffff':'#f8fafc';
+            ctxC.fillRect(0,row.y,CANVAS_W,row.h);
+            mesaIdx++;
+        }
     }
 
     // Fuera de horario
     const diaSem=(fechaActual.getDay()+6)%7;
     const diaH=horarios.find(h=>h.dia_semana===diaSem);
     const totalMinsGrilla=(HORA_FIN-HORA_INICIO)*60;
-    function drawOOH(s,e){ctxC.fillStyle='rgba(203,213,225,0.62)';ctxC.fillRect((s/SLOT_MIN)*COL_W,HEADER_H,((e-s)/SLOT_MIN)*COL_W,nM*ROW_H);}
+    const bodyH=canvasH-HEADER_H;
+    function drawOOH(s,e){ctxC.fillStyle='rgba(203,213,225,0.62)';ctxC.fillRect((s/SLOT_MIN)*COL_W,HEADER_H,((e-s)/SLOT_MIN)*COL_W,bodyH);}
 
     if(diaH){
         if(!diaH.activo){
-            ctxC.fillStyle='rgba(203,213,225,0.65)';ctxC.fillRect(0,HEADER_H,CANVAS_W,nM*ROW_H);
+            ctxC.fillStyle='rgba(203,213,225,0.65)';ctxC.fillRect(0,HEADER_H,CANVAS_W,bodyH);
         } else {
             const franjas=(diaH.franjas||[]).map(f=>{
                 const[sh,sm]=f.inicio.split(':').map(Number),[eh,em]=f.fin.split(':').map(Number);
@@ -411,7 +510,7 @@ function dibujar(){
             if(e<=s&&e+24*60/SLOT_MIN*COL_W>0){/* todo el día */x1=0;x2=CANVAS_W;}
             else{x1=(s/SLOT_MIN)*COL_W;x2=(Math.min(totalMinsGrilla,e)/SLOT_MIN)*COL_W;}
         }
-        const bh=nM*ROW_H;
+        const bh=canvasH-HEADER_H;
         ctxC.fillStyle='rgba(220,38,38,0.10)';ctxC.fillRect(x1,HEADER_H,x2-x1,bh);
         ctxC.fillStyle=hatchPat;ctxC.fillRect(x1,HEADER_H,x2-x1,bh);
         ctxC.strokeStyle='rgba(185,28,28,0.65)';ctxC.lineWidth=1.5;ctxC.strokeRect(x1,HEADER_H,x2-x1,bh);
@@ -443,47 +542,94 @@ function dibujar(){
 
     // Reservas
     rBounds=[];
-    const midx=Object.fromEntries(mesas.map((m,i)=>[m.id,i]));
     for(const r of reservas){
-        if(r.mesa_id==null||!(r.mesa_id in midx)) continue;
-        const row=midx[r.mesa_id];
+        if(r.mesa_id==null||!(r.mesa_id in mesaYMap)) continue;
+        const rowY=mesaYMap[r.mesa_id];
         const sm=minsDesdeInicio(r.hora_inicio);
         let em;
         if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}
         else em=sm+60;
         const x=Math.max(0,(sm/SLOT_MIN)*COL_W), w=Math.max(COL_W,((em-sm)/SLOT_MIN)*COL_W)-2;
-        const y=HEADER_H+row*ROW_H+2, h=ROW_H-4, color=colorReserva(r);
-        ctxC.shadowColor='rgba(0,0,0,0.15)';ctxC.shadowBlur=3;ctxC.shadowOffsetY=1;
-        ctxC.fillStyle=color;roundRect(ctxC,x,y,w,h,5);ctxC.fill();
-        ctxC.shadowBlur=0;ctxC.shadowOffsetY=0;
+        const y=rowY+2, h=ROW_H-4, color=colorReserva(r);
+        const esTerminada=(r.estado==='terminada'||r.estado==='cancelada');
+        ctxC.shadowColor='rgba(0,0,0,0.12)';ctxC.shadowBlur=3;ctxC.shadowOffsetY=1;
+        ctxC.fillStyle=color;ctxC.globalAlpha=esTerminada?0.6:1;
+        roundRect(ctxC,x,y,w,h,5);ctxC.fill();
+        ctxC.globalAlpha=1;ctxC.shadowBlur=0;ctxC.shadowOffsetY=0;
         ctxC.strokeStyle=darken(color,30);ctxC.lineWidth=1.5;roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
-        ctxC.fillStyle='#1e293b';ctxC.font='bold 10px Segoe UI';
+        // Texto
+        ctxC.fillStyle=esTerminada?'#64748b':'#1e293b';ctxC.font='bold 10px Segoe UI';
         ctxC.save();ctxC.beginPath();ctxC.rect(x+3,y+1,w-6,h-2);ctxC.clip();
         ctxC.fillText(r.nombre_cliente+' ('+r.comensales+')'+(r.alergeno?' ⚠':'')+(r.notas?' 📝':''),x+5,y+h/2+4);
         ctxC.restore();
+        // Handle de resize (indicador en borde derecho)
+        if(!esTerminada&&w>20){
+            ctxC.fillStyle='rgba(255,255,255,0.5)';
+            ctxC.fillRect(x+w-5,y+h/2-8,3,16);
+        }
         rBounds.push({r,x,y,w,h});
     }
 
-    // Header tiempos
+    // ── Fila de resumen (encima de las horas) ──────────────────
+    const resumen=calcResumenPorSlot();
     ctxT.clearRect(0,0,CANVAS_W,HEADER_H);
-    ctxT.fillStyle='#e2e8f0';ctxT.fillRect(0,0,CANVAS_W,HEADER_H);
+    ctxT.fillStyle='#1e293b'; ctxT.fillRect(0,0,CANVAS_W,HDR_SUM_H);
+    ctxT.font='bold 9px Segoe UI';
+    for(let s=0;s<TOTAL_SLOTS;s++){
+        const {mesas:nm,personas:np}=resumen[s];
+        if(nm>0){
+            const x=s*COL_W, w=COL_W-1;
+            // fondo coloreado según ocupación
+            const pct=nm/(mesas.length||1);
+            const alpha=0.3+pct*0.5;
+            ctxT.fillStyle=`rgba(239,68,68,${alpha})`;
+            ctxT.fillRect(x+1,1,w-1,HDR_SUM_H-2);
+            ctxT.fillStyle='#fff';
+            ctxT.fillText(nm+'m '+np+'p', x+2, HDR_SUM_H-4);
+        }
+    }
+    ctxT.strokeStyle='rgba(255,255,255,0.3)';ctxT.lineWidth=0.5;
+    ctxT.beginPath();ctxT.moveTo(0,HDR_SUM_H);ctxT.lineTo(CANVAS_W,HDR_SUM_H);ctxT.stroke();
+
+    // ── Fila de horas ───────────────────────────────────────────
+    ctxT.fillStyle='#e2e8f0';ctxT.fillRect(0,HDR_SUM_H,CANVAS_W,HDR_TIME_H);
     ctxT.fillStyle='#374151';ctxT.font='bold 10px Segoe UI';
     for(let s=0;s<TOTAL_SLOTS;s++){
         if((s*SLOT_MIN)%60===0){
             const hAbs=HORA_INICIO+s*SLOT_MIN/60;
-            const hDis=hAbs%24;
-            const label=hDis.toString().padStart(2,'0')+':00'+(hAbs>=24?'*':'');
-            ctxT.fillText(label,s*COL_W+3,HEADER_H-9);
+            const label=(hAbs%24).toString().padStart(2,'0')+':00'+(hAbs>=24?'*':'');
+            ctxT.fillText(label,s*COL_W+3,HDR_SUM_H+HDR_TIME_H-9);
         }
     }
     ctxT.strokeStyle='#94a3b8';ctxT.lineWidth=1.5;
     ctxT.beginPath();ctxT.moveTo(0,HEADER_H-0.75);ctxT.lineTo(CANVAS_W,HEADER_H-0.75);ctxT.stroke();
 
-    // Columna mesas
-    mesaCol.innerHTML='';mesaCol.style.height=(HEADER_H+nM*ROW_H)+'px';
-    const corner=document.createElement('div');corner.style.cssText='height:'+HEADER_H+'px;border-bottom:1.5px solid #94a3b8;';
-    mesaCol.appendChild(corner);
-    for(const m of mesas){const d=document.createElement('div');d.className='grid-mesa-label';d.textContent='Mesa '+m.numero;mesaCol.appendChild(d);}
+    // ── Columna izquierda con salas y mesas ────────────────────
+    mesaCol.innerHTML=''; mesaCol.style.height=canvasH+'px';
+    // Cabecera (resumen + tiempo)
+    const hdrDiv=document.createElement('div');
+    hdrDiv.style.cssText=`height:${HEADER_H}px;border-bottom:1.5px solid #94a3b8;display:flex;flex-direction:column;`;
+    const sumDiv=document.createElement('div');
+    sumDiv.style.cssText=`height:${HDR_SUM_H}px;background:#1e293b;display:flex;align-items:center;padding:0 6px;font-size:9px;font-weight:800;color:#94a3b8;letter-spacing:.5px;`;
+    sumDiv.textContent='MESAS/PERS';
+    const timeDiv=document.createElement('div');
+    timeDiv.style.cssText=`height:${HDR_TIME_H}px;background:#e2e8f0;`;
+    hdrDiv.appendChild(sumDiv); hdrDiv.appendChild(timeDiv);
+    mesaCol.appendChild(hdrDiv);
+    // Filas de layout (salas + mesas)
+    for(const row of layoutRows){
+        const d=document.createElement('div');
+        if(row.type==='sala'){
+            d.className='grid-sala-label';
+            d.style.height=row.h+'px';
+            d.textContent='▸ '+row.obj.nombre;
+        } else {
+            d.className='grid-mesa-label';
+            d.style.height=row.h+'px';
+            d.textContent='Mesa '+(row.obj.numero||row.obj.id);
+        }
+        mesaCol.appendChild(d);
+    }
 
     // Scroll a ahora
     if(fechaISO(now)===fechaStr){
@@ -498,10 +644,39 @@ setInterval(()=>{if(document.getElementById('panel-reservas').classList.contains
 
 let isDragging=false, dragStartX=0, scrollStartX=0, dragMoved=false;
 let dragReserva=null, dragStartCX=0, dragStartCY=0, dropCol=-1, dropRow=-1;
+// Resize
+let resizeModo=false, resizeReserva=null, resizeStartX=0, resizeOrigColEnd=0;
+
+// Detectar si el punto está en el handle de resize (últimos RESIZE_HIT px del rect)
+function hitResize(x,y){return rBounds.find(b=>x>=b.x+b.w-RESIZE_HIT&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h);}
+
+// Detectar mesa a partir de posición y
+function mesaEnY(y){
+    for(const row of layoutRows){
+        if(row.type==='mesa'&&y>=row.y&&y<row.y+row.h) return row.obj;
+    }
+    return null;
+}
+
+canvas.addEventListener('mousemove',e=>{
+    const{x,y}=canvasPos(e);
+    const onResize=hitResize(x,y);
+    canvas.style.cursor=onResize?'col-resize':'default';
+});
 
 canvasWrap.addEventListener('mousedown',e=>{
     if(e.button!==0)return;
     const{x,y}=canvasPos(e);
+    // Prioridad 1: resize
+    const onResize=hitResize(x,y);
+    if(onResize&&onResize.r.estado!=='cancelada'&&onResize.r.estado!=='terminada'){
+        resizeModo=true; resizeReserva=onResize;
+        resizeStartX=x;
+        const sm=minsDesdeInicio(onResize.r.hora_inicio);
+        let em; if(onResize.r.hora_fin){em=minsDesdeInicio(onResize.r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
+        resizeOrigColEnd=Math.round(em/SLOT_MIN);
+        canvasWrap.classList.add('grabbing'); e.preventDefault(); return;
+    }
     const hit=hitReserva(x,y);
     if(hit && hit.r.estado!=='cancelada'){
         dragReserva=hit;dragStartCX=x;dragStartCY=y;
@@ -512,12 +687,22 @@ canvasWrap.addEventListener('mousedown',e=>{
     canvasWrap.classList.add('grabbing');e.preventDefault();
 });
 document.addEventListener('mousemove',e=>{
+    if(resizeModo){
+        const{x}=canvasPos(e);
+        const dx=x-resizeStartX;
+        const deltaCols=Math.round(dx/COL_W);
+        const newEndCol=Math.max(resizeOrigColEnd-Math.round((resizeOrigColEnd-(minsDesdeInicio(resizeReserva.r.hora_inicio)/SLOT_MIN||0))),
+                                  resizeOrigColEnd+deltaCols);
+        _dibujarResizePreview(newEndCol);
+        return;
+    }
     if(dragReserva){
         const{x,y}=canvasPos(e);
         if(Math.abs(x-dragStartCX)>6||Math.abs(y-dragStartCY)>6){
             dragMoved=true;
             dropCol=Math.max(0,Math.min(TOTAL_SLOTS-1,Math.floor(x/COL_W)));
-            dropRow=Math.max(0,Math.min(mesas.length-1,Math.floor((y-HEADER_H)/ROW_H)));
+            const mesa=mesaEnY(y);
+            dropRow=mesa?mesas.findIndex(m=>m.id===mesa.id):-1;
             _dibujarConIndicador();
         }
         return;
@@ -527,9 +712,23 @@ document.addEventListener('mousemove',e=>{
     if(Math.abs(dx)>4)dragMoved=true;
     canvasWrap.scrollLeft=scrollStartX+dx;
 });
-document.addEventListener('mouseup',()=>{
+document.addEventListener('mouseup',e=>{
+    if(resizeModo){
+        const{x}=canvasPos(e);
+        const dx=x-resizeStartX;
+        const deltaCols=Math.round(dx/COL_W);
+        const newEndCol=Math.max(resizeOrigColEnd+1, resizeOrigColEnd+deltaCols);
+        const newEndMins=(newEndCol*SLOT_MIN);
+        const hh=Math.floor((HORA_INICIO*60+newEndMins)/60)%24;
+        const mm=(HORA_INICIO*60+newEndMins)%60;
+        const nuevaFin=hh.toString().padStart(2,'0')+':'+mm.toString().padStart(2,'0');
+        api.patch('/reservas/'+resizeReserva.r.id,{hora_fin:nuevaFin})
+           .then(()=>cargarDatos()).catch(err=>alert('Error: '+err.message));
+        resizeModo=false;resizeReserva=null;
+        canvasWrap.classList.remove('grabbing');dibujar();return;
+    }
     if(dragReserva){
-        if(dragMoved&&dropCol>=0&&dropRow>=0){
+        if(dragMoved&&dropCol>=0&&dropRow>=0&&mesas[dropRow]){
             const mt=HORA_INICIO*60+dropCol*SLOT_MIN;
             const hh=Math.floor(mt/60)%24,mm=mt%60;
             _moverReserva(dragReserva.r,mesas[dropRow].id,
@@ -543,16 +742,35 @@ document.addEventListener('mouseup',()=>{
 
 function _dibujarConIndicador(){
     dibujar();
-    if(dropCol<0||dropRow<0)return;
+    if(dropCol<0||dropRow<0||!mesas[dropRow])return;
     const r=dragReserva.r;
     const sm=minsDesdeInicio(r.hora_inicio);
     let em;if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
     const durCols=Math.round((em-sm)/SLOT_MIN);
-    const x=dropCol*COL_W,y=HEADER_H+dropRow*ROW_H+2,w=durCols*COL_W-2,h=ROW_H-4;
+    const targetMesa=mesas[dropRow];
+    const rowY=mesaYMap[targetMesa.id]||HEADER_H;
+    const x=dropCol*COL_W,y=rowY+2,w=durCols*COL_W-2,h=ROW_H-4;
     ctxC.save();
     ctxC.globalAlpha=0.55;ctxC.fillStyle=colorReserva(r);
     roundRect(ctxC,x,y,w,h,5);ctxC.fill();
     ctxC.globalAlpha=1;ctxC.strokeStyle='#4f46e5';ctxC.lineWidth=2.5;ctxC.setLineDash([4,3]);
+    roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
+    ctxC.setLineDash([]);ctxC.restore();
+}
+
+function _dibujarResizePreview(newEndCol){
+    dibujar();
+    if(!resizeReserva)return;
+    const r=resizeReserva.r;
+    const sm=minsDesdeInicio(r.hora_inicio);
+    const smCol=Math.round(sm/SLOT_MIN);
+    const w=Math.max(COL_W,(newEndCol-smCol)*COL_W)-2;
+    const rowY=mesaYMap[r.mesa_id]||HEADER_H;
+    const x=smCol*COL_W,y=rowY+2,h=ROW_H-4;
+    ctxC.save();
+    ctxC.globalAlpha=0.7;ctxC.fillStyle=colorReserva(r);
+    roundRect(ctxC,x,y,w,h,5);ctxC.fill();
+    ctxC.globalAlpha=1;ctxC.strokeStyle='#4f46e5';ctxC.lineWidth=2;ctxC.setLineDash([3,2]);
     roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
     ctxC.setLineDash([]);ctxC.restore();
 }
@@ -624,19 +842,85 @@ async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
 // ── Interacción canvas ─────────────────────────────────────────
 function canvasPos(e){const rect=canvas.getBoundingClientRect();return{x:e.clientX-rect.left,y:e.clientY-rect.top};}
 
+// Single click → popup de estado
+canvas.addEventListener('click',e=>{
+    if(dragMoved||resizeModo)return;
+    const{x,y}=canvasPos(e);
+    const hit=hitReserva(x,y);
+    if(hit){
+        mostrarEstadoPopup(hit.r,e.clientX,e.clientY);
+        return;
+    }
+    cerrarEstadoPopup();
+    // Click en celda vacía → nada (doble click para nueva reserva)
+});
+
 canvas.addEventListener('dblclick',e=>{
     if(dragMoved)return;
     const{x,y}=canvasPos(e);
     const hit=hitReserva(x,y);
-    if(hit){abrirModalEditar(hit.r);return;}
+    if(hit){cerrarEstadoPopup();abrirModalEditar(hit.r);return;}
     if(y<HEADER_H)return;
-    const col=Math.floor(x/COL_W),row=Math.floor((y-HEADER_H)/ROW_H);
-    if(col>=0&&col<TOTAL_SLOTS&&row>=0&&row<mesas.length){
+    const mesa=mesaEnY(y);
+    if(mesa){
+        cerrarEstadoPopup();
+        const col=Math.floor(x/COL_W);
         const minsTotal=(HORA_INICIO*60+col*SLOT_MIN);
         const hh=Math.floor(minsTotal/60)%24,mm=minsTotal%60;
-        abrirModalNuevo(mesas[row].id,hh.toString().padStart(2,'0')+':'+mm.toString().padStart(2,'0'));
+        abrirModalNuevo(mesa.id,hh.toString().padStart(2,'0')+':'+mm.toString().padStart(2,'0'));
     }
 });
+
+// ── Popup de estado ───────────────────────────────────────────
+function mostrarEstadoPopup(r,cx,cy){
+    epReserva=r;
+    const popup=document.getElementById('estado-popup');
+    // Posicionar cerca del click sin salirse de la ventana
+    const pw=230, ph=220;
+    let left=cx+8, top=cy+8;
+    if(left+pw>window.innerWidth) left=cx-pw-8;
+    if(top+ph>window.innerHeight) top=cy-ph-8;
+    popup.style.left=left+'px'; popup.style.top=top+'px';
+    popup.style.display='block';
+}
+function cerrarEstadoPopup(){
+    document.getElementById('estado-popup').style.display='none';
+    epReserva=null;
+}
+document.addEventListener('click',e=>{
+    if(!document.getElementById('estado-popup').contains(e.target)&&
+       e.target!==canvas){
+        cerrarEstadoPopup();
+    }
+    document.getElementById('ctx-menu').style.display='none';
+});
+
+async function epCambiarEstado(nuevoEstado){
+    if(!epReserva)return;
+    try{
+        await api.patch('/reservas/'+epReserva.id,{estado:nuevoEstado});
+        cerrarEstadoPopup();
+        await cargarDatos();
+    }catch(err){alert('Error: '+err.message);}
+}
+async function epTerminar(){
+    if(!epReserva)return;
+    if(!confirm('¿Terminar la reserva de '+epReserva.nombre_cliente+'? Se ajustará la hora de fin a ahora mismo.'))return;
+    try{
+        await api.patch('/reservas/'+epReserva.id+'/terminar');
+        cerrarEstadoPopup();
+        await cargarDatos();
+    }catch(err){alert('Error: '+err.message);}
+}
+function epEditar(){const r=epReserva;cerrarEstadoPopup();if(r)abrirModalEditar(r);}
+async function epCancelar(){
+    if(!epReserva||!confirm('¿Cancelar la reserva de '+epReserva.nombre_cliente+'?'))return;
+    try{
+        await api.patch('/reservas/'+epReserva.id+'/cancelar');
+        cerrarEstadoPopup();
+        await cargarDatos();
+    }catch(err){alert('Error: '+err.message);}
+}
 
 canvas.addEventListener('contextmenu',e=>{
     e.preventDefault();if(dragMoved)return;
@@ -646,7 +930,6 @@ canvas.addEventListener('contextmenu',e=>{
     m.style.left=e.clientX+'px';m.style.top=e.clientY+'px';m.style.display='block';
     document.getElementById('ctx-btn-cancelar').style.display=hit.r.estado==='cancelada'?'none':'block';
 });
-document.addEventListener('click',()=>{document.getElementById('ctx-menu').style.display='none';});
 function ctxEditar(){if(ctxReserva)abrirModalEditar(ctxReserva);}
 function ctxCancelar(){
     if(!ctxReserva||!confirm('¿Cancelar la reserva de '+ctxReserva.nombre_cliente+'?'))return;
@@ -665,8 +948,19 @@ async function cargarDatos(){
 async function init(){
     actualizarFechaLabel();
     document.getElementById('b-fecha').value=fechaISO(new Date());
-    try{[mesas,horarios]=await Promise.all([api.get('/mesas/'),api.get('/horarios/')]);}
-    catch(e){mesas=[];horarios=[];}
+    try{[mesas,horarios,salas]=await Promise.all([
+        api.get('/mesas/'),
+        api.get('/horarios/'),
+        api.get('/mesas/salas').catch(()=>[]),
+    ]);}
+    catch(e){mesas=[];horarios=[];salas=[];}
+    // Ordenar mesas por sala según el orden de salas
+    const salaOrd=Object.fromEntries(salas.map((s,i)=>[s.id,i]));
+    mesas.sort((a,b)=>{
+        const sa=salaOrd[a.sala_id]??99, sb=salaOrd[b.sala_id]??99;
+        if(sa!==sb)return sa-sb;
+        return (a.numero||0)-(b.numero||0);
+    });
     const sel=document.getElementById('fr-mesa');
     mesas.forEach(m=>{sel.innerHTML+=`<option value="${m.id}">Mesa ${m.numero}${m.sala?' — '+m.sala:''}</option>`;});
     await cargarDatos();
@@ -675,6 +969,7 @@ async function init(){
 // ── Modal reserva ─────────────────────────────────────────────
 function abrirModalNuevo(mesaId,hora){
     editandoId=null;
+    document.getElementById('fr-estado-group').style.display='none';
     document.getElementById('modal-titulo').textContent='Nueva reserva';
     ['fr-nombre','fr-telefono','fr-hora-fin','fr-alergeno'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('fr-fecha').value=fechaISO(fechaActual);
@@ -696,11 +991,25 @@ function abrirModalEditar(r){
     document.getElementById('fr-mesa').value=r.mesa_id||'';
     document.getElementById('fr-alergeno').value=r.alergeno||'';
     document.getElementById('fr-notas').value=r.notas||'';
+    // Mostrar selector de estado al editar
+    document.getElementById('fr-estado-group').style.display='';
+    document.getElementById('fr-estado').value=r.estado||'programada';
     document.getElementById('modal-reserva').classList.add('active');
 }
 function cerrarModal(id){document.getElementById(id).classList.remove('active');}
 async function guardarReserva(){
-    const body={nombre_cliente:document.getElementById('fr-nombre').value.trim(),telefono:document.getElementById('fr-telefono').value.trim()||null,fecha:document.getElementById('fr-fecha').value,comensales:parseInt(document.getElementById('fr-comensales').value),hora_inicio:document.getElementById('fr-hora-inicio').value,hora_fin:document.getElementById('fr-hora-fin').value||null,mesa_id:parseInt(document.getElementById('fr-mesa').value)||null,alergeno:document.getElementById('fr-alergeno').value.trim()||null,notas:document.getElementById('fr-notas').value.trim()||null};
+    const body={
+        nombre_cliente:document.getElementById('fr-nombre').value.trim(),
+        telefono:document.getElementById('fr-telefono').value.trim()||null,
+        fecha:document.getElementById('fr-fecha').value,
+        comensales:parseInt(document.getElementById('fr-comensales').value),
+        hora_inicio:document.getElementById('fr-hora-inicio').value,
+        hora_fin:document.getElementById('fr-hora-fin').value||null,
+        mesa_id:parseInt(document.getElementById('fr-mesa').value)||null,
+        alergeno:document.getElementById('fr-alergeno').value.trim()||null,
+        notas:document.getElementById('fr-notas').value.trim()||null,
+    };
+    if(editandoId) body.estado=document.getElementById('fr-estado').value||'programada';
     if(!body.nombre_cliente||!body.fecha||!body.hora_inicio){alert('Nombre, fecha y hora de inicio son obligatorios.');return;}
     try{if(editandoId)await api.patch('/reservas/'+editandoId,body);else await api.post('/reservas/',body);cerrarModal('modal-reserva');await cargarDatos();}
     catch(err){alert('Error: '+err.message);}
