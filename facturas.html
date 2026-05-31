@@ -904,7 +904,9 @@ async function confirmarFactura() {
                 facturaUrl = pdfResp.url;
                 archivoNom = pdfResp.nombre;
             } catch(e) {
-                console.warn('No se pudo generar el PDF automático:', e);
+                console.error('Error generando PDF automático:', e);
+                // No bloqueamos el guardado — solo avisamos que no se pudo crear el comprobante
+                alert('⚠️ Los datos se guardaron correctamente, pero no se pudo generar el PDF comprobante automáticamente.\n\nDetalle: ' + (e.message || e));
             }
         }
 
