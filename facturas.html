@@ -65,18 +65,21 @@
         .fcard-actions { display: flex; gap: 6px; flex-shrink: 0; }
         .spinner { display: inline-block; width: 16px; height: 16px; border: 2.5px solid #e0e0e0; border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .item-confirm-row { background: #f9fafb; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+        .item-confirm-row { background: #f9fafb; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; }
         .item-confirm-row.pendiente { border-left: 4px solid #f59e0b; }
         .item-confirm-row.ok { border-left: 4px solid #16a34a; }
         .item-confirm-row.servicio { border-left: 4px solid #8b5cf6; }
         .item-confirm-row.omitido { border-left: 4px solid #d1d5db; opacity: 0.5; }
-        .item-confirm-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+        .item-confirm-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
         .item-desc-original { font-size: 12px; color: #888; font-style: italic; }
-        .item-fields { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; }
-        .item-fields-servicio { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
-        .item-field label { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; display: block; margin-bottom: 4px; }
-        .item-field input, .item-field select { width: 100%; padding: 7px 10px; border: 1.5px solid #e0e0e0; border-radius: 7px; font-size: 13px; outline: none; }
+        .item-fields { display: grid; grid-template-columns: 2fr 0.7fr 0.75fr 0.8fr 0.8fr 0.75fr; gap: 7px; align-items: end; }
+        .item-fields.sin-iva { grid-template-columns: 2fr 0.7fr 0.75fr 1fr 0.75fr; }
+        .item-fields-servicio { display: grid; grid-template-columns: 2fr 1fr; gap: 7px; }
+        .item-field label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; display: block; margin-bottom: 3px; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-field input, .item-field select { width: 100%; padding: 5px 8px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 12px; outline: none; }
         .item-field input:focus, .item-field select:focus { border-color: #4f46e5; }
+        .item-field input[disabled] { background: #f3f4f6; color: #6b7280; cursor: default; }
+        .precio-unit-calc { background: #f0fdf4 !important; border-color: #86efac !important; color: #166534 !important; font-weight: 700 !important; }
         .prov-chip { display: inline-flex; align-items: center; gap: 6px; background: #ede9fe; color: #5b21b6; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
         #camara-video { width: 100%; border-radius: 10px; }
         .cat-chip { display: inline-block; background: #f3f4f6; color: #374151; border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
@@ -208,7 +211,7 @@
 
 <!-- Modal confirmación factura -->
 <div class="modal-overlay" id="modal-confirmacion">
-    <div class="modal" style="max-width:860px;">
+    <div class="modal" style="max-width:1080px;">
         <h3 id="modal-conf-titulo">✅ Confirmar datos de la factura</h3>
         <p style="font-size:13px;color:#888;margin-bottom:16px;">Revisá y corregí los datos. Cada ítem puede ser un insumo de stock, un servicio o puede omitirse.</p>
 
@@ -560,67 +563,90 @@ function optsServicios(selId) {
     return _servicios.map(s => `<option value="${s.id}" ${s.id === selId ? 'selected' : ''}>${s.nombre}${s.categoria ? ' — '+s.categoria : ''}</option>`).join("");
 }
 
-function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioUnit, precioTotal, monedaSimbolo) {
+function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioPagado, _obsoleto, monedaSimbolo, marca) {
     const esInsumo   = tipo === "insumo";
     const esServicio = tipo === "servicio";
     const esOmitido  = tipo === "omitir";
     const claseRow   = esInsumo ? (insumoId ? 'ok' : 'pendiente') : esServicio ? 'servicio' : 'omitido';
     const icono      = esInsumo ? (insumoId ? '✅' : '⚠️') : esServicio ? '🔧' : '—';
 
-    // Campos de precio: con impuesto / sin impuesto (vinculados)
-    const impPct    = window.SISTEMA_MONEDA?.impuesto_pct || 0;
-    const tieneImp  = impPct > 0;
-    const factor    = 1 - impPct / 100;
-    // El campo principal ci-precio es el precio BRUTO (con impuestos, lo que muestra la factura)
-    // ci-precio-neto es el precio neto (sin impuestos, calculado automáticamente)
-    const precioNeto = (precioUnit !== null && precioUnit !== undefined && tieneImp)
-        ? Math.round(precioUnit * factor * 10000) / 10000
+    const impPct   = window.SISTEMA_MONEDA?.impuesto_pct || 0;
+    const tieneImp = impPct > 0;
+    const factor   = 1 - impPct / 100;
+
+    // Precio pagado = total de la línea (bruto, con impuestos si los hay)
+    const precioNeto = (precioPagado !== null && precioPagado !== undefined && tieneImp)
+        ? Math.round(precioPagado * factor * 10000) / 10000
         : null;
 
+    // Precio unitario calculado = precio_pagado / cantidad
+    const precioUnitCalc = (precioPagado && cantidad && cantidad !== 0)
+        ? precioPagado / cantidad
+        : null;
+    const precioUnitStr = precioUnitCalc !== null
+        ? (Math.abs(precioUnitCalc) < 0.01 ? precioUnitCalc.toFixed(6) : precioUnitCalc.toFixed(4))
+        : '';
+
+    const gridClass = tieneImp ? 'item-fields' : 'item-fields sin-iva';
+
     const campoPrecio = tieneImp ? `
-        <div class="item-field" style="grid-column:span 1;">
-            <label>Precio unit. c/ imp. *
-                <span style="font-size:10px;font-weight:600;background:#fef9c3;color:#854d0e;
-                             padding:1px 6px;border-radius:4px;margin-left:4px;">${impPct}%</span>
+        <div class="item-field">
+            <label>Precio pagado c/imp
+                <span style="font-size:9px;font-weight:600;background:#fef9c3;color:#854d0e;
+                             padding:1px 5px;border-radius:3px;margin-left:3px;">${impPct}%</span>
             </label>
             <input type="number" id="ci-precio-${idx}"
-                   value="${precioUnit !== null && precioUnit !== undefined ? precioUnit : ''}"
-                   step="0.01" placeholder="Con impuestos"
-                   oninput="sincPrecioConIVA('${idx}')">
+                   value="${precioPagado !== null && precioPagado !== undefined ? precioPagado : ''}"
+                   step="0.01" placeholder="Total c/imp"
+                   oninput="sincPrecioConIVA('${idx}');recalcPrecioUnit('${idx}')">
         </div>
-        <div class="item-field" style="grid-column:span 1;">
-            <label>Precio unit. s/ imp.
-                <span style="font-size:10px;color:#6b7280;">(w/o VAT)</span>
-            </label>
+        <div class="item-field">
+            <label>Precio pagado s/imp</label>
             <input type="number" id="ci-precio-neto-${idx}"
                    value="${precioNeto !== null ? precioNeto : ''}"
-                   step="0.01" placeholder="Sin impuestos"
-                   oninput="sincPrecioSinIVA('${idx}')"
+                   step="0.01" placeholder="Total s/imp"
+                   oninput="sincPrecioSinIVA('${idx}');recalcPrecioUnit('${idx}')"
                    style="border-color:#86efac;">
         </div>
     ` : `
         <div class="item-field">
-            <label>Precio unit. *</label>
+            <label>Precio pagado *</label>
             <input type="number" id="ci-precio-${idx}"
-                   value="${precioUnit !== null && precioUnit !== undefined ? precioUnit : ''}"
-                   step="0.01">
+                   value="${precioPagado !== null && precioPagado !== undefined ? precioPagado : ''}"
+                   step="0.01" placeholder="Total línea"
+                   oninput="recalcPrecioUnit('${idx}')">
         </div>
     `;
 
     const fieldsInsumo = `
-        <div class="item-fields" id="fields-insumo-${idx}" style="${esServicio || esOmitido ? 'display:none' : ''}">
+        <div class="${gridClass}" id="fields-insumo-${idx}" style="${esServicio || esOmitido ? 'display:none' : ''}">
             <div class="item-field">
                 <label>Insumo *</label>
-                <div style="display:flex;gap:6px;align-items:center;">
-                    <select id="ci-insumo-${idx}" onchange="actualizarIconoItem('${idx}')" style="flex:1;min-width:0;">
+                <div style="display:flex;gap:5px;align-items:center;">
+                    <select id="ci-insumo-${idx}" onchange="actualizarIconoItem('${idx}')" style="flex:1;min-width:0;padding:5px 6px;font-size:12px;">
                         <option value="">— Seleccioná —</option>${optsInsumos(insumoId)}
                     </select>
-                    <button type="button" onclick="abrirInsumoRapido('${idx}')" title="Agregar nuevo insumo" style="flex-shrink:0;padding:7px 10px;background:#4f46e5;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;">+ Nuevo</button>
+                    <button type="button" onclick="abrirInsumoRapido('${idx}')" title="Nuevo insumo"
+                            style="flex-shrink:0;padding:5px 8px;background:#4f46e5;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;">+</button>
                 </div>
             </div>
-            <div class="item-field"><label>Cantidad *${cantidad < 0 ? ' <span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 6px;font-size:10px;">REINTEGRO</span>' : ''}</label><input type="number" id="ci-cant-${idx}" value="${cantidad !== null && cantidad !== undefined ? cantidad : ''}" step="0.001"></div>
+            <div class="item-field">
+                <label>Cantidad${cantidad < 0 ? ' <span style="background:#fee2e2;color:#dc2626;border-radius:3px;padding:0 4px;font-size:9px;">DEV</span>' : ''}</label>
+                <input type="number" id="ci-cant-${idx}"
+                       value="${cantidad !== null && cantidad !== undefined ? cantidad : ''}"
+                       step="0.001" placeholder="En unidad base"
+                       oninput="recalcPrecioUnit('${idx}')">
+            </div>
+            <div class="item-field">
+                <label>Marca</label>
+                <input type="text" id="ci-marca-${idx}" value="${marca || ''}" placeholder="Opcional">
+            </div>
             ${campoPrecio}
-            <div class="item-field"><label>Total factura</label><input type="text" disabled value="${precioTotal ? monedaSimbolo+precioTotal : '—'}" style="background:#f9fafb;color:#888;"></div>
+            <div class="item-field">
+                <label>Precio/unidad</label>
+                <input type="text" id="ci-precio-unit-${idx}" class="precio-unit-calc"
+                       value="${precioUnitStr}" disabled placeholder="Calculado">
+            </div>
         </div>`;
 
     const fieldsServicio = `
@@ -677,7 +703,11 @@ function abrirModalConfirmacion(datos) {
 
     document.getElementById("conf-items").innerHTML = (datos.items || []).map((item, idx) => {
         const tipo = item.tipo === "servicio" ? "servicio" : "insumo";
-        return itemRow(idx, tipo, item.descripcion_factura, item.insumo_id, item.servicio_id || null, item.cantidad, item.precio_unitario, item.precio_total, monedaSimbolo);
+        // precio_total = total pagado por la línea (nuevo campo de la IA)
+        // Si la IA devuelve el campo viejo precio_unitario, usarlo como fallback
+        const precioPagado = item.precio_total ?? item.precio_unitario ?? null;
+        return itemRow(idx, tipo, item.descripcion_factura, item.insumo_id, item.servicio_id || null,
+                       item.cantidad, precioPagado, null, monedaSimbolo, item.marca || '');
     }).join("");
 
     document.getElementById("modal-confirmacion").classList.add("active");
@@ -719,7 +749,7 @@ function agregarItemConf() {
     const monedaSimbolo = document.getElementById("conf-moneda-codigo").value || "$";
     const container = document.getElementById("conf-items");
     const div = document.createElement("div");
-    div.innerHTML = itemRow(idx, "insumo", "Ítem manual", null, null, null, null, null, monedaSimbolo);
+    div.innerHTML = itemRow(idx, "insumo", "Ítem manual", null, null, null, null, null, monedaSimbolo, '');
     container.appendChild(div.firstElementChild);
 }
 
@@ -791,12 +821,15 @@ async function confirmarFactura() {
         const tipo = document.getElementById(`ci-tipo-${idx}`)?.value;
         if (tipo === "omitir") continue;
         if (tipo === "insumo") {
-            const insId  = parseInt(document.getElementById(`ci-insumo-${idx}`)?.value);
-            const cant   = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
-            const precio = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value);
+            const insId       = parseInt(document.getElementById(`ci-insumo-${idx}`)?.value);
+            const cant        = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
+            const precioPagado= parseFloat(document.getElementById(`ci-precio-${idx}`)?.value) || null;
+            const marca       = document.getElementById(`ci-marca-${idx}`)?.value?.trim() || null;
+            // Precio unitario = total pagado / cantidad en unidad base (para cálculos de costo)
+            const precioUnit  = (precioPagado && cant && cant !== 0) ? precioPagado / cant : null;
             if (!insId)  { alert("Todos los ítems de insumo deben tener un insumo asignado."); return; }
             if (!cant || cant === 0 || isNaN(cant)) { alert("Cantidad inválida en un ítem de insumo (puede ser negativa para reintegros)."); return; }
-            itemsInsumo.push({ insId, cant, precio: precio || null });
+            itemsInsumo.push({ insId, cant, precio: precioUnit, marca });
         } else if (tipo === "servicio") {
             const srvId = parseInt(document.getElementById(`ci-servicio-${idx}`)?.value);
             const monto = parseFloat(document.getElementById(`ci-monto-${idx}`)?.value);
@@ -854,7 +887,8 @@ async function confirmarFactura() {
             await api.post("/stock/recargar", {
                 insumo_id: item.insId, tipo: "agregar", cantidad: item.cant,
                 precio_unitario: item.precio, proveedor_id: proveedorId,
-                referencia, moneda, factura_url: facturaUrl, factura_id: facturaId
+                referencia, moneda, factura_url: facturaUrl, factura_id: facturaId,
+                marca: item.marca || null,
             });
         }
 
@@ -1106,15 +1140,27 @@ function cerrarModal(id) {
 // El campo ci-precio-neto es el precio NETO (sin impuestos).
 // Al editar uno, el otro se recalcula automáticamente.
 
+function recalcPrecioUnit(idx) {
+    const precio = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value);
+    const cant   = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
+    const el     = document.getElementById(`ci-precio-unit-${idx}`);
+    if (!el) return;
+    if (!isNaN(precio) && !isNaN(cant) && cant !== 0) {
+        const pu = precio / cant;
+        el.value = Math.abs(pu) < 0.01 ? pu.toFixed(6) : pu.toFixed(4);
+    } else {
+        el.value = '';
+    }
+}
+
 function sincPrecioConIVA(idx) {
     const impPct = window.SISTEMA_MONEDA?.impuesto_pct || 0;
     if (!impPct) return;
     const bruto  = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value);
     const netoEl = document.getElementById(`ci-precio-neto-${idx}`);
     if (!netoEl) return;
-    if (!isNaN(bruto) && bruto > 0) {
-        const neto = Math.round(bruto * (1 - impPct / 100) * 10000) / 10000;
-        netoEl.value = neto;
+    if (!isNaN(bruto) && bruto !== 0) {
+        netoEl.value = Math.round(bruto * (1 - impPct / 100) * 10000) / 10000;
     } else {
         netoEl.value = '';
     }
@@ -1123,13 +1169,11 @@ function sincPrecioConIVA(idx) {
 function sincPrecioSinIVA(idx) {
     const impPct = window.SISTEMA_MONEDA?.impuesto_pct || 0;
     if (!impPct) return;
-    const neto   = parseFloat(document.getElementById(`ci-precio-neto-${idx}`)?.value);
+    const neto    = parseFloat(document.getElementById(`ci-precio-neto-${idx}`)?.value);
     const brutoEl = document.getElementById(`ci-precio-${idx}`);
     if (!brutoEl) return;
-    if (!isNaN(neto) && neto > 0) {
-        const factor = 1 - impPct / 100;
-        const bruto  = Math.round(neto / factor * 10000) / 10000;
-        brutoEl.value = bruto;
+    if (!isNaN(neto) && neto !== 0) {
+        brutoEl.value = Math.round(neto / (1 - impPct / 100) * 10000) / 10000;
     } else {
         brutoEl.value = '';
     }
