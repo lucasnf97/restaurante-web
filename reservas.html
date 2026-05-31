@@ -781,7 +781,9 @@ document.addEventListener('mouseup',e=>{
         const{x}=canvasPos(e);
         const dx=x-resizeStartX;
         const deltaCols=Math.round(dx/COL_W);
-        const newEndCol=Math.max(resizeOrigColEnd+1, resizeOrigColEnd+deltaCols);
+        // Mínimo: 1 slot (15 min) después del inicio
+        const smCol=Math.round(minsDesdeInicio(resizeReserva.r.hora_inicio)/SLOT_MIN);
+        const newEndCol=Math.max(smCol+1, resizeOrigColEnd+deltaCols);
         const newEndMins=(newEndCol*SLOT_MIN);
         const hh=Math.floor((HORA_INICIO*60+newEndMins)/60)%24;
         const mm=(HORA_INICIO*60+newEndMins)%60;
