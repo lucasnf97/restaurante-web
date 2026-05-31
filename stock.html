@@ -23,7 +23,9 @@
         .btn-sm { padding: 5px 11px; font-size: 12px; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .stat-card { background: white; border-radius: 12px; padding: 14px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+        .stat-card { background: white; border-radius: 12px; padding: 14px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; cursor: pointer; transition: box-shadow .15s, transform .1s; user-select:none; }
+        .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); transform: translateY(-1px); }
+        .stat-card.activa { outline: 2.5px solid #4f46e5; outline-offset: 2px; }
         .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
         .stat-value { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.1; }
         .stat-value.green { color: #16a34a; } .stat-value.yellow { color: #ca8a04; } .stat-value.red { color: #dc2626; }
@@ -130,10 +132,10 @@
     <div class="page-header"><h2>📦 Control de Stock</h2></div>
 
     <div class="stats">
-        <div class="stat-card"><div class="stat-label">Total insumos</div><div class="stat-value" id="stat-total">—</div><div class="stat-sub" id="stat-total-sub"></div></div>
-        <div class="stat-card"><div class="stat-label">En advertencia</div><div class="stat-value yellow" id="stat-adv">—</div><div class="stat-sub" id="stat-adv-sub"></div></div>
-        <div class="stat-card"><div class="stat-label">Agotados</div><div class="stat-value red" id="stat-agot">—</div><div class="stat-sub" id="stat-agot-sub"></div></div>
-        <div class="stat-card"><div class="stat-label">OK</div><div class="stat-value green" id="stat-ok">—</div><div class="stat-sub" id="stat-ok-sub"></div></div>
+        <div class="stat-card" id="scard-total" onclick="filtrarPorStat('')"><div class="stat-label">Total insumos</div><div class="stat-value" id="stat-total">—</div><div class="stat-sub" id="stat-total-sub"></div></div>
+        <div class="stat-card" id="scard-adv"   onclick="filtrarPorStat('advertencia')"><div class="stat-label">En advertencia</div><div class="stat-value yellow" id="stat-adv">—</div><div class="stat-sub" id="stat-adv-sub"></div></div>
+        <div class="stat-card" id="scard-agot"  onclick="filtrarPorStat('agotado')"><div class="stat-label">Agotados</div><div class="stat-value red" id="stat-agot">—</div><div class="stat-sub" id="stat-agot-sub"></div></div>
+        <div class="stat-card" id="scard-ok"    onclick="filtrarPorStat('ok')"><div class="stat-label">OK</div><div class="stat-value green" id="stat-ok">—</div><div class="stat-sub" id="stat-ok-sub"></div></div>
     </div>
 
     <div class="tabs">
@@ -1131,6 +1133,22 @@ async function confirmarProduccion() {
     }
 }
 
+function filtrarPorStat(estado) {
+    // Aplicar el filtro de estado en ambas tablas
+    ['filtro-ins-estado', 'filtro-prod-estado'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.value = estado;
+    });
+    // Resaltar la card activa
+    const map = { '': 'scard-total', 'advertencia': 'scard-adv', 'agotado': 'scard-agot', 'ok': 'scard-ok' };
+    ['scard-total','scard-adv','scard-agot','scard-ok'].forEach(id => {
+        document.getElementById(id)?.classList.toggle('activa', id === map[estado]);
+    });
+    // Si la pestaña activa es insumos o producción, re-renderizar
+    cargarInsumos();
+    cargarInsumosProduccion();
+}
+
 function actualizarStats() {
     const s = _insumos;
     const p = _insumosProduccion;
@@ -1169,7 +1187,6 @@ function abrirModalDesecho() {
     document.getElementById('des-cantidad').oninput = desechoActualizarPerdida;
     _desechoUltimoPrecio = 0;
     document.getElementById('modal-desecho').classList.add('active');
-    setTimeout(() => document.getElementById('des-insumo-input').focus(), 50);
 }
 
 function desechoFiltrar() {
