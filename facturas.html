@@ -1072,15 +1072,8 @@ function filtrarHistorial() {
         const docUrl  = f.archivo_url
             ? (f.archivo_url.startsWith('http') ? f.archivo_url : `${API_URL}${f.archivo_url}`)
             : null;
-        // PDFs almacenados en Cloudinary como raw no se pueden renderizar directamente en Chrome;
-        // usar Google Docs Viewer para abrirlos sin descargar.
-        const viewUrl = docUrl
-            ? (docUrl.toLowerCase().includes('.pdf')
-                ? `https://docs.google.com/viewer?url=${encodeURIComponent(docUrl)}`
-                : docUrl)
-            : null;
-        const docLink = viewUrl
-            ? `<a href="${viewUrl}" target="_blank" style="color:#4f46e5;font-weight:600;text-decoration:none;">📄 Ver</a>`
+        const docLink = docUrl
+            ? `<a href="${docUrl}" target="_blank" style="color:#4f46e5;font-weight:600;text-decoration:none;">📄 Ver</a>`
             : "—";
         return `<tr>
             <td style="font-size:12px;color:#555;">${formatFecha(f.creado_en)}</td>
