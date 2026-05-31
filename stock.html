@@ -357,18 +357,74 @@ async function cargarUbicaciones() {
 function poblarSelectUbicacion(selectId, selectedId) {
     const sel = document.getElementById(selectId);
     if (!sel) return;
+    const cur = sel.value;  // preservar selección actual si no viene selectedId
     sel.innerHTML = '<option value="">Sin ubicación</option>' +
         _ubicaciones.map(u => `<option value="${u.id}" ${u.id === selectedId ? 'selected' : ''}>${u.nombre}</option>`).join('');
+    if (selectedId == null && cur) sel.value = cur;
 }
 
-async function abrirNuevaUbicacion(selectId) {
-    const nombre = prompt('Nombre de la nueva ubicación (ej: Frigorífico, Despensa, Almacén):');
-    if (!nombre?.trim()) return;
+function _refrescarTodosLosSelects() {
+    // Repoblar todos los selects de ubicación abiertos sin perder la selección actual
+    ['ins-ubicacion', 'ip-ubicacion'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const cur = parseInt(sel.value) || null;
+        poblarSelectUbicacion(id, cur);
+    });
+}
+
+let _ubGestorAbiertoDesde = null;   // id del select que abrió el gestor
+
+function abrirNuevaUbicacion(selectId) {
+    _ubGestorAbiertoDesde = selectId;
+    document.getElementById('ub-nueva-inp').value = '';
+    _renderListaUbicaciones();
+    document.getElementById('modal-ubicaciones').classList.add('active');
+    setTimeout(() => document.getElementById('ub-nueva-inp').focus(), 60);
+}
+
+function _renderListaUbicaciones() {
+    const lista = document.getElementById('ub-lista');
+    if (!_ubicaciones.length) {
+        lista.innerHTML = '<div style="text-align:center;color:#9ca3af;font-size:13px;padding:12px;">Sin ubicaciones registradas</div>';
+        return;
+    }
+    lista.innerHTML = _ubicaciones.map(u => `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;
+                    background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">
+            <span style="flex:1;font-size:13px;font-weight:600;color:#374151;">${u.nombre}</span>
+            <button onclick="eliminarUbicacion(${u.id})"
+                    style="background:none;border:none;color:#fca5a5;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;"
+                    title="Eliminar ubicación"
+                    onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#fca5a5'">✕</button>
+        </div>`).join('');
+}
+
+async function guardarNuevaUbicacion() {
+    const nombre = document.getElementById('ub-nueva-inp').value.trim();
+    if (!nombre) return;
     try {
-        const nueva = await api.post('/stock/ubicaciones', { nombre: nombre.trim() });
+        const nueva = await api.post('/stock/ubicaciones', { nombre });
         _ubicaciones.push(nueva);
         _ubicaciones.sort((a, b) => a.nombre.localeCompare(b.nombre));
-        poblarSelectUbicacion(selectId, nueva.id);
+        document.getElementById('ub-nueva-inp').value = '';
+        _renderListaUbicaciones();
+        _refrescarTodosLosSelects();
+        // Seleccionar la nueva en el select que abrió el gestor
+        if (_ubGestorAbiertoDesde) {
+            const sel = document.getElementById(_ubGestorAbiertoDesde);
+            if (sel) sel.value = nueva.id;
+        }
+    } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarUbicacion(id) {
+    if (!confirm('¿Eliminar esta ubicación? Los insumos asignados quedarán sin ubicación.')) return;
+    try {
+        await api.delete(`/stock/ubicaciones/${id}`);
+        _ubicaciones = _ubicaciones.filter(u => u.id !== id);
+        _renderListaUbicaciones();
+        _refrescarTodosLosSelects();
     } catch(e) { alert('Error: ' + e.message); }
 }
 
@@ -1320,6 +1376,25 @@ async function confirmarRevision() {
             </div>
         </div>
 
+    </div>
+</div>
+
+<!-- Modal gestión de ubicaciones -->
+<div class="modal-overlay" id="modal-ubicaciones">
+    <div class="modal" style="max-width:420px;">
+        <h3>📍 Ubicaciones de almacenamiento</h3>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:14px;">Añadí o eliminá ubicaciones. Los cambios se reflejan en todos los insumos.</p>
+        <div id="ub-lista" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;margin-bottom:14px;"></div>
+        <div style="display:flex;gap:8px;">
+            <input type="text" id="ub-nueva-inp" placeholder="Nueva ubicación…" maxlength="80"
+                   style="flex:1;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;"
+                   onkeydown="if(event.key==='Enter')guardarNuevaUbicacion()"
+                   onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e0e0e0'">
+            <button class="btn btn-primary btn-sm" onclick="guardarNuevaUbicacion()">+ Agregar</button>
+        </div>
+        <div class="modal-footer" style="margin-top:14px;">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-ubicaciones')">Cerrar</button>
+        </div>
     </div>
 </div>
 
