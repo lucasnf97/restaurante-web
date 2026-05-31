@@ -112,16 +112,15 @@
             background: none; font-size: 13px; cursor: pointer; border-radius: 7px; color: #1e293b; }
         .ep-action:hover { background: #f1f5f9; }
         .ep-action.danger { color: #dc2626; } .ep-action.danger:hover { background: #fee2e2; }
-        /* Sala strip vertical en columna de mesas */
-        .sala-strip { width: 22px; align-self: stretch; flex-shrink: 0;
-            position: relative; overflow: visible; }
-        .sala-strip-text { position: absolute; left: 0; width: 22px;
-            display: flex; align-items: center; justify-content: center;
-            writing-mode: vertical-lr; transform: rotate(180deg);
-            font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.9);
-            letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap;
-            pointer-events: none; }
-        .mesa-name { flex: 1; padding: 0 4px; font-size: 10px; overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+        /* Agrupación por sala — el strip abarca toda la altura del grupo */
+        .sala-group { display: flex; }
+        .sala-strip-col { width: 22px; flex-shrink: 0; display: flex;
+            align-items: center; justify-content: center; }
+        .sala-strip-col span { writing-mode: vertical-lr; transform: rotate(180deg);
+            font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.92);
+            letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; }
+        .sala-mesas-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .mesa-name { padding: 0 4px; font-size: 10px; overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
         .sala-gap { height: 5px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
         /* Date picker oculto */
         #res-date-input { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
@@ -649,39 +648,45 @@ function dibujar(){
     ctxT.strokeStyle='#94a3b8';ctxT.lineWidth=1.2;
     ctxT.beginPath();ctxT.moveTo(0,HEADER_H-0.5);ctxT.lineTo(CANVAS_W,HEADER_H-0.5);ctxT.stroke();
 
-    // ── Columna izquierda: SOLO filas de mesa (header va en grid-corner CSS) ──
+    // ── Columna izquierda: un div por GRUPO con strip abarcando toda la altura ──
     mesaCol.innerHTML=''; mesaCol.style.height=canvasH+'px';
-    const grps2=buildSalaGroups();
-    grps2.forEach((grp,gi)=>{
+    buildSalaGroups().forEach((grp,gi)=>{
         const color=salaColor(grp.colorIdx);
-        const salaH=grp.mesas.length*ROW_H;
-        grp.mesas.forEach((m,i)=>{
+        const grpH=grp.mesas.length*ROW_H;
+
+        const grpDiv=document.createElement('div');
+        grpDiv.className='sala-group';
+
+        // Strip vertical de sala (altura = total del grupo)
+        const stripCol=document.createElement('div');
+        stripCol.className='sala-strip-col';
+        stripCol.style.background=color;
+        stripCol.style.height=grpH+'px';
+        if(grp.sala){
+            const s=document.createElement('span');
+            s.textContent=grp.sala.nombre;
+            stripCol.appendChild(s);
+        }
+
+        // Columna de nombres de mesa
+        const mesasCol=document.createElement('div');
+        mesasCol.className='sala-mesas-col';
+        grp.mesas.forEach(m=>{
             const d=document.createElement('div');
             d.className='grid-mesa-label';
             d.style.height=ROW_H+'px';
-            // Strip de sala
-            const strip=document.createElement('div');
-            strip.className='sala-strip';
-            strip.style.background=color;
-            strip.style.height=ROW_H+'px';
-            // Texto centrado en el primer strip (abarca toda la altura del grupo)
-            if(i===0&&grp.sala){
-                const txt=document.createElement('div');
-                txt.className='sala-strip-text';
-                // Posicionar el texto en el centro vertical del grupo
-                txt.style.top=((salaH/2)-30)+'px';
-                txt.style.height=Math.min(salaH,80)+'px';
-                txt.textContent=grp.sala.nombre;
-                strip.appendChild(txt);
-            }
             const nm=document.createElement('span');
             nm.className='mesa-name';
             nm.textContent='M '+(m.numero||m.id);
-            d.appendChild(strip); d.appendChild(nm);
-            mesaCol.appendChild(d);
+            d.appendChild(nm);
+            mesasCol.appendChild(d);
         });
-        // Gap entre grupos
-        if(gi<grps2.length-1){
+
+        grpDiv.appendChild(stripCol);
+        grpDiv.appendChild(mesasCol);
+        mesaCol.appendChild(grpDiv);
+
+        if(gi<buildSalaGroups().length-1){
             const gap=document.createElement('div');
             gap.className='sala-gap';
             mesaCol.appendChild(gap);
