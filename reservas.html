@@ -1493,7 +1493,7 @@ async function _confirmarColocacion(mesa){
     const horaFin=(Math.floor(finTotalM/60)%24).toString().padStart(2,'0')+':'+(finTotalM%60).toString().padStart(2,'0');
 
     try{
-        await api.post('/reservas/',{
+        const res=await api.post('/reservas/',{
             nombre_cliente: cli.nombre,
             comensales:     cli.personas,
             fecha:          fechaISO(fechaActual),
@@ -1504,9 +1504,10 @@ async function _confirmarColocacion(mesa){
             notas:          'Desde lista de espera',
         });
 
-        // Mover cliente a pasados
+        // Guardar reserva_id para poder eliminarla si se revierte
+        const reservaId=res?.id ?? null;
         const horaPaso=horaInicio;
-        _waitingPasados.unshift({...cli, horaPaso});
+        _waitingPasados.unshift({...cli, horaPaso, reserva_id: reservaId});
         _waitingList=_waitingList.filter(x=>x.id!==cli.id);
         _wlGuardar();
 
@@ -1517,18 +1518,28 @@ async function _confirmarColocacion(mesa){
     }
 }
 
-function volverALista(id){
+async function volverALista(id){
     const idx=_waitingPasados.findIndex(x=>x.id===id);
     if(idx<0)return;
     const item=_waitingPasados[idx];
-    if(!confirm(`¿Volver a "${item.nombre}" a la lista de espera?`))return;
+    if(!confirm(`¿Volver a "${item.nombre}" a la lista de espera? Se eliminará la reserva creada.`))return;
+
+    // Eliminar la reserva de la grilla si existe
+    if(item.reserva_id){
+        try{
+            await api.delete('/reservas/'+item.reserva_id);
+        }catch(e){
+            console.warn('No se pudo eliminar la reserva:', e.message);
+        }
+    }
+
     _waitingPasados.splice(idx,1);
-    // Reinsertar en la posición original (o al final si ya no aplica)
     const pos=Math.min(item.posicion, _waitingList.length);
     const restored={id:item.id,nombre:item.nombre,personas:item.personas,hora:item.hora};
     _waitingList.splice(pos,0,restored);
     _wlGuardar();
     _wlRender();
+    await cargarDatos();   // refrescar la grilla
 }
 
 function quitarDeEspera(id){
