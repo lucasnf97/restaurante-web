@@ -32,12 +32,15 @@
         .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .grid-outer { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
         .grid-layout { display: flex; flex-direction: column; }
-        .grid-header-area { display: flex; height: 36px; border-bottom: 1.5px solid #94a3b8; overflow: hidden; background: #e2e8f0; }
-        .grid-corner { width: 90px; flex-shrink: 0; border-right: 1.5px solid #94a3b8; background: #e2e8f0; }
+        .grid-header-area { display: flex; border-bottom: 1.5px solid #94a3b8; overflow: hidden; background: #e2e8f0; }
+        .grid-corner { width: 108px; flex-shrink: 0; border-right: 1.5px solid #94a3b8; background: #1e293b;
+            display:flex; align-items:center; justify-content:center;
+            font-size:8px; font-weight:800; color:#94a3b8; letter-spacing:.5px; }
         .grid-time-clip { flex: 1; overflow: hidden; position: relative; }
         .grid-body-area { display: flex; }
-        .grid-mesa-col { width: 90px; flex-shrink: 0; border-right: 1.5px solid #cbd5e1; background: #f1f5f9; overflow: hidden; }
-        .grid-mesa-label { height: 48px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 700; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
+        .grid-mesa-col { width: 108px; flex-shrink: 0; border-right: 1.5px solid #cbd5e1; background: #f1f5f9; overflow: hidden; }
+        .grid-mesa-label { display: flex !important; align-items: center; padding: 0 !important;
+            font-size: 10px; font-weight: 700; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
         .grid-canvas-wrap { flex: 1; overflow-x: auto; overflow-y: hidden; cursor: grab; user-select: none; }
         .grid-canvas-wrap.grabbing { cursor: grabbing; }
         canvas#grid-canvas { display: block; }
@@ -110,13 +113,16 @@
         .ep-action:hover { background: #f1f5f9; }
         .ep-action.danger { color: #dc2626; } .ep-action.danger:hover { background: #fee2e2; }
         /* Sala strip vertical en columna de mesas */
-        .grid-mesa-label { display: flex !important; align-items: center; padding: 0 !important; }
-        .sala-strip { width: 14px; align-self: stretch; flex-shrink: 0; display: flex;
-            align-items: center; justify-content: center; overflow: hidden; }
-        .sala-strip span { writing-mode: vertical-lr; transform: rotate(180deg);
+        .sala-strip { width: 22px; align-self: stretch; flex-shrink: 0;
+            position: relative; overflow: visible; }
+        .sala-strip-text { position: absolute; left: 0; width: 22px;
+            display: flex; align-items: center; justify-content: center;
+            writing-mode: vertical-lr; transform: rotate(180deg);
             font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.9);
-            letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; }
-        .mesa-name { flex: 1; padding: 0 5px; font-size: 10px; }
+            letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap;
+            pointer-events: none; }
+        .mesa-name { flex: 1; padding: 0 4px; font-size: 10px; overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+        .sala-gap { height: 5px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
         /* Date picker oculto */
         #res-date-input { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
         #lbl-fecha { cursor:pointer; padding:4px 10px; border-radius:6px; transition:background .15s; }
@@ -437,20 +443,27 @@ function buildSalaGroups(){
     return [{sala:null,mesas,colorIdx:0}];
 }
 
-// ── Layout: SOLO filas de mesa, salas como strip lateral ─────
+// ── Layout: filas de mesa desde y=0 (header es CSS separado) ─
+const GAP_H = 5;  // px entre grupos de sala
+
 function buildLayout(){
     layoutRows=[]; mesaYMap={};
-    let y=HEADER_H;
-    for(const grp of buildSalaGroups()){
+    let y=0;
+    const grps=buildSalaGroups();
+    grps.forEach((grp,gi)=>{
         grp.mesas.forEach((m,i)=>{
             layoutRows.push({
                 type:'mesa', obj:m, y, h:ROW_H,
                 salaObj:grp.sala, colorIdx:grp.colorIdx,
-                isFirst:i===0, salaSpan:grp.mesas.length
+                isFirst:i===0, salaSpan:grp.mesas.length,
+                isLastInGroup:i===grp.mesas.length-1,
+                isLastGroup:gi===grps.length-1
             });
             mesaYMap[m.id]=y; y+=ROW_H;
         });
-    }
+        // Gap entre grupos (excepto el último)
+        if(gi<grps.length-1){ y+=GAP_H; }
+    });
     canvasH=y; return y;
 }
 
@@ -487,28 +500,35 @@ function hitReserva(x,y){return rBounds.find(b=>x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b
 // ── Dibujar ───────────────────────────────────────────────────
 function dibujar(){
     buildLayout();
+    // Ajustar altura del header area al HEADER_H dinámico
+    document.querySelector('.grid-header-area').style.height=HEADER_H+'px';
     canvas.width=CANVAS_W; canvas.height=canvasH;
     canvasTime.width=CANVAS_W; canvasTime.height=HEADER_H;
     canvasWrap.style.height=canvasH+'px';
 
-    // Row backgrounds (solo mesas; salas van como strip lateral)
+    // Row backgrounds (solo mesas — y ya empieza en 0)
     let mesaIdx=0;
     for(const row of layoutRows){
         ctxC.fillStyle=mesaIdx%2===0?'#ffffff':'#f8fafc';
         ctxC.fillRect(0,row.y,CANVAS_W,row.h);
         mesaIdx++;
+        // Gap visual entre grupos de sala
+        if(row.isLastInGroup&&!row.isLastGroup){
+            ctxC.fillStyle='#e2e8f0';
+            ctxC.fillRect(0,row.y+row.h,CANVAS_W,GAP_H);
+        }
     }
 
     // Fuera de horario
     const diaSem=(fechaActual.getDay()+6)%7;
     const diaH=horarios.find(h=>h.dia_semana===diaSem);
     const totalMinsGrilla=(HORA_FIN-HORA_INICIO)*60;
-    const bodyH=canvasH-HEADER_H;
-    function drawOOH(s,e){ctxC.fillStyle='rgba(203,213,225,0.62)';ctxC.fillRect((s/SLOT_MIN)*COL_W,HEADER_H,((e-s)/SLOT_MIN)*COL_W,bodyH);}
+    const bodyH=canvasH;  // canvas ya empieza en y=0 (sin offset de header)
+    function drawOOH(s,e){ctxC.fillStyle='rgba(203,213,225,0.62)';ctxC.fillRect((s/SLOT_MIN)*COL_W,0,((e-s)/SLOT_MIN)*COL_W,bodyH);}
 
     if(diaH){
         if(!diaH.activo){
-            ctxC.fillStyle='rgba(203,213,225,0.65)';ctxC.fillRect(0,HEADER_H,CANVAS_W,bodyH);
+            ctxC.fillStyle='rgba(203,213,225,0.65)';ctxC.fillRect(0,0,CANVAS_W,bodyH);
         } else {
             const franjas=(diaH.franjas||[]).map(f=>{
                 const[sh,sm]=f.inicio.split(':').map(Number),[eh,em]=f.fin.split(':').map(Number);
@@ -537,14 +557,14 @@ function dibujar(){
             if(e<=s&&e+24*60/SLOT_MIN*COL_W>0){/* todo el día */x1=0;x2=CANVAS_W;}
             else{x1=(s/SLOT_MIN)*COL_W;x2=(Math.min(totalMinsGrilla,e)/SLOT_MIN)*COL_W;}
         }
-        const bh=canvasH-HEADER_H;
-        ctxC.fillStyle='rgba(220,38,38,0.10)';ctxC.fillRect(x1,HEADER_H,x2-x1,bh);
-        ctxC.fillStyle=hatchPat;ctxC.fillRect(x1,HEADER_H,x2-x1,bh);
-        ctxC.strokeStyle='rgba(185,28,28,0.65)';ctxC.lineWidth=1.5;ctxC.strokeRect(x1,HEADER_H,x2-x1,bh);
-        if(x2-x1>50){ctxC.fillStyle='rgba(159,18,57,0.9)';ctxC.font='bold 10px Segoe UI';ctxC.fillText('🚫 '+(b.motivo||'Bloqueado'),x1+5,HEADER_H+14);}
+        const bh=canvasH;
+        ctxC.fillStyle='rgba(220,38,38,0.10)';ctxC.fillRect(x1,0,x2-x1,bh);
+        ctxC.fillStyle=hatchPat;ctxC.fillRect(x1,0,x2-x1,bh);
+        ctxC.strokeStyle='rgba(185,28,28,0.65)';ctxC.lineWidth=1.5;ctxC.strokeRect(x1,0,x2-x1,bh);
+        if(x2-x1>50){ctxC.fillStyle='rgba(159,18,57,0.9)';ctxC.font='bold 10px Segoe UI';ctxC.fillText('🚫 '+(b.motivo||'Bloqueado'),x1+5,14);}
     }
 
-    // Líneas verticales
+    // Líneas verticales (desde y=0)
     for(let s=0;s<=TOTAL_SLOTS;s++){
         const x=s*COL_W,m=(s*SLOT_MIN)%60;
         if(m===0){ctxC.strokeStyle='#64748b';ctxC.lineWidth=1.2;}
@@ -552,16 +572,14 @@ function dibujar(){
         else{ctxC.strokeStyle='#e2e8f0';ctxC.lineWidth=0.4;}
         ctxC.beginPath();ctxC.moveTo(x,0);ctxC.lineTo(x,canvasH);ctxC.stroke();
     }
-    ctxC.strokeStyle='#94a3b8';ctxC.lineWidth=1.5;
-    ctxC.beginPath();ctxC.moveTo(0,HEADER_H);ctxC.lineTo(CANVAS_W,HEADER_H);ctxC.stroke();
 
-    // Línea ahora
+    // Línea ahora (y=0 a canvasH)
     const now=new Date();
     if(fechaISO(now)===fechaStr){
         const mNow=(now.getHours()-HORA_INICIO)*60+now.getMinutes();
         if(mNow>=0&&mNow<=totalMinsGrilla){
             const xNow=(mNow/SLOT_MIN)*COL_W;
-            ctxC.strokeStyle='#ef4444';ctxC.lineWidth=2;ctxC.setLineDash([5,4]);
+            ctxC.strokeStyle='#ef4444';ctxC.lineWidth=1.5;ctxC.setLineDash([5,4]);
             ctxC.beginPath();ctxC.moveTo(xNow,0);ctxC.lineTo(xNow,canvasH);ctxC.stroke();
             ctxC.setLineDash([]);
         }
@@ -631,48 +649,52 @@ function dibujar(){
     ctxT.strokeStyle='#94a3b8';ctxT.lineWidth=1.2;
     ctxT.beginPath();ctxT.moveTo(0,HEADER_H-0.5);ctxT.lineTo(CANVAS_W,HEADER_H-0.5);ctxT.stroke();
 
-    // ── Columna izquierda: strips verticales de sala + nombres de mesa ──
+    // ── Columna izquierda: SOLO filas de mesa (header va en grid-corner CSS) ──
     mesaCol.innerHTML=''; mesaCol.style.height=canvasH+'px';
-    // Header de la columna
-    const hdrDiv=document.createElement('div');
-    hdrDiv.style.cssText=`height:${HEADER_H}px;border-bottom:1.5px solid #94a3b8;background:#1e293b;
-        display:flex;align-items:center;padding:0 5px;font-size:8px;font-weight:800;color:#94a3b8;letter-spacing:.5px;`;
-    hdrDiv.textContent='MESAS/PERS';
-    mesaCol.appendChild(hdrDiv);
-    // Filas de mesas con strip de sala
-    const grps=buildSalaGroups();
-    let globalMesaIdx=0;
-    for(const grp of grps){
+    const grps2=buildSalaGroups();
+    grps2.forEach((grp,gi)=>{
         const color=salaColor(grp.colorIdx);
+        const salaH=grp.mesas.length*ROW_H;
         grp.mesas.forEach((m,i)=>{
             const d=document.createElement('div');
             d.className='grid-mesa-label';
             d.style.height=ROW_H+'px';
-            // Strip de sala (vertical, a la izquierda)
+            // Strip de sala
             const strip=document.createElement('div');
             strip.className='sala-strip';
             strip.style.background=color;
             strip.style.height=ROW_H+'px';
+            // Texto centrado en el primer strip (abarca toda la altura del grupo)
             if(i===0&&grp.sala){
-                const s=document.createElement('span');
-                s.textContent=grp.sala.nombre;
-                strip.appendChild(s);
+                const txt=document.createElement('div');
+                txt.className='sala-strip-text';
+                // Posicionar el texto en el centro vertical del grupo
+                txt.style.top=((salaH/2)-30)+'px';
+                txt.style.height=Math.min(salaH,80)+'px';
+                txt.textContent=grp.sala.nombre;
+                strip.appendChild(txt);
             }
-            // Nombre de mesa
             const nm=document.createElement('span');
             nm.className='mesa-name';
             nm.textContent='M '+(m.numero||m.id);
             d.appendChild(strip); d.appendChild(nm);
             mesaCol.appendChild(d);
-            globalMesaIdx++;
         });
-    }
+        // Gap entre grupos
+        if(gi<grps2.length-1){
+            const gap=document.createElement('div');
+            gap.className='sala-gap';
+            mesaCol.appendChild(gap);
+        }
+    });
 
     // Scroll a ahora
     if(fechaISO(now)===fechaStr){
         const mNow=(now.getHours()-HORA_INICIO)*60+now.getMinutes();
         if(mNow>0) canvasWrap.scrollLeft=Math.max(0,(mNow/SLOT_MIN)*COL_W-200);
     }
+    // Ajustar height del grid-corner para que coincida con el header
+    document.querySelector('.grid-corner').style.height=HEADER_H+'px';
 }
 
 // ── Scroll sync ───────────────────────────────────────────────
@@ -690,7 +712,7 @@ function hitResize(x,y){return rBounds.find(b=>x>=b.x+b.w-RESIZE_HIT&&x<=b.x+b.w
 // Detectar mesa a partir de posición y
 function mesaEnY(y){
     for(const row of layoutRows){
-        if(row.type==='mesa'&&y>=row.y&&y<row.y+row.h) return row.obj;
+        if(y>=row.y&&y<row.y+row.h) return row.obj;
     }
     return null;
 }
@@ -897,7 +919,6 @@ canvas.addEventListener('dblclick',e=>{
     const{x,y}=canvasPos(e);
     const hit=hitReserva(x,y);
     if(hit){cerrarEstadoPopup();abrirModalEditar(hit.r);return;}
-    if(y<HEADER_H)return;
     const mesa=mesaEnY(y);
     if(mesa){
         cerrarEstadoPopup();
