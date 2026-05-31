@@ -83,10 +83,15 @@
         .rev-total-val { font-size: 20px; font-weight: 800; color: #dc2626; }
         .rev-total-bar.cero .rev-total-val { color: #16a34a; }
 
-        /* ── Modo solo-vista (permiso ver_stock sin gestion_stock/produccion) ── */
-        body.solo-vista .acciones-bar                    { display: none !important; }
-        body.solo-vista [onclick*="editarInsumo"]        { display: none !important; }
-        body.solo-vista [onclick*="eliminarInsumo"]      { display: none !important; }
+        /* ── Modo solo-vista (permiso ver_stock / revision_stock sin gestion) ── */
+        /* Ocultar botones de escritura: + Nuevo y la barra entera de acciones primarias */
+        body.solo-vista .acciones-bar .btn-primary                     { display: none !important; }
+        body.solo-vista [onclick*="abrirModalRegistrarProduccion"]     { display: none !important; }
+        body.solo-vista [onclick*="editarInsumo"]                      { display: none !important; }
+        body.solo-vista [onclick*="eliminarInsumo"]                    { display: none !important; }
+        /* Botón de revisión: oculto por defecto, visible solo con permiso explícito */
+        .btn-revision                                                   { display: none !important; }
+        body.puede-revision .btn-revision                              { display: inline-flex !important; }
     </style>
 </head>
 <body>
@@ -130,7 +135,7 @@
     <div id="vista-insumos">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumo()">+ Nuevo insumo</button>
-            <button class="btn btn-secondary btn-sm" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
             <input type="text" id="filtro-ins-nombre" placeholder="Buscar por nombre..." oninput="cargarInsumos()">
@@ -157,7 +162,7 @@
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumoProduccion()">+ Nuevo insumo de producción</button>
             <button class="btn btn-secondary btn-sm" onclick="abrirModalRegistrarProduccion()" style="border-color:#7c3aed;color:#7c3aed;">📋 Registrar producción</button>
-            <button class="btn btn-secondary btn-sm" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
             <input type="text" id="filtro-prod-nombre" placeholder="Buscar por nombre..." oninput="cargarInsumosProduccion()">
@@ -296,10 +301,15 @@
 <script src="js/api.js"></script>
 <script>
 requireAuth();
-requirePermiso('gestion_stock', 'gestion_produccion', 'ver_stock');
-// Sin permisos de edición → modo solo lectura
+requirePermiso('gestion_stock', 'gestion_produccion', 'ver_stock', 'revision_stock');
+
+// Sin permisos de gestión completa → modo solo lectura (oculta botones de edición)
 if (!hasPermiso('gestion_stock') && !hasPermiso('gestion_produccion')) {
     document.body.classList.add('solo-vista');
+}
+// Con permiso de revisión (gestion_stock, gestion_produccion O revision_stock) → mostrar botón
+if (hasPermiso('gestion_stock') || hasPermiso('gestion_produccion') || hasPermiso('revision_stock')) {
+    document.body.classList.add('puede-revision');
 }
 
 // Formatea un número quitando ceros decimales innecesarios (máx. 3 decimales)
