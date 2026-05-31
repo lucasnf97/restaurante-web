@@ -202,8 +202,8 @@
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Fecha</th><th>Insumo</th><th>Cantidad</th><th>Precio unit.</th><th>Moneda</th><th>Proveedor</th><th>Referencia</th><th>Factura</th><th>Usuario</th></tr></thead>
-                <tbody id="tbody-historial"><tr><td colspan="9" class="empty">Cargando...</td></tr></tbody>
+                <thead><tr><th>Fecha</th><th>Insumo</th><th>Cantidad</th><th>Precio unit.</th><th>Proveedor</th><th>Referencia</th><th>Factura</th><th>Usuario</th></tr></thead>
+                <tbody id="tbody-historial"><tr><td colspan="8" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -571,57 +571,82 @@ async function eliminarInsumo(id) {
 async function cargarHistorial() {
     const nombre = document.getElementById("filtro-hist-nombre")?.value?.trim() || "";
     const tbody  = document.getElementById("tbody-historial");
-    tbody.innerHTML = `<tr><td colspan="9" class="empty">Cargando...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">Cargando...</td></tr>`;
     try {
         const url = nombre ? `/stock/movimientos?insumo_nombre=${encodeURIComponent(nombre)}` : "/stock/movimientos";
         const data = await api.get(url);
-        if (!data.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin movimientos registrados</td></tr>`; return; }
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Sin movimientos registrados</td></tr>`; return; }
         tbody.innerHTML = data.map(m => {
             const esProduccion = m.tipo === "produccion";
+            const esRevision   = m.tipo === "revision_resumen";
 
             // Cantidad
-            const cantCell = esProduccion
-                ? `<span style="color:#7c3aed;font-weight:600;">+${fmtNum(m.cantidad)} <span style="font-size:10px;background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-weight:700;">PROD</span></span>`
-                : `<span style="color:#16a34a;font-weight:600;">+${fmtNum(m.cantidad)}</span>`;
+            let cantCell;
+            if (esRevision) {
+                cantCell = `<span style="color:#9ca3af">—</span>`;
+            } else if (esProduccion) {
+                cantCell = `<span style="color:#7c3aed;font-weight:600;">+${fmtNum(m.cantidad)} <span style="font-size:10px;background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-weight:700;">PROD</span></span>`;
+            } else {
+                cantCell = `<span style="color:#16a34a;font-weight:600;">+${fmtNum(m.cantidad)}</span>`;
+            }
 
-            // Precio (solo el número, sin moneda)
-            const precioStr = m.precio_unitario
-                ? parseFloat(m.precio_unitario).toFixed(2)
-                : "—";
+            // Precio unificado con moneda
+            let precioCell;
+            if (esRevision) {
+                const p = m.precio_unitario;
+                precioCell = p != null && p > 0
+                    ? `<span style="color:#dc2626;font-weight:700;">— ${parseFloat(p).toFixed(2)}</span>`
+                    : '—';
+            } else if (m.precio_unitario) {
+                const num = parseFloat(m.precio_unitario).toFixed(2);
+                precioCell = m.moneda ? `${num} <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:1px 5px;">${m.moneda}</span>` : num;
+            } else {
+                precioCell = '—';
+            }
 
-            // Moneda (para todas las filas que tengan moneda, incluyendo producción)
-            const monedaCell = m.moneda
-                ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;">${m.moneda}</span>`
-                : "—";
+            // Nombre e ícono
+            let nombreCell;
+            if (esRevision) {
+                nombreCell = `<span style="font-size:11px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;font-weight:700;margin-right:5px;">REV</span><strong>${m.insumo_nombre}</strong>`;
+            } else {
+                nombreCell = `<strong>${m.insumo_nombre}</strong> <span style="color:#aaa;font-size:11px;">${m.unidad || ''}</span>`;
+            }
 
             // Proveedor
-            const provCell = (!esProduccion && m.proveedor_nombre)
+            const provCell = (!esProduccion && !esRevision && m.proveedor_nombre)
                 ? `<span class="prov-chip">🏢 ${m.proveedor_nombre}</span>`
                 : "—";
 
-            // Referencia: para producción muestra botón "Ver receta"
-            const refCell = esProduccion
-                ? `<button class="btn btn-secondary btn-sm" onclick="verReceta(${m.insumo_produccion_id},'${m.insumo_nombre.replace(/'/g,"\\'")}')">Ver receta</button>${m.referencia ? ` <span style="color:#9ca3af;font-size:11px;">${m.referencia}</span>` : ''}`
-                : `<span style="font-size:12px;color:#666;">${m.referencia || '—'}</span>`;
+            // Referencia
+            let refCell;
+            if (esRevision) {
+                refCell = `<span style="font-size:12px;color:#92400e;font-weight:600;">Revisión de stock</span>`;
+            } else if (esProduccion) {
+                refCell = `<button class="btn btn-secondary btn-sm" onclick="verReceta(${m.insumo_produccion_id},'${m.insumo_nombre.replace(/'/g,"\\'")}')">Ver receta</button>${m.referencia ? ` <span style="color:#9ca3af;font-size:11px;">${m.referencia}</span>` : ''}`;
+            } else {
+                refCell = `<span style="font-size:12px;color:#666;">${m.referencia || '—'}</span>`;
+            }
 
-            // Factura
-            const facturaLink = (!esProduccion && m.factura_url)
-                ? `<a href="${API_URL}${m.factura_url}" target="_blank" style="color:#4f46e5;font-weight:600;text-decoration:none;">📄 Ver</a>`
-                : "—";
+            // Factura / comprobante
+            let facturaLink = "—";
+            if (m.factura_url) {
+                const href = m.factura_url.startsWith('http') ? m.factura_url : `${API_URL}${m.factura_url}`;
+                const icon = esRevision ? '📋' : '📄';
+                facturaLink = `<a href="${href}" target="_blank" style="color:#4f46e5;font-weight:600;text-decoration:none;">${icon} Ver</a>`;
+            }
 
-            return `<tr>
+            return `<tr${esRevision ? " style='background:#fffbeb;'" : ""}>
                 <td style="font-size:12px;color:#555;">${new Date(m.creado_en).toLocaleString("es-AR",{dateStyle:"short",timeStyle:"short"})}</td>
-                <td><strong>${m.insumo_nombre}</strong> <span style="color:#aaa;font-size:11px;">${m.unidad}</span></td>
+                <td>${nombreCell}</td>
                 <td>${cantCell}</td>
-                <td>${precioStr}</td>
-                <td>${monedaCell}</td>
+                <td>${precioCell}</td>
                 <td>${provCell}</td>
                 <td>${refCell}</td>
                 <td>${facturaLink}</td>
                 <td style="font-size:12px;color:#888;">${m.usuario || '—'}</td>
             </tr>`;
         }).join("");
-    } catch(e) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Error cargando historial</td></tr>`; console.error(e); }
+    } catch(e) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Error cargando historial</td></tr>`; console.error(e); }
 }
 
 // ── UTILS ─────────────────────────────────────────────────────
