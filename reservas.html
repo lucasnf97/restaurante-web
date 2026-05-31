@@ -784,6 +784,13 @@ document.addEventListener('mouseup',e=>{
         // Mínimo: 1 slot (15 min) después del inicio
         const smCol=Math.round(minsDesdeInicio(resizeReserva.r.hora_inicio)/SLOT_MIN);
         const newEndCol=Math.max(smCol+1, resizeOrigColEnd+deltaCols);
+        // Validar antes de guardar (igual que en el preview)
+        const hiM2=HORA_INICIO*60+smCol*SLOT_MIN;
+        const durMins2=(newEndCol-smCol)*SLOT_MIN;
+        if(!_posicionValida(hiM2,durMins2)){
+            resizeModo=false;resizeReserva=null;
+            canvasWrap.classList.remove('grabbing');dibujar();return;
+        }
         const newEndMins=(newEndCol*SLOT_MIN);
         const hh=Math.floor((HORA_INICIO*60+newEndMins)/60)%24;
         const mm=(HORA_INICIO*60+newEndMins)%60;
@@ -877,12 +884,20 @@ function _dibujarResizePreview(newEndCol){
     const sm=minsDesdeInicio(r.hora_inicio);
     const smCol=Math.round(sm/SLOT_MIN);
     const w=Math.max(COL_W,(newEndCol-smCol)*COL_W)-2;
-    const rowY=mesaYMap[r.mesa_id]||HEADER_H;
+    const rowY=mesaYMap[r.mesa_id];
+    if(rowY===undefined)return;
     const x=smCol*COL_W,y=rowY+2,h=ROW_H-4;
+    // Validar nueva posición
+    const hiM=HORA_INICIO*60+smCol*SLOT_MIN;
+    const durMins=(newEndCol-smCol)*SLOT_MIN;
+    const valido=durMins>0&&_posicionValida(hiM,durMins);
     ctxC.save();
-    ctxC.globalAlpha=0.7;ctxC.fillStyle=colorReserva(r);
+    ctxC.globalAlpha=0.7;
+    ctxC.fillStyle=valido?colorReserva(r):'#dc2626';
     roundRect(ctxC,x,y,w,h,5);ctxC.fill();
-    ctxC.globalAlpha=1;ctxC.strokeStyle='#4f46e5';ctxC.lineWidth=2;ctxC.setLineDash([3,2]);
+    ctxC.globalAlpha=1;
+    ctxC.strokeStyle=valido?'#4f46e5':'#991b1b';
+    ctxC.lineWidth=2;ctxC.setLineDash([3,2]);
     roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
     ctxC.setLineDash([]);ctxC.restore();
 }
@@ -1018,8 +1033,11 @@ async function epCambiarEstado(nuevoEstado){
 async function epTerminar(){
     if(!epReserva)return;
     if(!confirm('¿Terminar la reserva de '+epReserva.nombre_cliente+'? Se ajustará la hora de fin a ahora mismo.'))return;
+    // Usar hora LOCAL del navegador (el servidor corre en UTC)
+    const ahora=new Date();
+    const horaLocal=ahora.getHours().toString().padStart(2,'0')+':'+ahora.getMinutes().toString().padStart(2,'0');
     try{
-        await api.patch('/reservas/'+epReserva.id+'/terminar');
+        await api.patch('/reservas/'+epReserva.id+'/terminar',{hora_fin:horaLocal});
         cerrarEstadoPopup();
         await cargarDatos();
     }catch(err){alert('Error: '+err.message);}
