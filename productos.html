@@ -899,10 +899,19 @@ function pmAplicarFiltros() {
     if (qCat)    lista = lista.filter(p => (p.categoria || '') === qCat);
 
     if (qInsumo) {
-        // Filtrar por insumos: buscar en _recetas los productos que usan ese insumo
+        // Cada receta tiene ingredientes: [{insumo_nombre, ...}] — buscar dentro de ese array
         const idsConInsumo = new Set(
             (_recetas || [])
-                .filter(r => (r.insumo_nombre || r.nombre_insumo || '').toLowerCase().includes(qInsumo))
+                .filter(r => {
+                    if (!r.tiene_receta) return false;
+                    let ings = r.ingredientes;
+                    if (typeof ings === 'string') {
+                        try { ings = JSON.parse(ings); } catch { return false; }
+                    }
+                    return (ings || []).some(i =>
+                        (i.insumo_nombre || '').toLowerCase().includes(qInsumo)
+                    );
+                })
                 .map(r => r.producto_id)
         );
         lista = lista.filter(p => idsConInsumo.has(p.id));
