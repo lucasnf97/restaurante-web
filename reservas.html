@@ -1331,22 +1331,26 @@ async function apiDelete(url){
 
 // ══ WAITING LIST ══════════════════════════════════════════════
 let _waitingList = [];
+let _waitingPasados = [];   // clientes ya pasados a mesa
+let _wlMostrarPasados = false;
 const _WL_KEY = 'res_waiting_list';
 
 function _wlCargar(){
     try{
         const raw=localStorage.getItem(_WL_KEY);
-        if(!raw){_waitingList=[];return;}
+        if(!raw){_waitingList=[];_waitingPasados=[];return;}
         const data=JSON.parse(raw);
-        // Descartar listas de días anteriores
         const hoy=new Date().toDateString();
-        _waitingList=data.fecha===hoy ? (data.items||[]) : [];
-    }catch{_waitingList=[];}
+        if(data.fecha!==hoy){_waitingList=[];_waitingPasados=[];return;}
+        _waitingList   = data.items    || [];
+        _waitingPasados= data.pasados  || [];
+    }catch{_waitingList=[];_waitingPasados=[];}
 }
 function _wlGuardar(){
     localStorage.setItem(_WL_KEY,JSON.stringify({
-        fecha:new Date().toDateString(),
-        items:_waitingList
+        fecha:   new Date().toDateString(),
+        items:   _waitingList,
+        pasados: _waitingPasados,
     }));
     _wlActualizarBadge();
 }
@@ -1360,6 +1364,7 @@ function _wlActualizarBadge(){
 
 function abrirWaiting(){
     _wlCargar();
+    _wlMostrarPasados=false;
     document.getElementById('wl-nombre').value='';
     document.getElementById('wl-personas').value='2';
     _wlRender();
@@ -1382,10 +1387,29 @@ function agregarWaiting(){
 }
 
 function pasarAMesa(id){
-    const item=_waitingList.find(x=>x.id===id);
-    if(!item)return;
+    const idx=_waitingList.findIndex(x=>x.id===id);
+    if(idx<0)return;
+    const item=_waitingList[idx];
     if(!confirm(`¿${item.nombre} pasó a mesa?`))return;
+    const ahora=new Date();
+    const horaPaso=ahora.getHours().toString().padStart(2,'0')+':'+ahora.getMinutes().toString().padStart(2,'0');
+    // Guardar posición original para poder restaurar
+    _waitingPasados.unshift({...item, posicion:idx, horaPaso});
     _waitingList=_waitingList.filter(x=>x.id!==id);
+    _wlGuardar();
+    _wlRender();
+}
+
+function volverALista(id){
+    const idx=_waitingPasados.findIndex(x=>x.id===id);
+    if(idx<0)return;
+    const item=_waitingPasados[idx];
+    if(!confirm(`¿Volver a "${item.nombre}" a la lista de espera?`))return;
+    _waitingPasados.splice(idx,1);
+    // Reinsertar en la posición original (o al final si ya no aplica)
+    const pos=Math.min(item.posicion, _waitingList.length);
+    const restored={id:item.id,nombre:item.nombre,personas:item.personas,hora:item.hora};
+    _waitingList.splice(pos,0,restored);
     _wlGuardar();
     _wlRender();
 }
@@ -1399,32 +1423,78 @@ function quitarDeEspera(id){
 
 function _wlRender(){
     const cont=document.getElementById('wl-lista');
-    if(!_waitingList.length){
-        cont.innerHTML='<div class="wl-empty">Sin clientes en espera 🟢</div>';
-        return;
-    }
-    cont.innerHTML=`<table class="wl-table">
-        <thead><tr>
-            <th style="width:36px;">#</th>
-            <th>Nombre</th>
-            <th style="text-align:center;width:70px;">Pers.</th>
-            <th style="width:70px;">Llegada</th>
-            <th style="width:130px;"></th>
-        </tr></thead>
-        <tbody>
-        ${_waitingList.map((item,i)=>`
-            <tr>
-                <td class="wl-num">${i+1}</td>
-                <td class="wl-nombre">${item.nombre}</td>
-                <td class="wl-pers">👥 ${item.personas}</td>
-                <td class="wl-hora">🕐 ${item.hora}</td>
-                <td style="text-align:right;">
-                    <button class="btn-wl-pasar" onclick="pasarAMesa(${item.id})">✓ A mesa</button>
-                    <button class="btn-wl-del" onclick="quitarDeEspera(${item.id})" title="Quitar">✕</button>
-                </td>
-            </tr>`).join('')}
-        </tbody>
-    </table>`;
+    const nPasados=_waitingPasados.length;
+
+    // ── Lista activa ──────────────────────────────────────────
+    const tablaActiva=_waitingList.length
+        ? `<table class="wl-table">
+            <thead><tr>
+                <th style="width:36px;">#</th>
+                <th>Nombre</th>
+                <th style="text-align:center;width:70px;">Pers.</th>
+                <th style="width:70px;">Llegada</th>
+                <th style="width:130px;"></th>
+            </tr></thead>
+            <tbody>
+            ${_waitingList.map((item,i)=>`
+                <tr>
+                    <td class="wl-num">${i+1}</td>
+                    <td class="wl-nombre">${item.nombre}</td>
+                    <td class="wl-pers">👥 ${item.personas}</td>
+                    <td class="wl-hora">🕐 ${item.hora}</td>
+                    <td style="text-align:right;">
+                        <button class="btn-wl-pasar" onclick="pasarAMesa(${item.id})">✓ A mesa</button>
+                        <button class="btn-wl-del" onclick="quitarDeEspera(${item.id})" title="Quitar">✕</button>
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`
+        : '<div class="wl-empty">Sin clientes en espera 🟢</div>';
+
+    // ── Botón para ver pasados ────────────────────────────────
+    const btnPasados=nPasados>0
+        ? `<div style="margin-top:14px;border-top:1px solid #f3f4f6;padding-top:10px;">
+            <button onclick="_wlMostrarPasados=!_wlMostrarPasados;_wlRender()"
+                style="background:none;border:1.5px solid #e5e7eb;border-radius:7px;
+                    padding:6px 12px;font-size:12px;color:#64748b;cursor:pointer;
+                    display:flex;align-items:center;gap:6px;font-weight:600;">
+                ${_wlMostrarPasados?'▲':'▼'} Pasados a mesa
+                <span style="background:#f3f4f6;border-radius:10px;padding:1px 7px;font-size:11px;">
+                    ${nPasados}
+                </span>
+            </button>
+            ${_wlMostrarPasados ? `
+            <table class="wl-table" style="margin-top:10px;opacity:.75;">
+                <thead><tr>
+                    <th>Nombre</th>
+                    <th style="text-align:center;width:70px;">Pers.</th>
+                    <th style="width:70px;">Llegada</th>
+                    <th style="width:70px;">Mesa a las</th>
+                    <th style="width:100px;"></th>
+                </tr></thead>
+                <tbody>
+                ${_waitingPasados.map(item=>`
+                    <tr>
+                        <td class="wl-nombre" style="text-decoration:line-through;color:#94a3b8;">
+                            ${item.nombre}
+                        </td>
+                        <td class="wl-pers" style="color:#94a3b8;">👥 ${item.personas}</td>
+                        <td class="wl-hora">${item.hora}</td>
+                        <td class="wl-hora" style="color:#16a34a;font-weight:700;">✓ ${item.horaPaso}</td>
+                        <td style="text-align:right;">
+                            <button onclick="volverALista(${item.id})"
+                                style="background:none;border:1.5px solid #e5e7eb;border-radius:6px;
+                                    padding:4px 10px;font-size:11px;cursor:pointer;color:#374151;font-weight:600;">
+                                ↩ Volver
+                            </button>
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>` : ''}
+           </div>`
+        : '';
+
+    cont.innerHTML=tablaActiva+btnPasados;
 }
 
 // Cargar badge al iniciar
