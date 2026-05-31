@@ -1155,34 +1155,52 @@ function actualizarStats() {
 // ── REGISTRAR DESECHO ─────────────────────────────────────────
 
 let _desechoUltimoPrecio = 0;
+let _desechoSelId = null;
 
 function abrirModalDesecho() {
-    // Poblar select con insumos de stock
-    const sel = document.getElementById('des-insumo');
-    sel.innerHTML = '<option value="">— Seleccioná un insumo —</option>' +
-        _insumos.map(i => `<option value="${i.id}" data-unidad="${i.unidad}">${i.nombre} (${i.unidad})</option>`).join('');
+    _desechoSelId = null;
+    document.getElementById('des-insumo').value       = '';
+    document.getElementById('des-insumo-input').value = '';
+    document.getElementById('des-insumo-lista').style.display = 'none';
     document.getElementById('des-cantidad').value = '';
-    document.getElementById('des-nota').value = '';
+    document.getElementById('des-nota').value     = '';
     document.getElementById('des-unidad-lbl').value = '';
     document.getElementById('des-perdida-preview').style.display = 'none';
-    _desechoUltimoPrecio = 0;
-
-    // Al cambiar insumo: actualizar unidad y calcular pérdida estimada
-    sel.onchange = () => {
-        const opt = sel.selectedOptions[0];
-        document.getElementById('des-unidad-lbl').value = opt?.dataset?.unidad || '';
-        // Buscar último precio en ultimasCompras o en historial
-        const id = parseInt(sel.value);
-        const uc = _ultimasCompras[id];
-        _desechoUltimoPrecio = 0;  // se recalcula al guardar en backend
-        desechoActualizarPerdida();
-    };
-
-    // Al cambiar cantidad: actualizar pérdida estimada
     document.getElementById('des-cantidad').oninput = desechoActualizarPerdida;
-
+    _desechoUltimoPrecio = 0;
     document.getElementById('modal-desecho').classList.add('active');
-    setTimeout(() => document.getElementById('des-insumo').focus(), 50);
+    setTimeout(() => document.getElementById('des-insumo-input').focus(), 50);
+}
+
+function desechoFiltrar() {
+    const q     = document.getElementById('des-insumo-input').value.toLowerCase();
+    const lista = document.getElementById('des-insumo-lista');
+    const hits  = _insumos.filter(i => !q || i.nombre.toLowerCase().includes(q)).slice(0, 60);
+    if (!hits.length) { lista.style.display = 'none'; return; }
+    lista.innerHTML = hits.map(i => `
+        <div onmousedown="event.preventDefault()" onclick="desechoSeleccionar(${i.id})"
+             style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6;"
+             onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background=''">
+            <strong>${i.nombre}</strong>
+            <span style="color:#9ca3af;font-size:11px;margin-left:4px;">(${i.unidad})</span>
+        </div>`).join('');
+    lista.style.display = '';
+}
+
+function desechoSeleccionar(id) {
+    const ins = _insumos.find(i => i.id === id);
+    if (!ins) return;
+    _desechoSelId = id;
+    document.getElementById('des-insumo').value       = id;
+    document.getElementById('des-insumo-input').value = ins.nombre;
+    document.getElementById('des-insumo-lista').style.display = 'none';
+    document.getElementById('des-unidad-lbl').value = ins.unidad;
+    document.getElementById('des-cantidad').focus();
+    desechoActualizarPerdida();
+}
+
+function desechoOcultarLista() {
+    document.getElementById('des-insumo-lista').style.display = 'none';
 }
 
 function desechoActualizarPerdida() {
@@ -1198,11 +1216,11 @@ function desechoActualizarPerdida() {
 }
 
 async function guardarDesecho() {
-    const insId  = parseInt(document.getElementById('des-insumo').value);
+    const insId  = _desechoSelId || parseInt(document.getElementById('des-insumo').value);
     const cant   = parseFloat(document.getElementById('des-cantidad').value);
     const nota   = document.getElementById('des-nota').value.trim();
 
-    if (!insId) { alert('Seleccioná un insumo.'); return; }
+    if (!insId) { alert('Seleccioná un insumo de la lista.'); document.getElementById('des-insumo-input').focus(); return; }
     if (!cant || cant <= 0) { alert('La cantidad debe ser mayor a cero.'); return; }
     if (!nota) { alert('El motivo es obligatorio. Describí por qué se descarta el producto.'); return; }
 
@@ -1434,11 +1452,19 @@ async function confirmarRevision() {
             Registrá productos descartados por vencimiento, mal estado u otros motivos.
             El stock se actualizará automáticamente.
         </p>
-        <div class="form-group">
+        <div class="form-group" style="position:relative;">
             <label>Insumo *</label>
-            <select id="des-insumo" style="width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;">
-                <option value="">— Seleccioná un insumo —</option>
-            </select>
+            <input type="text" id="des-insumo-input" autocomplete="off"
+                   placeholder="Buscar insumo..."
+                   oninput="desechoFiltrar()"
+                   onfocus="desechoFiltrar()"
+                   onblur="setTimeout(desechoOcultarLista, 150)"
+                   style="width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;box-sizing:border-box;">
+            <input type="hidden" id="des-insumo">
+            <div id="des-insumo-lista"
+                 style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;
+                        background:white;border:1.5px solid #c4b5fd;border-radius:8px;
+                        box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:200px;overflow-y:auto;"></div>
         </div>
         <div class="form-row">
             <div class="form-group">
