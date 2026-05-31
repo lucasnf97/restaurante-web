@@ -126,6 +126,27 @@
         #res-date-input { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
         #lbl-fecha { cursor:pointer; padding:4px 10px; border-radius:6px; transition:background .15s; }
         #lbl-fecha:hover { background:#ede9fe; color:#4f46e5; }
+        /* ── Waiting list ── */
+        #modal-waiting .modal { max-width: 560px; }
+        .wl-form { display:flex; gap:8px; align-items:flex-end; margin-bottom:18px; flex-wrap:wrap; }
+        .wl-form .form-group { margin:0; flex:1; min-width:120px; }
+        .wl-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .wl-table th { background:#f8fafc; padding:8px 10px; text-align:left; font-size:11px;
+            font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.5px;
+            border-bottom:2px solid #e2e8f0; }
+        .wl-table td { padding:10px 10px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+        .wl-table tr:last-child td { border-bottom:none; }
+        .wl-num { font-size:16px; font-weight:800; color:#64748b; text-align:center; width:32px; }
+        .wl-nombre { font-weight:700; color:#1a1a2e; }
+        .wl-hora { font-size:12px; color:#64748b; white-space:nowrap; }
+        .wl-pers { text-align:center; font-weight:600; }
+        .wl-empty { text-align:center; padding:28px; color:#94a3b8; font-size:13px; }
+        .btn-wl-pasar { background:#16a34a; color:white; border:none; padding:5px 12px;
+            border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
+        .btn-wl-pasar:hover { background:#15803d; }
+        .btn-wl-del { background:none; border:none; color:#fca5a5; cursor:pointer;
+            font-size:16px; padding:0 4px; margin-left:4px; }
+        .btn-wl-del:hover { color:#dc2626; }
         .print-section { display: none; }
         @media print {
             .no-print { display: none !important; }
@@ -169,6 +190,13 @@
             </div>
             <div style="margin-left:auto;display:flex;gap:8px;">
                 <button class="btn btn-secondary" onclick="abrirListadoPrint()">🖨️ Listado del día</button>
+                <button class="btn btn-secondary" id="btn-waiting" onclick="abrirWaiting()" title="Lista de espera"
+                        style="position:relative;">
+                    ⏳ Espera
+                    <span id="waiting-badge" style="display:none;position:absolute;top:-6px;right:-6px;
+                        background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;
+                        font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;"></span>
+                </button>
                 <button class="btn btn-primary" onclick="abrirModalNuevo(null,null)">+ Nueva reserva</button>
             </div>
         </div>
@@ -281,6 +309,37 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-print')">Cerrar</button>
             <button class="btn btn-primary" onclick="window.print()">Imprimir / PDF</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL WAITING LIST -->
+<div class="modal-overlay no-print" id="modal-waiting">
+    <div class="modal">
+        <h3>⏳ Lista de espera</h3>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">
+            Clientes esperando mesa, en orden de llegada.
+        </p>
+        <div class="wl-form">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="wl-nombre" placeholder="Nombre del cliente"
+                       onkeydown="if(event.key==='Enter')agregarWaiting()">
+            </div>
+            <div class="form-group" style="max-width:110px;">
+                <label>Personas</label>
+                <input type="number" id="wl-personas" min="1" value="2"
+                       onkeydown="if(event.key==='Enter')agregarWaiting()">
+            </div>
+            <button class="btn btn-primary" onclick="agregarWaiting()" style="flex-shrink:0;">
+                + Agregar
+            </button>
+        </div>
+        <div id="wl-lista">
+            <div class="wl-empty">Sin clientes en espera</div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-waiting')">Cerrar</button>
         </div>
     </div>
 </div>
@@ -1269,6 +1328,108 @@ async function apiDelete(url){
     if(!r.ok){const t=await r.text();throw new Error(t);}
     return r.json().catch(()=>({}));
 }
+
+// ══ WAITING LIST ══════════════════════════════════════════════
+let _waitingList = [];
+const _WL_KEY = 'res_waiting_list';
+
+function _wlCargar(){
+    try{
+        const raw=localStorage.getItem(_WL_KEY);
+        if(!raw){_waitingList=[];return;}
+        const data=JSON.parse(raw);
+        // Descartar listas de días anteriores
+        const hoy=new Date().toDateString();
+        _waitingList=data.fecha===hoy ? (data.items||[]) : [];
+    }catch{_waitingList=[];}
+}
+function _wlGuardar(){
+    localStorage.setItem(_WL_KEY,JSON.stringify({
+        fecha:new Date().toDateString(),
+        items:_waitingList
+    }));
+    _wlActualizarBadge();
+}
+function _wlActualizarBadge(){
+    const badge=document.getElementById('waiting-badge');
+    if(!badge)return;
+    const n=_waitingList.length;
+    badge.textContent=n;
+    badge.style.display=n>0?'inline-flex':'none';
+}
+
+function abrirWaiting(){
+    _wlCargar();
+    document.getElementById('wl-nombre').value='';
+    document.getElementById('wl-personas').value='2';
+    _wlRender();
+    document.getElementById('modal-waiting').classList.add('active');
+    setTimeout(()=>document.getElementById('wl-nombre').focus(),60);
+}
+
+function agregarWaiting(){
+    const nombre=document.getElementById('wl-nombre').value.trim();
+    const personas=parseInt(document.getElementById('wl-personas').value)||1;
+    if(!nombre){alert('Ingresá el nombre del cliente.');return;}
+    const ahora=new Date();
+    const hora=ahora.getHours().toString().padStart(2,'0')+':'+ahora.getMinutes().toString().padStart(2,'0');
+    _waitingList.push({id:Date.now(),nombre,personas,hora});
+    _wlGuardar();
+    document.getElementById('wl-nombre').value='';
+    document.getElementById('wl-personas').value='2';
+    _wlRender();
+    document.getElementById('wl-nombre').focus();
+}
+
+function pasarAMesa(id){
+    const item=_waitingList.find(x=>x.id===id);
+    if(!item)return;
+    if(!confirm(`¿${item.nombre} pasó a mesa?`))return;
+    _waitingList=_waitingList.filter(x=>x.id!==id);
+    _wlGuardar();
+    _wlRender();
+}
+
+function quitarDeEspera(id){
+    if(!confirm('¿Quitar de la lista de espera?'))return;
+    _waitingList=_waitingList.filter(x=>x.id!==id);
+    _wlGuardar();
+    _wlRender();
+}
+
+function _wlRender(){
+    const cont=document.getElementById('wl-lista');
+    if(!_waitingList.length){
+        cont.innerHTML='<div class="wl-empty">Sin clientes en espera 🟢</div>';
+        return;
+    }
+    cont.innerHTML=`<table class="wl-table">
+        <thead><tr>
+            <th style="width:36px;">#</th>
+            <th>Nombre</th>
+            <th style="text-align:center;width:70px;">Pers.</th>
+            <th style="width:70px;">Llegada</th>
+            <th style="width:130px;"></th>
+        </tr></thead>
+        <tbody>
+        ${_waitingList.map((item,i)=>`
+            <tr>
+                <td class="wl-num">${i+1}</td>
+                <td class="wl-nombre">${item.nombre}</td>
+                <td class="wl-pers">👥 ${item.personas}</td>
+                <td class="wl-hora">🕐 ${item.hora}</td>
+                <td style="text-align:right;">
+                    <button class="btn-wl-pasar" onclick="pasarAMesa(${item.id})">✓ A mesa</button>
+                    <button class="btn-wl-del" onclick="quitarDeEspera(${item.id})" title="Quitar">✕</button>
+                </td>
+            </tr>`).join('')}
+        </tbody>
+    </table>`;
+}
+
+// Cargar badge al iniciar
+_wlCargar();
+_wlActualizarBadge();
 
 // ── Tabs ──────────────────────────────────────────────────────
 function cambiarTab(tab,btn){
