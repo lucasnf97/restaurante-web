@@ -1515,13 +1515,12 @@ async function _confirmarColocacion(mesa){
 async function volverALista(id){
     const item=_waitingPasados.find(x=>x.id===id);
     if(!item)return;
-    if(!confirm(`¿Volver a "${item.nombre}" a la lista de espera? Se eliminará la reserva creada.`))return;
+    if(!confirm(`¿Volver a "${item.nombre}" a la lista de espera? Se cancelará la reserva creada.`))return;
 
     try{
-        // Eliminar la reserva de la grilla si existe
+        // Cancelar (no eliminar): se oculta de la grilla y no requiere rol admin/gerente
         if(item.reserva_id){
-            try{ await api.delete('/reservas/'+item.reserva_id); }
-            catch(e){ console.warn('No se pudo eliminar la reserva:', e.message); }
+            await api.patch('/reservas/'+item.reserva_id+'/cancelar');
         }
         await api.patch('/reservas/espera/'+id,
             {estado:'esperando', reserva_id:null, hora_paso:null});
