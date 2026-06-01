@@ -1389,32 +1389,25 @@ async function apiDelete(url){
     return r.json().catch(()=>({}));
 }
 
-// ══ WAITING LIST ══════════════════════════════════════════════
+// ══ WAITING LIST (compartida vía API) ═════════════════════════
 let _waitingList = [];
 let _waitingPasados = [];
 let _wlMostrarPasados = false;
 let _wlPlacingClient = null;   // cliente en modo "elegir mesa"
-const _WL_KEY = 'res_waiting_list';
 
-function _wlCargar(){
+// La lista de espera siempre es del día de hoy (clientes esperando ahora).
+function _wlFechaHoy(){ return fechaISO(new Date()); }
+
+async function _wlRecargar(){
     try{
-        const raw=localStorage.getItem(_WL_KEY);
-        if(!raw){_waitingList=[];_waitingPasados=[];return;}
-        const data=JSON.parse(raw);
-        const hoy=new Date().toDateString();
-        if(data.fecha!==hoy){_waitingList=[];_waitingPasados=[];return;}
-        _waitingList   = data.items    || [];
-        _waitingPasados= data.pasados  || [];
-    }catch{_waitingList=[];_waitingPasados=[];}
-}
-function _wlGuardar(){
-    localStorage.setItem(_WL_KEY,JSON.stringify({
-        fecha:   new Date().toDateString(),
-        items:   _waitingList,
-        pasados: _waitingPasados,
-    }));
+        const data = await api.get('/reservas/espera?fecha='+_wlFechaHoy());
+        _waitingList    = data.filter(x=>x.estado==='esperando');
+        _waitingPasados = data.filter(x=>x.estado==='pasado');
+    }catch(e){ _waitingList=[]; _waitingPasados=[]; }
     _wlActualizarBadge();
+    if(document.getElementById('modal-waiting').classList.contains('active')) _wlRender();
 }
+
 function _wlActualizarBadge(){
     const badge=document.getElementById('waiting-badge');
     if(!badge)return;
@@ -1424,35 +1417,35 @@ function _wlActualizarBadge(){
 }
 
 function abrirWaiting(){
-    _wlCargar();
     _wlMostrarPasados=false;
     document.getElementById('wl-nombre').value='';
     document.getElementById('wl-personas').value='2';
     _wlRender();
     document.getElementById('modal-waiting').classList.add('active');
     setTimeout(()=>document.getElementById('wl-nombre').focus(),60);
+    _wlRecargar();
 }
 
-function agregarWaiting(){
+async function agregarWaiting(){
     const nombre=document.getElementById('wl-nombre').value.trim();
     const personas=parseInt(document.getElementById('wl-personas').value)||1;
     if(!nombre){alert('Ingresá el nombre del cliente.');return;}
     const ahora=new Date();
     const hora=ahora.getHours().toString().padStart(2,'0')+':'+ahora.getMinutes().toString().padStart(2,'0');
-    _waitingList.push({id:Date.now(),nombre,personas,hora});
-    _wlGuardar();
+    try{
+        await api.post('/reservas/espera',{nombre,personas,fecha:_wlFechaHoy(),hora});
+    }catch(err){ alert('Error: '+err.message); return; }
     document.getElementById('wl-nombre').value='';
     document.getElementById('wl-personas').value='2';
-    _wlRender();
     document.getElementById('wl-nombre').focus();
+    await _wlRecargar();
 }
 
 function pasarAMesa(id){
-    const idx=_waitingList.findIndex(x=>x.id===id);
-    if(idx<0)return;
-    const item=_waitingList[idx];
+    const item=_waitingList.find(x=>x.id===id);
+    if(!item)return;
     // Entrar en modo colocación: el usuario elige la mesa en la grilla
-    _wlPlacingClient={...item, posicion:idx};
+    _wlPlacingClient={...item};
     cerrarModal('modal-waiting');
     // Mostrar banner
     document.getElementById('pb-nombre').textContent=`${item.nombre} (${item.personas} pers.)`;
@@ -1506,50 +1499,43 @@ async function _confirmarColocacion(mesa){
             estado:         'sentado',
             notas:          'Desde lista de espera',
         });
-
-        // Guardar reserva_id para poder eliminarla si se revierte
         const reservaId=res?.id ?? null;
-        const horaPaso=horaInicio;
-        _waitingPasados.unshift({...cli, horaPaso, reserva_id: reservaId});
-        _waitingList=_waitingList.filter(x=>x.id!==cli.id);
-        _wlGuardar();
+        // Marcar el cliente como "pasado" en la lista compartida
+        await api.patch('/reservas/espera/'+cli.id,
+            {estado:'pasado', reserva_id:reservaId, hora_paso:horaInicio});
 
         cancelarPlacement();
         await cargarDatos();
+        await _wlRecargar();
     }catch(err){
         alert('Error al crear la reserva: '+err.message);
     }
 }
 
 async function volverALista(id){
-    const idx=_waitingPasados.findIndex(x=>x.id===id);
-    if(idx<0)return;
-    const item=_waitingPasados[idx];
+    const item=_waitingPasados.find(x=>x.id===id);
+    if(!item)return;
     if(!confirm(`¿Volver a "${item.nombre}" a la lista de espera? Se eliminará la reserva creada.`))return;
 
-    // Eliminar la reserva de la grilla si existe
-    if(item.reserva_id){
-        try{
-            await api.delete('/reservas/'+item.reserva_id);
-        }catch(e){
-            console.warn('No se pudo eliminar la reserva:', e.message);
+    try{
+        // Eliminar la reserva de la grilla si existe
+        if(item.reserva_id){
+            try{ await api.delete('/reservas/'+item.reserva_id); }
+            catch(e){ console.warn('No se pudo eliminar la reserva:', e.message); }
         }
-    }
+        await api.patch('/reservas/espera/'+id,
+            {estado:'esperando', reserva_id:null, hora_paso:null});
+    }catch(err){ alert('Error: '+err.message); return; }
 
-    _waitingPasados.splice(idx,1);
-    const pos=Math.min(item.posicion, _waitingList.length);
-    const restored={id:item.id,nombre:item.nombre,personas:item.personas,hora:item.hora};
-    _waitingList.splice(pos,0,restored);
-    _wlGuardar();
-    _wlRender();
     await cargarDatos();   // refrescar la grilla
+    await _wlRecargar();
 }
 
-function quitarDeEspera(id){
+async function quitarDeEspera(id){
     if(!confirm('¿Quitar de la lista de espera?'))return;
-    _waitingList=_waitingList.filter(x=>x.id!==id);
-    _wlGuardar();
-    _wlRender();
+    try{ await api.delete('/reservas/espera/'+id); }
+    catch(err){ alert('Error: '+err.message); return; }
+    await _wlRecargar();
 }
 
 function _wlRender(){
@@ -1611,7 +1597,7 @@ function _wlRender(){
                         </td>
                         <td class="wl-pers" style="color:#94a3b8;">👥 ${item.personas}</td>
                         <td class="wl-hora">${item.hora}</td>
-                        <td class="wl-hora" style="color:#16a34a;font-weight:700;">✓ ${item.horaPaso}</td>
+                        <td class="wl-hora" style="color:#16a34a;font-weight:700;">✓ ${item.hora_paso||''}</td>
                         <td style="text-align:right;">
                             <button onclick="volverALista(${item.id})"
                                 style="background:none;border:1.5px solid #e5e7eb;border-radius:6px;
@@ -1628,9 +1614,8 @@ function _wlRender(){
     cont.innerHTML=tablaActiva+btnPasados;
 }
 
-// Cargar badge al iniciar
-_wlCargar();
-_wlActualizarBadge();
+// Cargar badge al iniciar (desde la API, lista compartida)
+_wlRecargar();
 
 // ── Tabs ──────────────────────────────────────────────────────
 function cambiarTab(tab,btn){
