@@ -810,6 +810,7 @@ let isDragging=false, dragStartX=0, scrollStartX=0, dragMoved=false;
 let dragReserva=null, dragStartCX=0, dragStartCY=0, dropCol=-1, dropRow=-1;
 // Resize
 let resizeModo=false, resizeReserva=null, resizeStartX=0, resizeOrigColEnd=0;
+let _resizeDidMove=false;
 
 // Detectar si el punto está en el handle de resize (últimos RESIZE_HIT px del rect)
 function hitResize(x,y){return rBounds.find(b=>x>=b.x+b.w-RESIZE_HIT&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h);}
@@ -834,7 +835,7 @@ canvasWrap.addEventListener('mousedown',e=>{
     // Prioridad 1: resize
     const onResize=hitResize(x,y);
     if(onResize&&onResize.r.estado!=='cancelada'&&onResize.r.estado!=='terminada'){
-        resizeModo=true; resizeReserva=onResize;
+        resizeModo=true; resizeReserva=onResize; _resizeDidMove=false;
         resizeStartX=x;
         const sm=minsDesdeInicio(onResize.r.hora_inicio);
         let em; if(onResize.r.hora_fin){em=minsDesdeInicio(onResize.r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
@@ -854,6 +855,7 @@ document.addEventListener('mousemove',e=>{
     if(resizeModo){
         const{x}=canvasPos(e);
         const dx=x-resizeStartX;
+        if(Math.abs(dx)>3) _resizeDidMove=true;
         const deltaCols=Math.round(dx/COL_W);
         const newEndCol=Math.max(resizeOrigColEnd-Math.round((resizeOrigColEnd-(minsDesdeInicio(resizeReserva.r.hora_inicio)/SLOT_MIN||0))),
                                   resizeOrigColEnd+deltaCols);
@@ -1072,7 +1074,7 @@ function canvasPos(e){const rect=canvas.getBoundingClientRect();return{x:e.clien
 
 // Single click → popup de estado
 canvas.addEventListener('click',e=>{
-    if(dragMoved||resizeModo)return;
+    if(dragMoved||_resizeDidMove){_resizeDidMove=false;return;}
     const{x,y}=canvasPos(e);
 
     // ── Modo colocación desde waiting list ──────────────────
