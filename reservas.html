@@ -1480,6 +1480,8 @@ async function _confirmarColocacion(mesa){
     const cli=_wlPlacingClient;
     if(!cli)return;
     if(!confirm(`¿Sentar a "${cli.nombre}" (${cli.personas} pers.) en Mesa ${mesa.numero}?`))return;
+    // Salir del modo colocación YA: evita reservas duplicadas si se vuelve a tocar
+    cancelarPlacement();
 
     const ahora=new Date();
     const hh=ahora.getHours().toString().padStart(2,'0');
@@ -1504,7 +1506,6 @@ async function _confirmarColocacion(mesa){
         await api.patch('/reservas/espera/'+cli.id,
             {estado:'pasado', reserva_id:reservaId, hora_paso:horaInicio});
 
-        cancelarPlacement();
         await cargarDatos();
         await _wlRecargar();
     }catch(err){
