@@ -83,9 +83,11 @@ body.config-open .block-drag { display:inline; }
 .widget-title:hover { color:#4f46e5; }
 .res-summary { display:flex; align-items:center; gap:8px; }
 .res-badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; }
-.res-badge.cad  { background:#f3f4f6; color:#6b7280; }
-.res-badge.act  { background:#f0fdf4; color:#16a34a; }
-.res-badge.prox { background:#ede9fe; color:#7c3aed; }
+.res-badge.prog     { background:#fff7ed; color:#92400e; }
+.res-badge.espera   { background:#ecfeff; color:#0e7490; }
+.res-badge.sentado  { background:#fef2f2; color:#991b1b; }
+.res-badge.terminada{ background:#f3f4f6; color:#6b7280; }
+.res-badge.wl       { background:#f5f3ff; color:#5b21b6; }
 .reservas-slots { flex:1; overflow:hidden; display:flex; flex-direction:column; gap:5px; }
 .reservas-book { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; flex:1; overflow:hidden; }
 .reservas-col  { display:flex; flex-direction:column; gap:5px; overflow:hidden; }
@@ -332,6 +334,7 @@ saveConfig();
 // ── DATOS ────────────────────────────────────────────────────
 let periodos       = null;
 let reservasHoy    = [];
+let esperaHoy      = 0;   // personas en lista de espera (estado 'esperando')
 let stockData      = { ok:0, warn:0, agotado:0 };
 let cajaData       = null;
 let cajaDia        = null;
@@ -354,8 +357,13 @@ async function cargarDatos() {
         (async () => {
             try {
                 const hoy = new Date().toISOString().split("T")[0];
-                const rv  = await api.get(`/reservas/?fecha=${hoy}`);
+                const hoy2 = new Date().toISOString().split("T")[0];
+                const [rv, esp] = await Promise.all([
+                    api.get(`/reservas/?fecha=${hoy2}`),
+                    api.get(`/reservas/espera?fecha=${hoy2}`).catch(()=>[])
+                ]);
                 reservasHoy = (rv||[]).sort((a,b) => (a.hora_inicio||a.hora||"").localeCompare(b.hora_inicio||b.hora||""));
+                esperaHoy = (esp||[]).filter(x=>x.estado==='esperando').length;
                 calcPaginaActual();
             } catch(e) {}
         })(),
@@ -544,16 +552,15 @@ function buildReservas(b) {
     const inicio = resPag * pp;
     const slots  = reservasHoy.slice(inicio, inicio + pp);
 
-    // Resumen global
-    let nCad = 0, nAct = 0, nProx = 0;
+    // Resumen global por estado de reserva (mismos estados que la grilla)
+    let nProg = 0, nEspera = 0, nSentado = 0, nTerminada = 0;
     reservasHoy.forEach(r => {
-        const bloq = r.tipo === "bloqueo" || r.bloqueo;
-        if (!bloq) {
-            const e = estadoReserva(r);
-            if (e === "cad") nCad++;
-            else if (e === "prox") nProx++;
-            else nAct++;   // actual, warn, post
-        }
+        if (r.tipo === "bloqueo" || r.bloqueo) return;
+        const est = (r.estado || "programada").toLowerCase();
+        if      (est === "sentado")   nSentado++;
+        else if (est === "en_espera") nEspera++;
+        else if (est === "terminada") nTerminada++;
+        else if (est !== "cancelada") nProg++;   // programada + cualquier otro no cancelado
     });
 
     function slotHtml(r) {
@@ -597,9 +604,12 @@ function buildReservas(b) {
         <div class="widget-head">
             <a href="reservas.html" class="widget-title">📅 Reservas de hoy</a>
             <div class="res-summary">
-                <span class="res-badge cad">✓ ${nCad} caducadas</span>
-                <span class="res-badge act">● ${nAct} activas</span>
-                <span class="res-badge prox">◷ ${nProx} próximas</span>
+                ${nProg     ? `<span class="res-badge prog">🟠 ${nProg} programada${nProg!==1?'s':''}</span>` : ''}
+                ${nEspera   ? `<span class="res-badge espera">🔵 ${nEspera} en espera</span>` : ''}
+                ${nSentado  ? `<span class="res-badge sentado">🔴 ${nSentado} sentado${nSentado!==1?'s':''}</span>` : ''}
+                ${nTerminada? `<span class="res-badge terminada">⚪ ${nTerminada} terminada${nTerminada!==1?'s':''}</span>` : ''}
+                ${esperaHoy ? `<span class="res-badge wl">⏳ ${esperaHoy} en lista</span>` : ''}
+                ${(!nProg && !nEspera && !nSentado && !nTerminada && !esperaHoy) ? '<span class="res-badge terminada">Sin reservas</span>' : ''}
             </div>
         </div>
         ${body}${pager}
