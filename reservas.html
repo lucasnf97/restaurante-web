@@ -804,7 +804,40 @@ document.addEventListener('keydown',e=>{
 
 // ── Scroll sync ───────────────────────────────────────────────
 canvasWrap.addEventListener('scroll',()=>{canvasTime.style.transform='translateX(-'+canvasWrap.scrollLeft+'px)';});
-setInterval(()=>{if(document.getElementById('panel-reservas').classList.contains('active'))dibujar();},60000);
+
+// ── Auto-sync: refleja cambios hechos desde otra terminal/web ──
+let _syncHash=null, _lastDrawTs=0, _syncBusy=false;
+function _interactuando(){
+    return dragReserva||resizeModo||_wlPlacingClient||isDragging||
+           document.querySelector('.modal-overlay.active');
+}
+async function _autoSync(){
+    if(!document.getElementById('panel-reservas').classList.contains('active')) return;
+    if(_syncBusy || _interactuando()) return;
+    _syncBusy=true;
+    try{
+        const f=fechaISO(fechaActual);
+        const [r,b]=await Promise.all([
+            api.get('/reservas/?fecha='+f),
+            api.get('/horarios/bloqueos?fecha='+f)
+        ]);
+        // Si el usuario empezó a interactuar mientras cargaba, descartar
+        if(_interactuando()){ _syncBusy=false; return; }
+        const nuevoHash=JSON.stringify(r)+'|'+JSON.stringify(b);
+        const ahora=Date.now();
+        if(nuevoHash!==_syncHash || (ahora-_lastDrawTs)>=60000){
+            reservas=r; bloqueos=b;
+            _syncHash=nuevoHash;
+            recalcularRango();
+            const sx=canvasWrap.scrollLeft;       // preservar scroll del usuario
+            dibujar();
+            canvasWrap.scrollLeft=sx;             // (dibujar lo reposiciona a "ahora")
+            _lastDrawTs=ahora;
+        }
+    }catch(e){ /* silencioso: reintenta en el próximo ciclo */ }
+    _syncBusy=false;
+}
+setInterval(_autoSync, 4000);
 
 let isDragging=false, dragStartX=0, scrollStartX=0, dragMoved=false;
 let dragReserva=null, dragStartCX=0, dragStartCY=0, dropCol=-1, dropRow=-1;
