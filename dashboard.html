@@ -92,16 +92,20 @@ body.config-open .block-drag { display:inline; }
 .reservas-book { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; flex:1; overflow:hidden; }
 .reservas-col  { display:flex; flex-direction:column; gap:5px; overflow:hidden; }
 .res-slot { display:flex; align-items:flex-start; gap:8px; padding:6px 9px; border-radius:7px; font-size:12px; flex-shrink:0; }
-.res-slot.prox   { background:#ede9fe; border-left:3px solid #7c3aed; }
-.res-slot.actual { background:#f0fdf4; border-left:3px solid #22c55e; }
-.res-slot.warn   { background:#fffbeb; border-left:3px solid #f59e0b; }
-.res-slot.post   { background:#fef2f2; border-left:3px solid #ef4444; }
-.res-slot.cad    { background:#f9fafb; border-left:3px solid #d1d5db; opacity:.65; }
-.res-slot.bloq   { background:#fff7ed; border-left:3px solid #f59e0b; }
-.res-hora { font-weight:700; min-width:38px; flex-shrink:0; }
-.res-info { flex:1; min-width:0; }
+.res-slot.programada { background:#fff7ed; border-left:3px solid #f59e0b; }
+.res-slot.en_espera  { background:#ecfeff; border-left:3px solid #06b6d4; }
+.res-slot.sentado    { background:#fef2f2; border-left:3px solid #ef4444; }
+.res-slot.terminada  { background:#f9fafb; border-left:3px solid #d1d5db; opacity:.7; }
+.res-slot.cancelada  { background:#f9fafb; border-left:3px solid #d1d5db; opacity:.5; }
+.res-slot.bloq       { background:#fff7ed; border-left:3px solid #f59e0b; }
+.res-hora   { font-weight:700; min-width:38px; flex-shrink:0; }
+.res-info   { flex:1; min-width:0; }
 .res-nombre { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.res-sub  { font-size:11px; color:#888; margin-top:1px; }
+.res-sub    { font-size:11px; color:#888; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.res-tags   { display:flex; gap:4px; margin-top:3px; flex-wrap:wrap; }
+.res-tag    { font-size:10px; font-weight:600; padding:1px 6px; border-radius:10px; }
+.res-tag.alerg { background:#fef3c7; color:#92400e; }
+.res-tag.nota  { background:#ede9fe; color:#5b21b6; }
 .res-empty { text-align:center; padding:28px 16px; color:#9ca3af; font-size:13px; }
 .res-pager { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; flex-shrink:0; }
 .res-pag-btn { background:#f3f4f6; border:none; border-radius:6px; width:26px; height:26px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
@@ -565,17 +569,32 @@ function buildReservas(b) {
 
     function slotHtml(r) {
         if (!r) return "";
-        const cls  = estadoReserva(r);
-        const bloq = cls === "bloq";
-        const nom  = bloq ? `🔒 ${r.motivo||"Bloqueo"}` : (r.nombre_cliente||r.cliente||"—");
-        const sub  = bloq
-            ? (r.mesas_bloqueadas ? `Mesas: ${r.mesas_bloqueadas}` : "")
-            : `👥 ${r.personas||"?"} · Mesa ${r.mesa_numero||r.mesa_id||"?"}`;
-        return `<div class="res-slot ${cls}">
-            <span class="res-hora">${r.hora_inicio||"—"}</span>
+        const bloq = r.tipo === "bloqueo" || r.bloqueo;
+        if (bloq) {
+            const mot = r.motivo || "Bloqueo";
+            return `<div class="res-slot bloq">
+                <span class="res-hora">${(r.hora_inicio||"—").substring(0,5)}</span>
+                <div class="res-info">
+                    <div class="res-nombre">🔒 ${mot}</div>
+                    ${r.mesas_bloqueadas ? `<div class="res-sub">Mesas: ${r.mesas_bloqueadas}</div>` : ''}
+                </div>
+            </div>`;
+        }
+        const est    = (r.estado || "programada").toLowerCase();
+        const nom    = r.nombre_cliente || r.cliente || "—";
+        const pers   = r.comensales || r.personas;
+        const mesa   = r.mesa_numero ? `Mesa ${r.mesa_numero}` : "Sin mesa";
+        const hora   = (r.hora_inicio || "—").substring(0, 5);
+        const tags   = [
+            r.alergeno ? `<span class="res-tag alerg">⚠ ${r.alergeno}</span>` : '',
+            (r.notas   ? `<span class="res-tag nota">📝 ${r.notas}</span>` : '')
+        ].join('');
+        return `<div class="res-slot ${est}">
+            <span class="res-hora">${hora}</span>
             <div class="res-info">
                 <div class="res-nombre">${nom}</div>
-                <div class="res-sub">${sub}</div>
+                <div class="res-sub">${pers ? `👥 ${pers} · ` : ''}${mesa}</div>
+                ${tags ? `<div class="res-tags">${tags}</div>` : ''}
             </div>
         </div>`;
     }
