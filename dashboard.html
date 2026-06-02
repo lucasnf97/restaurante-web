@@ -106,6 +106,13 @@ body.config-open .block-drag { display:inline; }
 .res-tag    { font-size:10px; font-weight:600; padding:1px 6px; border-radius:10px; }
 .res-tag.alerg { background:#fef3c7; color:#92400e; }
 .res-tag.nota  { background:#ede9fe; color:#5b21b6; }
+.res-terminadas { margin-top:6px; }
+.res-terminadas summary { font-size:11px; font-weight:700; color:#9ca3af; cursor:pointer;
+    padding:4px 6px; border-radius:6px; list-style:none; display:flex; align-items:center; gap:4px; }
+.res-terminadas summary::before { content:"▶"; font-size:9px; transition:transform .15s; }
+.res-terminadas[open] summary::before { transform:rotate(90deg); }
+.res-terminadas summary:hover { background:#f3f4f6; color:#6b7280; }
+.res-term-list { margin-top:4px; }
 .res-empty { text-align:center; padding:28px 16px; color:#9ca3af; font-size:13px; }
 .res-pager { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; flex-shrink:0; }
 .res-pag-btn { background:#f3f4f6; border:none; border-radius:6px; width:26px; height:26px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
@@ -599,24 +606,38 @@ function buildReservas(b) {
         </div>`;
     }
 
+    // Separar terminadas del flujo principal para ocultarlas por defecto
+    const activas     = reservasHoy.filter(r => (r.estado||"programada").toLowerCase() !== "terminada");
+    const terminadas  = reservasHoy.filter(r => (r.estado||"programada").toLowerCase() === "terminada");
+    const ppA         = ppag(span);
+    const totalA      = Math.max(1, Math.ceil(activas.length / ppA));
+    const pagA        = Math.min(resPag, totalA - 1);
+    const slotsA      = activas.slice(pagA * ppA, pagA * ppA + ppA);
+
     let body = "";
-    if (!reservasHoy.length) {
-        body = `<div class="reservas-slots"><div class="res-empty">Sin reservas para hoy</div></div>`;
+    if (!activas.length) {
+        body = `<div class="reservas-slots"><div class="res-empty">Sin reservas activas para hoy</div></div>`;
     } else if (span === 6) {
-        const c1 = slots.slice(0,4), c2 = slots.slice(4,8);
+        const c1 = slotsA.slice(0,4), c2 = slotsA.slice(4,8);
         body = `<div class="reservas-book">
             <div class="reservas-col">${c1.map(slotHtml).join("")}</div>
             <div class="reservas-col">${c2.map(slotHtml).join("")}</div>
         </div>`;
     } else {
-        body = `<div class="reservas-slots">${slots.map(slotHtml).join("")}</div>`;
+        body = `<div class="reservas-slots">${slotsA.map(slotHtml).join("")}</div>`;
     }
 
-    const pager = total > 1 ? `<div class="res-pager">
-        <span class="res-pag-info">Pág. ${resPag+1}/${total}</span>
-        <button class="res-pag-btn" onclick="cambiarPagRes(-1)" ${resPag===0?"disabled":""}>◀</button>
-        <button class="res-pag-btn" onclick="cambiarPagRes(1)"  ${resPag>=total-1?"disabled":""}>▶</button>
+    const pager = totalA > 1 ? `<div class="res-pager">
+        <span class="res-pag-info">Pág. ${pagA+1}/${totalA}</span>
+        <button class="res-pag-btn" onclick="cambiarPagRes(-1)" ${pagA===0?"disabled":""}>◀</button>
+        <button class="res-pag-btn" onclick="cambiarPagRes(1)"  ${pagA>=totalA-1?"disabled":""}>▶</button>
     </div>` : "";
+
+    const colapsadas = terminadas.length ? `
+        <details class="res-terminadas">
+            <summary>⚪ ${terminadas.length} terminada${terminadas.length!==1?'s':''}</summary>
+            <div class="reservas-slots res-term-list">${terminadas.map(slotHtml).join("")}</div>
+        </details>` : "";
 
     return `${blockHeader("")}
     <div class="reservas-card">
@@ -631,7 +652,7 @@ function buildReservas(b) {
                 ${(!nProg && !nEspera && !nSentado && !nTerminada && !esperaHoy) ? '<span class="res-badge terminada">Sin reservas</span>' : ''}
             </div>
         </div>
-        ${body}${pager}
+        ${body}${pager}${colapsadas}
     </div>`;
 }
 
