@@ -78,6 +78,10 @@ body.config-open .block-drag { display:inline; }
 
 /* RESERVAS WIDGET */
 .reservas-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; display:flex; flex-direction:column; height:300px; }
+.reservas-card .res-scroll { flex:1; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#e2e8f0 transparent; cursor:grab; user-select:none; }
+.reservas-card .res-scroll.dragging { cursor:grabbing; }
+.reservas-card .res-scroll::-webkit-scrollbar { width:4px; }
+.reservas-card .res-scroll::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:4px; }
 .widget-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-shrink:0; }
 .widget-title { font-size:13px; font-weight:700; color:#1a1a2e; display:flex; align-items:center; gap:6px; text-decoration:none; }
 .widget-title:hover { color:#4f46e5; }
@@ -88,9 +92,9 @@ body.config-open .block-drag { display:inline; }
 .res-badge.sentado  { background:#fef2f2; color:#991b1b; }
 .res-badge.terminada{ background:#f3f4f6; color:#6b7280; }
 .res-badge.wl       { background:#f5f3ff; color:#5b21b6; }
-.reservas-slots { flex:1; overflow:hidden; display:flex; flex-direction:column; gap:5px; }
-.reservas-book { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; flex:1; overflow:hidden; }
-.reservas-col  { display:flex; flex-direction:column; gap:5px; overflow:hidden; }
+.reservas-slots { display:flex; flex-direction:column; gap:5px; }
+.reservas-book { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+.reservas-col  { display:flex; flex-direction:column; gap:5px; }
 .res-slot { display:flex; align-items:flex-start; gap:8px; padding:6px 9px; border-radius:7px; font-size:12px; flex-shrink:0; }
 .res-slot.programada { background:#fff7ed; border-left:3px solid #f59e0b; }
 .res-slot.en_espera  { background:#ecfeff; border-left:3px solid #06b6d4; }
@@ -107,11 +111,6 @@ body.config-open .block-drag { display:inline; }
 .res-tag.alerg { background:#fef3c7; color:#92400e; }
 .res-tag.nota  { background:#ede9fe; color:#5b21b6; }
 .res-empty { text-align:center; padding:28px 16px; color:#9ca3af; font-size:13px; }
-.res-pager { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; flex-shrink:0; }
-.res-pag-btn { background:#f3f4f6; border:none; border-radius:6px; width:26px; height:26px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
-.res-pag-btn:hover:not(:disabled) { background:#e0e7ff; }
-.res-pag-btn:disabled { opacity:.3; cursor:not-allowed; }
-.res-pag-info { font-size:11px; color:#9ca3af; }
 
 /* STOCK WIDGET */
 .stock-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
@@ -448,6 +447,32 @@ function renderDash() {
         grid.appendChild(el);
     });
     initDrag();
+    _initScrollDrag();
+}
+
+function _initScrollDrag() {
+    document.querySelectorAll('.res-scroll').forEach(el => {
+        let startY = 0, startScroll = 0, dragging = false;
+        el.addEventListener('mousedown', e => {
+            if (e.button !== 0) return;
+            dragging = true; startY = e.clientY; startScroll = el.scrollTop;
+            el.classList.add('dragging'); e.preventDefault();
+        });
+        el.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            el.scrollTop = startScroll - (e.clientY - startY);
+        });
+        const stop = () => { dragging = false; el.classList.remove('dragging'); };
+        el.addEventListener('mouseup', stop);
+        el.addEventListener('mouseleave', stop);
+        // Touch
+        el.addEventListener('touchstart', e => {
+            startY = e.touches[0].clientY; startScroll = el.scrollTop;
+        }, {passive:true});
+        el.addEventListener('touchmove', e => {
+            el.scrollTop = startScroll - (e.touches[0].clientY - startY);
+        }, {passive:true});
+    });
 }
 
 function buildBlock(b) {
@@ -559,11 +584,7 @@ function estadoReserva(r) {
 
 function buildReservas(b) {
     const span   = b.span;
-    const pp     = ppag(span);
     const vis    = _reservasVisibles();
-    const total  = Math.max(1, Math.ceil(vis.length / pp));
-    const pag    = Math.min(resPag, total - 1);
-    const slots  = vis.slice(pag * pp, pag * pp + pp);
 
     // Resumen global — contadores por estado (terminadas solo como número)
     let nProg = 0, nEspera = 0, nSentado = 0, nTerminada = 0;
@@ -608,25 +629,21 @@ function buildReservas(b) {
         </div>`;
     }
 
-    let body = "";
+    let inner = "";
     if (!vis.length) {
-        body = `<div class="reservas-slots"><div class="res-empty">Sin reservas para hoy</div></div>`;
+        inner = `<div class="res-empty">Sin reservas para hoy</div>`;
     } else if (span === 6) {
-        const c1 = slots.slice(0,4), c2 = slots.slice(4,8);
-        body = `<div class="reservas-book">
+        const mid  = Math.ceil(vis.length / 2);
+        const c1 = vis.slice(0, mid), c2 = vis.slice(mid);
+        inner = `<div class="reservas-book">
             <div class="reservas-col">${c1.map(slotHtml).join("")}</div>
             <div class="reservas-col">${c2.map(slotHtml).join("")}</div>
         </div>`;
     } else {
-        body = `<div class="reservas-slots">${slots.map(slotHtml).join("")}</div>`;
+        inner = `<div class="reservas-slots">${vis.map(slotHtml).join("")}</div>`;
     }
 
-    const pager = total > 1 ? `<div class="res-pager">
-        <span class="res-pag-info">Pág. ${pag+1}/${total}</span>
-        <button class="res-pag-btn" onclick="cambiarPagRes(-1)" ${pag===0?"disabled":""}>◀</button>
-        <button class="res-pag-btn" onclick="cambiarPagRes(1)"  ${pag>=total-1?"disabled":""}>▶</button>
-    </div>` : "";
-
+    const uid = `rscroll_${b.id||span}`;
     return `${blockHeader("")}
     <div class="reservas-card">
         <div class="widget-head">
@@ -640,7 +657,7 @@ function buildReservas(b) {
                 ${(!nProg && !nEspera && !nSentado && !nTerminada && !esperaHoy) ? '<span class="res-badge terminada">Sin reservas</span>' : ''}
             </div>
         </div>
-        ${body}${pager}
+        <div class="res-scroll" id="${uid}">${inner}</div>
     </div>`;
 }
 
