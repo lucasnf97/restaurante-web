@@ -142,36 +142,64 @@ async function login(username, password) {
 }
 
 // ── Abrir documentos (facturas / revisiones) en pestaña nueva ──
-// Los HTML guardados en Cloudinary se sirven como "attachment" (se descargan).
+// Los archivos en Cloudinary se sirven como "attachment" (se descargan).
 // Para verlos renderizados: traemos el archivo, lo reconstruimos como Blob con
-// el content-type correcto y lo abrimos en una pestaña nueva. Sirve para
-// archivos ya existentes y nuevos, sin tocar el backend.
+// el content-type correcto y lo abrimos en una pestaña nueva. A los HTML se les
+// inyecta un botón "Descargar PDF" (imprime → guardar como PDF).
+function _msgPestania(w, html) {
+    if (w) { try { w.document.write(html); w.document.close(); } catch (_) {} }
+}
 async function abrirDocumento(url) {
     if (!url) return;
     // Abrir la pestaña YA (dentro del gesto de click) para que no la bloqueen
     const w = window.open("", "_blank");
+    _msgPestania(w, "<p style='font-family:Segoe UI,sans-serif;padding:24px;color:#64748b;'>Cargando documento…</p>");
+    const limpio = url.toLowerCase().split("?")[0];
+    const esPdf = limpio.endsWith(".pdf");
+    const esImg = /\.(png|jpe?g|webp|gif)$/.test(limpio);
     try {
         const resp = await fetch(url);
-        if (!resp.ok) throw new Error("HTTP " + resp.status);
-        let blob = await resp.blob();
-        let type = blob.type;
-        // Cloudinary 'raw' sin extensión devuelve octet-stream → inferir el tipo
-        if (!type || type === "application/octet-stream" || type === "text/plain") {
-            const limpio = url.toLowerCase().split("?")[0];
-            if (limpio.endsWith(".pdf"))       type = "application/pdf";
-            else if (limpio.endsWith(".png"))  type = "image/png";
-            else if (limpio.endsWith(".jpg") || limpio.endsWith(".jpeg")) type = "image/jpeg";
-            else if (limpio.endsWith(".webp")) type = "image/webp";
-            else                                type = "text/html";  // facturas/revisiones HTML
-            blob = blob.slice(0, blob.size, type);
+        if (!resp.ok) {
+            const msg = resp.status === 401
+                ? "No se pudo abrir el documento: Cloudinary bloquea la entrega de PDF/ZIP. Habilitá «Allow delivery of PDF and ZIP files» en Cloudinary → Settings → Security."
+                : ("No se pudo abrir el documento (HTTP " + resp.status + ").");
+            _msgPestania(w, "<p style='font-family:Segoe UI,sans-serif;padding:24px;color:#b91c1c;'>" + msg + "</p>");
+            if (!w) alert(msg);
+            return;
         }
+
+        let blob;
+        if (!esPdf && !esImg) {
+            // HTML (facturas/revisiones) → inyectar botón "Descargar PDF"
+            let html = await resp.text();
+            const barra =
+                "<div id='__dlbar' style=\"position:fixed;top:12px;right:12px;z-index:99999;font-family:Segoe UI,sans-serif;\">" +
+                "<button onclick='window.print()' style=\"background:#4f46e5;color:#fff;border:none;border-radius:8px;" +
+                "padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);\">" +
+                "⬇ Descargar PDF</button></div>" +
+                "<style>@media print{#__dlbar{display:none!important}}</style>";
+            html = html.includes("</body>") ? html.replace("</body>", barra + "</body>") : (html + barra);
+            blob = new Blob([html], { type: "text/html" });
+        } else {
+            blob = await resp.blob();
+            let type = blob.type;
+            if (!type || type === "application/octet-stream" || type === "text/plain") {
+                type = esPdf ? "application/pdf"
+                     : limpio.endsWith(".png") ? "image/png"
+                     : /\.jpe?g$/.test(limpio) ? "image/jpeg"
+                     : limpio.endsWith(".webp") ? "image/webp"
+                     : limpio.endsWith(".gif") ? "image/gif" : "application/octet-stream";
+                blob = blob.slice(0, blob.size, type);
+            }
+        }
+
         const blobUrl = URL.createObjectURL(blob);
         if (w) w.location.href = blobUrl;
         else   window.open(blobUrl, "_blank");
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
     } catch (e) {
-        // Fallback: abrir la URL directa (comportamiento anterior; al menos no se pierde)
-        if (w) w.location.href = url;
-        else   window.open(url, "_blank");
+        const msg = "No se pudo abrir el documento: " + (e.message || e);
+        _msgPestania(w, "<p style='font-family:Segoe UI,sans-serif;padding:24px;color:#b91c1c;'>" + msg + "</p>");
+        if (!w) alert(msg);
     }
 }
