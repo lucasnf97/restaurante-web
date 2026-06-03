@@ -140,3 +140,38 @@ async function login(username, password) {
     setUser(userFields);
     return data;
 }
+
+// ── Abrir documentos (facturas / revisiones) en pestaña nueva ──
+// Los HTML guardados en Cloudinary se sirven como "attachment" (se descargan).
+// Para verlos renderizados: traemos el archivo, lo reconstruimos como Blob con
+// el content-type correcto y lo abrimos en una pestaña nueva. Sirve para
+// archivos ya existentes y nuevos, sin tocar el backend.
+async function abrirDocumento(url) {
+    if (!url) return;
+    // Abrir la pestaña YA (dentro del gesto de click) para que no la bloqueen
+    const w = window.open("", "_blank");
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        let blob = await resp.blob();
+        let type = blob.type;
+        // Cloudinary 'raw' sin extensión devuelve octet-stream → inferir el tipo
+        if (!type || type === "application/octet-stream" || type === "text/plain") {
+            const limpio = url.toLowerCase().split("?")[0];
+            if (limpio.endsWith(".pdf"))       type = "application/pdf";
+            else if (limpio.endsWith(".png"))  type = "image/png";
+            else if (limpio.endsWith(".jpg") || limpio.endsWith(".jpeg")) type = "image/jpeg";
+            else if (limpio.endsWith(".webp")) type = "image/webp";
+            else                                type = "text/html";  // facturas/revisiones HTML
+            blob = blob.slice(0, blob.size, type);
+        }
+        const blobUrl = URL.createObjectURL(blob);
+        if (w) w.location.href = blobUrl;
+        else   window.open(blobUrl, "_blank");
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (e) {
+        // Fallback: abrir la URL directa (comportamiento anterior; al menos no se pierde)
+        if (w) w.location.href = url;
+        else   window.open(url, "_blank");
+    }
+}
