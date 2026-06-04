@@ -1186,11 +1186,18 @@ async function epCambiarEstado(nuevoEstado){
 async function epTerminar(){
     if(!epReserva)return;
     if(!confirm('¿Terminar la reserva de '+epReserva.nombre_cliente+'? Se ajustará la hora de fin a ahora mismo.'))return;
+    // Vincular (opcional) una cuenta/mesa: pegar el ID que figura al cobrar la mesa
+    let pedido_id=null;
+    const idTxt=prompt('¿Vincular una cuenta/mesa a esta reserva? Pegá el ID de la cuenta (lo ves al cobrar la mesa). Dejalo vacío para no vincular.','');
+    if(idTxt!==null && idTxt.trim()!==''){
+        pedido_id=parseInt(idTxt.trim());
+        if(!Number.isInteger(pedido_id)||pedido_id<=0){alert('El ID de la cuenta debe ser un número.');return;}
+    }
     // Usar hora LOCAL del navegador (el servidor corre en UTC)
     const ahora=new Date();
     const horaLocal=ahora.getHours().toString().padStart(2,'0')+':'+ahora.getMinutes().toString().padStart(2,'0');
     try{
-        await api.patch('/reservas/'+epReserva.id+'/terminar',{hora_fin:horaLocal});
+        await api.patch('/reservas/'+epReserva.id+'/terminar',{hora_fin:horaLocal, pedido_id:pedido_id});
         cerrarEstadoPopup();
         await cargarDatos();
     }catch(err){alert('Error: '+err.message);}
@@ -1296,6 +1303,8 @@ async function guardarReserva(){
     };
     if(editandoId) body.estado=document.getElementById('fr-estado').value||'programada';
     if(!body.nombre_cliente||!body.fecha||!body.hora_inicio){alert('Nombre, fecha y hora de inicio son obligatorios.');return;}
+    const esProgramada = !editandoId || (body.estado||'programada')==='programada';
+    if(esProgramada && !body.telefono && !body.email){alert('Indicá un teléfono o un correo electrónico para la reserva.');return;}
     try{if(editandoId)await api.patch('/reservas/'+editandoId,body);else await api.post('/reservas/',body);cerrarModal('modal-reserva');await cargarDatos();}
     catch(err){alert('Error: '+err.message);}
 }

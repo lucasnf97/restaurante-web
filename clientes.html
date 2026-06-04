@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurante — Clientes</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+
+.navbar {
+    background:#1a1a2e; color:white; padding:0 32px; height:60px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:fixed; top:0; left:0; right:0; z-index:100;
+}
+.navbar-brand { font-size:18px; font-weight:700; }
+.btn-logout {
+    background:transparent; border:1px solid #4f46e5; color:#a5b4fc;
+    padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px;
+}
+.btn-logout:hover { background:#4f46e5; color:white; }
+
+.content { margin-top:60px; padding:24px 32px; max-width:920px; }
+.page-header { margin-bottom:20px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.page-header h2 { font-size:22px; font-weight:700; color:#1a1a2e; }
+.page-header p  { font-size:13px; color:#9ca3af; margin-top:4px; }
+
+.card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:18px 20px; margin-bottom:16px; }
+
+.filtros { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:12px; align-items:end; }
+@media(max-width:720px){ .filtros{ grid-template-columns:1fr 1fr; } }
+.filtros label { display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:5px; }
+.filtros input {
+    width:100%; padding:9px 11px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; outline:none;
+}
+.filtros input:focus { border-color:#4f46e5; }
+
+.btn { border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; transition:opacity .15s; }
+.btn-primary { background:#4f46e5; color:white; }
+.btn-primary:hover { opacity:.9; }
+.btn-secondary { background:#eef2ff; color:#4f46e5; }
+.btn-secondary:hover { background:#e0e7ff; }
+.btn-sm { padding:6px 12px; font-size:13px; }
+
+.estado-vacio { text-align:center; color:#9ca3af; font-size:14px; padding:40px 16px; }
+
+/* Cliente */
+.cli { border:1px solid #eef0f3; border-radius:10px; margin-bottom:10px; overflow:hidden; }
+.cli-head { display:flex; align-items:center; gap:12px; padding:14px 16px; cursor:pointer; user-select:none; transition:background .15s; }
+.cli-head:hover { background:#fafafa; }
+.cli-id { font-size:12px; font-weight:700; color:#4f46e5; background:#eef2ff; padding:2px 8px; border-radius:20px; white-space:nowrap; }
+.cli-nombre { font-weight:700; color:#1a1a2e; font-size:15px; }
+.cli-contactos { flex:1; color:#64748b; font-size:12px; }
+.cli-arrow { color:#9ca3af; transition:transform .2s; }
+.cli.open .cli-arrow { transform:rotate(90deg); }
+.cli-body { display:none; padding:6px 16px 16px; border-top:1px solid #f0f0f0; }
+.cli.open .cli-body { display:block; }
+.chip { display:inline-block; background:#f1f5f9; color:#334155; font-size:12px; padding:2px 9px; border-radius:20px; margin:2px 4px 2px 0; }
+
+table.hist { width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
+table.hist th, table.hist td { text-align:left; padding:8px 10px; border-bottom:1px solid #f0f0f0; }
+table.hist th { color:#9ca3af; font-weight:600; font-size:11px; text-transform:uppercase; }
+.cuenta-link { color:#4f46e5; font-weight:700; cursor:pointer; text-decoration:none; }
+.cuenta-link:hover { text-decoration:underline; }
+.hist-tot { text-align:right; }
+.resumen-cli { margin-top:10px; font-size:13px; color:#334155; font-weight:600; }
+
+/* Modales */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal { background:white; border-radius:14px; padding:22px 24px; width:min(520px,92vw); max-height:86vh; overflow:auto; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+.modal h3 { font-size:17px; color:#1a1a2e; margin-bottom:14px; }
+.modal .field { margin-bottom:12px; }
+.modal .field label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:5px; }
+.modal .field input { width:100%; padding:9px 11px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; }
+.modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+.msg { font-size:13px; font-weight:600; margin-top:8px; }
+.msg.ok { color:#16a34a; } .msg.err { color:#dc2626; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div><button class="btn-logout" onclick="logout()">Cerrar sesión</button></div>
+</nav>
+
+<div class="content">
+    <div class="page-header">
+        <div>
+            <h2>🧑‍🤝‍🧑 Clientes</h2>
+            <p>Buscá un cliente por nombre, teléfono o correo.</p>
+        </div>
+        <button class="btn btn-secondary" id="btn-unificar-open" onclick="abrirUnificar()" style="display:none;">🔗 Unificar registros</button>
+    </div>
+
+    <div class="card">
+        <div class="filtros">
+            <div><label>Nombre</label><input type="text" id="f-nombre" placeholder="Nombre" onkeydown="if(event.key==='Enter')buscar()"></div>
+            <div><label>Teléfono</label><input type="text" id="f-telefono" placeholder="Teléfono" onkeydown="if(event.key==='Enter')buscar()"></div>
+            <div><label>Correo electrónico</label><input type="text" id="f-email" placeholder="Correo" onkeydown="if(event.key==='Enter')buscar()"></div>
+            <div><button class="btn btn-primary" onclick="buscar()">Buscar</button></div>
+        </div>
+    </div>
+
+    <div id="resultados" class="card">
+        <div class="estado-vacio">Usá el buscador para ver clientes.</div>
+    </div>
+</div>
+
+<!-- Modal unificar -->
+<div class="modal-overlay" id="modal-unificar">
+    <div class="modal">
+        <h3>🔗 Unificar registros</h3>
+        <p style="font-size:13px;color:#64748b;margin-bottom:14px;">Indicá los dos IDs de cliente que pertenecen a la misma persona. El secundario se fusiona en el principal (se conservan todos los contactos e histórico).</p>
+        <div class="field"><label>ID principal (se conserva)</label><input type="number" id="u-principal" min="1" placeholder="Ej: 12"></div>
+        <div class="field"><label>ID secundario (se fusiona)</label><input type="number" id="u-secundario" min="1" placeholder="Ej: 34"></div>
+        <div class="msg" id="u-msg"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-unificar')">Cancelar</button>
+            <button class="btn btn-primary" id="btn-unificar" onclick="unificar()">Unificar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal consumo de cuenta -->
+<div class="modal-overlay" id="modal-consumo">
+    <div class="modal">
+        <h3 id="consumo-titulo">Cuenta</h3>
+        <div id="consumo-body"><div class="estado-vacio">Cargando…</div></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-consumo')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
+<script>
+requireAuth();
+requirePermiso('gestion_clientes','ver_clientes');
+
+const puedeGestionar = hasPermiso('gestion_clientes');
+if (puedeGestionar) document.getElementById('btn-unificar-open').style.display = '';
+
+if (typeof cargarMonedaSistema === 'function') cargarMonedaSistema();
+function money(n){ return (typeof formatMonto === 'function') ? formatMonto(Number(n)||0) : ('$'+(Number(n)||0).toFixed(2)); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function buscar(){
+    const nombre   = document.getElementById('f-nombre').value.trim();
+    const telefono = document.getElementById('f-telefono').value.trim();
+    const email    = document.getElementById('f-email').value.trim();
+    const cont = document.getElementById('resultados');
+    if(!nombre && !telefono && !email){
+        cont.innerHTML = '<div class="estado-vacio">Ingresá al menos un filtro para buscar.</div>';
+        return;
+    }
+    cont.innerHTML = '<div class="estado-vacio">Buscando…</div>';
+    const qs = new URLSearchParams();
+    if(nombre) qs.set('nombre', nombre);
+    if(telefono) qs.set('telefono', telefono);
+    if(email) qs.set('email', email);
+    try{
+        const lista = await api.get('/clientes/?'+qs.toString());
+        render(lista);
+    }catch(err){ cont.innerHTML = '<div class="estado-vacio">Error: '+esc(err.message)+'</div>'; }
+}
+
+function render(lista){
+    const cont = document.getElementById('resultados');
+    if(!lista || !lista.length){ cont.innerHTML = '<div class="estado-vacio">No se encontraron clientes.</div>'; return; }
+    cont.innerHTML = lista.map(c=>{
+        const tels = (c.telefonos||[]).map(t=>'<span class="chip">📞 '+esc(t)+'</span>').join('');
+        const mails = (c.emails||[]).map(e=>'<span class="chip">✉ '+esc(e)+'</span>').join('');
+        const resumen = [(c.telefonos||[]).join(', '), (c.emails||[]).join(', ')].filter(Boolean).join(' · ');
+        return '<div class="cli" id="cli-'+c.id+'">'+
+            '<div class="cli-head" onclick="toggleCliente('+c.id+')">'+
+                '<span class="cli-id">#'+c.id+'</span>'+
+                '<span class="cli-nombre">'+esc(c.nombre||'(sin nombre)')+'</span>'+
+                '<span class="cli-contactos">'+esc(resumen)+'</span>'+
+                '<span class="cli-arrow">▸</span>'+
+            '</div>'+
+            '<div class="cli-body" id="cli-body-'+c.id+'">'+
+                '<div>'+tels+mails+'</div>'+
+                '<div id="cli-hist-'+c.id+'"><div class="estado-vacio">Cargando histórico…</div></div>'+
+            '</div>'+
+        '</div>';
+    }).join('');
+}
+
+const _detalleCargado = {};
+async function toggleCliente(id){
+    const el = document.getElementById('cli-'+id);
+    el.classList.toggle('open');
+    if(el.classList.contains('open') && !_detalleCargado[id]){
+        _detalleCargado[id] = true;
+        try{
+            const d = await api.get('/clientes/'+id);
+            renderHistorico(id, d);
+        }catch(err){
+            document.getElementById('cli-hist-'+id).innerHTML = '<div class="estado-vacio">Error: '+esc(err.message)+'</div>';
+            _detalleCargado[id] = false;
+        }
+    }
+}
+
+function renderHistorico(id, d){
+    const cont = document.getElementById('cli-hist-'+id);
+    const hist = d.historico||[];
+    if(!hist.length){ cont.innerHTML = '<div class="estado-vacio">Sin mesas vinculadas todavía.</div>'; return; }
+    const filas = hist.map(h=>{
+        const mesa = h.mesa_numero!=null ? ('Mesa '+h.mesa_numero+(h.sala?(' · '+esc(h.sala)):'')) : '—';
+        const fecha = h.fecha ? esc(h.fecha) : '';
+        return '<tr>'+
+            '<td>'+fecha+'</td>'+
+            '<td>'+mesa+'</td>'+
+            '<td><a class="cuenta-link" onclick="verConsumo('+h.pedido_id+')">Cuenta #'+h.pedido_id+'</a></td>'+
+            '<td class="hist-tot">'+money(h.total)+'</td>'+
+        '</tr>';
+    }).join('');
+    cont.innerHTML =
+        '<table class="hist"><thead><tr><th>Fecha</th><th>Mesa</th><th>Cuenta</th><th class="hist-tot">Total consumido</th></tr></thead>'+
+        '<tbody>'+filas+'</tbody></table>'+
+        '<div class="resumen-cli">'+d.visitas+' visita(s) · Total consumido: '+money(d.total_general)+'</div>';
+}
+
+async function verConsumo(pedidoId){
+    document.getElementById('consumo-titulo').textContent = 'Cuenta #'+pedidoId+' — consumo';
+    document.getElementById('consumo-body').innerHTML = '<div class="estado-vacio">Cargando…</div>';
+    document.getElementById('modal-consumo').classList.add('active');
+    try{
+        const r = await api.get('/pagos/resumen/'+pedidoId);
+        const items = (r.items||[]).filter(i=>!i.eliminado);
+        if(!items.length){
+            document.getElementById('consumo-body').innerHTML = '<div class="estado-vacio">La cuenta no tiene ítems.</div>';
+            return;
+        }
+        const filas = items.map(i=>{
+            const desc = i.descuento_pct>0 ? (' <span style="color:#16a34a;">-'+i.descuento_pct+'%</span>') : '';
+            return '<tr><td>'+esc(i.nombre_snapshot)+desc+'</td><td style="text-align:center;">x'+i.cantidad+'</td><td class="hist-tot">'+money(i.subtotal)+'</td></tr>';
+        }).join('');
+        document.getElementById('consumo-body').innerHTML =
+            '<table class="hist"><thead><tr><th>Ítem</th><th style="text-align:center;">Cant.</th><th class="hist-tot">Subtotal</th></tr></thead>'+
+            '<tbody>'+filas+'</tbody></table>'+
+            '<div class="resumen-cli" style="text-align:right;">Total: '+money(r.total)+' · Pagado: '+money(r.pagado)+'</div>';
+    }catch(err){
+        document.getElementById('consumo-body').innerHTML = '<div class="estado-vacio">Error: '+esc(err.message)+'</div>';
+    }
+}
+
+function abrirUnificar(){
+    document.getElementById('u-principal').value='';
+    document.getElementById('u-secundario').value='';
+    document.getElementById('u-msg').textContent='';
+    document.getElementById('modal-unificar').classList.add('active');
+}
+async function unificar(){
+    const p = parseInt(document.getElementById('u-principal').value);
+    const s = parseInt(document.getElementById('u-secundario').value);
+    const msg = document.getElementById('u-msg');
+    if(!Number.isInteger(p)||!Number.isInteger(s)){ msg.className='msg err'; msg.textContent='Ingresá ambos IDs.'; return; }
+    if(p===s){ msg.className='msg err'; msg.textContent='Tienen que ser dos IDs distintos.'; return; }
+    if(!confirm('¿Unificar el cliente #'+s+' dentro del #'+p+'? Esta acción no se puede deshacer.')) return;
+    const btn = document.getElementById('btn-unificar'); btn.disabled=true;
+    try{
+        await api.post('/clientes/unificar', { id_principal:p, id_secundario:s });
+        msg.className='msg ok'; msg.textContent='Clientes unificados en #'+p+'.';
+        setTimeout(()=>{ cerrarModal('modal-unificar'); buscar(); }, 900);
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+    finally{ btn.disabled=false; }
+}
+
+function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
+document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('active'); }));
+</script>
+</body>
+</html>

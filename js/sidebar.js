@@ -14,6 +14,7 @@
                 { href: "productos.html", icon: "🍽️", label: "Productos",              perm: ["edicion_carta","ver_carta"] },
                 { href: "mesas.html",     icon: "🗺️", label: "Herramienta de Edición", perm: "edicion_sala" },
                 { href: "stock.html",     icon: "📦", label: "Stock",                  perm: ["gestion_stock","gestion_produccion"] },
+                { href: "clientes.html",  icon: "🧑‍🤝‍🧑", label: "Clientes",             perm: ["gestion_clientes","ver_clientes"] },
                 { href: "facturas.html",  icon: "🧾", label: "Facturas",               perm: "acceso_facturacion" },
                 { href: "caja.html",      icon: "💰", label: "Caja",                   perm: "gestion_caja" },
             ]
