@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurante — Configuración de usuario</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+
+.navbar {
+    background:#1a1a2e; color:white; padding:0 32px; height:60px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:fixed; top:0; left:0; right:0; z-index:100;
+}
+.navbar-brand { font-size:18px; font-weight:700; }
+.navbar-links { display:flex; gap:16px; align-items:center; }
+.btn-logout {
+    background:transparent; border:1px solid #4f46e5; color:#a5b4fc;
+    padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px;
+}
+.btn-logout:hover { background:#4f46e5; color:white; }
+
+.content { margin-top:60px; padding:24px 32px; max-width:640px; }
+.page-header { margin-bottom:24px; }
+.page-header h2 { font-size:22px; font-weight:700; color:#1a1a2e; }
+.page-header p  { font-size:13px; color:#9ca3af; margin-top:4px; }
+
+.card {
+    background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06);
+    padding:22px 24px; margin-bottom:18px;
+}
+.card h3 {
+    font-size:15px; font-weight:700; color:#1a1a2e; margin-bottom:4px;
+    display:flex; align-items:center; gap:9px;
+}
+.card .card-sub { font-size:12px; color:#9ca3af; margin-bottom:16px; }
+
+.field { margin-bottom:14px; }
+.field label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:5px; }
+.field input[type=text], .field input[type=email], .field input[type=password] {
+    width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px;
+    font-size:14px; outline:none; transition:border .15s;
+}
+.field input:focus { border-color:#4f46e5; }
+.field .hint { font-size:11px; color:#9ca3af; margin-top:4px; }
+
+.checkrow {
+    display:flex; align-items:flex-start; gap:10px; margin-top:10px;
+    padding:12px 14px; background:#f8fafc; border:1px solid #eef0f3; border-radius:8px;
+}
+.checkrow input[type=checkbox] { width:18px; height:18px; margin-top:1px; cursor:pointer; accent-color:#4f46e5; }
+.checkrow label { font-size:13px; color:#374151; cursor:pointer; line-height:1.4; }
+.checkrow label small { display:block; color:#9ca3af; font-size:11px; margin-top:2px; }
+
+.btn {
+    border:none; border-radius:8px; padding:11px 20px; font-size:14px;
+    font-weight:600; cursor:pointer; transition:opacity .15s;
+}
+.btn-primary { background:#4f46e5; color:white; }
+.btn-primary:hover { opacity:.9; }
+.btn:disabled { opacity:.55; cursor:default; }
+.card-actions { margin-top:18px; display:flex; align-items:center; gap:14px; }
+
+.msg { font-size:13px; font-weight:600; }
+.msg.ok  { color:#16a34a; }
+.msg.err { color:#dc2626; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header">
+        <h2>🙍 Configuración de usuario</h2>
+        <p>Editá tus datos de acceso personales</p>
+    </div>
+
+    <!-- Datos de acceso -->
+    <div class="card">
+        <h3>👤 Datos de acceso</h3>
+        <div class="card-sub">Tu nombre de usuario, iniciales y correo electrónico.</div>
+
+        <div class="field">
+            <label>Nombre de usuario</label>
+            <input type="text" id="p-username" placeholder="Nombre de usuario" autocomplete="off">
+            <div class="hint">Es el nombre con el que iniciás sesión. Si lo cambiás, deberás volver a iniciar sesión.</div>
+        </div>
+
+        <div class="field">
+            <label>Iniciales en sistema</label>
+            <input type="text" id="p-iniciales" maxlength="3" placeholder="Ej: LUC"
+                   style="text-transform:uppercase;" autocomplete="off">
+            <div class="hint">Máximo 3 caracteres.</div>
+        </div>
+
+        <div class="field">
+            <label>Correo electrónico</label>
+            <input type="email" id="p-email" placeholder="tucorreo@ejemplo.com" autocomplete="off">
+        </div>
+
+        <div class="checkrow">
+            <input type="checkbox" id="p-email-notif">
+            <label for="p-email-notif">
+                Recibir avisos de mensajes nuevos por correo
+                <small>Si está activado, cada vez que te llegue un mensaje en el sistema te enviaremos un correo a la dirección de arriba.</small>
+            </label>
+        </div>
+
+        <div class="card-actions">
+            <button class="btn btn-primary" id="btn-guardar" onclick="guardarDatos()">Guardar cambios</button>
+            <span class="msg" id="msg-datos"></span>
+        </div>
+    </div>
+
+    <!-- Cambiar contraseña -->
+    <div class="card">
+        <h3>🔑 Cambiar contraseña</h3>
+        <div class="card-sub">Para cambiarla, ingresá tu contraseña actual.</div>
+
+        <div class="field">
+            <label>Contraseña actual</label>
+            <input type="password" id="p-pass-actual" placeholder="Contraseña actual" autocomplete="current-password">
+        </div>
+        <div class="field">
+            <label>Nueva contraseña</label>
+            <input type="password" id="p-pass-nueva" placeholder="Nueva contraseña" autocomplete="new-password">
+        </div>
+        <div class="field">
+            <label>Repetir nueva contraseña</label>
+            <input type="password" id="p-pass-rep" placeholder="Repetir nueva contraseña" autocomplete="new-password">
+        </div>
+
+        <div class="card-actions">
+            <button class="btn btn-primary" id="btn-pass" onclick="cambiarPassword()">Cambiar contraseña</button>
+            <span class="msg" id="msg-pass"></span>
+        </div>
+    </div>
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+
+function _msg(id, texto, ok) {
+    const el = document.getElementById(id);
+    el.textContent = texto;
+    el.className = 'msg ' + (ok ? 'ok' : 'err');
+}
+
+let perfilOriginal = { username: '' };
+
+async function cargarPerfil() {
+    try {
+        const p = await api.get('/auth/perfil');
+        perfilOriginal = p;
+        document.getElementById('p-username').value   = p.username || '';
+        document.getElementById('p-iniciales').value  = p.iniciales || '';
+        document.getElementById('p-email').value      = p.email || '';
+        document.getElementById('p-email-notif').checked = !!p.email_notif;
+    } catch (err) {
+        _msg('msg-datos', 'No se pudieron cargar tus datos: ' + err.message, false);
+    }
+}
+
+async function guardarDatos() {
+    const btn = document.getElementById('btn-guardar');
+    const username = document.getElementById('p-username').value.trim();
+    if (!username) { _msg('msg-datos', 'El nombre de usuario no puede estar vacío.', false); return; }
+
+    const body = {
+        username:    username,
+        iniciales:   document.getElementById('p-iniciales').value.trim().toUpperCase(),
+        email:       document.getElementById('p-email').value.trim(),
+        email_notif: document.getElementById('p-email-notif').checked,
+    };
+    btn.disabled = true;
+    try {
+        const r = await api.patch('/auth/perfil', body);
+        if (r.username_cambiado) {
+            alert('Tus datos se actualizaron. Como cambiaste tu nombre de usuario, por seguridad tenés que iniciar sesión nuevamente.');
+            logout();
+            return;
+        }
+        // Actualizar la sesión local para que el sidebar/UI reflejen los cambios
+        const u = getUser() || {};
+        u.username = body.username;
+        u.iniciales = body.iniciales;
+        setUser(u);
+        _msg('msg-datos', 'Datos guardados ✓', true);
+    } catch (err) {
+        _msg('msg-datos', 'Error: ' + err.message, false);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function cambiarPassword() {
+    const btn = document.getElementById('btn-pass');
+    const actual = document.getElementById('p-pass-actual').value;
+    const nueva  = document.getElementById('p-pass-nueva').value;
+    const rep    = document.getElementById('p-pass-rep').value;
+
+    if (!actual || !nueva)      { _msg('msg-pass', 'Completá la contraseña actual y la nueva.', false); return; }
+    if (nueva.length < 4)       { _msg('msg-pass', 'La nueva contraseña es demasiado corta.', false); return; }
+    if (nueva !== rep)          { _msg('msg-pass', 'Las contraseñas nuevas no coinciden.', false); return; }
+
+    btn.disabled = true;
+    try {
+        await api.post('/auth/cambiar-password', { password_actual: actual, password_nuevo: nueva });
+        document.getElementById('p-pass-actual').value = '';
+        document.getElementById('p-pass-nueva').value  = '';
+        document.getElementById('p-pass-rep').value    = '';
+        _msg('msg-pass', 'Contraseña actualizada ✓', true);
+    } catch (err) {
+        _msg('msg-pass', 'Error: ' + err.message, false);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+cargarPerfil();
+</script>
+</body>
+</html>

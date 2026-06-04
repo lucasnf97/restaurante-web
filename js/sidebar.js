@@ -45,7 +45,8 @@
                 { href: "salarios.html",   icon: "💼", label: "Salarios",  perm: "revision_salarios" },
             ]
         },
-        { href: "configuracion.html", icon: "⚙️", label: "Configuración", perm: "acceso_configuracion" },
+        { href: "configuracion.html", icon: "⚙️", label: "Configuración de sistema", perm: "acceso_configuracion" },
+        { href: "configuracion-usuario.html", icon: "🙍", label: "Configuración de usuario" },
     ];
 
     const currentPage = window.location.pathname.split("/").pop() || "dashboard.html";
