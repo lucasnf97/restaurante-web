@@ -76,6 +76,18 @@ table.hist th { color:#9ca3af; font-weight:600; font-size:11px; text-transform:u
 .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
 .msg { font-size:13px; font-weight:600; margin-top:8px; }
 .msg.ok { color:#16a34a; } .msg.err { color:#dc2626; }
+
+/* Edición */
+.ec-sec { margin-top:16px; }
+.ec-sec > label { display:block; font-size:13px; font-weight:700; color:#374151; margin-bottom:8px; }
+.ec-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; background:#f8fafc; border:1px solid #eef0f3; border-radius:8px; margin-bottom:6px; font-size:13px; }
+.ec-row input[type=number], .ec-row input[type=text] { padding:6px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; }
+.ec-empty { font-size:12px; color:#9ca3af; padding:4px 2px; }
+.ec-x { background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:5px 9px; font-size:12px; font-weight:700; cursor:pointer; }
+.ec-x:hover { background:#fecaca; }
+.ec-add { display:flex; gap:8px; margin-top:8px; }
+.ec-add select, .ec-add input { padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; }
+.ec-add input { flex:1; }
 </style>
 </head>
 <body>
@@ -119,6 +131,45 @@ table.hist th { color:#9ca3af; font-weight:600; font-size:11px; text-transform:u
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-unificar')">Cancelar</button>
             <button class="btn btn-primary" id="btn-unificar" onclick="unificar()">Unificar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal editar cliente -->
+<div class="modal-overlay" id="modal-editar-cli">
+    <div class="modal">
+        <h3 id="ec-titulo">Editar cliente</h3>
+
+        <div class="ec-sec">
+            <label>Nombre</label>
+            <div style="display:flex;gap:8px;">
+                <input type="text" id="ec-nombre" style="flex:1;padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;">
+                <button class="btn btn-secondary btn-sm" onclick="ecGuardarNombre()">Guardar</button>
+            </div>
+        </div>
+
+        <div class="ec-sec">
+            <label>Contactos</label>
+            <div id="ec-contactos"></div>
+            <div class="ec-add">
+                <select id="ec-tipo">
+                    <option value="telefono">Teléfono</option>
+                    <option value="email">Correo</option>
+                </select>
+                <input type="text" id="ec-valor" placeholder="Teléfono o correo">
+                <button class="btn btn-secondary btn-sm" onclick="ecAgregarContacto()">Agregar</button>
+            </div>
+        </div>
+
+        <div class="ec-sec">
+            <label>Cuentas asociadas</label>
+            <div id="ec-cuentas"></div>
+            <div class="ec-empty" style="margin-top:6px;">Para corregir un vínculo mal hecho, cambiá el ID de la cuenta y tocá Guardar, o Quitar para desvincular.</div>
+        </div>
+
+        <div class="msg" id="ec-msg"></div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="ecCerrar()">Listo</button>
         </div>
     </div>
 </div>
@@ -175,6 +226,9 @@ function render(lista){
         const tels = (c.telefonos||[]).map(t=>'<span class="chip">📞 '+esc(t)+'</span>').join('');
         const mails = (c.emails||[]).map(e=>'<span class="chip">✉ '+esc(e)+'</span>').join('');
         const resumen = [(c.telefonos||[]).join(', '), (c.emails||[]).join(', ')].filter(Boolean).join(' · ');
+        const editBtn = puedeGestionar
+            ? '<div style="margin:2px 0 10px;"><button class="btn btn-secondary btn-sm" onclick="abrirEditar('+c.id+')">✏️ Editar</button></div>'
+            : '';
         return '<div class="cli" id="cli-'+c.id+'">'+
             '<div class="cli-head" onclick="toggleCliente('+c.id+')">'+
                 '<span class="cli-id">#'+c.id+'</span>'+
@@ -183,6 +237,7 @@ function render(lista){
                 '<span class="cli-arrow">▸</span>'+
             '</div>'+
             '<div class="cli-body" id="cli-body-'+c.id+'">'+
+                editBtn+
                 '<div>'+tels+mails+'</div>'+
                 '<div id="cli-hist-'+c.id+'"><div class="estado-vacio">Cargando histórico…</div></div>'+
             '</div>'+
@@ -190,7 +245,7 @@ function render(lista){
     }).join('');
 }
 
-const _detalleCargado = {};
+let _detalleCargado = {};
 async function toggleCliente(id){
     const el = document.getElementById('cli-'+id);
     el.classList.toggle('open');
@@ -270,6 +325,73 @@ async function unificar(){
         setTimeout(()=>{ cerrarModal('modal-unificar'); buscar(); }, 900);
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
     finally{ btn.disabled=false; }
+}
+
+// ── Edición de cliente ──────────────────────────────────────
+let _ecId=null, _ecDirty=false;
+async function abrirEditar(id){
+    _ecId=id; _ecDirty=false;
+    document.getElementById('ec-msg').textContent='';
+    document.getElementById('ec-valor').value='';
+    await ecRecargar();
+    document.getElementById('modal-editar-cli').classList.add('active');
+}
+async function ecRecargar(){
+    try{
+        const d = await api.get('/clientes/'+_ecId);
+        document.getElementById('ec-titulo').textContent='Editar cliente #'+d.id;
+        document.getElementById('ec-nombre').value=d.nombre||'';
+        const cont = d.contactos||[];
+        document.getElementById('ec-contactos').innerHTML = cont.length
+            ? cont.map(c=>'<div class="ec-row"><span>'+(c.tipo==='telefono'?'📞':'✉')+' '+esc(c.valor)+'</span>'+
+                '<button class="ec-x" onclick="ecQuitarContacto('+c.id+')">Quitar</button></div>').join('')
+            : '<div class="ec-empty">Sin contactos.</div>';
+        const hist = d.historico||[];
+        document.getElementById('ec-cuentas').innerHTML = hist.length
+            ? hist.map(h=>'<div class="ec-row">'+
+                '<span>Cuenta <input type="number" min="1" id="ec-ped-'+h.reserva_id+'" value="'+h.pedido_id+'" style="width:80px;"> · '+
+                    (h.mesa_numero!=null?('Mesa '+h.mesa_numero):'—')+' · '+money(h.total)+'</span>'+
+                '<span style="display:flex;gap:6px;">'+
+                    '<button class="btn btn-secondary btn-sm" onclick="ecGuardarCuenta('+h.reserva_id+')">Guardar</button>'+
+                    '<button class="ec-x" onclick="ecQuitarCuenta('+h.reserva_id+')">Quitar</button>'+
+                '</span></div>').join('')
+            : '<div class="ec-empty">Sin cuentas asociadas.</div>';
+    }catch(err){ document.getElementById('ec-msg').className='msg err'; document.getElementById('ec-msg').textContent='Error: '+err.message; }
+}
+function _ecMsg(texto, ok){ const e=document.getElementById('ec-msg'); e.className='msg '+(ok?'ok':'err'); e.textContent=texto; }
+async function ecGuardarNombre(){
+    try{ await api.patch('/clientes/'+_ecId, { nombre: document.getElementById('ec-nombre').value.trim() }); _ecDirty=true; _ecMsg('Nombre guardado ✓', true); }
+    catch(err){ _ecMsg('Error: '+err.message, false); }
+}
+async function ecAgregarContacto(){
+    const valor=document.getElementById('ec-valor').value.trim();
+    if(!valor){ _ecMsg('Ingresá un teléfono o correo.', false); return; }
+    try{
+        await api.post('/clientes/'+_ecId+'/contactos', { tipo: document.getElementById('ec-tipo').value, valor });
+        document.getElementById('ec-valor').value=''; _ecDirty=true; _ecMsg('Contacto agregado ✓', true);
+        await ecRecargar();
+    }catch(err){ _ecMsg('Error: '+err.message, false); }
+}
+async function ecQuitarContacto(contactoId){
+    if(!confirm('¿Quitar este contacto?')) return;
+    try{ await api.delete('/clientes/'+_ecId+'/contactos/'+contactoId); _ecDirty=true; _ecMsg('Contacto quitado ✓', true); await ecRecargar(); }
+    catch(err){ _ecMsg('Error: '+err.message, false); }
+}
+async function ecGuardarCuenta(reservaId){
+    const v=document.getElementById('ec-ped-'+reservaId).value.trim();
+    const pedido_id = v==='' ? null : parseInt(v);
+    if(v!=='' && (!Number.isInteger(pedido_id)||pedido_id<=0)){ _ecMsg('El ID de la cuenta debe ser un número.', false); return; }
+    try{ await api.patch('/clientes/reserva/'+reservaId+'/cuenta', { pedido_id }); _ecDirty=true; _ecMsg('Cuenta actualizada ✓', true); await ecRecargar(); }
+    catch(err){ _ecMsg('Error: '+err.message, false); }
+}
+async function ecQuitarCuenta(reservaId){
+    if(!confirm('¿Desvincular esta cuenta del cliente?')) return;
+    try{ await api.patch('/clientes/reserva/'+reservaId+'/cuenta', { pedido_id: null }); _ecDirty=true; _ecMsg('Cuenta desvinculada ✓', true); await ecRecargar(); }
+    catch(err){ _ecMsg('Error: '+err.message, false); }
+}
+function ecCerrar(){
+    cerrarModal('modal-editar-cli');
+    if(_ecDirty){ _detalleCargado={}; buscar(); }
 }
 
 function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }

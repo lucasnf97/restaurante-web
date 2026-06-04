@@ -134,12 +134,12 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th><th>Fecha</th><th>Abierto por</th><th>Hora apertura</th>
+                    <th>ID</th><th>Abierto por</th><th>Hora apertura</th>
                     <th>Cerrado por</th><th>Hora cierre</th><th>Total</th><th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tabla-body">
-                <tr><td colspan="6" class="empty">Cargando...</td></tr>
+                <tr><td colspan="7" class="empty">Cargando...</td></tr>
             </tbody>
         </table>
     </div>
@@ -516,7 +516,6 @@ async function buscarPorPedidoId() {
                 const tbody = document.getElementById("tabla-body");
                 tbody.innerHTML = `<tr>
                     <td>#${c.id}</td>
-                    <td>${formatFecha(c.fecha)}</td>
                     <td>${c.abierto_por || '—'}</td>
                     <td>${formatTs(c.ts_apertura)}</td>
                     <td>${c.cerrado_por}</td>
@@ -584,13 +583,12 @@ async function cargarCierres() {
             const tbody = document.getElementById("tabla-body");
             const data = await api.get(`/caja/cierres/${cierreId}`);
             if (!data || !data.cierre) {
-                tbody.innerHTML = `<tr><td colspan="8" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
                 return;
             }
             const c = data.cierre;
             tbody.innerHTML = `<tr>
                 <td>#${c.id}</td>
-                <td>${formatFecha(c.fecha)}</td>
                 <td>${c.abierto_por || '—'}</td>
                 <td>${formatTs(c.ts_apertura)}</td>
                 <td>${c.cerrado_por}</td>
@@ -600,23 +598,28 @@ async function cargarCierres() {
             </tr>`;
         } catch(e) {
             document.getElementById("tabla-body").innerHTML =
-                `<tr><td colspan="8" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
+                `<tr><td colspan="7" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
         }
         return;
     }
     try {
         const cierres = await api.get(url);
         const tbody = document.getElementById("tabla-body");
-        if (!cierres.length) {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty">No hay cierres en el período seleccionado</td></tr>`;
+        // Fila de la caja abierta actualmente (si la hay)
+        let abiertaRow = "";
+        try {
+            const ab = await api.get("/caja/abierta");
+            if (ab && ab.abierta) abiertaRow = filaCajaAbierta(ab);
+        } catch(e) {}
+        if (!cierres.length && !abiertaRow) {
+            tbody.innerHTML = `<tr><td colspan="7" class="empty">No hay cierres en el período seleccionado</td></tr>`;
             return;
         }
         let totalGeneral = 0;
-        tbody.innerHTML = cierres.map(c => {
+        const filasCierres = cierres.map(c => {
             totalGeneral += parseFloat(c.total);
             return `<tr>
                 <td>#${c.id}</td>
-                <td>${formatFecha(c.fecha)}</td>
                 <td>${c.abierto_por || '—'}</td>
                 <td>${formatTs(c.ts_apertura)}</td>
                 <td>${c.cerrado_por}</td>
@@ -624,13 +627,58 @@ async function cargarCierres() {
                 <td><strong>$${parseFloat(c.total).toFixed(2)}</strong></td>
                 <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
             </tr>`;
-        }).join("") + `
+        }).join("");
+        const totalRow = cierres.length ? `
             <tr style="background:#f8f9fa">
-                <td colspan="6" style="text-align:right;font-weight:700;color:#666;">TOTAL PERÍODO</td>
+                <td colspan="5" style="text-align:right;font-weight:700;color:#666;">TOTAL PERÍODO</td>
                 <td style="font-weight:700;font-size:16px;">$${totalGeneral.toFixed(2)}</td>
                 <td></td>
-            </tr>`;
+            </tr>` : "";
+        tbody.innerHTML = abiertaRow + filasCierres + totalRow;
     } catch(e) { console.error("Error cierres:", e); }
+}
+
+function filaCajaAbierta(ab) {
+    return `<tr style="background:#f0fdf4;">
+        <td>#${ab.id} <span style="background:#16a34a;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-left:4px;">ABIERTA</span></td>
+        <td>${ab.abierto_por || '—'}</td>
+        <td>${formatTs(ab.ts_apertura)}</td>
+        <td>—</td>
+        <td>—</td>
+        <td><strong>$${parseFloat(ab.total).toFixed(2)}</strong></td>
+        <td><button class="btn btn-secondary btn-sm" onclick="verDetalleAbierta()">Ver mesas cobradas</button></td>
+    </tr>`;
+}
+
+async function verDetalleAbierta() {
+    try {
+        const data = await api.get("/caja/abierta");
+        if (!data || !data.abierta) { alert("No hay una caja abierta."); return; }
+        document.getElementById("modal-titulo").textContent = `Caja abierta #${data.id}`;
+        document.getElementById("modal-sub").textContent =
+            `Mesas ya cobradas en la sesión — Total parcial: $${parseFloat(data.total).toFixed(2)}`;
+        const tbody = document.getElementById("modal-tabla");
+        const det = data.detalle || [];
+        if (!det.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="empty">Todavía no se cobró ninguna mesa</td></tr>`;
+        } else {
+            tbody.innerHTML = det.map(d => {
+                const esTakeAway = !d.mesa_numero;
+                const mesaLabel = esTakeAway
+                    ? `<span style="color:#7c3aed;font-weight:600;">🥡 Take Away</span>`
+                    : `Mesa ${d.mesa_numero}`;
+                return `<tr>
+                    <td style="color:#666;font-size:12px;">#${d.pedido_id}</td>
+                    <td>${mesaLabel}</td>
+                    <td>${d.comensales} persona${d.comensales != 1 ? 's' : ''}</td>
+                    <td><strong>$${parseFloat(d.total).toFixed(2)}</strong></td>
+                    <td>${formatTs(d.ts_cobro)}</td>
+                    <td><button class="btn-libreta" onclick="verItems(${d.pedido_id}, ${esTakeAway ? "'Take Away'" : d.mesa_numero})" title="Ver productos">📒</button></td>
+                </tr>`;
+            }).join("");
+        }
+        document.getElementById("modal-detalle").classList.add("active");
+    } catch(e) { alert("Error: " + e.message); }
 }
 
 function limpiarFiltros() {

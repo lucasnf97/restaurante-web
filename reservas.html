@@ -315,6 +315,29 @@
     </div>
 </div>
 
+<!-- MODAL TERMINAR RESERVA (con desplegable para vincular cuenta) -->
+<div class="modal-overlay no-print" id="modal-terminar">
+    <div class="modal" style="max-width:460px;">
+        <h3>Terminar reserva</h3>
+        <p id="term-msg" style="font-size:14px;color:#334155;margin-bottom:6px;"></p>
+        <p style="font-size:12px;color:#9ca3af;margin-bottom:14px;">Se ajustará la hora de fin a ahora.</p>
+        <button type="button" id="term-toggle" onclick="termToggle()"
+                style="width:100%;text-align:left;background:#fff;color:#1a1a2e;border:1.5px solid #d1d5db;border-radius:8px;padding:11px 14px;font-size:13px;font-weight:700;cursor:pointer;">
+            ▸&nbsp;&nbsp;Vincular a mesa (opcional)
+        </button>
+        <div id="term-box" style="display:none;margin-top:10px;">
+            <label style="display:block;font-size:12px;color:#374151;margin-bottom:5px;">Pegá el ID de la cuenta (lo ves al cobrar la mesa):</label>
+            <input type="number" id="term-pedido" min="1" placeholder="Ej: 979"
+                   style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;">
+        </div>
+        <div id="term-err" style="color:#dc2626;font-size:13px;font-weight:600;margin-top:8px;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-terminar')">Cancelar</button>
+            <button class="btn btn-primary" id="term-ok" onclick="termConfirmar()">Terminar reserva</button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL LISTADO PRINT -->
 <div class="modal-overlay no-print" id="modal-print">
     <div class="modal" style="max-width:720px;">
@@ -1183,24 +1206,45 @@ async function epCambiarEstado(nuevoEstado){
         await cargarDatos();
     }catch(err){alert('Error: '+err.message);}
 }
-async function epTerminar(){
+let _termReserva=null;
+function epTerminar(){
     if(!epReserva)return;
-    if(!confirm('¿Terminar la reserva de '+epReserva.nombre_cliente+'? Se ajustará la hora de fin a ahora mismo.'))return;
-    // Vincular (opcional) una cuenta/mesa: pegar el ID que figura al cobrar la mesa
+    _termReserva=epReserva;
+    cerrarEstadoPopup();
+    document.getElementById('term-msg').textContent='¿Terminar la reserva de '+(_termReserva.nombre_cliente||'')+'?';
+    document.getElementById('term-box').style.display='none';
+    document.getElementById('term-toggle').textContent='▸  Vincular a mesa (opcional)';
+    document.getElementById('term-pedido').value='';
+    document.getElementById('term-err').textContent='';
+    document.getElementById('modal-terminar').classList.add('active');
+}
+function termToggle(){
+    const box=document.getElementById('term-box');
+    const abierto=box.style.display==='none';
+    box.style.display=abierto?'block':'none';
+    document.getElementById('term-toggle').textContent=(abierto?'▾':'▸')+'  Vincular a mesa (opcional)';
+    if(abierto) document.getElementById('term-pedido').focus();
+}
+async function termConfirmar(){
+    if(!_termReserva)return;
     let pedido_id=null;
-    const idTxt=prompt('¿Vincular una cuenta/mesa a esta reserva? Pegá el ID de la cuenta (lo ves al cobrar la mesa). Dejalo vacío para no vincular.','');
-    if(idTxt!==null && idTxt.trim()!==''){
-        pedido_id=parseInt(idTxt.trim());
-        if(!Number.isInteger(pedido_id)||pedido_id<=0){alert('El ID de la cuenta debe ser un número.');return;}
+    if(document.getElementById('term-box').style.display!=='none'){
+        const v=document.getElementById('term-pedido').value.trim();
+        if(v!==''){
+            pedido_id=parseInt(v);
+            if(!Number.isInteger(pedido_id)||pedido_id<=0){document.getElementById('term-err').textContent='El ID de la cuenta debe ser un número.';return;}
+        }
     }
     // Usar hora LOCAL del navegador (el servidor corre en UTC)
     const ahora=new Date();
     const horaLocal=ahora.getHours().toString().padStart(2,'0')+':'+ahora.getMinutes().toString().padStart(2,'0');
+    const btn=document.getElementById('term-ok'); btn.disabled=true;
     try{
-        await api.patch('/reservas/'+epReserva.id+'/terminar',{hora_fin:horaLocal, pedido_id:pedido_id});
-        cerrarEstadoPopup();
+        await api.patch('/reservas/'+_termReserva.id+'/terminar',{hora_fin:horaLocal, pedido_id:pedido_id});
+        cerrarModal('modal-terminar');
         await cargarDatos();
-    }catch(err){alert('Error: '+err.message);}
+    }catch(err){ document.getElementById('term-err').textContent='Error: '+err.message; }
+    finally{ btn.disabled=false; }
 }
 function epEditar(){const r=epReserva;cerrarEstadoPopup();if(r)abrirModalEditar(r);}
 async function epCancelar(){
