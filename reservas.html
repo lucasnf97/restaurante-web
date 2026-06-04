@@ -702,6 +702,16 @@ function dibujar(){
         ctxC.fillStyle=color;ctxC.globalAlpha=esTerminada?0.6:1;
         roundRect(ctxC,x,y,w,h,5);ctxC.fill();
         ctxC.globalAlpha=1;ctxC.shadowBlur=0;ctxC.shadowOffsetY=0;
+        // VIP: primer tercio dorado
+        if(r.vip){
+            ctxC.save();
+            roundRect(ctxC,x,y,w,h,5);ctxC.clip();
+            ctxC.globalAlpha=esTerminada?0.6:1;
+            ctxC.fillStyle='#e3b341';
+            ctxC.fillRect(x,y,Math.max(8,w/3),h);
+            ctxC.globalAlpha=1;
+            ctxC.restore();
+        }
         ctxC.strokeStyle=darken(color,30);ctxC.lineWidth=1.5;roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
         // Texto
         ctxC.fillStyle=esTerminada?'#64748b':'#1e293b';ctxC.font='bold 10px Segoe UI';

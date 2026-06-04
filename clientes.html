@@ -20,7 +20,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 }
 .btn-logout:hover { background:#4f46e5; color:white; }
 
-.content { margin-top:60px; padding:24px 32px; max-width:920px; }
+.content { margin-top:60px; padding:24px 32px; max-width:1080px; }
 .page-header { margin-bottom:20px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .page-header h2 { font-size:22px; font-weight:700; color:#1a1a2e; }
 .page-header p  { font-size:13px; color:#9ca3af; margin-top:4px; }
@@ -88,6 +88,27 @@ table.hist th { color:#9ca3af; font-weight:600; font-size:11px; text-transform:u
 .ec-add { display:flex; gap:8px; margin-top:8px; }
 .ec-add select, .ec-add input { padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; }
 .ec-add input { flex:1; }
+
+/* Estrella VIP */
+.cli-star { font-size:16px; color:#cbd5e1; margin-right:2px; }
+.cli-star.on { color:#e3b341; text-shadow:0 0 1px #b8860b; }
+
+/* Detalle en 2 columnas */
+.cli-cols { display:grid; grid-template-columns:1.25fr 1fr; gap:18px; margin-top:6px; }
+@media(max-width:760px){ .cli-cols { grid-template-columns:1fr; } }
+.cli-col-right { border-left:1px solid #f0f0f0; padding-left:16px; }
+@media(max-width:760px){ .cli-col-right { border-left:none; padding-left:0; border-top:1px solid #f0f0f0; padding-top:12px; } }
+
+/* Ranking y última cuenta */
+.rk-title { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:8px; }
+.rk-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; font-size:12px; }
+.rk-name { flex:1; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rk-bar { flex:0 0 70px; height:8px; background:#eef2ff; border-radius:5px; overflow:hidden; }
+.rk-bar>span { display:block; height:100%; background:#4f46e5; }
+.rk-qty { flex:0 0 24px; text-align:right; font-weight:700; color:#4f46e5; }
+.uc-head { font-size:12px; color:#64748b; margin-bottom:6px; }
+.uc-item { display:flex; justify-content:space-between; gap:10px; font-size:12px; color:#334155; padding:3px 0; border-bottom:1px solid #f1f5f9; }
+.uc-total { text-align:right; font-weight:700; color:#1a1a2e; margin-top:6px; font-size:13px; }
 </style>
 </head>
 <body>
@@ -146,6 +167,14 @@ table.hist th { color:#9ca3af; font-weight:600; font-size:11px; text-transform:u
                 <input type="text" id="ec-nombre" style="flex:1;padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;">
                 <button class="btn btn-secondary btn-sm" onclick="ecGuardarNombre()">Guardar</button>
             </div>
+        </div>
+
+        <div class="ec-sec">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;">
+                <input type="checkbox" id="ec-vip" onchange="ecToggleVip()" style="width:18px;height:18px;accent-color:#e3b341;cursor:pointer;">
+                <span>⭐ Cliente VIP</span>
+            </label>
+            <div class="ec-empty" style="margin-top:4px;">Si está activado, sus reservas se marcan con el primer tercio dorado.</div>
         </div>
 
         <div class="ec-sec">
@@ -231,6 +260,7 @@ function render(lista){
             : '';
         return '<div class="cli" id="cli-'+c.id+'">'+
             '<div class="cli-head" onclick="toggleCliente('+c.id+')">'+
+                '<span class="cli-star'+(c.vip?' on':'')+'" title="'+(c.vip?'Cliente VIP':'No VIP')+'">★</span>'+
                 '<span class="cli-id">#'+c.id+'</span>'+
                 '<span class="cli-nombre">'+esc(c.nombre||'(sin nombre)')+'</span>'+
                 '<span class="cli-contactos">'+esc(resumen)+'</span>'+
@@ -238,8 +268,13 @@ function render(lista){
             '</div>'+
             '<div class="cli-body" id="cli-body-'+c.id+'">'+
                 editBtn+
-                '<div>'+tels+mails+'</div>'+
-                '<div id="cli-hist-'+c.id+'"><div class="estado-vacio">Cargando histórico…</div></div>'+
+                '<div class="cli-cols">'+
+                    '<div class="cli-col-left">'+
+                        '<div>'+tels+mails+'</div>'+
+                        '<div id="cli-hist-'+c.id+'"><div class="estado-vacio">Cargando…</div></div>'+
+                    '</div>'+
+                    '<div class="cli-col-right" id="cli-extra-'+c.id+'"></div>'+
+                '</div>'+
             '</div>'+
         '</div>';
     }).join('');
@@ -254,6 +289,7 @@ async function toggleCliente(id){
         try{
             const d = await api.get('/clientes/'+id);
             renderHistorico(id, d);
+            renderExtra(id, d);
         }catch(err){
             document.getElementById('cli-hist-'+id).innerHTML = '<div class="estado-vacio">Error: '+esc(err.message)+'</div>';
             _detalleCargado[id] = false;
@@ -279,6 +315,33 @@ function renderHistorico(id, d){
         '<table class="hist"><thead><tr><th>Fecha</th><th>Mesa</th><th>Cuenta</th><th class="hist-tot">Total consumido</th></tr></thead>'+
         '<tbody>'+filas+'</tbody></table>'+
         '<div class="resumen-cli">'+d.visitas+' visita(s) · Total consumido: '+money(d.total_general)+'</div>';
+}
+
+function renderExtra(id, d){
+    const cont = document.getElementById('cli-extra-'+id);
+    if(!cont) return;
+    const rk = d.ranking_productos||[];
+    const max = rk.length ? rk[0].cantidad : 1;
+    let html = '<div class="rk-title">🏆 Productos más consumidos</div>';
+    html += rk.length
+        ? rk.map(p=>{
+            const pct = Math.max(8, Math.round((p.cantidad/max)*100));
+            return '<div class="rk-row"><span class="rk-name">'+esc(p.nombre)+'</span>'+
+                   '<span class="rk-bar"><span style="width:'+pct+'%"></span></span>'+
+                   '<span class="rk-qty">'+p.cantidad+'</span></div>';
+          }).join('')
+        : '<div class="estado-vacio">Sin datos todavía.</div>';
+    const uc = d.ultima_cuenta;
+    html += '<div class="rk-title" style="margin-top:16px;">🧾 Última cuenta</div>';
+    if(uc){
+        const mesa = uc.mesa_numero!=null ? ('Mesa '+uc.mesa_numero+(uc.sala?(' · '+esc(uc.sala)):'')) : '—';
+        html += '<div class="uc-head">Cuenta #'+uc.pedido_id+' · '+esc(uc.fecha||'')+' · '+mesa+'</div>';
+        html += (uc.items||[]).map(i=>'<div class="uc-item"><span>'+esc(i.nombre)+' ×'+i.cantidad+'</span><span>'+money(i.subtotal)+'</span></div>').join('');
+        html += '<div class="uc-total">Total: '+money(uc.total)+'</div>';
+    }else{
+        html += '<div class="estado-vacio">Sin cuentas asociadas aún.</div>';
+    }
+    cont.innerHTML = html;
 }
 
 async function verConsumo(pedidoId){
@@ -341,6 +404,7 @@ async function ecRecargar(){
         const d = await api.get('/clientes/'+_ecId);
         document.getElementById('ec-titulo').textContent='Editar cliente #'+d.id;
         document.getElementById('ec-nombre').value=d.nombre||'';
+        document.getElementById('ec-vip').checked=!!d.vip;
         const cont = d.contactos||[];
         document.getElementById('ec-contactos').innerHTML = cont.length
             ? cont.map(c=>'<div class="ec-row"><span>'+(c.tipo==='telefono'?'📞':'✉')+' '+esc(c.valor)+'</span>'+
@@ -362,6 +426,11 @@ function _ecMsg(texto, ok){ const e=document.getElementById('ec-msg'); e.classNa
 async function ecGuardarNombre(){
     try{ await api.patch('/clientes/'+_ecId, { nombre: document.getElementById('ec-nombre').value.trim() }); _ecDirty=true; _ecMsg('Nombre guardado ✓', true); }
     catch(err){ _ecMsg('Error: '+err.message, false); }
+}
+async function ecToggleVip(){
+    const vip=document.getElementById('ec-vip').checked;
+    try{ await api.patch('/clientes/'+_ecId, { vip }); _ecDirty=true; _ecMsg(vip?'Marcado como VIP ⭐':'VIP desactivado', true); }
+    catch(err){ _ecMsg('Error: '+err.message, false); document.getElementById('ec-vip').checked=!vip; }
 }
 async function ecAgregarContacto(){
     const valor=document.getElementById('ec-valor').value.trim();
