@@ -547,16 +547,14 @@ function buildLayout(){
 
 // ── Resumen por HORA (agrupado, no por slot de 15 min) ───────
 function calcResumenPorHora(){
+    // Cuenta cada reserva SOLO en el bloque horario donde empieza
     const numHoras=Math.ceil((HORA_FIN-HORA_INICIO));
     const res=Array.from({length:numHoras},()=>({mesas:0,personas:0}));
     for(const r of reservas){
         if(r.estado==='cancelada'||r.mesa_id==null) continue;
         const sm=minsDesdeInicio(r.hora_inicio);
-        let em; if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
-        for(let h=0;h<numHoras;h++){
-            const hS=h*60, hE=(h+1)*60;
-            if(sm<hE&&em>hS){ res[h].mesas++; res[h].personas+=(r.comensales||0); }
-        }
+        const h=Math.floor(sm/60);   // bloque donde EMPIEZA la reserva
+        if(h>=0 && h<numHoras){ res[h].mesas++; res[h].personas+=(r.comensales||0); }
     }
     return res;
 }
@@ -725,7 +723,7 @@ function dibujar(){
             ctxT.fillStyle=`rgba(239,68,68,${0.3+pct*0.55})`;
             ctxT.fillRect(x+1,1,w-1,HDR_SUM_H-2);
             ctxT.fillStyle='#fff';
-            ctxT.fillText(nm+'m '+np+'p', x+4, HDR_SUM_H-5);
+            ctxT.fillText('Mesas:'+nm+' ; Pers:'+np, x+4, HDR_SUM_H-5);
         }
     }
     ctxT.strokeStyle='rgba(255,255,255,0.2)';ctxT.lineWidth=0.5;
