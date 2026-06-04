@@ -412,6 +412,7 @@
     </button>
     <hr class="ep-sep">
     <button class="ep-action" onclick="epEditar()">✏️ Editar datos</button>
+    <button class="ep-action" id="ep-historial-btn" onclick="epVerHistorial()" style="display:none;">📇 Ver historial</button>
     <button class="ep-action danger" onclick="epCancelar()">✕ Cancelar reserva</button>
 </div>
 
@@ -423,6 +424,11 @@
 <script>
 requireAuth();
 requirePermiso('gestion_reservas', 'ver_reservas');
+// Mostrar "Ver historial" solo si el usuario tiene acceso a la base de clientes
+if (typeof hasAlgunPermiso === 'function' && hasAlgunPermiso('gestion_clientes', 'ver_clientes')) {
+    const _bh = document.getElementById('ep-historial-btn');
+    if (_bh) _bh.style.display = '';
+}
 
 // Ocultar acciones de edición si el usuario solo puede ver
 (function() {
@@ -708,7 +714,7 @@ function dibujar(){
             roundRect(ctxC,x,y,w,h,5);ctxC.clip();
             ctxC.globalAlpha=esTerminada?0.6:1;
             ctxC.fillStyle='#e3b341';
-            ctxC.fillRect(x,y,Math.max(8,w/3),h);
+            ctxC.fillRect(x,y,Math.max(6,w/8),h);
             ctxC.globalAlpha=1;
             ctxC.restore();
         }
@@ -1257,6 +1263,15 @@ async function termConfirmar(){
     finally{ btn.disabled=false; }
 }
 function epEditar(){const r=epReserva;cerrarEstadoPopup();if(r)abrirModalEditar(r);}
+function epVerHistorial(){
+    if(!epReserva)return;
+    const r=epReserva,p=new URLSearchParams();
+    if(r.telefono) p.set('telefono',r.telefono);
+    else if(r.email) p.set('email',r.email);
+    else if(r.nombre_cliente) p.set('nombre',r.nombre_cliente);
+    cerrarEstadoPopup();
+    window.open('clientes.html?'+p.toString(),'_blank');
+}
 async function epCancelar(){
     if(!epReserva||!confirm('¿Cancelar la reserva de '+epReserva.nombre_cliente+'?'))return;
     try{

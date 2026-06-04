@@ -475,6 +475,16 @@ function ecCerrar(){
 
 function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
 document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('active'); }));
+
+// Filtro automático desde la URL (p.ej. abierto desde "Ver historial" en reservas)
+(function(){
+    const q=new URLSearchParams(location.search);
+    let alguno=false;
+    if(q.get('nombre')){ document.getElementById('f-nombre').value=q.get('nombre'); alguno=true; }
+    if(q.get('telefono')){ document.getElementById('f-telefono').value=q.get('telefono'); alguno=true; }
+    if(q.get('email')){ document.getElementById('f-email').value=q.get('email'); alguno=true; }
+    if(alguno) buscar();
+})();
 </script>
 </body>
 </html>
