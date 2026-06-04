@@ -284,6 +284,7 @@
             <div class="form-group"><label>Nombre *</label><input type="text" id="fr-nombre" placeholder="Nombre y apellido"></div>
             <div class="form-group"><label>Teléfono</label><input type="text" id="fr-telefono" placeholder="Opcional"></div>
         </div>
+        <div class="form-group"><label>Email</label><input type="email" id="fr-email" placeholder="Opcional"></div>
         <div class="form-row">
             <div class="form-group"><label>Fecha *</label><input type="date" id="fr-fecha"></div>
             <div class="form-group"><label>Comensales</label><input type="number" id="fr-comensales" min="1" value="2"></div>
@@ -1253,7 +1254,7 @@ function abrirModalNuevo(mesaId,hora){
     editandoId=null;
     document.getElementById('fr-estado-group').style.display='none';
     document.getElementById('modal-titulo').textContent='Nueva reserva';
-    ['fr-nombre','fr-telefono','fr-hora-fin','fr-alergeno'].forEach(id=>document.getElementById(id).value='');
+    ['fr-nombre','fr-telefono','fr-email','fr-hora-fin','fr-alergeno'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('fr-fecha').value=fechaISO(fechaActual);
     document.getElementById('fr-comensales').value='2';
     document.getElementById('fr-hora-inicio').value=hora||'';
@@ -1266,6 +1267,7 @@ function abrirModalEditar(r){
     document.getElementById('modal-titulo').textContent='Editar reserva';
     document.getElementById('fr-nombre').value=r.nombre_cliente;
     document.getElementById('fr-telefono').value=r.telefono||'';
+    document.getElementById('fr-email').value=r.email||'';
     document.getElementById('fr-fecha').value=r.fecha;
     document.getElementById('fr-comensales').value=r.comensales;
     document.getElementById('fr-hora-inicio').value=r.hora_inicio.substring(0,5);
@@ -1283,6 +1285,7 @@ async function guardarReserva(){
     const body={
         nombre_cliente:document.getElementById('fr-nombre').value.trim(),
         telefono:document.getElementById('fr-telefono').value.trim()||null,
+        email:document.getElementById('fr-email').value.trim()||null,
         fecha:document.getElementById('fr-fecha').value,
         comensales:parseInt(document.getElementById('fr-comensales').value),
         hora_inicio:document.getElementById('fr-hora-inicio').value,

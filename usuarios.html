@@ -158,6 +158,10 @@
             <select id="fn-rol"></select>
             <small style="color:#6b7280;font-size:11px;margin-top:4px;display:block;">Los permisos se asignan automáticamente según el rol</small>
         </div>
+        <div class="form-group">
+            <label>Email <span style="color:#94a3b8;font-weight:400;">(opcional)</span></label>
+            <input type="email" id="fn-email" placeholder="Para avisos de mensajes nuevos">
+        </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo')">Cancelar</button>
             <button class="btn btn-primary" onclick="crearUsuario()">Crear</button>
@@ -185,6 +189,10 @@
                 <option value="true">Activo</option>
                 <option value="false">Inactivo</option>
             </select>
+        </div>
+        <div class="form-group">
+            <label>Email <span style="color:#94a3b8;font-weight:400;">(opcional)</span></label>
+            <input type="email" id="fe-email" placeholder="Para avisos de mensajes nuevos">
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-editar')">Cancelar</button>
@@ -301,6 +309,7 @@
         document.getElementById("fn-username").value = "";
         document.getElementById("fn-password").value = "";
         document.getElementById("fn-rol").value = "empleado";
+        document.getElementById("fn-email").value = "";
         document.getElementById("modal-nuevo").classList.add("active");
     }
 
@@ -308,7 +317,8 @@
         const body = {
             username: document.getElementById("fn-username").value.trim(),
             password: document.getElementById("fn-password").value,
-            rol: document.getElementById("fn-rol").value
+            rol: document.getElementById("fn-rol").value,
+            email: document.getElementById("fn-email").value.trim() || null
         };
         if (!body.username || !body.password) { alert("Usuario y contraseña son obligatorios."); return; }
         try {
@@ -324,6 +334,7 @@
         document.getElementById("fe-iniciales").value = u.iniciales || "";
         document.getElementById("fe-rol").value = u.rol;
         document.getElementById("fe-activo").value = u.activo ? "true" : "false";
+        document.getElementById("fe-email").value = u.email || "";
         document.getElementById("modal-editar").classList.add("active");
     }
     async function guardarEdicion() {
@@ -331,7 +342,8 @@
         const body = {
             rol: document.getElementById("fe-rol").value,
             activo: document.getElementById("fe-activo").value === "true",
-            iniciales: iniciales || null
+            iniciales: iniciales || null,
+            email: document.getElementById("fe-email").value.trim()
         };
         try {
             await api.patch(`/auth/usuarios/${editandoId}`, body);
