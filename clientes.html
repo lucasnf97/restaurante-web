@@ -97,6 +97,15 @@ table.hist th { color:#9ca3af; font-weight:600; font-size:11px; text-transform:u
 .cli-edit { background:#eef2ff; color:#4f46e5; border:none; border-radius:6px; padding:6px 11px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
 .cli-edit:hover { background:#e0e7ff; }
 
+/* Preview en unificar */
+.u-prev { margin-top:6px; min-height:4px; }
+.u-prev-card { background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 11px; font-size:12px; }
+.u-prev-name { font-weight:700; color:#1a1a2e; }
+.u-prev-id { color:#4f46e5; font-weight:700; }
+.u-prev-c { color:#64748b; margin-top:2px; }
+.u-prev-load { font-size:12px; color:#9ca3af; }
+.u-prev-err { font-size:12px; color:#dc2626; font-weight:600; }
+
 /* Detalle en 2 columnas */
 .cli-cols { display:grid; grid-template-columns:1.25fr 1fr; gap:18px; margin-top:6px; }
 @media(max-width:760px){ .cli-cols { grid-template-columns:1fr; } }
@@ -150,9 +159,11 @@ table.hist th { color:#9ca3af; font-weight:600; font-size:11px; text-transform:u
     <div class="modal">
         <h3>🔗 Unificar registros</h3>
         <p style="font-size:13px;color:#64748b;margin-bottom:14px;">Indicá los dos IDs de cliente que pertenecen a la misma persona. El secundario se fusiona en el principal (se conservan todos los contactos e histórico).</p>
-        <div class="field"><label>ID principal (se conserva)</label><input type="number" id="u-principal" min="1" placeholder="Ej: 12"></div>
-        <div class="field"><label>ID secundario (se fusiona)</label><input type="number" id="u-secundario" min="1" placeholder="Ej: 34"></div>
-        <div class="msg" id="u-msg"></div>
+        <div class="field"><label>ID principal (se conserva)</label><input type="number" id="u-principal" min="1" placeholder="Ej: 12" oninput="uPreview('principal')"></div>
+        <div id="u-prev-principal" class="u-prev"></div>
+        <div class="field" style="margin-top:10px;"><label>ID secundario (se fusiona y libera su id)</label><input type="number" id="u-secundario" min="1" placeholder="Ej: 34" oninput="uPreview('secundario')"></div>
+        <div id="u-prev-secundario" class="u-prev"></div>
+        <div class="msg" id="u-msg" style="margin-top:10px;"></div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-unificar')">Cancelar</button>
             <button class="btn btn-primary" id="btn-unificar" onclick="unificar()">Unificar</button>
@@ -376,7 +387,31 @@ function abrirUnificar(){
     document.getElementById('u-principal').value='';
     document.getElementById('u-secundario').value='';
     document.getElementById('u-msg').textContent='';
+    document.getElementById('u-prev-principal').innerHTML='';
+    document.getElementById('u-prev-secundario').innerHTML='';
     document.getElementById('modal-unificar').classList.add('active');
+}
+const _uTimer={};
+function uPreview(which){
+    const inp=document.getElementById(which==='principal'?'u-principal':'u-secundario');
+    const box=document.getElementById('u-prev-'+which);
+    const id=parseInt(inp.value);
+    clearTimeout(_uTimer[which]);
+    if(!Number.isInteger(id)||id<=0){ box.innerHTML=''; return; }
+    box.innerHTML='<span class="u-prev-load">Buscando #'+id+'…</span>';
+    _uTimer[which]=setTimeout(async()=>{
+        try{
+            const d=await api.get('/clientes/'+id);
+            const tels=(d.contactos||[]).filter(c=>c.tipo==='telefono').map(c=>esc(c.valor));
+            const mails=(d.contactos||[]).filter(c=>c.tipo==='email').map(c=>esc(c.valor));
+            const contactos=[...tels,...mails].join(' · ')||'sin contactos';
+            box.innerHTML='<div class="u-prev-card">'+
+                '<div class="u-prev-name">'+(d.vip?'⭐ ':'')+esc(d.nombre||'(sin nombre)')+' <span class="u-prev-id">#'+d.id+'</span></div>'+
+                '<div class="u-prev-c">'+contactos+'</div>'+
+                '<div class="u-prev-c">'+d.visitas+' visita(s) · Total: '+money(d.total_general)+'</div>'+
+            '</div>';
+        }catch(err){ box.innerHTML='<span class="u-prev-err">No existe el cliente #'+id+'</span>'; }
+    },350);
 }
 async function unificar(){
     const p = parseInt(document.getElementById('u-principal').value);
