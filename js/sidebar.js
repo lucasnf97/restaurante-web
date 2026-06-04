@@ -4,21 +4,6 @@
     // Sin perm → siempre visible para cualquier usuario autenticado.
     const PAGES = [
         { href: "dashboard.html", icon: "🏠", label: "Panel principal" },
-        { href: "mensajes.html", icon: "💬", label: "Mensajes" },
-        {
-            group: true,
-            key: "estadisticas",
-            href: "estadisticas.html",
-            icon: "📊",
-            label: "Facturación y Estadísticas",
-            perm: "acceso_estadisticas",
-            children: [
-                { href: "estadisticas.html",         icon: "📊", label: "Resumen" },
-                { href: "analisis-mes.html",          icon: "📅", label: "Análisis de mes" },
-                { href: "historicos.html",            icon: "📈", label: "Históricos" },
-                { href: "ventas-estadisticas.html",   icon: "🛒", label: "Est. de Ventas" },
-            ]
-        },
         {
             group: true,
             key: "restaurante",
@@ -45,8 +30,23 @@
                 { href: "salarios.html",   icon: "💼", label: "Salarios",  perm: "revision_salarios" },
             ]
         },
-        { href: "configuracion.html", icon: "⚙️", label: "Configuración de sistema", perm: "acceso_configuracion" },
+        {
+            group: true,
+            key: "estadisticas",
+            href: "estadisticas.html",
+            icon: "📊",
+            label: "Facturación y Estadísticas",
+            perm: "acceso_estadisticas",
+            children: [
+                { href: "estadisticas.html",         icon: "📊", label: "Resumen" },
+                { href: "analisis-mes.html",          icon: "📅", label: "Análisis de mes" },
+                { href: "historicos.html",            icon: "📈", label: "Históricos" },
+                { href: "ventas-estadisticas.html",   icon: "🛒", label: "Est. de Ventas" },
+            ]
+        },
+        { href: "mensajes.html", icon: "💬", label: "Mensajes" },
         { href: "configuracion-usuario.html", icon: "🙍", label: "Configuración de usuario" },
+        { href: "configuracion.html", icon: "⚙️", label: "Configuración de sistema", perm: "acceso_configuracion" },
     ];
 
     const currentPage = window.location.pathname.split("/").pop() || "dashboard.html";
