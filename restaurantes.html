@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de Restaurantes — Super-admin</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+.navbar { background:#1a1a2e; color:#fff; padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:fixed; top:0; left:0; right:0; z-index:100; }
+.navbar-brand { font-size:18px; font-weight:700; }
+.navbar-brand small { font-weight:400; color:#a5b4fc; font-size:13px; margin-left:8px; }
+.btn-logout { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+.btn-logout:hover { background:#4f46e5; color:#fff; }
+.content { margin-top:60px; padding:24px 32px; max-width:1100px; margin-left:auto; margin-right:auto; }
+.page-header h2 { font-size:22px; font-weight:700; color:#1a1a2e; }
+.page-header p { font-size:13px; color:#9ca3af; margin-top:4px; margin-bottom:20px; }
+.card { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:20px 22px; margin-bottom:18px; }
+.card h3 { font-size:15px; font-weight:700; color:#1a1a2e; margin-bottom:14px; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media(max-width:640px){ .grid { grid-template-columns:1fr; } }
+.field label { display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:5px; }
+.field input { width:100%; padding:9px 11px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; }
+.field .hint { font-size:11px; color:#9ca3af; margin-top:4px; }
+.btn { border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+.btn-primary { background:#4f46e5; color:#fff; } .btn-primary:hover{opacity:.9;}
+.btn-secondary { background:#eef2ff; color:#4f46e5; } .btn-secondary:hover{background:#e0e7ff;}
+.btn-sm { padding:6px 11px; font-size:12px; }
+.msg { font-size:13px; font-weight:600; margin-top:10px; } .msg.ok{color:#16a34a;} .msg.err{color:#dc2626;}
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th,td { text-align:left; padding:9px 10px; border-bottom:1px solid #f0f0f0; }
+th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
+.badge { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; }
+.badge.on{background:#f0fdf4;color:#16a34a;} .badge.off{background:#f3f4f6;color:#9ca3af;}
+.code { font-weight:700; color:#4f46e5; }
+.empty { text-align:center; color:#9ca3af; padding:24px; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="navbar-brand">🛠️ Gestión de Restaurantes <small>Super-admin</small></div>
+    <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+</nav>
+
+<div class="content">
+    <div class="page-header">
+        <h2>Restaurantes</h2>
+        <p>Alta y gestión de los restaurantes del sistema. Cada uno tiene su base aislada.</p>
+    </div>
+
+    <div class="card">
+        <h3>➕ Nuevo restaurante</h3>
+        <div class="grid">
+            <div class="field"><label>Código</label><input type="text" id="n-codigo" placeholder="Ej: 1100">
+                <div class="hint">Identificador único (país+ciudad+nro). El gerente lo usará para entrar.</div></div>
+            <div class="field"><label>Nombre</label><input type="text" id="n-nombre" placeholder="Ej: Restaurante Copenhague"></div>
+            <div class="field"><label>Usuario del gerente</label><input type="text" id="n-guser" placeholder="usuario" autocomplete="off"></div>
+            <div class="field"><label>Contraseña del gerente</label><input type="text" id="n-gpass" placeholder="contraseña inicial" autocomplete="off"></div>
+        </div>
+        <div style="margin-top:14px;display:flex;align-items:center;gap:14px;">
+            <button class="btn btn-primary" id="btn-crear" onclick="crearRestaurante()">Crear restaurante</button>
+            <span class="msg" id="msg-crear"></span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📋 Restaurantes existentes</h3>
+        <table>
+            <thead><tr><th>ID</th><th>Código</th><th>Nombre</th><th>Esquema</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
+            <tbody id="tabla-body"><tr><td colspan="7" class="empty">Cargando…</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+(function(){ const u = getUser(); if (!u || u.rol !== 'superadmin') { alert('Acceso solo para super-administrador.'); window.location.href='index.html'; } })();
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fechaCorta(ts){ if(!ts) return '—'; try{ return new Date(ts).toLocaleDateString(); }catch{ return esc(ts); } }
+
+async function cargar(){
+    const tb = document.getElementById('tabla-body');
+    try{
+        const lista = await api.get('/restaurantes/');
+        if(!lista.length){ tb.innerHTML='<tr><td colspan="7" class="empty">Todavía no hay restaurantes.</td></tr>'; return; }
+        tb.innerHTML = lista.map(r=>`<tr>
+            <td>#${r.id}</td>
+            <td class="code">${esc(r.codigo)}</td>
+            <td>${esc(r.nombre||'—')}</td>
+            <td style="color:#94a3b8;">${esc(r.schema_name)}</td>
+            <td><span class="badge ${r.activo?'on':'off'}">${r.activo?'ACTIVO':'INACTIVO'}</span></td>
+            <td>${fechaCorta(r.creado_en)}</td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-secondary btn-sm" onclick="editarNombre(${r.id}, '${esc(r.nombre||'').replace(/'/g,"\\'")}')">✏️ Nombre</button>
+                <button class="btn btn-secondary btn-sm" onclick="editarCodigo(${r.id}, '${esc(r.codigo)}')">🔑 Código</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleActivo(${r.id}, ${r.activo})">${r.activo?'⏸ Desactivar':'▶ Activar'}</button>
+            </td>
+        </tr>`).join('');
+    }catch(err){ tb.innerHTML='<tr><td colspan="7" class="empty">Error: '+esc(err.message)+'</td></tr>'; }
+}
+
+async function crearRestaurante(){
+    const codigo=document.getElementById('n-codigo').value.trim();
+    const nombre=document.getElementById('n-nombre').value.trim();
+    const guser=document.getElementById('n-guser').value.trim();
+    const gpass=document.getElementById('n-gpass').value;
+    const msg=document.getElementById('msg-crear');
+    if(!codigo||!guser||!gpass){ msg.className='msg err'; msg.textContent='Completá código, usuario y contraseña del gerente.'; return; }
+    const btn=document.getElementById('btn-crear'); btn.disabled=true; msg.className='msg'; msg.textContent='Creando…';
+    try{
+        await api.post('/restaurantes/', { codigo, nombre, gerente_username:guser, gerente_password:gpass });
+        msg.className='msg ok'; msg.textContent='Restaurante '+codigo+' creado. El gerente ya puede entrar con su código.';
+        document.getElementById('n-codigo').value=''; document.getElementById('n-nombre').value='';
+        document.getElementById('n-guser').value=''; document.getElementById('n-gpass').value='';
+        await cargar();
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+    finally{ btn.disabled=false; }
+}
+
+async function editarNombre(id, actual){
+    const nombre=prompt('Nuevo nombre del restaurante:', actual||''); if(nombre===null) return;
+    try{ await api.patch('/restaurantes/'+id, { nombre }); cargar(); }catch(err){ alert('Error: '+err.message); }
+}
+async function editarCodigo(id, actual){
+    const codigo=prompt('Nuevo código del restaurante:', actual||''); if(codigo===null) return;
+    if(!codigo.trim()){ alert('El código no puede estar vacío.'); return; }
+    try{ await api.patch('/restaurantes/'+id, { codigo:codigo.trim() }); cargar(); }catch(err){ alert('Error: '+err.message); }
+}
+async function toggleActivo(id, actual){
+    if(!confirm(actual?'¿Desactivar este restaurante? No podrán iniciar sesión.':'¿Reactivar este restaurante?')) return;
+    try{ await api.patch('/restaurantes/'+id, { activo: !actual }); cargar(); }catch(err){ alert('Error: '+err.message); }
+}
+
+cargar();
+</script>
+</body>
+</html>

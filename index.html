@@ -120,6 +120,11 @@
             <input type="password" id="password" placeholder="Tu contraseña" autocomplete="current-password">
         </div>
 
+        <div class="form-group">
+            <label for="codigo">Código de restaurante</label>
+            <input type="text" id="codigo" placeholder="Código (dejar vacío si es único)" autocomplete="off">
+        </div>
+
         <button id="btn-login" onclick="handleLogin()">Ingresar</button>
 
         <div class="error" id="error-msg"></div>
@@ -130,7 +135,7 @@
         // Si ya está logueado, ir a la pantalla por defecto del rol
         if (getToken()) {
             const _u = JSON.parse(localStorage.getItem('user') || '{}');
-            window.location.href = _pantallaDestino(_u.pantalla_default);
+            window.location.href = (_u.rol === 'superadmin') ? 'restaurantes.html' : _pantallaDestino(_u.pantalla_default);
         }
 
         function _pantallaDestino(pd) {
@@ -138,6 +143,7 @@
                 'mesas':         'mesas.html',
                 'cocina_cocina': 'cocina.html?area=cocina',
                 'cocina_bar':    'cocina.html?area=bar',
+                'restaurantes':  'restaurantes.html',
             };
             return map[pd] || 'dashboard.html';
         }
@@ -150,6 +156,7 @@
         async function handleLogin() {
             const username = document.getElementById("username").value.trim();
             const password = document.getElementById("password").value;
+            const codigo   = document.getElementById("codigo").value.trim();
             const btn = document.getElementById("btn-login");
             const errorDiv = document.getElementById("error-msg");
 
@@ -163,9 +170,9 @@
             errorDiv.style.display = "none";
 
             try {
-                await login(username, password);
+                await login(username, password, codigo);
                 const _u2 = JSON.parse(localStorage.getItem('user') || '{}');
-                window.location.href = _pantallaDestino(_u2.pantalla_default);
+                window.location.href = (_u2.rol === 'superadmin') ? 'restaurantes.html' : _pantallaDestino(_u2.pantalla_default);
             } catch (err) {
                 mostrarError(err.message);
             } finally {

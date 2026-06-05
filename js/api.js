@@ -117,10 +117,11 @@ const api = {
 };
 
 // ── LOGIN ─────────────────────────────────────────────────────
-async function login(username, password) {
+async function login(username, password, codigo) {
     const formData = new URLSearchParams();
     formData.append("username", username);
     formData.append("password", password);
+    if (codigo) formData.append("codigo", codigo);
 
     const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
