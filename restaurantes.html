@@ -159,6 +159,41 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
     </div>
 </div>
 
+<!-- Modal gestión de base de datos de un restaurante -->
+<div class="modal-overlay" id="modal-db">
+    <div class="modal">
+        <h3 id="db-titulo">Base de datos</h3>
+
+        <div style="padding:12px 0;border-bottom:1px solid #f1f5f9;">
+            <div style="font-weight:700;color:#1a1a2e;margin-bottom:4px;">⬇️ Backup</div>
+            <div class="hint" style="margin-bottom:8px;">Descarga un archivo con TODOS los datos del restaurante (incluye URLs de imágenes/facturas en Cloudinary).</div>
+            <button class="btn btn-secondary" onclick="dbBackup()">Descargar backup</button>
+        </div>
+
+        <div style="padding:12px 0;border-bottom:1px solid #f1f5f9;">
+            <div style="font-weight:700;color:#1a1a2e;margin-bottom:4px;">♻️ Restaurar</div>
+            <div class="hint" style="margin-bottom:8px;">Reemplaza <b>todos</b> los datos del restaurante por los del archivo.</div>
+            <input type="file" id="db-file" accept="application/json,.json" style="margin-bottom:8px;">
+            <input type="password" id="db-pass-restore" placeholder="Tu contraseña de super-admin" autocomplete="off"
+                   style="width:100%;padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:8px;">
+            <button class="btn btn-secondary" onclick="dbRestaurar()">Restaurar backup</button>
+        </div>
+
+        <div style="padding:12px 0;">
+            <div style="font-weight:700;color:#dc2626;margin-bottom:4px;">🗑 Formatear (dejar en blanco)</div>
+            <div class="hint" style="margin-bottom:8px;">Vacía toda la base del restaurante. Se conservan los gerentes asignados. <b>No se puede deshacer.</b></div>
+            <input type="password" id="db-pass-format" placeholder="Tu contraseña de super-admin" autocomplete="off"
+                   style="width:100%;padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:8px;">
+            <button class="btn-x" onclick="dbFormatear()">Formatear base</button>
+        </div>
+
+        <div class="msg" id="db-msg"></div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="cerrarModal('modal-db')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/api.js"></script>
 <script>
 requireAuth();
@@ -277,6 +312,7 @@ async function cargarRestaurantes(){
                 <td>${fechaCorta(r.creado_en)}</td>
                 <td class="row-acc">
                     <button class="btn btn-secondary btn-sm" onclick="gestionarGerentes(${r.id})">👥 Gerentes</button>
+                    <button class="btn btn-secondary btn-sm" onclick="gestionarDb(${r.id}, '${esc(r.codigo)}', '${esc(r.nombre||'').replace(/'/g,"\\'")}')">🗄️ BD</button>
                     <button class="btn btn-secondary btn-sm" onclick="editarNombre(${r.id}, '${esc(r.nombre||'').replace(/'/g,"\\'")}')">✏️</button>
                     <button class="btn btn-secondary btn-sm" onclick="editarCodigo(${r.id}, '${esc(r.codigo)}')">🔑</button>
                     <button class="btn btn-secondary btn-sm" onclick="toggleActivo(${r.id}, ${r.activo})">${r.activo?'⏸':'▶'}</button>
@@ -352,6 +388,57 @@ async function rgQuitar(gid){
     catch(err){ document.getElementById('rg-msg').className='msg err'; document.getElementById('rg-msg').textContent='Error: '+err.message; }
 }
 function rgCerrar(){ cerrarModal('modal-rg'); cargarRestaurantes(); cargarGerentes(); }
+
+// ── Gestión de base de datos de un restaurante ────────────────
+let _dbId=null, _dbCodigo='';
+function gestionarDb(rid, codigo, nombre){
+    _dbId=rid; _dbCodigo=codigo;
+    document.getElementById('db-titulo').textContent='Base de datos — '+(nombre||codigo)+' (N° '+codigo+')';
+    document.getElementById('db-msg').textContent='';
+    document.getElementById('db-file').value='';
+    document.getElementById('db-pass-restore').value='';
+    document.getElementById('db-pass-format').value='';
+    document.getElementById('modal-db').classList.add('active');
+}
+function _dbMsg(cls,txt){ const m=document.getElementById('db-msg'); m.className='msg '+cls; m.textContent=txt; }
+async function dbBackup(){
+    _dbMsg('', 'Generando backup…');
+    try{
+        const data = await api.post('/restaurantes/'+_dbId+'/db/exportar', {});
+        const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+        a.download='backup_'+_dbCodigo+'_'+new Date().toISOString().slice(0,10)+'.json';
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+        _dbMsg('ok','Backup descargado.');
+    }catch(err){ _dbMsg('err','Error: '+err.message); }
+}
+async function dbRestaurar(){
+    const f=document.getElementById('db-file').files[0];
+    const pass=document.getElementById('db-pass-restore').value;
+    if(!f){ _dbMsg('err','Elegí un archivo de backup.'); return; }
+    if(!pass){ _dbMsg('err','Ingresá tu contraseña de super-admin.'); return; }
+    if(!confirm('Esto REEMPLAZA todos los datos del restaurante '+_dbCodigo+' por los del archivo. ¿Continuar?')) return;
+    _dbMsg('', 'Restaurando… (puede tardar)');
+    try{
+        const txt=await f.text();
+        let data; try{ data=JSON.parse(txt); }catch{ throw new Error('El archivo no es un JSON válido'); }
+        const res = await api.post('/restaurantes/'+_dbId+'/db/importar', { password:pass, data });
+        _dbMsg('ok', res.mensaje + (res.advertencias ? (' ('+res.advertencias.length+' advertencias)') : ''));
+        cargarRestaurantes();
+    }catch(err){ _dbMsg('err','Error: '+err.message); }
+}
+async function dbFormatear(){
+    const pass=document.getElementById('db-pass-format').value;
+    if(!pass){ _dbMsg('err','Ingresá tu contraseña de super-admin.'); return; }
+    if(!confirm('Esto VACÍA por completo la base del restaurante '+_dbCodigo+'. ¿Continuar?')) return;
+    if(!confirm('Confirmación final: se borran TODOS los datos de '+_dbCodigo+'. Esta acción no se puede deshacer.')) return;
+    _dbMsg('', 'Formateando…');
+    try{
+        const res = await api.post('/restaurantes/'+_dbId+'/db/formatear', { password:pass });
+        _dbMsg('ok', res.mensaje);
+        cargarRestaurantes();
+    }catch(err){ _dbMsg('err','Error: '+err.message); }
+}
 
 function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
 document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('active'); }));
