@@ -246,25 +246,29 @@
     let usuarios = [];
     let rolesDisp = [];
     let editandoId = null;
+    let opcionesRolHTML = '';
 
     async function cargarRolesOpciones() {
         try {
             rolesDisp = await api.get("/roles");
         } catch {
             rolesDisp = [
-                {nombre:'empleado'}, {nombre:'cocinero'}, {nombre:'bartender'},
-                {nombre:'camarero'}, {nombre:'gerente'}, {nombre:'admin'}
+                {nombre:'sub-gerente'}, {nombre:'empleado'}, {nombre:'cocinero'},
+                {nombre:'bartender'}, {nombre:'camarero'}
             ];
         }
-        const opciones = rolesDisp.map(r =>
+        // 'gerente' lo asigna sólo el super-admin; 'admin' es oculto. No se ofrecen acá.
+        const asignables = rolesDisp.filter(r => r.nombre !== 'gerente' && r.nombre !== 'admin');
+        opcionesRolHTML = asignables.map(r =>
             `<option value="${r.nombre}">${r.nombre.charAt(0).toUpperCase()+r.nombre.slice(1)}${r.es_sistema?' ⭐':''}</option>`
         ).join('');
-        document.getElementById('fn-rol').innerHTML = opciones;
-        document.getElementById('fe-rol').innerHTML = opciones;
+        document.getElementById('fn-rol').innerHTML = opcionesRolHTML;
+        document.getElementById('fe-rol').innerHTML = opcionesRolHTML;
     }
 
     async function cargarUsuarios() {
-        usuarios = await api.get("/auth/usuarios");
+        // El usuario admin (acceso oculto del dueño) no se muestra a nadie.
+        usuarios = (await api.get("/auth/usuarios")).filter(u => u.rol !== 'admin');
         const tbody = document.getElementById("tabla-body");
         if (!usuarios.length) {
             tbody.innerHTML = `<tr><td colspan="6" class="empty">No hay usuarios</td></tr>`;
@@ -332,7 +336,13 @@
         editandoId = id;
         const u = usuarios.find(x => x.id === id);
         document.getElementById("fe-iniciales").value = u.iniciales || "";
-        document.getElementById("fe-rol").value = u.rol;
+        const feRol = document.getElementById("fe-rol");
+        feRol.innerHTML = opcionesRolHTML;
+        if (![...feRol.options].some(o => o.value === u.rol)) {
+            // rol no asignable (p.ej. gerente): mostrarlo para no perder el valor actual
+            feRol.insertAdjacentHTML('afterbegin', `<option value="${u.rol}">${u.rol}</option>`);
+        }
+        feRol.value = u.rol;
         document.getElementById("fe-activo").value = u.activo ? "true" : "false";
         document.getElementById("fe-email").value = u.email || "";
         document.getElementById("modal-editar").classList.add("active");

@@ -1578,6 +1578,15 @@ async function verificarEdicion() {
         });
 
         if (res.ok) {
+            const data = await res.json();
+            const permitido = data.rol === 'admin' || data.rol === 'gerente' || data.acceso_modo_edicion === true;
+            if (!permitido) {
+                errEl.textContent = 'Este usuario no tiene permiso para el modo edición.';
+                errEl.classList.add('visible');
+                document.getElementById('me-pass').value = '';
+                document.getElementById('me-pass').focus();
+                return;
+            }
             localStorage.setItem(EDIT_MODE_KEY, 'true');
             cerrarModal();
             actualizarEstadoEdicion();
