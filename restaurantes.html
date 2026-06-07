@@ -618,10 +618,18 @@ function usarCodigoReservado(){
 function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
 document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('active'); }));
 
-(async function init(){
-    // limpiar filtros (evita que el navegador autocomplete con valores previos)
+function limpiarFiltros(){
     ['f-codigo','f-nombre','f-gerente','fc-pais','fc-ciudad','fc-nombre'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
-    await cargarGerentes(); await cargarRestaurantes(); await cargarReservados();
+}
+(async function init(){
+    limpiarFiltros();
+    await cargarGerentes();
+    limpiarFiltros();              // el navegador pudo autocompletar durante el fetch anterior
+    await cargarRestaurantes();    // se carga la grilla con los filtros en blanco
+    await cargarReservados();
+    // barrer cualquier autocompletado tardío de Chrome (no dispara recarga)
+    setTimeout(limpiarFiltros, 300);
+    setTimeout(limpiarFiltros, 1200);
 })();
 </script>
 </body>
