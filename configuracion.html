@@ -1695,7 +1695,7 @@ async function cargarSeccionImpuestos() {
     } catch {}
 
     const user = getUser();
-    if (!user || user.rol !== 'admin') {
+    if (!user || (user.rol !== 'admin' && user.rol !== 'gerente')) {
         document.getElementById('impuestos-actions').style.display = 'none';
     }
 }
@@ -1746,7 +1746,7 @@ function actualizarBadgeImpuesto() {
 
 async function guardarImpuesto() {
     const user = getUser();
-    if (!user || user.rol !== 'admin') {
+    if (!user || (user.rol !== 'admin' && user.rol !== 'gerente')) {
         alert('Solo el administrador puede cambiar esta configuración.'); return;
     }
 
@@ -1845,7 +1845,7 @@ async function cargarSeccionMoneda() {
 
     // Solo admin puede editar
     const user = getUser();
-    if (!user || user.rol !== 'admin') {
+    if (!user || (user.rol !== 'admin' && user.rol !== 'gerente')) {
         document.getElementById('moneda-actions').style.display = 'none';
         document.querySelectorAll('#sec-moneda input, #sec-moneda select, #sec-moneda button')
             .forEach(el => {
@@ -1905,7 +1905,7 @@ function actualizarBadgeMoneda(codigo, simbolo) {
 
 async function guardarMoneda() {
     const user = getUser();
-    if (!user || user.rol !== 'admin') {
+    if (!user || (user.rol !== 'admin' && user.rol !== 'gerente')) {
         alert('Solo el administrador puede cambiar esta configuración.'); return;
     }
 
