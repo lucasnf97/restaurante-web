@@ -353,6 +353,7 @@ async function cargarRestaurantes(){
                 <td><span class="badge ${r.activo?'on':'off'}">${r.activo?'ACTIVO':'INACTIVO'}</span></td>
                 <td>${fechaCorta(r.creado_en)}</td>
                 <td class="row-acc">
+                    <button class="btn btn-secondary btn-sm" onclick="entrarComoAdmin(${r.id}, '${esc(r.codigo)}')" title="Entrar como admin (oculto)">🔓 Entrar</button>
                     <button class="btn btn-secondary btn-sm" onclick="gestionarGerentes(${r.id})">👥 Gerentes</button>
                     <button class="btn btn-secondary btn-sm" onclick="gestionarDb(${r.id}, '${esc(r.codigo)}', '${esc(r.nombre||'').replace(/'/g,"\\'")}')">🗄️ BD</button>
                     <button class="btn btn-secondary btn-sm" onclick="editarNombre(${r.id}, '${esc(r.nombre||'').replace(/'/g,"\\'")}')">✏️</button>
@@ -430,6 +431,21 @@ async function rgQuitar(gid){
     catch(err){ document.getElementById('rg-msg').className='msg err'; document.getElementById('rg-msg').textContent='Error: '+err.message; }
 }
 function rgCerrar(){ cerrarModal('modal-rg'); cargarRestaurantes(); cargarGerentes(); }
+
+// ── Entrar como admin (acceso oculto del dueño) ───────────────
+async function entrarComoAdmin(rid, codigo){
+    if(!confirm('Vas a entrar al restaurante '+codigo+' como ADMIN (acceso oculto del dueño, sin dejar rastro).\n\n'+
+                'Se reemplaza tu sesión de super-admin: cuando termines, cerrá sesión y volvé a entrar con tu N° 1997.\n\n¿Continuar?')) return;
+    try{
+        const r = await api.post('/restaurantes/'+rid+'/entrar', {});
+        const user = { username: r.username, rol: r.rol };
+        Object.keys(r).forEach(k=>{ if(typeof r[k]==='boolean') user[k]=r[k]; });
+        setToken(r.access_token);
+        setUser(user);
+        localStorage.removeItem('edit_mode');
+        window.location.href = 'dashboard.html';
+    }catch(err){ alert('Error: '+err.message); }
+}
 
 // ── Gestión de base de datos de un restaurante ────────────────
 let _dbId=null, _dbCodigo='';
