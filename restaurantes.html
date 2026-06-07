@@ -40,7 +40,9 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
 .filtros { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:14px; }
 @media(max-width:720px){ .filtros { grid-template-columns:1fr; } }
 .gsel { max-height:150px; overflow:auto; border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; }
-.gsel label { display:flex; align-items:center; gap:8px; font-size:13px; padding:3px 0; cursor:pointer; }
+.gsel label { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; padding:4px 2px; cursor:pointer; border-bottom:1px solid #f5f5f5; }
+.gsel label:last-child { border-bottom:none; }
+.gsel .gnm { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; }
 .modal-overlay.active { display:flex; }
 .modal { background:#fff; border-radius:14px; padding:22px 24px; width:min(560px,94vw); max-height:88vh; overflow:auto; }
@@ -69,8 +71,8 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
             <div class="grid">
                 <div class="field"><label>Código</label>
                     <select id="n-cod-reservado" onchange="usarCodigoReservado()" style="margin-bottom:6px;"></select>
-                    <input type="text" id="n-codigo" placeholder="Ej: 1100">
-                    <div class="hint">Elegí un código reservado (pestaña Códigos) o escribí uno manual. Es el N° con el que entra el gerente.</div></div>
+                    <input type="text" id="n-codigo" placeholder="Escribí el código (ej: 1100)" style="display:none;">
+                    <div class="hint">Elegí un código reservado (pestaña Códigos), o "Otro" para escribir uno manual. Es el N° con el que entra el gerente.</div></div>
                 <div class="field"><label>Nombre</label><input type="text" id="n-nombre" placeholder="Ej: McDonald's">
                     <div class="hint">Si el nombre ya existe en esa ciudad, se numera solo (McDonald's 2, 3…).</div></div>
             </div>
@@ -268,7 +270,7 @@ async function cargarGerentes(){
     // checkboxes del form de nuevo restaurante
     const sel = document.getElementById('n-gerentes');
     sel.innerHTML = _gerentes.length ? _gerentes.map(g=>
-        `<label><input type="checkbox" class="gck" value="${g.id}"> ${esc(nombreGer(g))} <span style="color:#9ca3af;">(${esc(g.username)})</span></label>`).join('')
+        `<label><span class="gnm">${esc(nombreGer(g))} <span style="color:#9ca3af;">(${esc(g.username)})</span></span><input type="checkbox" class="gck" value="${g.id}"></label>`).join('')
         : '<div class="hint">No hay gerentes. Creá uno en la pestaña "Gerentes".</div>';
 }
 
@@ -372,7 +374,6 @@ async function crearRestaurante(){
         await api.post('/restaurantes/', { codigo, nombre, gerente_ids });
         msg.className='msg ok'; msg.textContent='Restaurante '+codigo+' creado.';
         document.getElementById('n-codigo').value=''; document.getElementById('n-nombre').value='';
-        document.getElementById('n-cod-reservado').value='';
         document.querySelectorAll('#n-gerentes .gck:checked').forEach(c=>c.checked=false);
         await cargarRestaurantes(); await cargarGerentes(); await cargarReservados();
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
@@ -536,13 +537,19 @@ async function cargarReservados(){
     try{
         const lista=await api.get('/codigos?estado=reservado');
         const sel=document.getElementById('n-cod-reservado');
-        sel.innerHTML='<option value="">— código manual —</option>'+
-            lista.map(x=>`<option value="${esc(x.codigo)}">${esc(x.codigo)} — ${esc(x.pais)} · ${esc(x.ciudad)}</option>`).join('');
+        sel.innerHTML=lista.map(x=>`<option value="${esc(x.codigo)}">${esc(x.codigo)} — ${esc(x.pais)} · ${esc(x.ciudad)}</option>`).join('')
+            + '<option value="__manual__">✏️ Otro (escribir código manual)</option>';
+        usarCodigoReservado();   // aplica el estado inicial (muestra/oculta el input)
     }catch(e){}
 }
 function usarCodigoReservado(){
-    const v=document.getElementById('n-cod-reservado').value;
-    if(v) document.getElementById('n-codigo').value=v;
+    const sel=document.getElementById('n-cod-reservado');
+    const inp=document.getElementById('n-codigo');
+    if(sel.value==='__manual__'){
+        inp.style.display=''; if(inp.dataset.fromcod){ inp.value=''; delete inp.dataset.fromcod; } inp.focus();
+    }else{
+        inp.style.display='none'; inp.value=sel.value; inp.dataset.fromcod='1';
+    }
 }
 
 function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
