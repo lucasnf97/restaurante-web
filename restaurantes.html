@@ -59,6 +59,7 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
     <div class="tabs">
         <button class="tab active" id="tab-rest" onclick="verTab('rest')">🏢 Restaurantes</button>
         <button class="tab" id="tab-ger" onclick="verTab('ger')">🧑‍💼 Gerentes</button>
+        <button class="tab" id="tab-cod" onclick="verTab('cod')">🌍 Códigos</button>
     </div>
 
     <!-- ════════ RESTAURANTES ════════ -->
@@ -66,9 +67,12 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
         <div class="card">
             <h3>➕ Nuevo restaurante</h3>
             <div class="grid">
-                <div class="field"><label>Código</label><input type="text" id="n-codigo" placeholder="Ej: 1100">
-                    <div class="hint">País+ciudad+nro. Es el N° con el que entra el gerente.</div></div>
-                <div class="field"><label>Nombre</label><input type="text" id="n-nombre" placeholder="Ej: Restaurante Copenhague"></div>
+                <div class="field"><label>Código</label>
+                    <select id="n-cod-reservado" onchange="usarCodigoReservado()" style="margin-bottom:6px;"></select>
+                    <input type="text" id="n-codigo" placeholder="Ej: 1100">
+                    <div class="hint">Elegí un código reservado (pestaña Códigos) o escribí uno manual. Es el N° con el que entra el gerente.</div></div>
+                <div class="field"><label>Nombre</label><input type="text" id="n-nombre" placeholder="Ej: McDonald's">
+                    <div class="hint">Si el nombre ya existe en esa ciudad, se numera solo (McDonald's 2, 3…).</div></div>
             </div>
             <div class="field" style="margin-top:12px;">
                 <label>Gerentes asignados</label>
@@ -116,6 +120,39 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
             <table>
                 <thead><tr><th>Nombre</th><th>Usuario</th><th>Correo</th><th>Restaurantes</th><th>Acciones</th></tr></thead>
                 <tbody id="ger-body"><tr><td colspan="5" class="empty">Cargando…</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ════════ CÓDIGOS ════════ -->
+    <div id="view-cod" style="display:none;">
+        <div class="card">
+            <h3>➕ Generar código nuevo</h3>
+            <div class="grid">
+                <div class="field"><label>País</label>
+                    <input type="text" id="c-pais" list="dl-paises" placeholder="Ej: Dinamarca" autocomplete="off">
+                    <datalist id="dl-paises"></datalist></div>
+                <div class="field"><label>Ciudad</label>
+                    <input type="text" id="c-ciudad" list="dl-ciudades" placeholder="Ej: Copenhague" autocomplete="off">
+                    <datalist id="dl-ciudades"></datalist></div>
+            </div>
+            <div style="margin-top:14px;display:flex;align-items:center;gap:14px;">
+                <button class="btn btn-primary" onclick="generarCodigo()">Generar código</button>
+                <span class="msg" id="cod-gen-msg"></span>
+            </div>
+            <div class="hint" style="margin-top:8px;">El código se reserva. Después creá el restaurante (pestaña Restaurantes) eligiéndolo.</div>
+        </div>
+
+        <div class="card">
+            <h3>📋 Códigos</h3>
+            <div class="filtros">
+                <input type="text" id="fc-pais" placeholder="Buscar por país" oninput="recargarCod()">
+                <input type="text" id="fc-ciudad" placeholder="Buscar por ciudad" oninput="recargarCod()">
+                <input type="text" id="fc-nombre" placeholder="Buscar por nombre" oninput="recargarCod()">
+            </div>
+            <table>
+                <thead><tr><th>Código</th><th>País</th><th>Ciudad</th><th>Nombre</th><th>Estado</th><th>Acción</th></tr></thead>
+                <tbody id="cod-body"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -207,8 +244,11 @@ function nombreGer(g){ return ((g.nombre||'')+' '+(g.apellido||'')).trim() || g.
 function verTab(t){
     document.getElementById('view-rest').style.display = t==='rest' ? '' : 'none';
     document.getElementById('view-ger').style.display  = t==='ger'  ? '' : 'none';
+    document.getElementById('view-cod').style.display  = t==='cod'  ? '' : 'none';
     document.getElementById('tab-rest').classList.toggle('active', t==='rest');
     document.getElementById('tab-ger').classList.toggle('active', t==='ger');
+    document.getElementById('tab-cod').classList.toggle('active', t==='cod');
+    if(t==='cod'){ cargarCodigos(); cargarPaisesCiudades(); }
 }
 
 // ── Gerentes ──────────────────────────────────────────────────
@@ -332,8 +372,9 @@ async function crearRestaurante(){
         await api.post('/restaurantes/', { codigo, nombre, gerente_ids });
         msg.className='msg ok'; msg.textContent='Restaurante '+codigo+' creado.';
         document.getElementById('n-codigo').value=''; document.getElementById('n-nombre').value='';
+        document.getElementById('n-cod-reservado').value='';
         document.querySelectorAll('#n-gerentes .gck:checked').forEach(c=>c.checked=false);
-        await cargarRestaurantes(); await cargarGerentes();
+        await cargarRestaurantes(); await cargarGerentes(); await cargarReservados();
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
     finally{ btn.disabled=false; }
 }
@@ -440,10 +481,74 @@ async function dbFormatear(){
     }catch(err){ _dbMsg('err','Error: '+err.message); }
 }
 
+// ── Códigos de restaurantes ───────────────────────────────────
+let _cod_timer=null;
+function recargarCod(){ clearTimeout(_cod_timer); _cod_timer=setTimeout(cargarCodigos,250); }
+async function cargarPaisesCiudades(){
+    try{
+        const paises = await api.get('/paises');
+        document.getElementById('dl-paises').innerHTML = paises.map(p=>`<option value="${esc(p.nombre)}">`).join('');
+        const ciudades = await api.get('/ciudades');
+        document.getElementById('dl-ciudades').innerHTML = ciudades.map(c=>`<option value="${esc(c.nombre)}">`).join('');
+    }catch(e){}
+}
+async function generarCodigo(){
+    const pais=document.getElementById('c-pais').value.trim();
+    const ciudad=document.getElementById('c-ciudad').value.trim();
+    const msg=document.getElementById('cod-gen-msg');
+    if(!pais||!ciudad){ msg.className='msg err'; msg.textContent='Indicá país y ciudad.'; return; }
+    msg.className='msg'; msg.textContent='Generando…';
+    try{
+        const r=await api.post('/codigos/generar',{pais,ciudad});
+        msg.className='msg ok'; msg.textContent=`Código generado: ${r.codigo} — ${r.pais.nombre} · ${r.ciudad.nombre}`;
+        document.getElementById('c-pais').value=''; document.getElementById('c-ciudad').value='';
+        await cargarCodigos(); await cargarPaisesCiudades(); await cargarReservados();
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+}
+async function cargarCodigos(){
+    const qs=new URLSearchParams();
+    const p=document.getElementById('fc-pais').value.trim();
+    const c=document.getElementById('fc-ciudad').value.trim();
+    const n=document.getElementById('fc-nombre').value.trim();
+    if(p) qs.set('pais',p);
+    if(c) qs.set('ciudad',c);
+    if(n) qs.set('nombre',n);
+    const tb=document.getElementById('cod-body');
+    try{
+        const lista=await api.get('/codigos?'+qs.toString());
+        if(!lista.length){ tb.innerHTML='<tr><td colspan="6" class="empty">Sin resultados.</td></tr>'; return; }
+        tb.innerHTML=lista.map(x=>`<tr>
+            <td class="code">${esc(x.codigo)}</td>
+            <td>${esc(x.pais)}</td>
+            <td>${esc(x.ciudad)}</td>
+            <td>${x.nombre?esc(x.nombre):'<span style="color:#cbd5e1;">—</span>'}</td>
+            <td><span class="badge ${x.estado==='usado'?'on':'off'}">${x.estado==='usado'?'CON RESTAURANTE':'RESERVADO'}</span></td>
+            <td>${x.estado==='reservado'?`<button class="btn-x" onclick="liberarCodigo(${x.id}, '${esc(x.codigo)}')">Liberar</button>`:''}</td>
+        </tr>`).join('');
+    }catch(err){ tb.innerHTML='<tr><td colspan="6" class="empty">Error: '+esc(err.message)+'</td></tr>'; }
+}
+async function liberarCodigo(id, codigo){
+    if(!confirm('¿Liberar el código '+codigo+'? Quedará disponible para generar de nuevo.')) return;
+    try{ await api.delete('/codigos/'+id); await cargarCodigos(); await cargarReservados(); }
+    catch(err){ alert('Error: '+err.message); }
+}
+async function cargarReservados(){
+    try{
+        const lista=await api.get('/codigos?estado=reservado');
+        const sel=document.getElementById('n-cod-reservado');
+        sel.innerHTML='<option value="">— código manual —</option>'+
+            lista.map(x=>`<option value="${esc(x.codigo)}">${esc(x.codigo)} — ${esc(x.pais)} · ${esc(x.ciudad)}</option>`).join('');
+    }catch(e){}
+}
+function usarCodigoReservado(){
+    const v=document.getElementById('n-cod-reservado').value;
+    if(v) document.getElementById('n-codigo').value=v;
+}
+
 function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
 document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('active'); }));
 
-(async function init(){ await cargarGerentes(); await cargarRestaurantes(); })();
+(async function init(){ await cargarGerentes(); await cargarRestaurantes(); await cargarReservados(); })();
 </script>
 </body>
 </html>
