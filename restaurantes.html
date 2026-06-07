@@ -49,6 +49,8 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
 .modal h3 { font-size:17px; color:#1a1a2e; margin-bottom:14px; }
 .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
 .row-acc { display:flex; gap:6px; flex-wrap:wrap; }
+.spinner { width:30px; height:30px; border:3px solid #e5e7eb; border-top-color:#4f46e5; border-radius:50%; animation:spin .8s linear infinite; margin:26px auto; }
+@keyframes spin { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -78,8 +80,11 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
             </div>
             <div class="field" style="margin-top:12px;">
                 <label>Gerentes asignados</label>
-                <div class="gsel" id="n-gerentes"><div class="hint">Cargando gerentes…</div></div>
-                <div class="hint">Podés asignar varios. Si no hay ninguno, creá gerentes en la pestaña "Gerentes".</div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <button type="button" class="btn btn-secondary" onclick="abrirSelGerentes()">👥 Gestionar gerentes</button>
+                    <span class="hint" id="n-ger-resumen">Ninguno seleccionado</span>
+                </div>
+                <div class="hint" style="margin-top:6px;">Podés asignar varios. Si no hay ninguno, creá gerentes en la pestaña "Gerentes".</div>
             </div>
             <div style="margin-top:14px;display:flex;align-items:center;gap:14px;">
                 <button class="btn btn-primary" id="btn-crear-rest" onclick="crearRestaurante()">Crear restaurante</button>
@@ -90,9 +95,9 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
         <div class="card">
             <h3>📋 Restaurantes</h3>
             <div class="filtros">
-                <input type="text" id="f-codigo" placeholder="Buscar por código (ej: 11)" oninput="recargarRest()">
-                <input type="text" id="f-nombre" placeholder="Buscar por nombre" oninput="recargarRest()">
-                <input type="text" id="f-gerente" placeholder="Buscar por gerente" oninput="recargarRest()">
+                <input type="text" id="f-codigo" placeholder="Buscar por código (ej: 11)" oninput="recargarRest()" autocomplete="off">
+                <input type="text" id="f-nombre" placeholder="Buscar por nombre" oninput="recargarRest()" autocomplete="off">
+                <input type="text" id="f-gerente" placeholder="Buscar por gerente" oninput="recargarRest()" autocomplete="off">
             </div>
             <table>
                 <thead><tr><th>Cód.</th><th>Nombre</th><th>Gerentes</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
@@ -183,17 +188,33 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
 <div class="modal-overlay" id="modal-rg">
     <div class="modal">
         <h3 id="rg-titulo">Gerentes del restaurante</h3>
-        <div id="rg-asignados"></div>
-        <div class="field" style="margin-top:14px;">
-            <label>Agregar gerente</label>
-            <div style="display:flex;gap:8px;">
-                <select id="rg-add" style="flex:1;"></select>
-                <button class="btn btn-secondary btn-sm" onclick="rgAgregar()">Agregar</button>
+        <div id="rg-spinner" style="display:none;"><div class="spinner"></div></div>
+        <div id="rg-content">
+            <div id="rg-asignados"></div>
+            <div class="field" style="margin-top:14px;">
+                <label>Agregar gerente</label>
+                <div style="display:flex;gap:8px;">
+                    <select id="rg-add" style="flex:1;"></select>
+                    <button class="btn btn-secondary btn-sm" onclick="rgAgregar()">Agregar</button>
+                </div>
             </div>
+            <div class="msg" id="rg-msg"></div>
         </div>
-        <div class="msg" id="rg-msg"></div>
         <div class="modal-footer">
             <button class="btn btn-primary" onclick="rgCerrar()">Listo</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal seleccionar gerentes para un restaurante nuevo -->
+<div class="modal-overlay" id="modal-newger">
+    <div class="modal">
+        <h3>Asignar gerentes</h3>
+        <div class="hint" style="margin-bottom:8px;">Marcá los gerentes que querés asignar a este restaurante.</div>
+        <div class="gsel" id="newger-list" style="max-height:280px;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-newger')">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmarSelGerentes()">Aceptar</button>
         </div>
     </div>
 </div>
@@ -267,11 +288,31 @@ async function cargarGerentes(){
             <button class="btn btn-secondary btn-sm" onclick="editarGerente(${g.id})">✏️ Editar</button>
             <button class="btn-x" onclick="borrarGerente(${g.id}, '${esc(g.username).replace(/'/g,"\\'")}')">🗑 Eliminar</button>
         </td></tr>`).join('') : '<tr><td colspan="5" class="empty">Todavía no hay gerentes.</td></tr>';
-    // checkboxes del form de nuevo restaurante
-    const sel = document.getElementById('n-gerentes');
-    sel.innerHTML = _gerentes.length ? _gerentes.map(g=>
-        `<label><span class="gnm">${esc(nombreGer(g))} <span style="color:#9ca3af;">(${esc(g.username)})</span></span><input type="checkbox" class="gck" value="${g.id}"></label>`).join('')
+    actualizarResumenGerentes();   // el form de nuevo restaurante usa un modal de selección
+}
+
+// ── Selección de gerentes para un restaurante nuevo (modal) ───
+let _newGerSel = new Set();
+function actualizarResumenGerentes(){
+    const el = document.getElementById('n-ger-resumen'); if(!el) return;
+    // descartar ids que ya no existen
+    _newGerSel = new Set([..._newGerSel].filter(id => _gerentes.some(g=>g.id===id)));
+    const n = _newGerSel.size;
+    if(!n){ el.textContent = 'Ninguno seleccionado'; return; }
+    const nombres = _gerentes.filter(g=>_newGerSel.has(g.id)).map(nombreGer);
+    el.textContent = n + (n>1?' seleccionados: ':' seleccionado: ') + nombres.join(', ');
+}
+function abrirSelGerentes(){
+    const list = document.getElementById('newger-list');
+    list.innerHTML = _gerentes.length
+        ? _gerentes.map(g=>`<label><span class="gnm">${esc(nombreGer(g))} <span style="color:#9ca3af;">(${esc(g.username)})</span></span><input type="checkbox" class="ngck" value="${g.id}" ${_newGerSel.has(g.id)?'checked':''}></label>`).join('')
         : '<div class="hint">No hay gerentes. Creá uno en la pestaña "Gerentes".</div>';
+    document.getElementById('modal-newger').classList.add('active');
+}
+function confirmarSelGerentes(){
+    _newGerSel = new Set([...document.querySelectorAll('#newger-list .ngck:checked')].map(c=>parseInt(c.value)));
+    actualizarResumenGerentes();
+    cerrarModal('modal-newger');
 }
 
 async function crearGerente(){
@@ -367,7 +408,7 @@ async function cargarRestaurantes(){
 async function crearRestaurante(){
     const codigo=document.getElementById('n-codigo').value.trim();
     const nombre=document.getElementById('n-nombre').value.trim();
-    const gerente_ids=[...document.querySelectorAll('#n-gerentes .gck:checked')].map(c=>parseInt(c.value));
+    const gerente_ids=[..._newGerSel];
     const msg=document.getElementById('msg-rest');
     if(!codigo){ msg.className='msg err'; msg.textContent='Indicá el código.'; return; }
     const btn=document.getElementById('btn-crear-rest'); btn.disabled=true; msg.className='msg'; msg.textContent='Creando…';
@@ -375,7 +416,7 @@ async function crearRestaurante(){
         await api.post('/restaurantes/', { codigo, nombre, gerente_ids });
         msg.className='msg ok'; msg.textContent='Restaurante '+codigo+' creado.';
         document.getElementById('n-codigo').value=''; document.getElementById('n-nombre').value='';
-        document.querySelectorAll('#n-gerentes .gck:checked').forEach(c=>c.checked=false);
+        _newGerSel = new Set(); actualizarResumenGerentes();
         await cargarRestaurantes(); await cargarGerentes(); await cargarReservados();
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
     finally{ btn.disabled=false; }
@@ -400,8 +441,14 @@ let _rgId = null;
 async function gestionarGerentes(rid){
     _rgId = rid;
     document.getElementById('rg-msg').textContent='';
+    document.getElementById('rg-titulo').textContent = 'Gerentes del restaurante';
+    document.getElementById('rg-spinner').style.display = '';
+    document.getElementById('rg-content').style.display = 'none';
     document.getElementById('modal-rg').classList.add('active');
-    await rgRecargar();
+    try{ await rgRecargar(); }
+    catch(err){ document.getElementById('rg-titulo').textContent = 'Error al cargar'; }
+    document.getElementById('rg-spinner').style.display = 'none';
+    document.getElementById('rg-content').style.display = '';
 }
 async function rgRecargar(){
     const d = await api.get('/restaurantes/'+_rgId);
@@ -571,7 +618,11 @@ function usarCodigoReservado(){
 function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
 document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('active'); }));
 
-(async function init(){ await cargarGerentes(); await cargarRestaurantes(); await cargarReservados(); })();
+(async function init(){
+    // limpiar filtros (evita que el navegador autocomplete con valores previos)
+    ['f-codigo','f-nombre','f-gerente','fc-pais','fc-ciudad','fc-nombre'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+    await cargarGerentes(); await cargarRestaurantes(); await cargarReservados();
+})();
 </script>
 </body>
 </html>
