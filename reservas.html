@@ -708,21 +708,11 @@ function dibujar(){
         ctxC.fillStyle=color;ctxC.globalAlpha=esTerminada?0.6:1;
         roundRect(ctxC,x,y,w,h,5);ctxC.fill();
         ctxC.globalAlpha=1;ctxC.shadowBlur=0;ctxC.shadowOffsetY=0;
-        // VIP: primer tercio dorado
-        if(r.vip){
-            ctxC.save();
-            roundRect(ctxC,x,y,w,h,5);ctxC.clip();
-            ctxC.globalAlpha=esTerminada?0.6:1;
-            ctxC.fillStyle='#e3b341';
-            ctxC.fillRect(x,y,Math.max(6,w/8),h);
-            ctxC.globalAlpha=1;
-            ctxC.restore();
-        }
         ctxC.strokeStyle=darken(color,30);ctxC.lineWidth=1.5;roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
-        // Texto
+        // Texto (VIP: estrella a la izquierda del nombre)
         ctxC.fillStyle=esTerminada?'#64748b':'#1e293b';ctxC.font='bold 10px Segoe UI';
         ctxC.save();ctxC.beginPath();ctxC.rect(x+3,y+1,w-6,h-2);ctxC.clip();
-        ctxC.fillText(r.nombre_cliente+' ('+r.comensales+')'+(r.alergeno?' ⚠':'')+(r.notas?' 📝':''),x+5,y+h/2+4);
+        ctxC.fillText((r.vip?'⭐ ':'')+r.nombre_cliente+' ('+r.comensales+')'+(r.alergeno?' ⚠':'')+(r.notas?' 📝':''),x+5,y+h/2+4);
         ctxC.restore();
         // Handle de resize (indicador en borde derecho)
         if(!esTerminada&&w>20){
