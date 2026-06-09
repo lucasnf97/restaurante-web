@@ -10,13 +10,13 @@
             icon: "🍽️",
             label: "Restaurante",
             children: [
-                { href: "reservas.html",  icon: "📅", label: "Reservas",               perm: ["gestion_reservas","ver_reservas"] },
-                { href: "productos.html", icon: "🍽️", label: "Productos",              perm: ["edicion_carta","ver_carta"] },
-                { href: "mesas.html",     icon: "🗺️", label: "Herramienta de Edición", perm: "edicion_sala" },
-                { href: "stock.html",     icon: "📦", label: "Stock",                  perm: ["gestion_stock","gestion_produccion"] },
-                { href: "clientes.html",  icon: "🧑‍🤝‍🧑", label: "Clientes",             perm: ["gestion_clientes","ver_clientes"] },
-                { href: "facturas.html",  icon: "🧾", label: "Facturas",               perm: "acceso_facturacion" },
-                { href: "caja.html",      icon: "💰", label: "Caja",                   perm: "gestion_caja" },
+                { href: "reservas.html",  icon: "📅", label: "Reservas",               mod: "reservas",  perm: ["gestion_reservas","ver_reservas"] },
+                { href: "productos.html", icon: "🍽️", label: "Productos",              mod: "productos", perm: ["edicion_carta","ver_carta"] },
+                { href: "mesas.html",     icon: "🗺️", label: "Herramienta de Edición", mod: "mesas",    perm: "edicion_sala" },
+                { href: "stock.html",     icon: "📦", label: "Stock",                  mod: "stock",     perm: ["gestion_stock","gestion_produccion"] },
+                { href: "clientes.html",  icon: "🧑‍🤝‍🧑", label: "Clientes",             mod: "clientes",  perm: ["gestion_clientes","ver_clientes"] },
+                { href: "facturas.html",  icon: "🧾", label: "Facturas",               mod: "facturas",  perm: "acceso_facturacion" },
+                { href: "caja.html",      icon: "💰", label: "Caja",                   mod: "caja",      perm: "gestion_caja" },
             ]
         },
         {
@@ -24,6 +24,7 @@
             key: "personal",
             icon: "👥",
             label: "Personal",
+            mod: "personal",
             children: [
                 { href: "fichajes.html",   icon: "🕐", label: "Fichajes",  perm: ["ver_fichajes","edicion_fichajes"] },
                 { href: "usuarios.html",   icon: "👤", label: "Usuarios",  perm: "acceso_usuarios" },
@@ -37,6 +38,7 @@
             href: "estadisticas.html",
             icon: "📊",
             label: "Facturación y Estadísticas",
+            mod: "estadisticas",
             perm: "acceso_estadisticas",
             children: [
                 { href: "estadisticas.html",         icon: "📊", label: "Resumen" },
@@ -63,6 +65,14 @@
         if (u.rol === "admin" || u.rol === "gerente") return true;
         const perms = Array.isArray(perm) ? perm : [perm];
         return perms.some(p => !!u[p]);
+    }
+    // Módulo habilitado en el restaurante (admin/gerente NO lo saltean: es del restaurante).
+    function _canModulo(mod) {
+        if (!mod) return true;            // ítem sin módulo → siempre
+        const u = _getUser();
+        const mods = u && u.modulos;
+        if (!Array.isArray(mods)) return true;   // token viejo sin módulos → no restringir
+        return mods.includes(mod);
     }
 
     // ── CSS ──────────────────────────────────────────────────────
@@ -282,7 +292,7 @@
         return PAGES.map(p => {
             // Ítem simple
             if (!p.group) {
-                if (!_canSee(p.perm)) return "";
+                if (!_canSee(p.perm) || !_canModulo(p.mod)) return "";
                 // Ítem de Mensajes: incluir badge de no leídos
                 const badgeHtml = p.href === "mensajes.html"
                     ? `<span id="sidebar-mensajes-badge" style="display:none;margin-left:auto;"></span>`
@@ -294,8 +304,10 @@
                 </a>`;
             }
 
-            // Grupo: filtrar hijos visibles
-            const visibleChildren = p.children.filter(c => _canSee(c.perm));
+            // Grupo: si el módulo del grupo está apagado, ocultar todo el grupo
+            if (!_canModulo(p.mod)) return "";
+            // Filtrar hijos por permiso y por módulo propio del hijo
+            const visibleChildren = p.children.filter(c => _canSee(c.perm) && _canModulo(c.mod));
 
             // Si el grupo tiene perm propio, verificarlo; si no, mostrar solo si hay hijos visibles
             if (p.perm && !_canSee(p.perm)) return "";

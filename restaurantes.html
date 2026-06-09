@@ -79,6 +79,14 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
                     <div class="hint">Si el nombre ya existe en esa ciudad, se numera solo (McDonald's 2, 3…).</div></div>
             </div>
             <div class="field" style="margin-top:12px;">
+                <label>Tipo de programa</label>
+                <select id="n-tipo" style="max-width:340px;">
+                    <option value="completo">Completo (POS + gestión)</option>
+                    <option value="analisis">Solo análisis de datos</option>
+                </select>
+                <div class="hint">Análisis = Productos, Stock, Facturas, Estadísticas e Importar ventas. Se puede editar después.</div>
+            </div>
+            <div class="field" style="margin-top:12px;">
                 <label>Gerentes asignados</label>
                 <div style="display:flex;align-items:center;gap:12px;">
                     <button type="button" class="btn btn-secondary" onclick="abrirSelGerentes()">👥 Gestionar gerentes</button>
@@ -219,6 +227,23 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
     </div>
 </div>
 
+<!-- Modal módulos del restaurante -->
+<div class="modal-overlay" id="modal-mod">
+    <div class="modal">
+        <h3 id="mod-titulo">Módulos del restaurante</h3>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <button class="btn btn-secondary btn-sm" onclick="modPreset('completo')">Preset: Completo</button>
+            <button class="btn btn-secondary btn-sm" onclick="modPreset('analisis')">Preset: Solo análisis</button>
+        </div>
+        <div class="gsel" id="mod-list" style="max-height:300px;"></div>
+        <div class="msg" id="mod-msg"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-mod')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarModulos()">Guardar</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal gestión de base de datos de un restaurante -->
 <div class="modal-overlay" id="modal-db">
     <div class="modal">
@@ -260,6 +285,22 @@ requireAuth();
 (function(){ const u = getUser(); if (!u || u.rol !== 'superadmin') { alert('Acceso solo para super-administrador.'); window.location.href='index.html'; } })();
 
 let _gerentes = [];   // cache de la lista global de gerentes
+
+// ── Módulos (debe coincidir con tenancy.MODULOS_TODOS / MODULOS_ANALISIS del backend) ──
+const MODULOS_DEF = [
+    {key:'reservas',     label:'Reservas'},
+    {key:'productos',    label:'Productos'},
+    {key:'mesas',        label:'Herramienta de edición (sala)'},
+    {key:'stock',        label:'Stock'},
+    {key:'clientes',     label:'Clientes'},
+    {key:'facturas',     label:'Facturas'},
+    {key:'caja',         label:'Caja'},
+    {key:'personal',     label:'Personal (fichajes, usuarios, horarios, salarios)'},
+    {key:'estadisticas', label:'Facturación y Estadísticas'},
+    {key:'importar',     label:'Importar ventas (análisis)'},
+];
+const PRESET_COMPLETO = MODULOS_DEF.map(m=>m.key);
+const PRESET_ANALISIS = ['productos','stock','facturas','estadisticas','importar'];
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function fechaCorta(ts){ if(!ts) return '—'; try{ return new Date(ts).toLocaleDateString(); }catch{ return esc(ts); } }
 function nombreGer(g){ return ((g.nombre||'')+' '+(g.apellido||'')).trim() || g.username; }
@@ -397,6 +438,7 @@ async function cargarRestaurantes(){
                     <button class="btn btn-secondary btn-sm" onclick="entrarComoAdmin(${r.id}, '${esc(r.codigo)}')" title="Entrar como admin (oculto)">🔓 Entrar</button>
                     <button class="btn btn-secondary btn-sm" onclick="gestionarGerentes(${r.id})">👥 Gerentes</button>
                     <button class="btn btn-secondary btn-sm" onclick="gestionarDb(${r.id}, '${esc(r.codigo)}', '${esc(r.nombre||'').replace(/'/g,"\\'")}')">🗄️ BD</button>
+                    <button class="btn btn-secondary btn-sm" onclick="gestionarModulos(${r.id})">🧩 Módulos</button>
                     <button class="btn btn-secondary btn-sm" onclick="editarNombre(${r.id}, '${esc(r.nombre||'').replace(/'/g,"\\'")}')">✏️</button>
                     <button class="btn btn-secondary btn-sm" onclick="editarCodigo(${r.id}, '${esc(r.codigo)}')">🔑</button>
                     <button class="btn btn-secondary btn-sm" onclick="toggleActivo(${r.id}, ${r.activo})">${r.activo?'⏸':'▶'}</button>
@@ -409,13 +451,15 @@ async function crearRestaurante(){
     const codigo=document.getElementById('n-codigo').value.trim();
     const nombre=document.getElementById('n-nombre').value.trim();
     const gerente_ids=[..._newGerSel];
+    const tipo=document.getElementById('n-tipo').value;
+    const modulos=(tipo==='analisis') ? PRESET_ANALISIS.slice() : PRESET_COMPLETO.slice();
     const msg=document.getElementById('msg-rest');
     if(!codigo){ msg.className='msg err'; msg.textContent='Indicá el código.'; return; }
     const btn=document.getElementById('btn-crear-rest'); btn.disabled=true; msg.className='msg'; msg.textContent='Creando…';
     try{
-        await api.post('/restaurantes/', { codigo, nombre, gerente_ids });
+        await api.post('/restaurantes/', { codigo, nombre, gerente_ids, modulos });
         msg.className='msg ok'; msg.textContent='Restaurante '+codigo+' creado.';
-        document.getElementById('n-codigo').value=''; document.getElementById('n-nombre').value='';
+        document.getElementById('n-codigo').value=''; document.getElementById('n-nombre').value=''; document.getElementById('n-tipo').value='completo';
         _newGerSel = new Set(); actualizarResumenGerentes();
         await cargarRestaurantes(); await cargarGerentes(); await cargarReservados();
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
@@ -478,6 +522,31 @@ async function rgQuitar(gid){
     catch(err){ document.getElementById('rg-msg').className='msg err'; document.getElementById('rg-msg').textContent='Error: '+err.message; }
 }
 function rgCerrar(){ cerrarModal('modal-rg'); cargarRestaurantes(); cargarGerentes(); }
+
+// ── Módulos de un restaurante ─────────────────────────────────
+let _modId = null;
+function _renderModList(activos){
+    const set = new Set(activos);
+    document.getElementById('mod-list').innerHTML = MODULOS_DEF.map(m=>
+        `<label><span class="gnm">${esc(m.label)}</span><input type="checkbox" class="modck" value="${m.key}" ${set.has(m.key)?'checked':''}></label>`).join('');
+}
+async function gestionarModulos(rid){
+    _modId = rid;
+    document.getElementById('mod-msg').textContent='';
+    let actuales = PRESET_COMPLETO;
+    try{ const d = await api.get('/restaurantes/'+rid); if(Array.isArray(d.modulos)) actuales = d.modulos; }catch(e){}
+    _renderModList(actuales);
+    document.getElementById('modal-mod').classList.add('active');
+}
+function modPreset(tipo){ _renderModList(tipo==='analisis' ? PRESET_ANALISIS : PRESET_COMPLETO); }
+async function guardarModulos(){
+    const modulos=[...document.querySelectorAll('#mod-list .modck:checked')].map(c=>c.value);
+    const msg=document.getElementById('mod-msg');
+    try{
+        await api.patch('/restaurantes/'+_modId, { modulos });
+        cerrarModal('modal-mod'); cargarRestaurantes();
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+}
 
 // ── Entrar como admin (acceso oculto del dueño) ───────────────
 async function entrarComoAdmin(rid, codigo){
