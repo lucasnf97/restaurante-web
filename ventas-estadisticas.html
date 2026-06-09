@@ -506,6 +506,7 @@ const WGT_DEFS = [
     { key:'demanda',      icon:'📊', name:'Análisis de Demanda',        fixedSpan:6 },
     { key:'barras_prod',  icon:'📈', name:'Barras por Producto',        fixedSpan:6 },
     { key:'barras_cat',   icon:'📉', name:'Barras por Categoría',       fixedSpan:6 },
+    { key:'rentabilidad', icon:'💹', name:'Rentabilidad y Análisis',    fixedSpan:6 },
 ];
 
 // ── Estado global ────────────────────────────────────────────────
@@ -598,6 +599,7 @@ function buildWgtInner(def) {
     if (def.key === 'demanda')     return buildDemandaHTML();
     if (def.key === 'barras_prod') return buildBarrasHTML('barras_prod');
     if (def.key === 'barras_cat')  return buildBarrasHTML('barras_cat');
+    if (def.key === 'rentabilidad') return buildRentabilidadHTML();
     return `<div style="padding:20px;color:#9ca3af">Widget pendiente</div>`;
 }
 
@@ -634,6 +636,114 @@ function buildTopVentasHTML() {
     </div>`;
 }
 
+// ── Widget Rentabilidad y Análisis (POS + ventas importadas × costo) ─────────
+const RENT_CLASE_COLOR = { estrella:'#16a34a', caballo:'#ca8a04', puzzle:'#4f46e5', perro:'#dc2626' };
+const RENT_CLASE_LBL   = { estrella:'⭐ Estrella', caballo:'🐴 Caballo', puzzle:'🧩 Puzzle', perro:'🐶 Perro' };
+const RENT_CLASE_BADGE = { estrella:'#dcfce7;color:#15803d', caballo:'#fef9c3;color:#a16207', puzzle:'#e0e7ff;color:#4338ca', perro:'#fee2e2;color:#b91c1c' };
+let _rentCharts = {};
+
+function buildRentabilidadHTML() {
+    return `
+    <div class="wgt-tv-header">
+        <span class="wgt-drag" title="Arrastrar para reordenar">⠿</span>
+        <span class="wgt-tv-title">💹 Rentabilidad y Análisis</span>
+    </div>
+    <div class="tv-filters">
+        <div class="tv-fg"><label>Desde</label><input type="date" id="rent-desde" value="${getDesdeDefault()}"></div>
+        <div class="tv-fg"><label>Hasta</label><input type="date" id="rent-hasta" value="${getHastaDefault()}"></div>
+        <button class="tv-btn-buscar" onclick="cargarRentabilidad()">🔍 Buscar</button>
+    </div>
+    <div id="rent-body">
+        <div id="rent-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:6px 0 14px;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+                <div style="font-weight:700;font-size:13px;margin-bottom:6px;">🍽️ Ingeniería de menú</div>
+                <div style="position:relative;height:280px;"><canvas id="rent-menu-canvas"></canvas></div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#475569;margin-top:6px;">
+                    <span><b style="color:#16a34a">●</b> Estrella</span><span><b style="color:#ca8a04">●</b> Caballo</span>
+                    <span><b style="color:#4f46e5">●</b> Puzzle</span><span><b style="color:#dc2626">●</b> Perro</span>
+                </div>
+            </div>
+            <div>
+                <div style="font-weight:700;font-size:13px;margin-bottom:6px;">💰 Margen total aportado (top 12)</div>
+                <div style="position:relative;height:280px;"><canvas id="rent-margen-canvas"></canvas></div>
+            </div>
+        </div>
+        <div style="font-weight:700;font-size:13px;margin:16px 0 6px;">📦 Consumo de insumos <span id="rent-consumo-total" style="font-weight:400;color:#6b7280;font-size:12px;"></span></div>
+        <div style="overflow:auto;max-height:280px;border:1px solid #eef2f7;border-radius:8px;">
+        <table class="rent-tbl" style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr><th>Insumo</th><th style="text-align:right">Consumido</th><th>Unidad</th><th style="text-align:right">Costo total</th><th style="text-align:right">Stock</th><th style="text-align:right">A reponer</th></tr></thead>
+            <tbody id="rent-consumo"><tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">—</td></tr></tbody>
+        </table></div>
+        <div style="font-weight:700;font-size:13px;margin:16px 0 6px;">📋 Detalle por producto</div>
+        <div style="overflow:auto;max-height:340px;border:1px solid #eef2f7;border-radius:8px;">
+        <table class="rent-tbl" style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr><th>Producto</th><th>Categoría</th><th style="text-align:right">Unid.</th><th style="text-align:right">Ingresos</th><th style="text-align:right">Costo</th><th style="text-align:right">Margen</th><th style="text-align:right">Food-cost%</th><th>Clase</th></tr></thead>
+            <tbody id="rent-detalle"><tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:16px;">Cargando…</td></tr></tbody>
+        </table></div>
+    </div>
+    <style>.rent-tbl th{position:sticky;top:0;background:#f8fafc;color:#9ca3af;font-size:10px;text-transform:uppercase;padding:6px 8px;text-align:left;z-index:1}.rent-tbl td{padding:6px 8px;border-top:1px solid #f1f5f9}</style>`;
+}
+
+function rentKpi(lbl, val){ return `<div style="background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:10px 12px;"><div style="font-size:11px;color:#6b7280;font-weight:600">${lbl}</div><div style="font-size:18px;font-weight:800;color:#111827;margin-top:3px">${val}</div></div>`; }
+
+async function cargarRentabilidad() {
+    const desde = document.getElementById('rent-desde')?.value || getDesdeDefault();
+    const hasta = document.getElementById('rent-hasta')?.value || getHastaDefault();
+    Object.values(_rentCharts).forEach(c => { try { c.destroy(); } catch(e){} });
+    _rentCharts = {};
+    let d;
+    try { d = await api.get(`/ventas/rentabilidad?desde=${desde}&hasta=${hasta}`); }
+    catch(e) {
+        document.getElementById('rent-detalle').innerHTML = `<tr><td colspan="8" style="text-align:center;color:#dc2626;padding:16px;">Error: ${esc(e.message)}</td></tr>`;
+        return;
+    }
+    const r = d.resumen, prods = d.productos;
+    document.getElementById('rent-kpis').innerHTML =
+        rentKpi('Ingresos (neto)', '€ '+fmt(r.ingresos_neto)) +
+        rentKpi('Ganancia bruta', '€ '+fmt(r.ganancia_bruta)) +
+        rentKpi('Food-cost', r.food_cost_pct==null?'—':r.food_cost_pct+'%') +
+        rentKpi('Unidades', fmtInt(r.unidades)) +
+        rentKpi('Con receta', r.n_con_receta+'/'+r.n_productos);
+
+    const grupos = {estrella:[],caballo:[],puzzle:[],perro:[]};
+    prods.filter(p=>p.clasificacion).forEach(p=>grupos[p.clasificacion].push({x:p.unidades,y:p.margen_unit,nombre:p.nombre}));
+    _rentCharts.menu = new Chart(document.getElementById('rent-menu-canvas'), {
+        type:'scatter',
+        data:{ datasets:Object.keys(grupos).map(k=>({ label:RENT_CLASE_LBL[k], data:grupos[k], backgroundColor:RENT_CLASE_COLOR[k], pointRadius:5 })) },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.raw.nombre}: ${fmtInt(c.raw.x)} u, margen € ${fmt(c.raw.y)}`}}},
+            scales:{ x:{title:{display:true,text:'Unidades'}}, y:{title:{display:true,text:'Margen unitario'}} } }
+    });
+
+    const pm = prods.filter(p=>p.tiene_receta).slice().sort((a,b)=>b.margen_total-a.margen_total).slice(0,12);
+    _rentCharts.margen = new Chart(document.getElementById('rent-margen-canvas'), {
+        type:'bar',
+        data:{ labels:pm.map(p=>p.nombre), datasets:[{ data:pm.map(p=>p.margen_total), backgroundColor:pm.map(p=>p.margen_total<0?'#dc2626':'#16a34a') }] },
+        options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+    });
+
+    document.getElementById('rent-detalle').innerHTML = prods.length ? prods.map(p=>`<tr>
+        <td><b>${esc(p.nombre)}</b></td><td>${esc(p.categoria||'—')}</td>
+        <td style="text-align:right">${fmtInt(p.unidades)}</td>
+        <td style="text-align:right">€ ${fmt(p.ingresos_neto)}</td>
+        <td style="text-align:right">${p.tiene_receta?'€ '+fmt(p.costo_total):'—'}</td>
+        <td style="text-align:right;font-weight:600;color:${p.margen_total<0?'#dc2626':'#111827'}">${p.tiene_receta?'€ '+fmt(p.margen_total):'—'}</td>
+        <td style="text-align:right">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td>
+        <td>${p.clasificacion?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:${RENT_CLASE_BADGE[p.clasificacion]}">${RENT_CLASE_LBL[p.clasificacion]}</span>`:'<span style="color:#d1d5db">sin receta</span>'}</td>
+    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:16px;">Sin ventas en el período.</td></tr>';
+
+    try {
+        const cons = await api.get(`/ventas/consumo-insumos?desde=${desde}&hasta=${hasta}`);
+        document.getElementById('rent-consumo-total').textContent = cons.insumos.length ? `· costo total € ${fmt(cons.costo_total)}` : '';
+        document.getElementById('rent-consumo').innerHTML = cons.insumos.length ? cons.insumos.map(i=>`<tr>
+            <td><b>${esc(i.nombre)}</b></td><td style="text-align:right">${fmt(i.consumido)}</td><td>${esc(i.unidad||'')}</td>
+            <td style="text-align:right">${i.costo_total?'€ '+fmt(i.costo_total):'—'}</td>
+            <td style="text-align:right">${fmt(i.stock_actual)}</td>
+            <td style="text-align:right;font-weight:600;color:${i.a_reponer>0?'#dc2626':'#16a34a'}">${i.a_reponer>0?fmt(i.a_reponer):'✓'}</td></tr>`).join('')
+            : '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">Cargá recetas a los productos para ver el consumo.</td></tr>';
+    } catch(e) { /* consumo opcional */ }
+}
+
 // ── Inicializar widgets ──────────────────────────────────────────
 async function initWidgets() {
     // Cargar categorías (compartidas entre widgets)
@@ -666,6 +776,7 @@ async function initWidgets() {
 
     if (document.getElementById('barras_prod-wrap')) barFetch('barras_prod');
     if (document.getElementById('barras_cat-wrap'))  barFetch('barras_cat');
+    if (document.getElementById('rent-body'))        cargarRentabilidad();
 }
 
 // ── API: cargar top productos ────────────────────────────────────

@@ -43,7 +43,6 @@
             perm: "acceso_estadisticas",
             children: [
                 { href: "estadisticas.html",         icon: "📊", label: "Resumen" },
-                { href: "analisis.html",              icon: "💹", label: "Análisis de datos" },
                 { href: "analisis-mes.html",          icon: "📅", label: "Análisis de mes" },
                 { href: "historicos.html",            icon: "📈", label: "Históricos" },
                 { href: "ventas-estadisticas.html",   icon: "🛒", label: "Est. de Ventas" },
