@@ -142,6 +142,7 @@
         <button class="tab active" id="tab-insumos" onclick="setTab('insumos')">📦 Insumos de Stock</button>
         <button class="tab" id="tab-produccion" onclick="setTab('produccion')">🏭 Insumos de Producción</button>
         <button class="tab" id="tab-historial" onclick="setTab('historial')">📋 Historial</button>
+        <button class="tab" id="tab-costos" onclick="setTab('costos')">💰 Costos y márgenes</button>
     </div>
 
     <!-- INSUMOS -->
@@ -165,8 +166,8 @@
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Estado</th><th>Acciones</th><th></th></tr></thead>
-                <tbody id="tbody-insumos"><tr><td colspan="9" class="empty">Cargando...</td></tr></tbody>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Costo unit.</th><th>Estado</th><th>Acciones</th><th></th></tr></thead>
+                <tbody id="tbody-insumos"><tr><td colspan="10" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -211,6 +212,25 @@
             </table>
         </div>
     </div>
+
+    <!-- COSTOS Y MÁRGENES -->
+    <div id="vista-costos" style="display:none">
+        <div class="filtros">
+            <input type="text" id="filtro-cos-nombre" placeholder="Buscar producto..." oninput="renderCostos()" style="min-width:240px;">
+            <select id="filtro-cos-receta" onchange="renderCostos()">
+                <option value="">Todos</option>
+                <option value="con">Con receta</option>
+                <option value="sin">Sin receta</option>
+            </select>
+            <span class="hint" style="color:#9ca3af;font-size:12px;align-self:center;">Costo = desde la receta · margen y food-cost % sobre el precio de venta. Cargá costo a los insumos para que sea exacto.</span>
+        </div>
+        <div class="tabla-wrapper">
+            <table>
+                <thead><tr><th>Producto</th><th>Categoría</th><th style="text-align:right;">Precio</th><th style="text-align:right;">Costo</th><th style="text-align:right;">Margen</th><th style="text-align:right;">Margen %</th><th style="text-align:right;">Food-cost %</th></tr></thead>
+                <tbody id="tbody-costos"><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <!-- Modal insumo -->
@@ -234,6 +254,14 @@
             <div class="form-group"><label>Cantidad advertencia</label><input type="number" id="ins-advertencia" min="0" step="0.001" value="0"></div>
         </div>
         <div class="form-group"><label>Cantidad mínima (alarma agotado)</label><input type="number" id="ins-minima" min="0" step="0.001" value="0"></div>
+        <div class="form-group">
+            <label>Costo unitario <small style="color:#9ca3af;font-weight:400;">(para análisis y margen)</small></label>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input type="number" id="ins-costo" min="0" step="0.0001" placeholder="(vacío = usa último precio de compra)" style="flex:1;">
+                <button type="button" class="btn btn-secondary btn-sm" id="ins-costo-auto" onclick="autocompletarCosto()" title="Autocompletar desde el último precio de compra">↺ desde compra</button>
+            </div>
+            <small id="ins-costo-hint" style="color:#9ca3af;"></small>
+        </div>
         <div class="form-group">
             <label>Ubicación</label>
             <div class="ub-selector">
@@ -453,7 +481,7 @@ async function cargarUltimasCompras() {
 
 function _switchTabUI(tab) {
     // Cambia visualmente el tab activo sin disparar ninguna carga de datos
-    ["insumos","produccion","historial"].forEach(t => {
+    ["insumos","produccion","historial","costos"].forEach(t => {
         document.getElementById(`tab-${t}`).classList.toggle("active", t === tab);
         document.getElementById(`vista-${t}`).style.display = t === tab ? "block" : "none";
     });
@@ -462,6 +490,47 @@ function setTab(tab) {
     _switchTabUI(tab);
     if (tab === "historial")  cargarHistorial();
     if (tab === "produccion") cargarInsumosProduccion();
+    if (tab === "costos")     cargarCostos();
+}
+
+// ── COSTOS Y MÁRGENES ─────────────────────────────────────────
+let _costos = [];
+async function cargarCostos() {
+    const tbody = document.getElementById("tbody-costos");
+    try {
+        _costos = await api.get("/stock/costos-productos");
+        renderCostos();
+    } catch(e) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Error: ${e.message}</td></tr>`; }
+}
+function renderCostos() {
+    const nombre = (document.getElementById("filtro-cos-nombre").value || "").trim().toLowerCase();
+    const filtroR = document.getElementById("filtro-cos-receta").value;
+    let data = _costos;
+    if (nombre)        data = data.filter(p => p.nombre.toLowerCase().includes(nombre));
+    if (filtroR==="con") data = data.filter(p => p.tiene_receta);
+    if (filtroR==="sin") data = data.filter(p => !p.tiene_receta);
+    const tbody = document.getElementById("tbody-costos");
+    if (!data.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin productos</td></tr>`; return; }
+    const fmt = v => v==null ? "—" : (+v).toFixed(2);
+    const sem = fc => fc==null ? "#9ca3af" : fc < 30 ? "#16a34a" : fc <= 40 ? "#ca8a04" : "#dc2626";
+    tbody.innerHTML = data.map(p => {
+        if (!p.tiene_receta) {
+            return `<tr style="color:#9ca3af;">
+                <td><strong>${p.nombre}</strong></td><td>${p.categoria||'—'}</td>
+                <td style="text-align:right;">${fmt(p.precio)}</td>
+                <td colspan="4" style="font-style:italic;">Sin receta cargada</td></tr>`;
+        }
+        const negativo = p.margen != null && p.margen < 0;
+        return `<tr>
+            <td><strong>${p.nombre}</strong></td>
+            <td>${p.categoria||'—'}</td>
+            <td style="text-align:right;">${fmt(p.precio)}</td>
+            <td style="text-align:right;">${fmt(p.costo)}</td>
+            <td style="text-align:right;color:${negativo?'#dc2626':'#111827'};font-weight:600;">${fmt(p.margen)}</td>
+            <td style="text-align:right;">${p.margen_pct==null?'—':p.margen_pct+'%'}</td>
+            <td style="text-align:right;font-weight:600;color:${sem(p.food_cost_pct)};">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td>
+        </tr>`;
+    }).join("");
 }
 
 // ── INSUMOS ───────────────────────────────────────────────────
@@ -480,7 +549,7 @@ async function cargarInsumos() {
         actualizarStats();
 
         const tbody = document.getElementById("tbody-insumos");
-        if (!data.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin insumos</td></tr>`; return; }
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="10" class="empty">Sin insumos</td></tr>`; return; }
         tbody.innerHTML = data.map(i => {
             const actual = parseFloat(i.cantidad_actual);
             const estand = parseFloat(i.cantidad_estandar) || 1;
@@ -498,6 +567,10 @@ async function cargarInsumos() {
                 onclick="window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
                 title="Ver historial de compras de este insumo">📋 Facturas</button>`;
             const ubicNombre = i.ubicacion_nombre || '<span style="color:#d1d5db">—</span>';
+            let costoCell;
+            if (i.costo_unitario != null) costoCell = `<strong>${(+i.costo_unitario).toFixed(2)}</strong>`;
+            else if (i.ultimo_precio_compra != null) costoCell = `<span style="color:#9ca3af;" title="Último precio de compra">${(+i.ultimo_precio_compra).toFixed(2)} <small>(compra)</small></span>`;
+            else costoCell = '<span style="color:#d1d5db">—</span>';
             return `<tr>
                 <td><strong>${i.nombre}</strong></td>
                 <td>${i.unidad}</td>
@@ -508,6 +581,7 @@ async function cargarInsumos() {
                 <td style="font-size:12px;color:#374151;">${ubicNombre}</td>
                 <td style="font-size:12px;color:#374151;">${marca}</td>
                 <td>${provNombre}</td>
+                <td style="font-size:13px;">${costoCell}</td>
                 <td>${badge}</td>
                 <td><div style="display:flex;gap:6px;">
                     <button class="btn btn-secondary btn-sm" onclick="editarInsumo(${i.id})">Editar</button>
@@ -526,6 +600,9 @@ function abrirModalInsumo() {
         document.getElementById(id).value = id === "ins-nombre" ? "" : "0";
     });
     document.getElementById("ins-unidad").value = "unidad";
+    document.getElementById("ins-costo").value = "";
+    document.getElementById("ins-costo-auto").dataset.precio = "";
+    document.getElementById("ins-costo-hint").textContent = "";
     poblarSelectUbicacion("ins-ubicacion", null);
     document.getElementById("modal-insumo").classList.add("active");
 }
@@ -540,12 +617,24 @@ function editarInsumo(id) {
     document.getElementById("ins-estandar").value    = ins.cantidad_estandar;
     document.getElementById("ins-advertencia").value = ins.cantidad_advertencia;
     document.getElementById("ins-minima").value      = ins.cantidad_minima;
+    document.getElementById("ins-costo").value       = ins.costo_unitario != null ? ins.costo_unitario : "";
+    const up = ins.ultimo_precio_compra;
+    document.getElementById("ins-costo-auto").dataset.precio = up != null ? up : "";
+    document.getElementById("ins-costo-hint").textContent = up != null
+        ? `Último precio de compra: ${(+up).toFixed(2)}` : "Sin compras registradas todavía.";
     poblarSelectUbicacion("ins-ubicacion", ins.ubicacion_id);
     document.getElementById("modal-insumo").classList.add("active");
 }
 
+function autocompletarCosto() {
+    const p = document.getElementById("ins-costo-auto").dataset.precio;
+    if (p === "" || p == null) { alert("Este insumo no tiene compras registradas para autocompletar."); return; }
+    document.getElementById("ins-costo").value = p;
+}
+
 async function guardarInsumo() {
     const ubid = parseInt(document.getElementById("ins-ubicacion").value) || null;
+    const costoRaw = document.getElementById("ins-costo").value;
     const body = {
         nombre: document.getElementById("ins-nombre").value.trim(),
         unidad: document.getElementById("ins-unidad").value,
@@ -554,6 +643,7 @@ async function guardarInsumo() {
         cantidad_advertencia: parseFloat(document.getElementById("ins-advertencia").value) || 0,
         cantidad_minima:      parseFloat(document.getElementById("ins-minima").value) || 0,
         ubicacion_id:         ubid,
+        costo_unitario:       (costoRaw === "" ? null : (parseFloat(costoRaw) || 0)),
     };
     if (!body.nombre) { alert("El nombre es obligatorio."); return; }
     try {
