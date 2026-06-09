@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurante — Importar ventas</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+.navbar { background:#1a1a2e; color:#fff; padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:fixed; top:0; left:0; right:0; z-index:100; }
+.navbar-brand { font-size:18px; font-weight:700; }
+.btn-logout { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+.btn-logout:hover { background:#4f46e5; color:#fff; }
+.content { margin-top:60px; padding:24px 32px; max-width:1200px; margin-left:auto; margin-right:auto; }
+.page-header h2 { font-size:22px; font-weight:700; color:#1a1a2e; margin-bottom:18px; }
+.card { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:20px 22px; margin-bottom:18px; }
+.card h3 { font-size:15px; font-weight:700; color:#1a1a2e; margin-bottom:14px; }
+.btn { padding:9px 18px; border-radius:8px; border:none; cursor:pointer; font-size:14px; font-weight:600; }
+.btn-primary { background:#4f46e5; color:#fff; } .btn-primary:hover{ background:#4338ca; }
+.btn-secondary { background:#eef2ff; color:#4f46e5; } .btn-secondary:hover{ background:#e0e7ff; }
+.btn-sm { padding:6px 11px; font-size:12px; }
+.btn-x { background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer; }
+.field label { display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:5px; }
+.field input { padding:9px 11px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; }
+.hint { font-size:12px; color:#9ca3af; }
+.msg { font-size:13px; font-weight:600; } .msg.ok{ color:#16a34a; } .msg.err{ color:#dc2626; }
+.mapeo { background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; font-size:13px; color:#475569; margin-bottom:12px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th,td { text-align:left; padding:8px 9px; border-bottom:1px solid #f0f0f0; }
+th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
+tr.nuevo { background:#f0fdf4; }
+.tbl-wrap { max-height:480px; overflow:auto; border:1px solid #eef2f7; border-radius:8px; }
+.badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; }
+.badge.ok { background:#f3f4f6; color:#6b7280; } .badge.new { background:#dcfce7; color:#16a34a; }
+.empty { text-align:center; color:#9ca3af; padding:22px; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="navbar-brand">📥 Importar ventas</div>
+    <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+</nav>
+
+<div class="content">
+    <div class="page-header"><h2>📥 Importar ventas de otro sistema</h2></div>
+
+    <div class="card">
+        <h3>1) Subir archivo de ventas (CSV)</h3>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <input type="file" id="arch" accept=".csv,text/csv,text/plain">
+            <button class="btn btn-primary" onclick="analizar()">Analizar</button>
+            <span class="msg" id="msg-an"></span>
+        </div>
+        <div class="hint" style="margin-top:8px;">Exportá tu reporte de ventas por producto del otro POS. Detecta columnas, decimales y categorías automáticamente.</div>
+    </div>
+
+    <div class="card" id="preview" style="display:none;">
+        <h3>2) Revisar y confirmar</h3>
+        <div class="mapeo" id="mapeo"></div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+            <div class="field"><label>Nombre de la importación</label><input type="text" id="imp-nombre" style="width:260px;"></div>
+            <div class="field"><label>Período desde (opcional)</label><input type="date" id="p-desde"></div>
+            <div class="field"><label>Período hasta (opcional)</label><input type="date" id="p-hasta"></div>
+        </div>
+        <div class="hint" style="margin-bottom:8px;">Destildá las filas que no quieras importar (p.ej. modificadores, descuentos). Para productos <b>nuevos</b> podés ajustar el precio unitario.</div>
+        <div class="tbl-wrap">
+            <table>
+                <thead><tr>
+                    <th style="text-align:center;"><input type="checkbox" id="chk-all" checked onchange="toggleAll(this.checked)"></th>
+                    <th>Producto</th><th>Categoría</th><th style="text-align:right;">Cant.</th>
+                    <th style="text-align:right;">Importe</th><th style="text-align:right;">Precio unit.</th><th>Estado</th>
+                </tr></thead>
+                <tbody id="filas-body"></tbody>
+            </table>
+        </div>
+        <div style="margin-top:14px;display:flex;align-items:center;gap:14px;">
+            <button class="btn btn-primary" id="btn-conf" onclick="confirmar()">Confirmar importación</button>
+            <span class="msg" id="msg-conf"></span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📚 Importaciones realizadas</h3>
+        <table>
+            <thead><tr><th>Nombre</th><th>Período</th><th style="text-align:right;">Productos</th><th style="text-align:right;">Total</th><th>Fecha</th><th></th></tr></thead>
+            <tbody id="hist-body"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+requirePermiso('edicion_carta', 'acceso_estadisticas');
+
+let _filas = [], _archivo = '';
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function analizar(){
+    const f = document.getElementById('arch').files[0];
+    const msg = document.getElementById('msg-an');
+    if(!f){ msg.className='msg err'; msg.textContent='Elegí un archivo.'; return; }
+    msg.className='msg'; msg.textContent='Analizando…';
+    try{
+        const fd = new FormData(); fd.append('file', f);
+        const res = await fetch(`${API_URL}/importar/analizar`, {
+            method:'POST', headers:{ Authorization:`Bearer ${getToken()}` }, body: fd });
+        if(!res.ok){ const e=await res.json().catch(()=>({detail:'Error'})); throw new Error(e.detail||('HTTP '+res.status)); }
+        const data = await res.json();
+        _filas = data.filas || []; _archivo = data.archivo || '';
+        document.getElementById('imp-nombre').value = _archivo || 'Importación';
+        const cols=data.columnas||[], m=data.mapping||{};
+        const lbl=k=>(m[k]!=null && cols[m[k]]!=null)?cols[m[k]]:'—';
+        document.getElementById('mapeo').innerHTML =
+            `Mapeo detectado → Nombre: <b>${esc(lbl('nombre'))}</b> · Cantidad: <b>${esc(lbl('cantidad'))}</b> · Importe: <b>${esc(lbl('importe'))}</b> · IVA%: <b>${esc(lbl('iva_pct'))}</b>`;
+        renderFilas();
+        document.getElementById('chk-all').checked = true;
+        document.getElementById('preview').style.display='';
+        document.getElementById('msg-conf').textContent='';
+        msg.className='msg ok'; msg.textContent=`${data.resumen.productos} productos (${data.resumen.nuevos} nuevos).`;
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+}
+
+function renderFilas(){
+    const tb=document.getElementById('filas-body');
+    if(!_filas.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No se detectaron productos.</td></tr>'; return; }
+    tb.innerHTML=_filas.map((r,i)=>`<tr class="${r.existe?'':'nuevo'}">
+        <td style="text-align:center;"><input type="checkbox" class="inc" data-i="${i}" checked></td>
+        <td>${esc(r.nombre)}</td>
+        <td>${esc(r.categoria||'—')}</td>
+        <td style="text-align:right;">${r.cantidad}</td>
+        <td style="text-align:right;">${Number(r.importe).toFixed(2)}</td>
+        <td style="text-align:right;"><input type="number" step="0.01" class="precio" data-i="${i}" value="${r.precio}" ${r.existe?'disabled':''} style="width:90px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"></td>
+        <td>${r.existe?'<span class="badge ok">Existe</span>':'<span class="badge new">Nuevo</span>'}${(r.categoria&&!r.cat_existe)?' <span class="badge new">cat. nueva</span>':''}</td>
+    </tr>`).join('');
+}
+function toggleAll(v){ document.querySelectorAll('.inc').forEach(c=>c.checked=v); }
+
+async function confirmar(){
+    const incl=[...document.querySelectorAll('.inc:checked')].map(c=>parseInt(c.dataset.i));
+    const precios={}; document.querySelectorAll('.precio').forEach(p=>precios[p.dataset.i]=parseFloat(p.value)||0);
+    const msg=document.getElementById('msg-conf');
+    if(!incl.length){ msg.className='msg err'; msg.textContent='Marcá al menos una fila.'; return; }
+    const items=incl.map(i=>{ const r=_filas[i]; return {
+        nombre:r.nombre, categoria:r.categoria, cantidad:r.cantidad, importe:r.importe,
+        iva_pct:r.iva_pct, precio:(precios[i]!=null?precios[i]:r.precio), crear:true }; });
+    const body={ nombre:document.getElementById('imp-nombre').value.trim(), archivo:_archivo,
+        periodo_desde:document.getElementById('p-desde').value||null,
+        periodo_hasta:document.getElementById('p-hasta').value||null, items };
+    const btn=document.getElementById('btn-conf'); btn.disabled=true; msg.className='msg'; msg.textContent='Importando…';
+    try{
+        const r=await api.post('/importar/confirmar', body);
+        msg.className='msg ok'; msg.textContent=`Listo: ${r.ventas} ventas · ${r.productos_creados} productos y ${r.categorias_creadas} categorías nuevas.`;
+        document.getElementById('preview').style.display='none';
+        document.getElementById('arch').value='';
+        await cargarHistorial();
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+    finally{ btn.disabled=false; }
+}
+
+function fechaCorta(ts){ if(!ts) return '—'; try{ return new Date(ts).toLocaleDateString(); }catch{ return esc(ts); } }
+async function cargarHistorial(){
+    const tb=document.getElementById('hist-body');
+    try{
+        const l=await api.get('/importar');
+        if(!l.length){ tb.innerHTML='<tr><td colspan="6" class="empty">Sin importaciones todavía.</td></tr>'; return; }
+        tb.innerHTML=l.map(x=>{
+            const per=(x.periodo_desde||x.periodo_hasta)?`${x.periodo_desde||'…'} → ${x.periodo_hasta||'…'}`:'—';
+            return `<tr>
+                <td><strong>${esc(x.nombre||'—')}</strong><div class="hint">${esc(x.archivo_nombre||'')}</div></td>
+                <td>${esc(per)}</td>
+                <td style="text-align:right;">${x.items}</td>
+                <td style="text-align:right;">${x.total_importe!=null?Number(x.total_importe).toFixed(2):'—'}</td>
+                <td>${fechaCorta(x.creado_en)}</td>
+                <td style="text-align:right;"><button class="btn-x" onclick="borrarImport(${x.id})">🗑</button></td>
+            </tr>`; }).join('');
+    }catch(err){ tb.innerHTML='<tr><td colspan="6" class="empty">Error: '+esc(err.message)+'</td></tr>'; }
+}
+async function borrarImport(id){
+    if(!confirm('¿Eliminar esta importación y sus ventas? No borra los productos creados.')) return;
+    try{ await api.delete('/importar/'+id); await cargarHistorial(); }catch(err){ alert('Error: '+err.message); }
+}
+
+cargarHistorial();
+</script>
+</body>
+</html>

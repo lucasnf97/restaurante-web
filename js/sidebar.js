@@ -12,6 +12,7 @@
             children: [
                 { href: "reservas.html",  icon: "📅", label: "Reservas",               mod: "reservas",  perm: ["gestion_reservas","ver_reservas"] },
                 { href: "productos.html", icon: "🍽️", label: "Productos",              mod: "productos", perm: ["edicion_carta","ver_carta"] },
+                { href: "importar-ventas.html", icon: "📥", label: "Importar ventas",  mod: "importar",  perm: ["edicion_carta","acceso_estadisticas"] },
                 { href: "mesas.html",     icon: "🗺️", label: "Herramienta de Edición", mod: "mesas",    perm: "edicion_sala" },
                 { href: "stock.html",     icon: "📦", label: "Stock",                  mod: "stock",     perm: ["gestion_stock","gestion_produccion"] },
                 { href: "clientes.html",  icon: "🧑‍🤝‍🧑", label: "Clientes",             mod: "clientes",  perm: ["gestion_clientes","ver_clientes"] },
