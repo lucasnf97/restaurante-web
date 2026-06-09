@@ -82,6 +82,13 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
         <tbody id="tb-alertas"><tr><td colspan="7" class="empty">—</td></tr></tbody></table>
     </div>
 
+    <div class="card" style="margin-bottom:18px;">
+        <h3>📦 Consumo de insumos del período <span id="consumo-total" style="font-weight:400;color:#6b7280;font-size:13px;"></span></h3>
+        <div class="hint" style="color:#9ca3af;font-size:12px;margin-bottom:8px;">Consumo teórico = unidades vendidas × receta. «A reponer» = consumo − stock actual (proyección de compra).</div>
+        <table><thead><tr><th>Insumo</th><th style="text-align:right;">Consumido</th><th>Unidad</th><th style="text-align:right;">Costo unit.</th><th style="text-align:right;">Costo total</th><th style="text-align:right;">Stock actual</th><th style="text-align:right;">A reponer</th></tr></thead>
+        <tbody id="tb-consumo"><tr><td colspan="7" class="empty">—</td></tr></tbody></table>
+    </div>
+
     <div class="card">
         <h3>📋 Detalle por producto</h3>
         <table><thead><tr><th>Producto</th><th>Categoría</th><th style="text-align:right;">Unidades</th><th style="text-align:right;">Ingresos (neto)</th><th style="text-align:right;">Costo total</th><th style="text-align:right;">Margen total</th><th style="text-align:right;">Margen %</th><th>Clase</th></tr></thead>
@@ -187,6 +194,26 @@ async function cargar(){
         <td style="text-align:right;">${p.margen_pct==null?'—':p.margen_pct+'%'}</td>
         <td>${p.clasificacion?`<span class="badge b-${p.clasificacion}">${CLASE_LBL[p.clasificacion]}</span>`:'<span style="color:#d1d5db">sin receta</span>'}</td></tr>`).join('')
         : '<tr><td colspan="8" class="empty">No hay ventas importadas. Importá un archivo en «Importar ventas».</td></tr>';
+
+    cargarConsumo(qs);
+}
+
+async function cargarConsumo(qs){
+    const tb = document.getElementById('tb-consumo');
+    try{
+        const d = await api.get('/analitica/consumo-insumos'+qs);
+        document.getElementById('consumo-total').textContent =
+            d.insumos.length ? `· costo total de insumos: ${money(d.costo_total)}` : '';
+        tb.innerHTML = d.insumos.length ? d.insumos.map(i=>`<tr>
+            <td><strong>${esc(i.nombre)}</strong></td>
+            <td style="text-align:right;">${money(i.consumido)}</td>
+            <td>${esc(i.unidad||'')}</td>
+            <td style="text-align:right;">${i.costo_unit?money(i.costo_unit):'—'}</td>
+            <td style="text-align:right;">${i.costo_total?money(i.costo_total):'—'}</td>
+            <td style="text-align:right;">${money(i.stock_actual)}</td>
+            <td style="text-align:right;font-weight:600;color:${i.a_reponer>0?'#dc2626':'#16a34a'};">${i.a_reponer>0?money(i.a_reponer):'✓'}</td>
+        </tr>`).join('') : '<tr><td colspan="7" class="empty">Cargá recetas a los productos para ver el consumo de insumos.</td></tr>';
+    }catch(e){ tb.innerHTML = `<tr><td colspan="7" class="empty">Error: ${esc(e.message)}</td></tr>`; }
 }
 
 cargarPeriodos().then(cargar);
