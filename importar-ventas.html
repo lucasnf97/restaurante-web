@@ -45,34 +45,73 @@ tr.nuevo { background:#f0fdf4; }
     <div class="page-header"><h2>📥 Importar ventas de otro sistema</h2></div>
 
     <div class="card">
-        <h3>1) Subir archivo de ventas (CSV)</h3>
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-            <input type="file" id="arch" accept=".csv,text/csv,text/plain">
+        <h3>📁 Carpetas de período</h3>
+        <div class="hint" style="margin-bottom:10px;">Agrupá varios archivos de un mismo período (ej: ventas por producto + ventas por día). El total facturado se cuenta <b>una sola vez</b>; cada archivo aporta su dimensión.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
+            <div class="field"><label>Nombre</label><input type="text" id="car-nombre" placeholder="Ej: Junio 2026" style="width:200px;"></div>
+            <div class="field"><label>Desde</label><input type="date" id="car-desde"></div>
+            <div class="field"><label>Hasta</label><input type="date" id="car-hasta"></div>
+            <button class="btn btn-secondary" onclick="crearCarpeta()">+ Crear carpeta</button>
+            <span class="msg" id="msg-car"></span>
+        </div>
+        <div class="tbl-wrap">
+            <table>
+                <thead><tr><th>Carpeta</th><th>Período</th><th style="text-align:right;">Archivos</th><th style="text-align:right;">Total (sin duplicar)</th><th></th></tr></thead>
+                <tbody id="car-body"><tr><td colspan="5" class="empty">Sin carpetas.</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>1) Subir archivo (CSV)</h3>
+        <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+            <div class="field" style="margin:0;"><label>Archivo</label><input type="file" id="arch" accept=".csv,text/csv,text/plain"></div>
+            <div class="field" style="margin:0;"><label>Carpeta</label>
+                <select id="sel-carpeta"><option value="">Sin carpeta (suelta)</option></select></div>
             <button class="btn btn-primary" onclick="analizar()">Analizar</button>
             <span class="msg" id="msg-an"></span>
         </div>
-        <div class="hint" style="margin-top:8px;">Exportá tu reporte de ventas por producto del otro POS. Detecta columnas, decimales y categorías automáticamente.</div>
+        <div class="hint" style="margin-top:8px;">Detecta solo si el archivo es <b>por producto</b>, <b>por día</b> u otro. Si lo asignás a una carpeta, usa su período (necesario para ubicar las ventas por día).</div>
     </div>
 
     <div class="card" id="preview" style="display:none;">
-        <h3>2) Revisar y confirmar</h3>
+        <h3>2) Revisar y confirmar <span id="prev-tipo" class="badge"></span></h3>
         <div class="mapeo" id="mapeo"></div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
-            <div class="field"><label>Nombre de la importación</label><input type="text" id="imp-nombre" style="width:260px;"></div>
-            <div class="field"><label>Período desde (opcional)</label><input type="date" id="p-desde"></div>
-            <div class="field"><label>Período hasta (opcional)</label><input type="date" id="p-hasta"></div>
+            <div class="field"><label>Nombre de la importación</label><input type="text" id="imp-nombre" style="width:240px;"></div>
+            <div class="field"><label>Período desde</label><input type="date" id="p-desde"></div>
+            <div class="field"><label>Período hasta</label><input type="date" id="p-hasta"></div>
         </div>
-        <div class="hint" style="margin-bottom:8px;">Destildá las filas que no quieras importar (p.ej. modificadores, descuentos). Para productos <b>nuevos</b> podés ajustar el precio unitario.</div>
-        <div class="tbl-wrap">
-            <table>
-                <thead><tr>
-                    <th style="text-align:center;"><input type="checkbox" id="chk-all" checked onchange="toggleAll(this.checked)"></th>
-                    <th>Producto</th><th>Categoría</th><th style="text-align:right;">Cant.</th>
-                    <th style="text-align:right;">Importe</th><th style="text-align:right;">Precio unit.</th><th>Estado</th>
-                </tr></thead>
-                <tbody id="filas-body"></tbody>
-            </table>
+        <div class="hint" id="prev-hint" style="margin-bottom:8px;"></div>
+
+        <div id="prev-prod" style="display:none;">
+            <div class="tbl-wrap">
+                <table>
+                    <thead><tr>
+                        <th style="text-align:center;"><input type="checkbox" id="chk-all" checked onchange="toggleAll(this.checked)"></th>
+                        <th>Producto</th><th>Categoría</th><th style="text-align:right;">Cant.</th>
+                        <th style="text-align:right;">Importe</th><th style="text-align:right;">Precio unit.</th><th>Estado</th>
+                    </tr></thead>
+                    <tbody id="filas-body"></tbody>
+                </table>
+            </div>
         </div>
+
+        <div id="prev-dias" style="display:none;">
+            <div class="tbl-wrap">
+                <table>
+                    <thead><tr>
+                        <th style="text-align:center;"><input type="checkbox" id="chk-all-d" checked onchange="toggleAllD(this.checked)"></th>
+                        <th>Día</th><th>Día sem.</th><th style="text-align:right;">Recibos</th>
+                        <th style="text-align:right;">Importe</th><th style="text-align:right;">Ticket prom.</th>
+                    </tr></thead>
+                    <tbody id="dias-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="prev-generico" style="display:none;"></div>
+
         <div style="margin-top:14px;display:flex;align-items:center;gap:14px;">
             <button class="btn btn-primary" id="btn-conf" onclick="confirmar()">Confirmar importación</button>
             <span class="msg" id="msg-conf"></span>
@@ -82,8 +121,8 @@ tr.nuevo { background:#f0fdf4; }
     <div class="card">
         <h3>📚 Importaciones realizadas</h3>
         <table>
-            <thead><tr><th>Nombre</th><th>Período</th><th style="text-align:right;">Productos</th><th style="text-align:right;">Total</th><th>Fecha</th><th></th></tr></thead>
-            <tbody id="hist-body"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody>
+            <thead><tr><th>Nombre</th><th>Tipo</th><th>Carpeta</th><th>Período</th><th style="text-align:right;">Ítems</th><th style="text-align:right;">Total</th><th></th></tr></thead>
+            <tbody id="hist-body"><tr><td colspan="7" class="empty">Cargando…</td></tr></tbody>
         </table>
     </div>
 
@@ -98,7 +137,7 @@ tr.nuevo { background:#f0fdf4; }
         <div class="hint" id="det-resumen" style="margin:6px 0 10px;"></div>
         <div class="tbl-wrap" style="max-height:420px;">
             <table>
-                <thead><tr><th>Producto (origen)</th><th>Categoría</th><th>Producto en sistema</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Importe</th><th style="text-align:right;">IVA%</th></tr></thead>
+                <thead id="det-head"></thead>
                 <tbody id="det-body"><tr><td colspan="6" class="empty">—</td></tr></tbody>
             </table>
         </div>
@@ -111,8 +150,18 @@ tr.nuevo { background:#f0fdf4; }
 requireAuth();
 requirePermiso('edicion_carta', 'acceso_estadisticas');
 
-let _filas = [], _archivo = '';
+let _filas = [], _archivo = '', _tipo = 'productos', _dias = [], _carpetas = [];
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function _carpetaSel(){ return document.getElementById('sel-carpeta').value || ''; }
+
+function prefillPeriodoDeCarpeta(){
+    const cid=_carpetaSel();
+    const c = cid ? _carpetas.find(x=>String(x.id)===String(cid)) : null;
+    if(c){
+        if(c.periodo_desde) document.getElementById('p-desde').value=c.periodo_desde;
+        if(c.periodo_hasta) document.getElementById('p-hasta').value=c.periodo_hasta;
+    }
+}
 
 async function analizar(){
     const f = document.getElementById('arch').files[0];
@@ -125,17 +174,48 @@ async function analizar(){
             method:'POST', headers:{ Authorization:`Bearer ${getToken()}` }, body: fd });
         if(!res.ok){ const e=await res.json().catch(()=>({detail:'Error'})); throw new Error(e.detail||('HTTP '+res.status)); }
         const data = await res.json();
-        _filas = data.filas || []; _archivo = data.archivo || '';
+        _tipo = data.tipo || 'productos'; _archivo = data.archivo || '';
         document.getElementById('imp-nombre').value = _archivo || 'Importación';
+        document.getElementById('msg-conf').textContent='';
+        prefillPeriodoDeCarpeta();
         const cols=data.columnas||[], m=data.mapping||{};
         const lbl=k=>(m[k]!=null && cols[m[k]]!=null)?cols[m[k]]:'—';
-        document.getElementById('mapeo').innerHTML =
-            `Mapeo detectado → Nombre: <b>${esc(lbl('nombre'))}</b> · Cantidad: <b>${esc(lbl('cantidad'))}</b> · Importe: <b>${esc(lbl('importe'))}</b> · IVA%: <b>${esc(lbl('iva_pct'))}</b>`;
-        renderFilas();
-        document.getElementById('chk-all').checked = true;
+        const badge=document.getElementById('prev-tipo');
+        ['prev-prod','prev-dias','prev-generico'].forEach(id=>document.getElementById(id).style.display='none');
+        document.getElementById('mapeo').style.display='';
+        document.getElementById('btn-conf').style.display='';
+
+        if(_tipo==='dias'){
+            _dias = data.filas||[];
+            badge.textContent='ventas por día'; badge.className='badge new';
+            document.getElementById('mapeo').innerHTML=`Detectado por día → Fecha: <b>${esc(lbl('fecha'))}</b> · Recibos: <b>${esc(lbl('recibos'))}</b> · Importe: <b>${esc(lbl('importe'))}</b>`;
+            document.getElementById('prev-hint').innerHTML='Ventas por día. Asignalo a una carpeta (o cargá el período) para ubicar los días. Aporta su dimensión; <b>el total no se duplica</b> si la carpeta ya tiene un archivo por producto.';
+            renderDias(); document.getElementById('chk-all-d').checked=true;
+            document.getElementById('prev-dias').style.display='';
+            msg.className='msg ok'; msg.textContent=`${_dias.length} días · total ${Number(data.resumen.total||0).toFixed(2)}`;
+        } else if(_tipo==='generico'){
+            badge.textContent='genérico'; badge.className='badge';
+            document.getElementById('mapeo').style.display='none';
+            document.getElementById('prev-hint').textContent='';
+            const pv=data.preview||[];
+            document.getElementById('prev-generico').innerHTML =
+                `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:10px 12px;">${esc(data.mensaje||'Formato no reconocido.')}</div>`+
+                `<div class="tbl-wrap" style="margin-top:10px;max-height:300px;"><table><tbody>`+
+                pv.slice(0,25).map(row=>`<tr>${(row||[]).map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')+
+                `</tbody></table></div>`;
+            document.getElementById('prev-generico').style.display='';
+            document.getElementById('btn-conf').style.display='none';
+            msg.className='msg'; msg.textContent='Formato genérico (interpretación + PDF: próxima fase).';
+        } else {
+            _filas = data.filas||[];
+            badge.textContent='ventas por producto'; badge.className='badge ok';
+            document.getElementById('mapeo').innerHTML=`Mapeo → Nombre: <b>${esc(lbl('nombre'))}</b> · Cantidad: <b>${esc(lbl('cantidad'))}</b> · Importe: <b>${esc(lbl('importe'))}</b> · IVA%: <b>${esc(lbl('iva_pct'))}</b>`;
+            document.getElementById('prev-hint').innerHTML='Destildá filas que no quieras (modificadores, descuentos). Podés editar nombre, categoría, cantidad, importe y precio.';
+            renderFilas(); document.getElementById('chk-all').checked=true;
+            document.getElementById('prev-prod').style.display='';
+            msg.className='msg ok'; msg.textContent=`${data.resumen.productos} productos (${data.resumen.nuevos} nuevos).`;
+        }
         document.getElementById('preview').style.display='';
-        document.getElementById('msg-conf').textContent='';
-        msg.className='msg ok'; msg.textContent=`${data.resumen.productos} productos (${data.resumen.nuevos} nuevos).`;
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
 }
 
@@ -158,52 +238,126 @@ function renderFilas(){
 }
 function toggleAll(v){ document.querySelectorAll('.inc').forEach(c=>c.checked=v); }
 
+function renderDias(){
+    const tb=document.getElementById('dias-body');
+    if(!_dias.length){ tb.innerHTML='<tr><td colspan="6" class="empty">No se detectaron días.</td></tr>'; return; }
+    tb.innerHTML=_dias.map((r,i)=>`<tr>
+        <td style="text-align:center;"><input type="checkbox" class="incd" data-i="${i}" checked></td>
+        <td>${_ipt('d-dia',i,(r.dia!=null?r.dia:(r.fecha||'')),'style="width:90px;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>
+        <td>${esc(r.dia_semana||'—')}</td>
+        <td style="text-align:right;">${_ipt('d-rec',i,r.recibos,'type="number" step="1" style="width:80px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>
+        <td style="text-align:right;">${_ipt('d-imp',i,r.importe,'type="number" step="0.01" style="width:100px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>
+        <td style="text-align:right;">${r.ticket_prom!=null?Number(r.ticket_prom).toFixed(2):'—'}</td>
+    </tr>`).join('');
+}
+function toggleAllD(v){ document.querySelectorAll('.incd').forEach(c=>c.checked=v); }
+
 async function confirmar(){
-    const incl=[...document.querySelectorAll('.inc:checked')].map(c=>parseInt(c.dataset.i));
     const msg=document.getElementById('msg-conf');
-    if(!incl.length){ msg.className='msg err'; msg.textContent='Marcá al menos una fila.'; return; }
     const val=(cls,i)=>{ const el=document.querySelector(`.${cls}[data-i="${i}"]`); return el?el.value:''; };
-    const items=incl.map(i=>{ const r=_filas[i]; return {
-        nombre:(val('f-nom',i)||r.nombre).trim(),
-        categoria:((val('f-cat',i)||'').trim())||null,
-        cantidad:parseFloat(val('f-cant',i))||0,
-        importe:parseFloat(val('f-imp',i))||0,
-        iva_pct:r.iva_pct,
-        precio:parseFloat(val('f-precio',i))||0, crear:true }; });
-    const body={ nombre:document.getElementById('imp-nombre').value.trim(), archivo:_archivo,
+    const cid=_carpetaSel();
+    const base={ nombre:document.getElementById('imp-nombre').value.trim(), archivo:_archivo,
+        carpeta_id: cid?parseInt(cid):null, tipo:_tipo,
         periodo_desde:document.getElementById('p-desde').value||null,
-        periodo_hasta:document.getElementById('p-hasta').value||null, items };
+        periodo_hasta:document.getElementById('p-hasta').value||null };
+    let body;
+    if(_tipo==='dias'){
+        const incl=[...document.querySelectorAll('.incd:checked')].map(c=>parseInt(c.dataset.i));
+        if(!incl.length){ msg.className='msg err'; msg.textContent='Marcá al menos un día.'; return; }
+        const dias=incl.map(i=>{ const r=_dias[i]; const dv=(val('d-dia',i)||'').trim(); const num=parseInt(dv);
+            return { dia:(!isNaN(num)&&String(num)===dv)?num:(r.dia!=null?r.dia:null),
+                     fecha:(dv && (isNaN(num)||String(num)!==dv))?dv:(r.fecha||null),
+                     dia_semana:r.dia_semana, recibos:parseInt(val('d-rec',i))||null,
+                     importe:parseFloat(val('d-imp',i))||0, ticket_prom:r.ticket_prom }; });
+        body={...base, dias};
+    } else {
+        const incl=[...document.querySelectorAll('.inc:checked')].map(c=>parseInt(c.dataset.i));
+        if(!incl.length){ msg.className='msg err'; msg.textContent='Marcá al menos una fila.'; return; }
+        const items=incl.map(i=>{ const r=_filas[i]; return {
+            nombre:(val('f-nom',i)||r.nombre).trim(), categoria:((val('f-cat',i)||'').trim())||null,
+            cantidad:parseFloat(val('f-cant',i))||0, importe:parseFloat(val('f-imp',i))||0,
+            iva_pct:r.iva_pct, precio:parseFloat(val('f-precio',i))||0, crear:true }; });
+        body={...base, items};
+    }
     const btn=document.getElementById('btn-conf'); btn.disabled=true; msg.className='msg'; msg.textContent='Importando…';
     try{
         const r=await api.post('/importar/confirmar', body);
-        msg.className='msg ok'; msg.textContent=`Listo: ${r.ventas} ventas · ${r.productos_creados} productos y ${r.categorias_creadas} categorías nuevas.`;
+        msg.className='msg ok';
+        msg.textContent = _tipo==='dias'
+            ? `Listo: ${r.dias} días${r.aporta_total===false?' (complementario — no re-suma el total)':''}.`
+            : `Listo: ${r.ventas} ventas · ${r.productos_creados} productos y ${r.categorias_creadas} categorías nuevas.`;
         document.getElementById('preview').style.display='none';
         document.getElementById('arch').value='';
-        await cargarHistorial();
+        await cargarHistorial(); await cargarCarpetas();
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
     finally{ btn.disabled=false; }
 }
 
 function fechaCorta(ts){ if(!ts) return '—'; try{ return new Date(ts).toLocaleDateString(); }catch{ return esc(ts); } }
+const TIPO_LBL={ productos:'🛒 por producto', dias:'📅 por día', generico:'📄 genérico' };
+
+// ── Carpetas ──────────────────────────────────────────────────
+async function cargarCarpetas(){
+    try{ _carpetas = await api.get('/importar/carpetas'); }catch(e){ _carpetas=[]; }
+    // selector de subida
+    const sel=document.getElementById('sel-carpeta'); const prev=sel.value;
+    sel.innerHTML='<option value="">Sin carpeta (suelta)</option>'+
+        _carpetas.map(c=>`<option value="${c.id}">${esc(c.nombre||('Carpeta '+c.id))}</option>`).join('');
+    sel.value=prev;
+    // tabla
+    const tb=document.getElementById('car-body');
+    if(!_carpetas.length){ tb.innerHTML='<tr><td colspan="5" class="empty">Sin carpetas.</td></tr>'; return; }
+    tb.innerHTML=_carpetas.map(c=>{
+        const per=(c.periodo_desde||c.periodo_hasta)?`${c.periodo_desde||'…'} → ${c.periodo_hasta||'…'}`:'—';
+        return `<tr>
+            <td><strong>${esc(c.nombre||'Carpeta '+c.id)}</strong></td>
+            <td>${esc(per)}</td>
+            <td style="text-align:right;">${c.imports}</td>
+            <td style="text-align:right;">${c.total!=null?Number(c.total).toFixed(2):'—'}</td>
+            <td style="text-align:right;"><button class="btn-x" onclick="borrarCarpeta(${c.id})">🗑</button></td>
+        </tr>`; }).join('');
+}
+async function crearCarpeta(){
+    const nombre=document.getElementById('car-nombre').value.trim();
+    const msg=document.getElementById('msg-car');
+    if(!nombre){ msg.className='msg err'; msg.textContent='Poné un nombre.'; return; }
+    msg.className='msg'; msg.textContent='Creando…';
+    try{
+        await api.post('/importar/carpetas', { nombre,
+            periodo_desde:document.getElementById('car-desde').value||null,
+            periodo_hasta:document.getElementById('car-hasta').value||null });
+        document.getElementById('car-nombre').value='';
+        msg.className='msg ok'; msg.textContent='Carpeta creada.';
+        await cargarCarpetas();
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+}
+async function borrarCarpeta(id){
+    if(!confirm('¿Eliminar la carpeta y TODAS sus importaciones? Se descuentan del histórico.')) return;
+    try{ await api.delete('/importar/carpetas/'+id); await cargarCarpetas(); await cargarHistorial(); }
+    catch(err){ alert('Error: '+err.message); }
+}
+
 async function cargarHistorial(){
     const tb=document.getElementById('hist-body');
     try{
         const l=await api.get('/importar');
-        if(!l.length){ tb.innerHTML='<tr><td colspan="6" class="empty">Sin importaciones todavía.</td></tr>'; return; }
+        if(!l.length){ tb.innerHTML='<tr><td colspan="7" class="empty">Sin importaciones todavía.</td></tr>'; return; }
         tb.innerHTML=l.map(x=>{
             const per=(x.periodo_desde||x.periodo_hasta)?`${x.periodo_desde||'…'} → ${x.periodo_hasta||'…'}`:'—';
+            const apb = x.aporta_total===false ? ' <span class="badge" title="No re-suma el total (complementario)">compl.</span>' : '';
             return `<tr>
                 <td><strong>${esc(x.nombre||'—')}</strong><div class="hint">${esc(x.archivo_nombre||'')}</div></td>
+                <td>${TIPO_LBL[x.tipo]||esc(x.tipo||'—')}${apb}</td>
+                <td>${x.carpeta_nombre?esc(x.carpeta_nombre):'—'}</td>
                 <td>${esc(per)}</td>
                 <td style="text-align:right;">${x.items}</td>
                 <td style="text-align:right;">${x.total_importe!=null?Number(x.total_importe).toFixed(2):'—'}</td>
-                <td>${fechaCorta(x.creado_en)}</td>
                 <td style="text-align:right;white-space:nowrap;">
                     <button class="btn btn-secondary btn-sm" onclick="verImport(${x.id})">👁 Ver</button>
                     <button class="btn-x" onclick="borrarImport(${x.id})">🗑</button>
                 </td>
             </tr>`; }).join('');
-    }catch(err){ tb.innerHTML='<tr><td colspan="6" class="empty">Error: '+esc(err.message)+'</td></tr>'; }
+    }catch(err){ tb.innerHTML='<tr><td colspan="7" class="empty">Error: '+esc(err.message)+'</td></tr>'; }
 }
 let _detId=null;
 async function verImport(id){
@@ -215,18 +369,35 @@ async function verImport(id){
     card.scrollIntoView({behavior:'smooth', block:'start'});
     try{
         const d=await api.get('/importar/'+id+'/detalle');
-        const c=d.importacion, ls=d.lineas||[];
+        const c=d.importacion;
+        const head=document.getElementById('det-head'), tb=document.getElementById('det-body');
         document.getElementById('det-titulo').textContent='Detalle: '+(c.nombre||'Importación '+id);
         const per=(c.periodo_desde||c.periodo_hasta)?`${c.periodo_desde||'…'} → ${c.periodo_hasta||'…'}`:'sin período';
-        document.getElementById('det-resumen').textContent=`${ls.length} líneas · período ${per} · total ${c.total_importe!=null?Number(c.total_importe).toFixed(2):'—'} · archivo ${c.archivo_nombre||'—'}`;
-        document.getElementById('det-body').innerHTML = ls.length ? ls.map(l=>`<tr>
-            <td><strong>${esc(l.nombre_origen)}</strong></td>
-            <td>${esc(l.categoria_origen||'—')}</td>
-            <td>${l.producto_nombre?esc(l.producto_nombre):'<span style="color:#dc2626">(sin producto)</span>'}</td>
-            <td style="text-align:right;">${Number(l.cantidad).toFixed(2)}</td>
-            <td style="text-align:right;">${Number(l.importe_inc_iva).toFixed(2)}</td>
-            <td style="text-align:right;">${l.iva_pct!=null?Number(l.iva_pct)+'%':'—'}</td>
-        </tr>`).join('') : '<tr><td colspan="6" class="empty">Sin líneas.</td></tr>';
+        const apb = c.aporta_total===false ? ' · complementario (no re-suma el total)' : '';
+        if(d.tipo==='dias'){
+            const ls=d.dias||[];
+            document.getElementById('det-resumen').textContent=`${ls.length} días · período ${per} · total ${c.total_importe!=null?Number(c.total_importe).toFixed(2):'—'}${apb}`;
+            head.innerHTML='<tr><th>Fecha</th><th>Día sem.</th><th style="text-align:right;">Recibos</th><th style="text-align:right;">Importe</th><th style="text-align:right;">Ticket prom.</th></tr>';
+            tb.innerHTML = ls.length ? ls.map(l=>`<tr>
+                <td><strong>${esc(l.fecha||'—')}</strong></td>
+                <td>${esc(l.dia_semana||'—')}</td>
+                <td style="text-align:right;">${l.recibos!=null?l.recibos:'—'}</td>
+                <td style="text-align:right;">${Number(l.importe_inc||0).toFixed(2)}</td>
+                <td style="text-align:right;">${l.ticket_prom!=null?Number(l.ticket_prom).toFixed(2):'—'}</td>
+            </tr>`).join('') : '<tr><td colspan="5" class="empty">Sin días.</td></tr>';
+        } else {
+            const ls=d.lineas||[];
+            document.getElementById('det-resumen').textContent=`${ls.length} líneas · período ${per} · total ${c.total_importe!=null?Number(c.total_importe).toFixed(2):'—'} · archivo ${c.archivo_nombre||'—'}${apb}`;
+            head.innerHTML='<tr><th>Producto (origen)</th><th>Categoría</th><th>Producto en sistema</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Importe</th><th style="text-align:right;">IVA%</th></tr>';
+            tb.innerHTML = ls.length ? ls.map(l=>`<tr>
+                <td><strong>${esc(l.nombre_origen)}</strong></td>
+                <td>${esc(l.categoria_origen||'—')}</td>
+                <td>${l.producto_nombre?esc(l.producto_nombre):'<span style="color:#dc2626">(sin producto)</span>'}</td>
+                <td style="text-align:right;">${Number(l.cantidad).toFixed(2)}</td>
+                <td style="text-align:right;">${Number(l.importe_inc_iva).toFixed(2)}</td>
+                <td style="text-align:right;">${l.iva_pct!=null?Number(l.iva_pct)+'%':'—'}</td>
+            </tr>`).join('') : '<tr><td colspan="6" class="empty">Sin líneas.</td></tr>';
+        }
     }catch(err){ document.getElementById('det-body').innerHTML='<tr><td colspan="6" class="empty">Error: '+esc(err.message)+'</td></tr>'; }
 }
 async function borrarImport(id){
@@ -234,10 +405,11 @@ async function borrarImport(id){
     try{
         await api.delete('/importar/'+id);
         if(_detId===id){ document.getElementById('det-card').style.display='none'; _detId=null; }
-        await cargarHistorial();
+        await cargarHistorial(); await cargarCarpetas();
     }catch(err){ alert('Error: '+err.message); }
 }
 
+cargarCarpetas();
 cargarHistorial();
 </script>
 </body>
