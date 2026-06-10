@@ -63,16 +63,22 @@ tr.nuevo { background:#f0fdf4; }
     </div>
 
     <div class="card">
-        <h3>1) Subir archivo (CSV)</h3>
+        <h3>1) Adjuntar archivos a una carpeta</h3>
         <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
-            <div class="field" style="margin:0;"><label>Archivo</label><input type="file" id="arch" accept=".csv,text/csv,text/plain,application/pdf,image/*"></div>
             <div class="field" style="margin:0;"><label>Carpeta</label>
-                <select id="sel-carpeta"><option value="">Sin carpeta (suelta)</option></select></div>
-            <button class="btn btn-primary" onclick="iaAnalizar()">🤖 Analizar con IA</button>
-            <button class="btn btn-secondary" onclick="analizar()">Cargar manualmente</button>
+                <select id="sel-carpeta" onchange="onCarpetaChange()"><option value="">— elegí una carpeta —</option></select></div>
+            <div class="field" style="margin:0;"><label>Archivo</label><input type="file" id="arch" accept=".csv,text/csv,text/plain,application/pdf,image/*"></div>
+            <button class="btn btn-secondary" onclick="adjuntar()">📎 Adjuntar</button>
             <span class="msg" id="msg-an"></span>
         </div>
-        <div class="hint" style="margin-top:8px;"><b>Analizar con IA</b> (Gemini) lee CSV, PDF o imagen y propone qué dato va a cada tabla. <b>Cargar manualmente</b> usa el detector por columnas. Si lo asignás a una carpeta, usa su período (necesario para ubicar las ventas por día).</div>
+        <div id="adj-list" style="margin-top:10px;"></div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <button class="btn btn-primary" onclick="iaAnalizarCarpeta()">🤖 Analizar carpeta con IA</button>
+            <span class="hint">o sin adjuntar:</span>
+            <button class="btn btn-secondary" onclick="iaAnalizar()">🤖 Analizar 1 archivo</button>
+            <button class="btn btn-secondary" onclick="analizar()">Cargar manualmente</button>
+        </div>
+        <div class="hint" style="margin-top:8px;">Adjuntá uno o varios archivos del <b>mismo período</b> a la carpeta y tocá <b>Analizar carpeta con IA</b>: Gemini los lee juntos, une la info y no duplica el total. (Las otras opciones procesan el archivo elegido arriba, sin adjuntarlo.)</div>
     </div>
 
     <div class="card" id="preview" style="display:none;">
@@ -229,41 +235,92 @@ async function analizar(){
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
 }
 
+function renderPropuestaIA(d, msg){
+    _iaMode=true; _ia=d; _archivo=d.archivo||_archivo||'Análisis IA'; _tipo='ia';
+    document.getElementById('imp-nombre').value=_archivo||'Análisis IA';
+    const badge=document.getElementById('prev-tipo'); badge.textContent='🤖 IA'; badge.className='badge new';
+    document.getElementById('mapeo').style.display='';
+    document.getElementById('mapeo').innerHTML = `🤖 ${esc(d.resumen||'')}`+(d.notas?` <span style="color:#9ca3af">— ${esc(d.notas)}</span>`:'');
+    if(d.periodo && (d.periodo.desde||d.periodo.hasta)){
+        if(d.periodo.desde) document.getElementById('p-desde').value=d.periodo.desde;
+        if(d.periodo.hasta) document.getElementById('p-hasta').value=d.periodo.hasta;
+    } else prefillPeriodoDeCarpeta();
+    _filas=(d.productos||[]).map(p=>({ nombre:p.nombre, categoria:p.categoria||null,
+        cantidad:p.cantidad||0, importe:p.importe_inc_iva||0, iva_pct:(p.iva_pct!=null?p.iva_pct:null),
+        precio:(p.cantidad? +(((p.importe_inc_iva||0)/p.cantidad).toFixed(2)) : (p.importe_inc_iva||0)),
+        existe:!!p.existe, cat_existe:true }));
+    _dias=(d.dias||[]).map(x=>({ dia:(x.dia!=null?x.dia:null), fecha:x.fecha||null, dia_semana:x.dia_semana||null,
+        recibos:(x.recibos!=null?x.recibos:null), importe:(x.importe_inc||0), ticket_prom:(x.ticket_prom!=null?x.ticket_prom:null) }));
+    ['prev-prod','prev-dias','prev-generico','prev-noubic'].forEach(id=>document.getElementById(id).style.display='none');
+    document.getElementById('btn-conf').style.display='';
+    if(_filas.length){ renderFilas(); document.getElementById('chk-all').checked=true; document.getElementById('prev-prod').style.display=''; }
+    if(_dias.length){ renderDias(); document.getElementById('chk-all-d').checked=true; document.getElementById('prev-dias').style.display=''; }
+    renderNoUbic(); if((d.no_ubicado||[]).length){ document.getElementById('prev-noubic').style.display=''; }
+    document.getElementById('prev-hint').innerHTML='Revisá la propuesta. Podés editar y destildar filas; lo destildado o «no ubicado» va al PDF de la carpeta (no suma al total).';
+    document.getElementById('preview').style.display='';
+    document.getElementById('msg-conf').textContent='';
+    if(msg){ msg.className='msg ok'; msg.textContent=`IA: ${_filas.length} productos · ${_dias.length} días · ${(d.no_ubicado||[]).length} sin ubicar.`; }
+}
+
 async function iaAnalizar(){
     const f=document.getElementById('arch').files[0];
     const msg=document.getElementById('msg-an');
     if(!f){ msg.className='msg err'; msg.textContent='Elegí un archivo.'; return; }
-    msg.className='msg'; msg.textContent='🤖 Analizando con IA… (puede tardar unos segundos)';
+    msg.className='msg'; msg.textContent='🤖 Analizando con IA…';
     try{
         const fd=new FormData(); fd.append('file', f);
         const res=await fetch(`${API_URL}/importar/ia-analizar`,{method:'POST',headers:{Authorization:`Bearer ${getToken()}`},body:fd});
         if(!res.ok){ const e=await res.json().catch(()=>({detail:'Error'})); throw new Error(e.detail||('HTTP '+res.status)); }
-        const d=await res.json();
-        _iaMode=true; _ia=d; _archivo=d.archivo||f.name; _tipo='ia';
-        document.getElementById('imp-nombre').value=_archivo||'Análisis IA';
-        const badge=document.getElementById('prev-tipo'); badge.textContent='🤖 IA'; badge.className='badge new';
-        document.getElementById('mapeo').style.display='';
-        document.getElementById('mapeo').innerHTML = `🤖 ${esc(d.resumen||'')}`+(d.notas?` <span style="color:#9ca3af">— ${esc(d.notas)}</span>`:'');
-        if(d.periodo && (d.periodo.desde||d.periodo.hasta)){
-            if(d.periodo.desde) document.getElementById('p-desde').value=d.periodo.desde;
-            if(d.periodo.hasta) document.getElementById('p-hasta').value=d.periodo.hasta;
-        } else prefillPeriodoDeCarpeta();
-        _filas=(d.productos||[]).map(p=>({ nombre:p.nombre, categoria:p.categoria||null,
-            cantidad:p.cantidad||0, importe:p.importe_inc_iva||0, iva_pct:(p.iva_pct!=null?p.iva_pct:null),
-            precio:(p.cantidad? +(((p.importe_inc_iva||0)/p.cantidad).toFixed(2)) : (p.importe_inc_iva||0)),
-            existe:!!p.existe, cat_existe:true }));
-        _dias=(d.dias||[]).map(x=>({ dia:(x.dia!=null?x.dia:null), fecha:x.fecha||null, dia_semana:x.dia_semana||null,
-            recibos:(x.recibos!=null?x.recibos:null), importe:(x.importe_inc||0), ticket_prom:(x.ticket_prom!=null?x.ticket_prom:null) }));
-        ['prev-prod','prev-dias','prev-generico','prev-noubic'].forEach(id=>document.getElementById(id).style.display='none');
-        document.getElementById('btn-conf').style.display='';
-        if(_filas.length){ renderFilas(); document.getElementById('chk-all').checked=true; document.getElementById('prev-prod').style.display=''; }
-        if(_dias.length){ renderDias(); document.getElementById('chk-all-d').checked=true; document.getElementById('prev-dias').style.display=''; }
-        renderNoUbic(); if((d.no_ubicado||[]).length){ document.getElementById('prev-noubic').style.display=''; }
-        document.getElementById('prev-hint').innerHTML='Revisá la propuesta. Podés editar y destildar filas; lo destildado o «no ubicado» va al PDF de la carpeta (no suma al total).';
-        document.getElementById('preview').style.display='';
-        document.getElementById('msg-conf').textContent='';
-        msg.className='msg ok'; msg.textContent=`IA: ${_filas.length} productos · ${_dias.length} días · ${(d.no_ubicado||[]).length} sin ubicar.`;
+        renderPropuestaIA(await res.json(), msg);
     }catch(err){ msg.className='msg err'; msg.textContent='Error IA: '+err.message+' — probá «Cargar manualmente».'; }
+}
+
+async function iaAnalizarCarpeta(){
+    const cid=_carpetaSel(); const msg=document.getElementById('msg-an');
+    if(!cid){ msg.className='msg err'; msg.textContent='Elegí una carpeta (creala arriba) y adjuntá archivos.'; return; }
+    msg.className='msg'; msg.textContent='🤖 Analizando la carpeta con IA… (puede tardar)';
+    try{
+        const d=await api.post('/importar/carpetas/'+cid+'/ia-analizar', {});
+        renderPropuestaIA(d, msg);
+    }catch(err){ msg.className='msg err'; msg.textContent='Error IA: '+err.message; }
+}
+
+async function adjuntar(){
+    const cid=_carpetaSel(); const f=document.getElementById('arch').files[0]; const msg=document.getElementById('msg-an');
+    if(!cid){ msg.className='msg err'; msg.textContent='Primero elegí (o creá) una carpeta.'; return; }
+    if(!f){ msg.className='msg err'; msg.textContent='Elegí un archivo.'; return; }
+    msg.className='msg'; msg.textContent='Adjuntando…';
+    try{
+        const fd=new FormData(); fd.append('file', f);
+        const res=await fetch(`${API_URL}/importar/carpetas/${cid}/archivos`,{method:'POST',headers:{Authorization:`Bearer ${getToken()}`},body:fd});
+        if(!res.ok){ const e=await res.json().catch(()=>({detail:'Error'})); throw new Error(e.detail||('HTTP '+res.status)); }
+        document.getElementById('arch').value='';
+        msg.className='msg ok'; msg.textContent='Archivo adjuntado.';
+        await cargarAdjuntos(cid);
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+}
+
+async function onCarpetaChange(){
+    prefillPeriodoDeCarpeta();
+    const cid=_carpetaSel();
+    if(cid) await cargarAdjuntos(cid); else document.getElementById('adj-list').innerHTML='';
+}
+async function cargarAdjuntos(cid){
+    const box=document.getElementById('adj-list');
+    try{
+        const l=await api.get('/importar/carpetas/'+cid+'/archivos');
+        if(!l.length){ box.innerHTML='<div class="hint">Sin archivos adjuntos en esta carpeta.</div>'; return; }
+        box.innerHTML='<div style="font-size:12px;color:#374151;font-weight:600;margin-bottom:4px;">Archivos adjuntos ('+l.length+'):</div>'+
+            l.map(a=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:3px 0;border-bottom:1px solid #f3f4f6;">
+                <span>📄 ${esc(a.nombre||'archivo')}</span>
+                <span class="hint">${a.tam?Math.round(a.tam/1024)+' KB':''}</span>
+                <button class="btn-x" style="margin-left:auto;padding:2px 8px;" onclick="borrarAdjunto(${cid},${a.id})">🗑</button>
+            </div>`).join('');
+    }catch(err){ box.innerHTML='<div class="hint">Error: '+esc(err.message)+'</div>'; }
+}
+async function borrarAdjunto(cid,fid){
+    try{ await api.delete('/importar/carpetas/'+cid+'/archivos/'+fid); await cargarAdjuntos(cid); }
+    catch(err){ alert('Error: '+err.message); }
 }
 function renderNoUbic(){
     const tb=document.getElementById('noubic-body'); const arr=(_ia.no_ubicado||[]);
