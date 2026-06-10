@@ -270,6 +270,31 @@ const ALL_MODULES = [
 ];
 function getMod(id) { return ALL_MODULES.find(m => m.id === id); }
 
+// ── Gateo por MÓDULO del restaurante (igual que el sidebar; admin/gerente NO lo saltean) ──
+const _MOD_BLOQUE = {
+    'stats':'estadisticas', 'reservas':'reservas', 'stock':'stock',
+    'caja-estado':'caja', 'personal-turno':'personal', 'mesas-estado':'mesas',
+    'ordenes-cocina':'caja', 'ventas-7dias':'estadisticas',
+};
+const _MOD_ACCESO = {
+    'mesas':'mesas', 'reservas':'reservas', 'productos':'productos', 'caja':'caja',
+    'fichajes':'personal', 'usuarios':'personal', 'stock':'stock', 'facturas':'facturas',
+    'estadisticas':'estadisticas', 'ventas-estadisticas':'estadisticas', 'cuadrante':'personal',
+};
+function _moduloHabilitado(mod) {
+    if (!mod) return true;
+    const mods = (typeof user !== 'undefined' && user) ? user.modulos : null;
+    if (!Array.isArray(mods)) return true;   // token viejo sin módulos → no restringir
+    return mods.includes(mod);
+}
+function _bloqueHabilitado(block) {
+    if (block.type === 'accesos')
+        return (block.modules||[]).map(getMod).filter(Boolean).filter(_canSeeMod).length > 0;
+    if (block.type === 'quick' && block.moduleId)
+        return _moduloHabilitado(_MOD_ACCESO[block.moduleId]);
+    return _moduloHabilitado(_MOD_BLOQUE[block.type]);
+}
+
 // ── CONFIG POR DEFECTO (v5) ──────────────────────────────────
 const DEFAULT_CONFIG = { blocks: [
     { id:"stats",          type:"stats",          label:"Resumen de facturación", visible:true,  span:3 },
@@ -440,6 +465,7 @@ function renderDash() {
     grid.innerHTML = "";
     config.blocks.forEach(block => {
         if (!block.visible) return;
+        if (!_bloqueHabilitado(block)) return;   // módulo no habilitado en este restaurante
         const el = document.createElement("div");
         el.className = `db-block span-${block.span}`;
         el.dataset.id = block.id;
@@ -662,6 +688,7 @@ function buildReservas(b) {
 }
 
 function _canSeeMod(m) {
+    if (!_moduloHabilitado(_MOD_ACCESO[m.id])) return false;   // módulo del restaurante
     if (!m.perm) return true;
     const perms = Array.isArray(m.perm) ? m.perm : [m.perm];
     return hasAlgunPermiso(...perms);
@@ -941,8 +968,9 @@ function cerrarConfig() {
 }
 
 function renderConfigPanel() {
+    // Oculta del panel los widgets de módulos no habilitados (conserva el índice original)
     document.getElementById("cfg-blocks-list").innerHTML =
-        config.blocks.map((b,i) => buildCblock(b,i)).join("");
+        config.blocks.map((b,i) => (b.type === "accesos" || _bloqueHabilitado(b)) ? buildCblock(b,i) : "").join("");
 }
 
 const TIPOS_FIJOS = new Set(["stats"]);          // sin selector de columnas
@@ -962,7 +990,7 @@ function buildCblock(b, i) {
 
     // Acceso rápido individual: selector de módulo
     if (b.type === "quick") {
-        const modOptions = ALL_MODULES.map(m =>
+        const modOptions = ALL_MODULES.filter(m => _moduloHabilitado(_MOD_ACCESO[m.id])).map(m =>
             `<option value="${m.id}" ${b.moduleId===m.id?"selected":""}>${m.icon} ${m.title}</option>`
         ).join("");
         opts += `<div class="opt-row"><span>Módulo</span>
@@ -973,7 +1001,7 @@ function buildCblock(b, i) {
 
     // Accesos rápidos múltiples: lista de módulos
     if (b.type === "accesos") {
-        const items = ALL_MODULES.map(m => {
+        const items = ALL_MODULES.filter(m => _moduloHabilitado(_MOD_ACCESO[m.id])).map(m => {
             const on = (b.modules||[]).includes(m.id);
             return `<div class="mi-item">
                 <span>${m.icon}</span><span class="mi-name">${m.title}</span>
