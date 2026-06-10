@@ -65,13 +65,14 @@ tr.nuevo { background:#f0fdf4; }
     <div class="card">
         <h3>1) Subir archivo (CSV)</h3>
         <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
-            <div class="field" style="margin:0;"><label>Archivo</label><input type="file" id="arch" accept=".csv,text/csv,text/plain"></div>
+            <div class="field" style="margin:0;"><label>Archivo</label><input type="file" id="arch" accept=".csv,text/csv,text/plain,application/pdf,image/*"></div>
             <div class="field" style="margin:0;"><label>Carpeta</label>
                 <select id="sel-carpeta"><option value="">Sin carpeta (suelta)</option></select></div>
-            <button class="btn btn-primary" onclick="analizar()">Analizar</button>
+            <button class="btn btn-primary" onclick="iaAnalizar()">🤖 Analizar con IA</button>
+            <button class="btn btn-secondary" onclick="analizar()">Cargar manualmente</button>
             <span class="msg" id="msg-an"></span>
         </div>
-        <div class="hint" style="margin-top:8px;">Detecta solo si el archivo es <b>por producto</b>, <b>por día</b> u otro. Si lo asignás a una carpeta, usa su período (necesario para ubicar las ventas por día).</div>
+        <div class="hint" style="margin-top:8px;"><b>Analizar con IA</b> (Gemini) lee CSV, PDF o imagen y propone qué dato va a cada tabla. <b>Cargar manualmente</b> usa el detector por columnas. Si lo asignás a una carpeta, usa su período (necesario para ubicar las ventas por día).</div>
     </div>
 
     <div class="card" id="preview" style="display:none;">
@@ -112,6 +113,13 @@ tr.nuevo { background:#f0fdf4; }
 
         <div id="prev-generico" style="display:none;"></div>
 
+        <div id="prev-noubic" style="display:none;margin-top:12px;">
+            <div style="font-weight:700;font-size:13px;margin-bottom:6px;">📄 No ubicado / excedente <span class="hint" style="font-weight:400;">(irá al PDF de la carpeta, no suma al total)</span></div>
+            <div class="tbl-wrap" style="max-height:200px;"><table>
+                <thead><tr><th style="text-align:center;width:34px;"><input type="checkbox" id="chk-all-n" checked onchange="toggleAllN(this.checked)"></th><th>Concepto</th><th>Detalle</th></tr></thead>
+                <tbody id="noubic-body"></tbody></table></div>
+        </div>
+
         <div style="margin-top:14px;display:flex;align-items:center;gap:14px;">
             <button class="btn btn-primary" id="btn-conf" onclick="confirmar()">Confirmar importación</button>
             <span class="msg" id="msg-conf"></span>
@@ -151,6 +159,7 @@ requireAuth();
 requirePermiso('edicion_carta', 'acceso_estadisticas');
 
 let _filas = [], _archivo = '', _tipo = 'productos', _dias = [], _carpetas = [], _gen = {};
+let _iaMode = false, _ia = {};
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function _carpetaSel(){ return document.getElementById('sel-carpeta').value || ''; }
 
@@ -180,8 +189,9 @@ async function analizar(){
         prefillPeriodoDeCarpeta();
         const cols=data.columnas||[], m=data.mapping||{};
         const lbl=k=>(m[k]!=null && cols[m[k]]!=null)?cols[m[k]]:'—';
+        _iaMode=false;
         const badge=document.getElementById('prev-tipo');
-        ['prev-prod','prev-dias','prev-generico'].forEach(id=>document.getElementById(id).style.display='none');
+        ['prev-prod','prev-dias','prev-generico','prev-noubic'].forEach(id=>document.getElementById(id).style.display='none');
         document.getElementById('mapeo').style.display='';
         document.getElementById('btn-conf').style.display='';
 
@@ -219,6 +229,87 @@ async function analizar(){
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
 }
 
+async function iaAnalizar(){
+    const f=document.getElementById('arch').files[0];
+    const msg=document.getElementById('msg-an');
+    if(!f){ msg.className='msg err'; msg.textContent='Elegí un archivo.'; return; }
+    msg.className='msg'; msg.textContent='🤖 Analizando con IA… (puede tardar unos segundos)';
+    try{
+        const fd=new FormData(); fd.append('file', f);
+        const res=await fetch(`${API_URL}/importar/ia-analizar`,{method:'POST',headers:{Authorization:`Bearer ${getToken()}`},body:fd});
+        if(!res.ok){ const e=await res.json().catch(()=>({detail:'Error'})); throw new Error(e.detail||('HTTP '+res.status)); }
+        const d=await res.json();
+        _iaMode=true; _ia=d; _archivo=d.archivo||f.name; _tipo='ia';
+        document.getElementById('imp-nombre').value=_archivo||'Análisis IA';
+        const badge=document.getElementById('prev-tipo'); badge.textContent='🤖 IA'; badge.className='badge new';
+        document.getElementById('mapeo').style.display='';
+        document.getElementById('mapeo').innerHTML = `🤖 ${esc(d.resumen||'')}`+(d.notas?` <span style="color:#9ca3af">— ${esc(d.notas)}</span>`:'');
+        if(d.periodo && (d.periodo.desde||d.periodo.hasta)){
+            if(d.periodo.desde) document.getElementById('p-desde').value=d.periodo.desde;
+            if(d.periodo.hasta) document.getElementById('p-hasta').value=d.periodo.hasta;
+        } else prefillPeriodoDeCarpeta();
+        _filas=(d.productos||[]).map(p=>({ nombre:p.nombre, categoria:p.categoria||null,
+            cantidad:p.cantidad||0, importe:p.importe_inc_iva||0, iva_pct:(p.iva_pct!=null?p.iva_pct:null),
+            precio:(p.cantidad? +(((p.importe_inc_iva||0)/p.cantidad).toFixed(2)) : (p.importe_inc_iva||0)),
+            existe:!!p.existe, cat_existe:true }));
+        _dias=(d.dias||[]).map(x=>({ dia:(x.dia!=null?x.dia:null), fecha:x.fecha||null, dia_semana:x.dia_semana||null,
+            recibos:(x.recibos!=null?x.recibos:null), importe:(x.importe_inc||0), ticket_prom:(x.ticket_prom!=null?x.ticket_prom:null) }));
+        ['prev-prod','prev-dias','prev-generico','prev-noubic'].forEach(id=>document.getElementById(id).style.display='none');
+        document.getElementById('btn-conf').style.display='';
+        if(_filas.length){ renderFilas(); document.getElementById('chk-all').checked=true; document.getElementById('prev-prod').style.display=''; }
+        if(_dias.length){ renderDias(); document.getElementById('chk-all-d').checked=true; document.getElementById('prev-dias').style.display=''; }
+        renderNoUbic(); if((d.no_ubicado||[]).length){ document.getElementById('prev-noubic').style.display=''; }
+        document.getElementById('prev-hint').innerHTML='Revisá la propuesta. Podés editar y destildar filas; lo destildado o «no ubicado» va al PDF de la carpeta (no suma al total).';
+        document.getElementById('preview').style.display='';
+        document.getElementById('msg-conf').textContent='';
+        msg.className='msg ok'; msg.textContent=`IA: ${_filas.length} productos · ${_dias.length} días · ${(d.no_ubicado||[]).length} sin ubicar.`;
+    }catch(err){ msg.className='msg err'; msg.textContent='Error IA: '+err.message+' — probá «Cargar manualmente».'; }
+}
+function renderNoUbic(){
+    const tb=document.getElementById('noubic-body'); const arr=(_ia.no_ubicado||[]);
+    tb.innerHTML = arr.length ? arr.map((x,i)=>`<tr>
+        <td style="text-align:center;"><input type="checkbox" class="incn" data-i="${i}" checked></td>
+        <td><strong>${esc(x.concepto||'—')}</strong></td><td>${esc(x.detalle||'')}</td></tr>`).join('')
+        : '<tr><td colspan="3" class="empty">—</td></tr>';
+}
+function toggleAllN(v){ document.querySelectorAll('.incn').forEach(c=>c.checked=v); }
+
+async function confirmarIA(){
+    const msg=document.getElementById('msg-conf');
+    const val=(cls,i)=>{ const el=document.querySelector(`.${cls}[data-i="${i}"]`); return el?el.value:''; };
+    const desde=document.getElementById('p-desde').value||null, hasta=document.getElementById('p-hasta').value||null;
+    const pincl=[...document.querySelectorAll('.inc:checked')].map(c=>parseInt(c.dataset.i));
+    const items=pincl.map(i=>{ const r=_filas[i]; return { nombre:(val('f-nom',i)||r.nombre).trim(),
+        categoria:((val('f-cat',i)||'').trim())||null, cantidad:parseFloat(val('f-cant',i))||0,
+        importe:parseFloat(val('f-imp',i))||0, iva_pct:r.iva_pct, precio:parseFloat(val('f-precio',i))||0, crear:true }; });
+    const dincl=[...document.querySelectorAll('.incd:checked')].map(c=>parseInt(c.dataset.i));
+    const dias=dincl.map(i=>{ const r=_dias[i]; const dv=(val('d-dia',i)||'').trim(); const num=parseInt(dv);
+        return { dia:(!isNaN(num)&&String(num)===dv)?num:(r.dia!=null?r.dia:null),
+                 fecha:(dv && (isNaN(num)||String(num)!==dv))?dv:(r.fecha||null), dia_semana:r.dia_semana,
+                 recibos:parseInt(val('d-rec',i))||null, importe:parseFloat(val('d-imp',i))||0, ticket_prom:r.ticket_prom }; });
+    const nincl=[...document.querySelectorAll('.incn:checked')].map(c=>parseInt(c.dataset.i));
+    const exced=nincl.map(i=>{ const x=(_ia.no_ubicado||[])[i]; return [String(x.concepto||''), String(x.detalle||'')]; });
+    _filas.forEach((r,i)=>{ if(!pincl.includes(i)) exced.push(['Producto descartado', `${r.nombre} · ${r.cantidad} u · ${r.importe}`]); });
+    _dias.forEach((r,i)=>{ if(!dincl.includes(i)) exced.push(['Día descartado', `${r.dia!=null?('día '+r.dia):(r.fecha||'')} · ${r.importe}`]); });
+    if(!items.length && !dias.length && !exced.length){ msg.className='msg err'; msg.textContent='No hay nada para confirmar.'; return; }
+    const btn=document.getElementById('btn-conf'); btn.disabled=true; msg.className='msg'; msg.textContent='Cargando…';
+    try{
+        let cid=_carpetaSel();
+        if(!cid){ const cr=await api.post('/importar/carpetas',{ nombre:'Análisis IA — '+(_archivo||'archivo'), periodo_desde:desde, periodo_hasta:hasta }); cid=cr.id; }
+        cid=parseInt(cid);
+        const base={ archivo:_archivo, carpeta_id:cid, periodo_desde:desde, periodo_hasta:hasta };
+        if(items.length) await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — productos', tipo:'productos', items});
+        if(dias.length)  await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — días', tipo:'dias', dias});
+        if(exced.length) await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — excedentes', tipo:'generico', generico:{columnas:['Concepto','Detalle'], filas:exced}});
+        let pdf=null; try{ const pr=await api.post('/importar/carpetas/'+cid+'/pdf',{}); pdf=pr.pdf_url; }catch(e){}
+        msg.className='msg ok'; msg.textContent=`Listo: ${items.length} productos · ${dias.length} días · ${exced.length} al excedente.`+(pdf?' PDF generado.':'');
+        document.getElementById('preview').style.display='none';
+        document.getElementById('arch').value=''; _iaMode=false;
+        await cargarHistorial(); await cargarCarpetas();
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+    finally{ btn.disabled=false; }
+}
+
 function _ipt(cls,i,val,extra){
     const v = val==null ? '' : String(val).replace(/"/g,'&quot;');
     return `<input class="${cls}" data-i="${i}" value="${v}" ${extra||''} style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;">`;
@@ -253,6 +344,7 @@ function renderDias(){
 function toggleAllD(v){ document.querySelectorAll('.incd').forEach(c=>c.checked=v); }
 
 async function confirmar(){
+    if(_iaMode) return confirmarIA();
     const msg=document.getElementById('msg-conf');
     const val=(cls,i)=>{ const el=document.querySelector(`.${cls}[data-i="${i}"]`); return el?el.value:''; };
     const cid=_carpetaSel();
