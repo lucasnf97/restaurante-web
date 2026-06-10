@@ -86,6 +86,23 @@ tr.nuevo { background:#f0fdf4; }
             <tbody id="hist-body"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody>
         </table>
     </div>
+
+    <div class="card" id="det-card" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <h3 id="det-titulo" style="margin:0;">Detalle de importación</h3>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-x" onclick="borrarImport(_detId)">🗑 Eliminar importación</button>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('det-card').style.display='none'">Cerrar</button>
+            </div>
+        </div>
+        <div class="hint" id="det-resumen" style="margin:6px 0 10px;"></div>
+        <div class="tbl-wrap" style="max-height:420px;">
+            <table>
+                <thead><tr><th>Producto (origen)</th><th>Categoría</th><th>Producto en sistema</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Importe</th><th style="text-align:right;">IVA%</th></tr></thead>
+                <tbody id="det-body"><tr><td colspan="6" class="empty">—</td></tr></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <script src="js/sidebar.js"></script>
@@ -122,16 +139,20 @@ async function analizar(){
     }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
 }
 
+function _ipt(cls,i,val,extra){
+    const v = val==null ? '' : String(val).replace(/"/g,'&quot;');
+    return `<input class="${cls}" data-i="${i}" value="${v}" ${extra||''} style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;">`;
+}
 function renderFilas(){
     const tb=document.getElementById('filas-body');
     if(!_filas.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No se detectaron productos.</td></tr>'; return; }
     tb.innerHTML=_filas.map((r,i)=>`<tr class="${r.existe?'':'nuevo'}">
         <td style="text-align:center;"><input type="checkbox" class="inc" data-i="${i}" checked></td>
-        <td>${esc(r.nombre)}</td>
-        <td>${esc(r.categoria||'—')}</td>
-        <td style="text-align:right;">${r.cantidad}</td>
-        <td style="text-align:right;">${Number(r.importe).toFixed(2)}</td>
-        <td style="text-align:right;"><input type="number" step="0.01" class="precio" data-i="${i}" value="${r.precio}" ${r.existe?'disabled':''} style="width:90px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"></td>
+        <td>${_ipt('f-nom',i,r.nombre)}</td>
+        <td>${_ipt('f-cat',i,r.categoria||'')}</td>
+        <td style="text-align:right;width:90px;">${_ipt('f-cant',i,r.cantidad,'type="number" step="0.001" style="width:80px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>
+        <td style="text-align:right;width:100px;">${_ipt('f-imp',i,r.importe,'type="number" step="0.01" style="width:95px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>
+        <td style="text-align:right;width:100px;">${_ipt('f-precio',i,r.precio,'type="number" step="0.01" style="width:95px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>
         <td>${r.existe?'<span class="badge ok">Existe</span>':'<span class="badge new">Nuevo</span>'}${(r.categoria&&!r.cat_existe)?' <span class="badge new">cat. nueva</span>':''}</td>
     </tr>`).join('');
 }
@@ -139,12 +160,16 @@ function toggleAll(v){ document.querySelectorAll('.inc').forEach(c=>c.checked=v)
 
 async function confirmar(){
     const incl=[...document.querySelectorAll('.inc:checked')].map(c=>parseInt(c.dataset.i));
-    const precios={}; document.querySelectorAll('.precio').forEach(p=>precios[p.dataset.i]=parseFloat(p.value)||0);
     const msg=document.getElementById('msg-conf');
     if(!incl.length){ msg.className='msg err'; msg.textContent='Marcá al menos una fila.'; return; }
+    const val=(cls,i)=>{ const el=document.querySelector(`.${cls}[data-i="${i}"]`); return el?el.value:''; };
     const items=incl.map(i=>{ const r=_filas[i]; return {
-        nombre:r.nombre, categoria:r.categoria, cantidad:r.cantidad, importe:r.importe,
-        iva_pct:r.iva_pct, precio:(precios[i]!=null?precios[i]:r.precio), crear:true }; });
+        nombre:(val('f-nom',i)||r.nombre).trim(),
+        categoria:((val('f-cat',i)||'').trim())||null,
+        cantidad:parseFloat(val('f-cant',i))||0,
+        importe:parseFloat(val('f-imp',i))||0,
+        iva_pct:r.iva_pct,
+        precio:parseFloat(val('f-precio',i))||0, crear:true }; });
     const body={ nombre:document.getElementById('imp-nombre').value.trim(), archivo:_archivo,
         periodo_desde:document.getElementById('p-desde').value||null,
         periodo_hasta:document.getElementById('p-hasta').value||null, items };
@@ -173,13 +198,44 @@ async function cargarHistorial(){
                 <td style="text-align:right;">${x.items}</td>
                 <td style="text-align:right;">${x.total_importe!=null?Number(x.total_importe).toFixed(2):'—'}</td>
                 <td>${fechaCorta(x.creado_en)}</td>
-                <td style="text-align:right;"><button class="btn-x" onclick="borrarImport(${x.id})">🗑</button></td>
+                <td style="text-align:right;white-space:nowrap;">
+                    <button class="btn btn-secondary btn-sm" onclick="verImport(${x.id})">👁 Ver</button>
+                    <button class="btn-x" onclick="borrarImport(${x.id})">🗑</button>
+                </td>
             </tr>`; }).join('');
     }catch(err){ tb.innerHTML='<tr><td colspan="6" class="empty">Error: '+esc(err.message)+'</td></tr>'; }
 }
+let _detId=null;
+async function verImport(id){
+    _detId=id;
+    const card=document.getElementById('det-card');
+    card.style.display='';
+    document.getElementById('det-body').innerHTML='<tr><td colspan="6" class="empty">Cargando…</td></tr>';
+    document.getElementById('det-resumen').textContent='';
+    card.scrollIntoView({behavior:'smooth', block:'start'});
+    try{
+        const d=await api.get('/importar/'+id+'/detalle');
+        const c=d.importacion, ls=d.lineas||[];
+        document.getElementById('det-titulo').textContent='Detalle: '+(c.nombre||'Importación '+id);
+        const per=(c.periodo_desde||c.periodo_hasta)?`${c.periodo_desde||'…'} → ${c.periodo_hasta||'…'}`:'sin período';
+        document.getElementById('det-resumen').textContent=`${ls.length} líneas · período ${per} · total ${c.total_importe!=null?Number(c.total_importe).toFixed(2):'—'} · archivo ${c.archivo_nombre||'—'}`;
+        document.getElementById('det-body').innerHTML = ls.length ? ls.map(l=>`<tr>
+            <td><strong>${esc(l.nombre_origen)}</strong></td>
+            <td>${esc(l.categoria_origen||'—')}</td>
+            <td>${l.producto_nombre?esc(l.producto_nombre):'<span style="color:#dc2626">(sin producto)</span>'}</td>
+            <td style="text-align:right;">${Number(l.cantidad).toFixed(2)}</td>
+            <td style="text-align:right;">${Number(l.importe_inc_iva).toFixed(2)}</td>
+            <td style="text-align:right;">${l.iva_pct!=null?Number(l.iva_pct)+'%':'—'}</td>
+        </tr>`).join('') : '<tr><td colspan="6" class="empty">Sin líneas.</td></tr>';
+    }catch(err){ document.getElementById('det-body').innerHTML='<tr><td colspan="6" class="empty">Error: '+esc(err.message)+'</td></tr>'; }
+}
 async function borrarImport(id){
-    if(!confirm('¿Eliminar esta importación y sus ventas? No borra los productos creados.')) return;
-    try{ await api.delete('/importar/'+id); await cargarHistorial(); }catch(err){ alert('Error: '+err.message); }
+    if(!confirm('¿Eliminar esta importación y sus ventas? Se descuentan del histórico. No borra los productos creados.')) return;
+    try{
+        await api.delete('/importar/'+id);
+        if(_detId===id){ document.getElementById('det-card').style.display='none'; _detId=null; }
+        await cargarHistorial();
+    }catch(err){ alert('Error: '+err.message); }
 }
 
 cargarHistorial();
