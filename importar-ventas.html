@@ -150,7 +150,7 @@ tr.nuevo { background:#f0fdf4; }
 requireAuth();
 requirePermiso('edicion_carta', 'acceso_estadisticas');
 
-let _filas = [], _archivo = '', _tipo = 'productos', _dias = [], _carpetas = [];
+let _filas = [], _archivo = '', _tipo = 'productos', _dias = [], _carpetas = [], _gen = {};
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function _carpetaSel(){ return document.getElementById('sel-carpeta').value || ''; }
 
@@ -194,9 +194,10 @@ async function analizar(){
             document.getElementById('prev-dias').style.display='';
             msg.className='msg ok'; msg.textContent=`${_dias.length} días · total ${Number(data.resumen.total||0).toFixed(2)}`;
         } else if(_tipo==='generico'){
+            _gen = { columnas: data.columnas||[], filas: data.filas||[] };
             badge.textContent='genérico'; badge.className='badge';
             document.getElementById('mapeo').style.display='none';
-            document.getElementById('prev-hint').textContent='';
+            document.getElementById('prev-hint').innerHTML='Formato no estructurado: se guarda tal cual y se incluye en el <b>PDF resumen</b> de la carpeta. No suma al total facturado.';
             const pv=data.preview||[];
             document.getElementById('prev-generico').innerHTML =
                 `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:10px 12px;">${esc(data.mensaje||'Formato no reconocido.')}</div>`+
@@ -204,8 +205,7 @@ async function analizar(){
                 pv.slice(0,25).map(row=>`<tr>${(row||[]).map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')+
                 `</tbody></table></div>`;
             document.getElementById('prev-generico').style.display='';
-            document.getElementById('btn-conf').style.display='none';
-            msg.className='msg'; msg.textContent='Formato genérico (interpretación + PDF: próxima fase).';
+            msg.className='msg ok'; msg.textContent=`Genérico: ${(data.filas||[]).length} filas.`;
         } else {
             _filas = data.filas||[];
             badge.textContent='ventas por producto'; badge.className='badge ok';
@@ -270,6 +270,9 @@ async function confirmar(){
                      dia_semana:r.dia_semana, recibos:parseInt(val('d-rec',i))||null,
                      importe:parseFloat(val('d-imp',i))||0, ticket_prom:r.ticket_prom }; });
         body={...base, dias};
+    } else if(_tipo==='generico'){
+        if(!(_gen.filas && _gen.filas.length)){ msg.className='msg err'; msg.textContent='No hay datos.'; return; }
+        body={...base, generico:_gen};
     } else {
         const incl=[...document.querySelectorAll('.inc:checked')].map(c=>parseInt(c.dataset.i));
         if(!incl.length){ msg.className='msg err'; msg.textContent='Marcá al menos una fila.'; return; }
@@ -285,6 +288,8 @@ async function confirmar(){
         msg.className='msg ok';
         msg.textContent = _tipo==='dias'
             ? `Listo: ${r.dias} días${r.aporta_total===false?' (complementario — no re-suma el total)':''}.`
+            : _tipo==='generico'
+            ? `Listo: ${r.filas} filas guardadas (genérico).`
             : `Listo: ${r.ventas} ventas · ${r.productos_creados} productos y ${r.categorias_creadas} categorías nuevas.`;
         document.getElementById('preview').style.display='none';
         document.getElementById('arch').value='';
@@ -314,8 +319,21 @@ async function cargarCarpetas(){
             <td>${esc(per)}</td>
             <td style="text-align:right;">${c.imports}</td>
             <td style="text-align:right;">${c.total!=null?Number(c.total).toFixed(2):'—'}</td>
-            <td style="text-align:right;"><button class="btn-x" onclick="borrarCarpeta(${c.id})">🗑</button></td>
+            <td style="text-align:right;white-space:nowrap;">
+                ${c.pdf_url?`<a class="btn btn-secondary btn-sm" href="${esc(c.pdf_url)}" target="_blank">📄 Ver PDF</a>`:''}
+                <button class="btn btn-secondary btn-sm" onclick="generarPdf(${c.id})" title="Generar PDF resumen en Cloudinary">${c.pdf_url?'↻ PDF':'📄 Generar PDF'}</button>
+                <button class="btn-x" onclick="borrarCarpeta(${c.id})">🗑</button>
+            </td>
         </tr>`; }).join('');
+}
+async function generarPdf(id){
+    const msg=document.getElementById('msg-car'); msg.className='msg'; msg.textContent='Generando PDF…';
+    try{
+        const r=await api.post('/importar/carpetas/'+id+'/pdf', {});
+        msg.className='msg ok'; msg.textContent='PDF generado.';
+        await cargarCarpetas();
+        if(r.pdf_url) window.open(r.pdf_url,'_blank');
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
 }
 async function crearCarpeta(){
     const nombre=document.getElementById('car-nombre').value.trim();
@@ -374,7 +392,12 @@ async function verImport(id){
         document.getElementById('det-titulo').textContent='Detalle: '+(c.nombre||'Importación '+id);
         const per=(c.periodo_desde||c.periodo_hasta)?`${c.periodo_desde||'…'} → ${c.periodo_hasta||'…'}`:'sin período';
         const apb = c.aporta_total===false ? ' · complementario (no re-suma el total)' : '';
-        if(d.tipo==='dias'){
+        if(d.tipo==='generico'){
+            const cols=d.columnas||[], fs=d.filas||[];
+            document.getElementById('det-resumen').textContent=`${fs.length} filas (genérico) · período ${per}${apb} · archivo ${c.archivo_nombre||'—'}`;
+            head.innerHTML='<tr>'+((cols.length?cols:['(datos)']).map(x=>`<th>${esc(x)}</th>`).join(''))+'</tr>';
+            tb.innerHTML = fs.length ? fs.map(row=>`<tr>${(row||[]).map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('') : '<tr><td class="empty">Sin filas.</td></tr>';
+        } else if(d.tipo==='dias'){
             const ls=d.dias||[];
             document.getElementById('det-resumen').textContent=`${ls.length} días · período ${per} · total ${c.total_importe!=null?Number(c.total_importe).toFixed(2):'—'}${apb}`;
             head.innerHTML='<tr><th>Fecha</th><th>Día sem.</th><th style="text-align:right;">Recibos</th><th style="text-align:right;">Importe</th><th style="text-align:right;">Ticket prom.</th></tr>';
