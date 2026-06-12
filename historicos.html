@@ -443,14 +443,16 @@ function anRenderDiario(rows, wrap) {
     const filas = rows.map(r => {
         totMesas += r.mesas_cerradas;
         totFact  += r.facturacion;
-        const vacio = r.mesas_cerradas === 0;
         const nd = `<span class="an-badge-zero">—</span>`;
+        const sinMesas = r.mesas_cerradas === 0;        // ventas importadas no tienen mesas
+        const sinFact  = !r.facturacion;
+        const vacio    = sinMesas && sinFact;           // fila gris sólo si no hay NADA
         return `<tr class="${vacio ? 'an-row-zero' : ''}">
             <td>${r.fecha}</td>
             <td>${r.dia_semana}</td>
-            <td class="num">${vacio ? nd : r.mesas_cerradas}</td>
-            <td class="num">${vacio ? nd : fmt(r.facturacion)}</td>
-            <td class="num">${vacio ? nd : fmt(r.promedio_por_mesa)}</td>
+            <td class="num">${sinMesas ? nd : r.mesas_cerradas}</td>
+            <td class="num">${sinFact ? nd : fmt(r.facturacion)}</td>
+            <td class="num">${sinMesas ? nd : fmt(r.promedio_por_mesa)}</td>
         </tr>`;
     }).join('');
 
