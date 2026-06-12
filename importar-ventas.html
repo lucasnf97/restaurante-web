@@ -129,6 +129,9 @@ tr.nuevo { background:#f0fdf4; }
 
         <div id="prev-generico" style="display:none;"></div>
 
+        <!-- IA: una tarjeta por bloque detectado, con tabla destino editable -->
+        <div id="prev-secciones" style="display:none;"></div>
+
         <div id="prev-noubic" style="display:none;margin-top:12px;">
             <div style="font-weight:700;font-size:13px;margin-bottom:6px;">📄 No ubicado / excedente <span class="hint" style="font-weight:400;">(irá al PDF de la carpeta, no suma al total)</span></div>
             <div class="tbl-wrap" style="max-height:200px;"><table>
@@ -175,7 +178,9 @@ requireAuth();
 requirePermiso('edicion_carta', 'acceso_estadisticas');
 
 let _filas = [], _archivo = '', _tipo = 'productos', _dias = [], _carpetas = [], _gen = {};
-let _iaMode = false, _ia = {};
+let _iaMode = false, _ia = {}, _secs = [];
+const IA_TIPOS = [['productos','🛒 Ventas por producto'],['dias','📅 Ventas por día'],
+    ['insumos','🧂 Insumos (costos)'],['compras','📦 Compras'],['otras','📄 Otras (al PDF)']];
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function _carpetaSel(){ return document.getElementById('sel-carpeta').value || ''; }
 
@@ -255,21 +260,39 @@ function renderPropuestaIA(d, msg){
         if(d.periodo.desde) document.getElementById('p-desde').value=d.periodo.desde;
         if(d.periodo.hasta) document.getElementById('p-hasta').value=d.periodo.hasta;
     } else prefillPeriodoDeCarpeta();
-    _filas=(d.productos||[]).map(p=>({ nombre:p.nombre, categoria:p.categoria||null,
-        cantidad:p.cantidad||0, importe:p.importe_inc_iva||0, iva_pct:(p.iva_pct!=null?p.iva_pct:null),
-        precio:(p.cantidad? +(((p.importe_inc_iva||0)/p.cantidad).toFixed(2)) : (p.importe_inc_iva||0)),
-        existe:!!p.existe, cat_existe:true }));
-    _dias=(d.dias||[]).map(x=>({ dia:(x.dia!=null?x.dia:null), fecha:x.fecha||null, dia_semana:x.dia_semana||null,
-        recibos:(x.recibos!=null?x.recibos:null), importe:(x.importe_inc||0), ticket_prom:(x.ticket_prom!=null?x.ticket_prom:null) }));
+    // Cada sección detectada por la IA → fila universal editable + flag de inclusión.
+    _secs=(d.secciones||[]).map(s=>({
+        tipo:(s.tipo||'otras'), titulo:(s.titulo||''),
+        filas:(s.filas||[]).map(f=>({
+            nombre:f.nombre!=null?f.nombre:'', categoria:f.categoria!=null?f.categoria:'',
+            cantidad:f.cantidad!=null?f.cantidad:'', importe:f.importe!=null?f.importe:'',
+            iva_pct:(f.iva_pct!=null?f.iva_pct:null),
+            fecha:f.fecha!=null?f.fecha:'', dia:(f.dia!=null?f.dia:null), dia_semana:f.dia_semana||'',
+            recibos:f.recibos!=null?f.recibos:'', ticket_prom:(f.ticket_prom!=null?f.ticket_prom:null),
+            costo_unitario:f.costo_unitario!=null?f.costo_unitario:'', unidad:f.unidad!=null?f.unidad:'',
+            existe:!!f.existe, _detalle:_otraDetalle(f), _incl:true }))
+    })).filter(s=>s.filas.length);
     ['prev-prod','prev-dias','prev-generico','prev-noubic'].forEach(id=>document.getElementById(id).style.display='none');
     document.getElementById('btn-conf').style.display='';
-    if(_filas.length){ renderFilas(); document.getElementById('chk-all').checked=true; document.getElementById('prev-prod').style.display=''; }
-    if(_dias.length){ renderDias(); document.getElementById('chk-all-d').checked=true; document.getElementById('prev-dias').style.display=''; }
-    renderNoUbic(); if((d.no_ubicado||[]).length){ document.getElementById('prev-noubic').style.display=''; }
-    document.getElementById('prev-hint').innerHTML='Revisá la propuesta. Podés editar y destildar filas; lo destildado o «no ubicado» va al PDF de la carpeta (no suma al total).';
+    renderSecciones();
+    document.getElementById('prev-secciones').style.display = _secs.length ? '' : 'none';
+    document.getElementById('prev-hint').innerHTML='Cada bloque muestra la <b>tabla destino</b> que interpretó la IA. Cambiala si no corresponde, destildá filas que no quieras, y para lo que no encaje elegí <b>«Otras»</b> y ponele un título (encabezará el PDF de la carpeta).';
     document.getElementById('preview').style.display='';
     document.getElementById('msg-conf').textContent='';
-    if(msg){ msg.className='msg ok'; msg.textContent=`IA: ${_filas.length} productos · ${_dias.length} días · ${(d.no_ubicado||[]).length} sin ubicar.`; }
+    if(msg){ const tot=_secs.reduce((a,s)=>a+s.filas.length,0);
+        msg.className='msg ok'; msg.textContent=`IA: ${_secs.length} bloque(s) · ${tot} fila(s). Revisá las tablas destino.`; }
+}
+
+// Texto resumido de una fila que no encaja en una tabla estructurada (para «Otras» y su PDF).
+function _otraDetalle(f){
+    if(f && f.extra && f.extra.detalle!=null) return String(f.extra.detalle);
+    const parts=[];
+    if(f){
+        if(f.importe!=null && f.importe!=='') parts.push('importe '+f.importe);
+        if(f.cantidad!=null && f.cantidad!=='') parts.push('cant '+f.cantidad);
+        if(f.extra && typeof f.extra==='object') for(const k in f.extra){ if(k!=='detalle') parts.push(k+': '+f.extra[k]); }
+    }
+    return parts.join(' · ');
 }
 
 async function iaAnalizar(){
@@ -341,32 +364,140 @@ function renderNoUbic(){
 }
 function toggleAllN(v){ document.querySelectorAll('.incn').forEach(c=>c.checked=v); }
 
+// ── IA: render de secciones con tabla destino editable ────────
+function renderSecciones(){
+    const box=document.getElementById('prev-secciones');
+    if(!_secs.length){ box.innerHTML='<div class="hint">La IA no devolvió bloques de datos.</div>'; return; }
+    box.innerHTML=_secs.map((s,si)=>`<div id="sec-${si}"></div>`).join('');
+    _secs.forEach((s,si)=>renderSeccion(si));
+}
+function renderSeccion(si){ const el=document.getElementById('sec-'+si); if(el) el.innerHTML=_seccionHTML(si); }
+function _setTipo(si,t){ _secs[si].tipo=t; renderSeccion(si); }
+function _toggleSec(si,v){ _secs[si].filas.forEach(f=>f._incl=v); renderSeccion(si); }
+
+function _sInp(si,fi,field,attrs){
+    const v=_secs[si].filas[fi][field];
+    const val=(v==null?'':String(v)).replace(/"/g,'&quot;');
+    return `<input value="${val}" oninput="_secs[${si}].filas[${fi}].${field}=this.value" ${attrs||''} `+
+           `style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;">`;
+}
+function _seccionHTML(si){
+    const s=_secs[si];
+    const opts=IA_TIPOS.map(([t,l])=>`<option value="${t}" ${t===s.tipo?'selected':''}>${esc(l)}</option>`).join('');
+    let head=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">`+
+        `<span style="font-weight:700;color:#111827;">Bloque ${si+1}${s.titulo?(' · '+esc(s.titulo)):''}</span>`+
+        `<label style="font-size:13px;color:#374151;">Tabla destino: `+
+        `<select onchange="_setTipo(${si},this.value)" style="border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:13px;">${opts}</select></label>`;
+    if(s.tipo==='otras'){
+        const tv=(s.titulo||'').replace(/"/g,'&quot;');
+        head+=` <input value="${tv}" placeholder="Título (encabezará el PDF)" oninput="_secs[${si}].titulo=this.value" `+
+              `style="width:240px;border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:13px;">`;
+    }
+    head+=` <label style="margin-left:auto;font-size:12px;color:#6b7280;"><input type="checkbox" checked onchange="_toggleSec(${si},this.checked)"> incluir todas</label></div>`;
+    return `<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:12px;background:#fafafa;">${head}${_seccionTabla(si)}</div>`;
+}
+function _seccionTabla(si){
+    const s=_secs[si], rows=s.filas;
+    const chk=fi=>`<td style="text-align:center;width:30px;"><input type="checkbox" ${rows[fi]._incl!==false?'checked':''} onchange="_secs[${si}].filas[${fi}]._incl=this.checked"></td>`;
+    const NUM='type="number" step="0.01" style="width:100px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"';
+    let head, body, pre='';
+    if(s.tipo==='productos'){
+        head=`<th></th><th>Producto</th><th>Categoría</th><th style="text-align:right;">Cant.</th><th style="text-align:right;">Importe</th><th>Estado</th>`;
+        body=rows.map((r,fi)=>`<tr>${chk(fi)}<td>${_sInp(si,fi,'nombre')}</td><td>${_sInp(si,fi,'categoria')}</td>`+
+            `<td style="text-align:right;">${_sInp(si,fi,'cantidad','type="number" step="0.001" style="width:80px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>`+
+            `<td style="text-align:right;">${_sInp(si,fi,'importe',NUM)}</td>`+
+            `<td>${r.existe?'<span class="badge ok">Existe</span>':'<span class="badge new">Nuevo</span>'}</td></tr>`).join('');
+    } else if(s.tipo==='dias'){
+        pre=_refControl(si);
+        head=`<th></th><th>Día / Fecha</th><th>Día sem.</th><th style="text-align:right;">Recibos</th><th style="text-align:right;">Importe</th><th style="text-align:right;">Ticket prom.</th>`;
+        body=rows.map((r,fi)=>{ const dayVal=(r.fecha!=null&&r.fecha!=='')?'fecha':'dia';
+            return `<tr>${chk(fi)}<td>${_sInp(si,fi,dayVal,'style="width:100px;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>`+
+            `<td>${esc(r.dia_semana||'—')}</td>`+
+            `<td style="text-align:right;">${_sInp(si,fi,'recibos','type="number" step="1" style="width:80px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>`+
+            `<td style="text-align:right;">${_sInp(si,fi,'importe',NUM)}</td>`+
+            `<td style="text-align:right;">${r.ticket_prom!=null?Number(r.ticket_prom).toFixed(2):'—'}</td></tr>`; }).join('');
+    } else if(s.tipo==='insumos'){
+        head=`<th></th><th>Insumo</th><th>Unidad</th><th style="text-align:right;">Costo unitario</th>`;
+        body=rows.map((r,fi)=>`<tr>${chk(fi)}<td>${_sInp(si,fi,'nombre')}</td>`+
+            `<td>${_sInp(si,fi,'unidad','style="width:80px;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>`+
+            `<td style="text-align:right;">${_sInp(si,fi,'costo_unitario',NUM)}</td></tr>`).join('');
+    } else if(s.tipo==='compras'){
+        head=`<th></th><th>Insumo</th><th>Unidad</th><th style="text-align:right;">Cant.</th><th style="text-align:right;">Precio unit.</th><th>Fecha</th>`;
+        body=rows.map((r,fi)=>`<tr>${chk(fi)}<td>${_sInp(si,fi,'nombre')}</td>`+
+            `<td>${_sInp(si,fi,'unidad','style="width:70px;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>`+
+            `<td style="text-align:right;">${_sInp(si,fi,'cantidad','type="number" step="0.001" style="width:80px;text-align:right;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>`+
+            `<td style="text-align:right;">${_sInp(si,fi,'costo_unitario',NUM)}</td>`+
+            `<td>${_sInp(si,fi,'fecha','type="date" style="border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td></tr>`).join('');
+    } else { // otras
+        head=`<th></th><th>Concepto</th><th>Detalle</th>`;
+        body=rows.map((r,fi)=>`<tr>${chk(fi)}<td>${_sInp(si,fi,'nombre')}</td><td>${_sInp(si,fi,'_detalle')}</td></tr>`).join('');
+    }
+    return pre+`<div class="tbl-wrap" style="max-height:340px;"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function _refControl(si){
+    const s=_secs[si];
+    const nums=s.filas.filter(r=>r.dia!=null && (r.fecha==null||r.fecha==='')).map(r=>parseInt(r.dia)).filter(n=>!isNaN(n));
+    if(!nums.length) return '';   // los días ya traen fecha completa
+    if(s._refDia==null) s._refDia=Math.min(...nums);
+    if(s._refFecha==null) s._refFecha=document.getElementById('p-desde').value||'';
+    return `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:13px;color:#1e40af;">`+
+        `📅 El día <input type="number" min="1" value="${s._refDia}" oninput="_secs[${si}]._refDia=parseInt(this.value)||1" style="width:64px;text-align:center;border:1px solid #93c5fd;border-radius:6px;padding:3px 5px;">`+
+        ` corresponde a la fecha <input type="date" value="${s._refFecha||''}" oninput="_secs[${si}]._refFecha=this.value" style="border:1px solid #93c5fd;border-radius:6px;padding:3px 5px;">`+
+        ` <span class="hint">— se calcula la fecha real de cada día (ej: día 1 = 01/05 → el 40 será 09/06).</span></div>`;
+}
+
 async function confirmarIA(){
     const msg=document.getElementById('msg-conf');
-    const val=(cls,i)=>{ const el=document.querySelector(`.${cls}[data-i="${i}"]`); return el?el.value:''; };
     const desde=document.getElementById('p-desde').value||null, hasta=document.getElementById('p-hasta').value||null;
-    const pincl=[...document.querySelectorAll('.inc:checked')].map(c=>parseInt(c.dataset.i));
-    const items=pincl.map(i=>{ const r=_filas[i]; return { nombre:(val('f-nom',i)||r.nombre).trim(),
-        categoria:((val('f-cat',i)||'').trim())||null, cantidad:parseFloat(val('f-cant',i))||0,
-        importe:parseFloat(val('f-imp',i))||0, iva_pct:r.iva_pct, precio:parseFloat(val('f-precio',i))||0, crear:true }; });
-    const _dp=_diasPayload(); const dincl=_dp.incl; const dias=_dp.dias;
-    if(_dp.faltaRef){ msg.className='msg err'; msg.textContent='Indicá la fecha de referencia para los días (ej: día 1 = 01/05/2026).'; return; }
-    const nincl=[...document.querySelectorAll('.incn:checked')].map(c=>parseInt(c.dataset.i));
-    const exced=nincl.map(i=>{ const x=(_ia.no_ubicado||[])[i]; return [String(x.concepto||''), String(x.detalle||'')]; });
-    _filas.forEach((r,i)=>{ if(!pincl.includes(i)) exced.push(['Producto descartado', `${r.nombre} · ${r.cantidad} u · ${r.importe}`]); });
-    _dias.forEach((r,i)=>{ if(!dincl.includes(i)) exced.push(['Día descartado', `${r.dia!=null?('día '+r.dia):(r.fecha||'')} · ${r.importe}`]); });
-    if(!items.length && !dias.length && !exced.length){ msg.className='msg err'; msg.textContent='No hay nada para confirmar.'; return; }
+    const G={productos:[],dias:[],insumos:[],compras:[]}; const otras=[]; let faltaRef=false;
+    _secs.forEach((s,si)=>{
+        const incl=s.filas.filter(f=>f._incl!==false);
+        if(!incl.length) return;
+        if(s.tipo==='productos'){
+            incl.forEach(f=>{ const cant=parseFloat(f.cantidad)||0, imp=parseFloat(f.importe)||0;
+                G.productos.push({ nombre:String(f.nombre||'').trim(), categoria:(String(f.categoria||'').trim()||null),
+                    cantidad:cant, importe:imp, iva_pct:(f.iva_pct!=null?f.iva_pct:null),
+                    precio:(cant? +((imp/cant).toFixed(2)) : imp), crear:true }); });
+        } else if(s.tipo==='dias'){
+            const refFecha=s._refFecha||null, refDia=parseInt(s._refDia)||1;
+            incl.forEach(f=>{ let fecha=null;
+                const fv=(f.fecha!=null?String(f.fecha):'').trim();
+                const dv=(f.dia!=null?String(f.dia):'').trim();
+                if(fv){ fecha=fv; }
+                else if(dv){
+                    if(/^\d{4}-\d{2}-\d{2}$/.test(dv)){ fecha=dv; }          // editaron con fecha completa
+                    else { const dn=parseInt(dv); if(!isNaN(dn)){ if(refFecha) fecha=_fechaDesdeRef(refFecha,refDia,dn); else faltaRef=true; } }
+                }
+                G.dias.push({ dia:null, fecha, dia_semana:f.dia_semana||null, recibos:parseInt(f.recibos)||null,
+                    importe:parseFloat(f.importe)||0, ticket_prom:(f.ticket_prom!=null?f.ticket_prom:null) }); });
+        } else if(s.tipo==='insumos'){
+            incl.forEach(f=>G.insumos.push({ nombre:String(f.nombre||'').trim(), unidad:(String(f.unidad||'').trim()||null),
+                costo_unitario:parseFloat(f.costo_unitario)||0 }));
+        } else if(s.tipo==='compras'){
+            incl.forEach(f=>G.compras.push({ nombre:String(f.nombre||'').trim(), unidad:(String(f.unidad||'').trim()||null),
+                cantidad:parseFloat(f.cantidad)||0, costo_unitario:parseFloat(f.costo_unitario)||0,
+                importe:parseFloat(f.importe)||0, fecha:f.fecha||null }));
+        } else {
+            otras.push({ titulo:((s.titulo||'').trim()||('Otras — bloque '+(si+1))),
+                filas: incl.map(f=>[String(f.nombre||''), String(f._detalle!=null?f._detalle:_otraDetalle(f))]) });
+        }
+    });
+    if(faltaRef){ msg.className='msg err'; msg.textContent='Indicá la fecha de referencia en el bloque de días (ej: día 1 = 01/05/2026).'; return; }
+    if(!(G.productos.length||G.dias.length||G.insumos.length||G.compras.length||otras.length)){
+        msg.className='msg err'; msg.textContent='No hay nada para confirmar.'; return; }
     const btn=document.getElementById('btn-conf'); btn.disabled=true; msg.className='msg'; msg.textContent='Cargando…';
     try{
         let cid=_carpetaSel();
         if(!cid){ const cr=await api.post('/importar/carpetas',{ nombre:'Análisis IA — '+(_archivo||'archivo'), periodo_desde:desde, periodo_hasta:hasta }); cid=cr.id; }
         cid=parseInt(cid);
         const base={ archivo:_archivo, carpeta_id:cid, periodo_desde:desde, periodo_hasta:hasta };
-        if(items.length) await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — productos', tipo:'productos', items});
-        if(dias.length)  await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — días', tipo:'dias', dias});
-        if(exced.length) await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — excedentes', tipo:'generico', generico:{columnas:['Concepto','Detalle'], filas:exced}});
+        if(G.productos.length) await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — productos', tipo:'productos', items:G.productos});
+        if(G.dias.length)      await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — días', tipo:'dias', dias:G.dias});
+        if(G.insumos.length)   await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — insumos', tipo:'insumos', insumos:G.insumos});
+        if(G.compras.length)   await api.post('/importar/confirmar', {...base, nombre:(_archivo||'IA')+' — compras', tipo:'compras', compras:G.compras});
+        for(const o of otras){ await api.post('/importar/confirmar', {...base, nombre:o.titulo, tipo:'generico', generico:{columnas:['Concepto','Detalle'], filas:o.filas}}); }
         let pdf=null; try{ const pr=await api.post('/importar/carpetas/'+cid+'/pdf',{}); pdf=pr.pdf_url; }catch(e){}
-        msg.className='msg ok'; msg.textContent=`Listo: ${items.length} productos · ${dias.length} días · ${exced.length} al excedente.`+(pdf?' PDF generado.':'');
+        msg.className='msg ok'; msg.textContent=`Listo: ${G.productos.length} prod · ${G.dias.length} días · ${G.insumos.length} insumos · ${G.compras.length} compras · ${otras.length} a «Otras».`+(pdf?' PDF generado.':'');
         document.getElementById('preview').style.display='none';
         document.getElementById('arch').value=''; _iaMode=false;
         await cargarHistorial(); await cargarCarpetas();
