@@ -105,6 +105,16 @@ tr.nuevo { background:#f0fdf4; }
         </div>
 
         <div id="prev-dias" style="display:none;">
+            <div id="dias-ref" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+                <div style="font-weight:600;font-size:13px;color:#1e40af;margin-bottom:6px;">📅 Vinculá un día con su fecha real</div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span>El día</span>
+                    <input id="ref-dia" type="number" min="1" style="width:70px;text-align:center;border:1px solid #93c5fd;border-radius:6px;padding:4px 6px;">
+                    <span>corresponde a la fecha</span>
+                    <input id="ref-fecha" type="date" style="border:1px solid #93c5fd;border-radius:6px;padding:4px 6px;">
+                </div>
+                <div class="hint" style="margin-top:6px;">Con eso se calcula la fecha de cada día (ej: día 1 = 01/05/2026 → el 10 será 10/05, el 40 será 09/06). Las ventas quedan ubicadas en su fecha real.</div>
+            </div>
             <div class="tbl-wrap">
                 <table>
                     <thead><tr>
@@ -339,11 +349,8 @@ async function confirmarIA(){
     const items=pincl.map(i=>{ const r=_filas[i]; return { nombre:(val('f-nom',i)||r.nombre).trim(),
         categoria:((val('f-cat',i)||'').trim())||null, cantidad:parseFloat(val('f-cant',i))||0,
         importe:parseFloat(val('f-imp',i))||0, iva_pct:r.iva_pct, precio:parseFloat(val('f-precio',i))||0, crear:true }; });
-    const dincl=[...document.querySelectorAll('.incd:checked')].map(c=>parseInt(c.dataset.i));
-    const dias=dincl.map(i=>{ const r=_dias[i]; const dv=(val('d-dia',i)||'').trim(); const num=parseInt(dv);
-        return { dia:(!isNaN(num)&&String(num)===dv)?num:(r.dia!=null?r.dia:null),
-                 fecha:(dv && (isNaN(num)||String(num)!==dv))?dv:(r.fecha||null), dia_semana:r.dia_semana,
-                 recibos:parseInt(val('d-rec',i))||null, importe:parseFloat(val('d-imp',i))||0, ticket_prom:r.ticket_prom }; });
+    const _dp=_diasPayload(); const dincl=_dp.incl; const dias=_dp.dias;
+    if(_dp.faltaRef){ msg.className='msg err'; msg.textContent='Indicá la fecha de referencia para los días (ej: día 1 = 01/05/2026).'; return; }
     const nincl=[...document.querySelectorAll('.incn:checked')].map(c=>parseInt(c.dataset.i));
     const exced=nincl.map(i=>{ const x=(_ia.no_ubicado||[])[i]; return [String(x.concepto||''), String(x.detalle||'')]; });
     _filas.forEach((r,i)=>{ if(!pincl.includes(i)) exced.push(['Producto descartado', `${r.nombre} · ${r.cantidad} u · ${r.importe}`]); });
@@ -386,9 +393,31 @@ function renderFilas(){
 }
 function toggleAll(v){ document.querySelectorAll('.inc').forEach(c=>c.checked=v); }
 
+function _fechaDesdeRef(refFecha, refDia, dia){
+    if(!refFecha || dia==null) return null;
+    const p=refFecha.split('-').map(Number);
+    if(p.length!==3) return null;
+    const ms=Date.UTC(p[0],p[1]-1,p[2]) + (dia-refDia)*86400000;
+    const d=new Date(ms);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+}
 function renderDias(){
     const tb=document.getElementById('dias-body');
     if(!_dias.length){ tb.innerHTML='<tr><td colspan="6" class="empty">No se detectaron días.</td></tr>'; return; }
+    // Control de referencia: solo si los días vienen como NÚMERO (sin fecha completa)
+    const conNumero=_dias.filter(r=>r.dia!=null).map(r=>r.dia);
+    const refBox=document.getElementById('dias-ref');
+    if(conNumero.length){
+        refBox.style.display='';
+        const refDiaEl=document.getElementById('ref-dia'), refFechaEl=document.getElementById('ref-fecha');
+        if(!refDiaEl.value) refDiaEl.value=Math.min(...conNumero);   // típicamente 1
+        if(!refFechaEl.value){
+            const pd=document.getElementById('p-desde').value;       // sugerir desde el período
+            if(pd) refFechaEl.value=pd;
+        }
+    } else {
+        refBox.style.display='none';   // ya traen fecha completa, no hace falta
+    }
     tb.innerHTML=_dias.map((r,i)=>`<tr>
         <td style="text-align:center;"><input type="checkbox" class="incd" data-i="${i}" checked></td>
         <td>${_ipt('d-dia',i,(r.dia!=null?r.dia:(r.fecha||'')),'style="width:90px;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;"')}</td>
@@ -399,6 +428,29 @@ function renderDias(){
     </tr>`).join('');
 }
 function toggleAllD(v){ document.querySelectorAll('.incd').forEach(c=>c.checked=v); }
+
+// Arma los días a importar, calculando la fecha real de cada día a partir del día de referencia.
+function _diasPayload(){
+    const val=(cls,i)=>{ const el=document.querySelector(`.${cls}[data-i="${i}"]`); return el?el.value:''; };
+    const refFecha=document.getElementById('ref-fecha').value||null;
+    const refDia=parseInt(document.getElementById('ref-dia').value)||1;
+    const incl=[...document.querySelectorAll('.incd:checked')].map(c=>parseInt(c.dataset.i));
+    let faltaRef=false;
+    const dias=incl.map(i=>{
+        const r=_dias[i]; const dv=(val('d-dia',i)||'').trim(); const num=parseInt(dv);
+        const esNum=(!isNaN(num) && String(num)===dv);
+        let dia=null, fecha=null;
+        if(esNum){
+            dia=num;
+            if(refFecha){ fecha=_fechaDesdeRef(refFecha, refDia, num); dia=null; }
+            else faltaRef=true;
+        } else if(dv){ fecha=dv; }
+        else if(r.fecha){ fecha=r.fecha; }
+        return { dia, fecha, dia_semana:r.dia_semana, recibos:parseInt(val('d-rec',i))||null,
+                 importe:parseFloat(val('d-imp',i))||0, ticket_prom:r.ticket_prom };
+    });
+    return { dias, faltaRef, incl };
+}
 
 async function confirmar(){
     if(_iaMode) return confirmarIA();
@@ -411,13 +463,9 @@ async function confirmar(){
         periodo_hasta:document.getElementById('p-hasta').value||null };
     let body;
     if(_tipo==='dias'){
-        const incl=[...document.querySelectorAll('.incd:checked')].map(c=>parseInt(c.dataset.i));
+        const {dias, faltaRef, incl}=_diasPayload();
         if(!incl.length){ msg.className='msg err'; msg.textContent='Marcá al menos un día.'; return; }
-        const dias=incl.map(i=>{ const r=_dias[i]; const dv=(val('d-dia',i)||'').trim(); const num=parseInt(dv);
-            return { dia:(!isNaN(num)&&String(num)===dv)?num:(r.dia!=null?r.dia:null),
-                     fecha:(dv && (isNaN(num)||String(num)!==dv))?dv:(r.fecha||null),
-                     dia_semana:r.dia_semana, recibos:parseInt(val('d-rec',i))||null,
-                     importe:parseFloat(val('d-imp',i))||0, ticket_prom:r.ticket_prom }; });
+        if(faltaRef){ msg.className='msg err'; msg.textContent='Indicá la fecha de referencia (ej: día 1 = 01/05/2026).'; return; }
         body={...base, dias};
     } else if(_tipo==='generico'){
         if(!(_gen.filas && _gen.filas.length)){ msg.className='msg err'; msg.textContent='No hay datos.'; return; }
