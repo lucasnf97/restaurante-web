@@ -69,6 +69,16 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .legend-item  { display:flex; align-items:center; gap:6px; font-size:12px; color:#555; font-weight:500; }
 .legend-dot   { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
 
+/* Calendario anual (mapa de calor mensual) — 3 columnas × 4 filas */
+.cal-anual { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:14px; }
+.cal-mes   { border-radius:10px; padding:14px 10px; text-align:center; min-height:62px;
+             display:flex; flex-direction:column; justify-content:center; gap:4px; }
+.cal-mes-nombre { font-size:13px; font-weight:700; }
+.cal-mes-monto  { font-size:13px; font-weight:600; }
+.cal-legend { display:flex; align-items:center; gap:6px; justify-content:flex-end;
+              margin-top:12px; font-size:11px; color:#94a3b8; }
+.cal-leg    { width:18px; height:14px; border-radius:3px; display:inline-block; }
+
 /* Chart canvas */
 .gchart    { display:flex; height:340px; }
 .g-yaxis   { width:58px; flex-shrink:0; position:relative; }
@@ -272,6 +282,32 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                 </div>
 
             </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- ═══════ CALENDARIO ANUAL (mapa de calor de facturación mensual) ═══════ -->
+    <div class="chart-col">
+    <div class="chart-card">
+        <div class="chart-top">
+            <span class="section-title" style="font-size:15px;">🗓️ Calendario anual de facturación</span>
+            <span style="font-size:12px;color:#64748b;">Temporada alta — meses con más facturación</span>
+        </div>
+        <div class="chart-nav">
+            <button id="btn-calprev" onclick="navCalendario(-1)" title="Año anterior">‹</button>
+            <span class="chart-nav-period" id="cal-anio-lbl">—</span>
+            <button id="btn-calnext" onclick="navCalendario(1)" title="Año siguiente">›</button>
+        </div>
+        <div class="cal-anual" id="cal-grid">
+            <p style="grid-column:1/-1;color:#aaa;padding:16px;text-align:center;">Cargando…</p>
+        </div>
+        <div class="cal-legend">
+            <span>Menos</span>
+            <span class="cal-leg" style="background:#dcfce7;"></span>
+            <span class="cal-leg" style="background:#86efac;"></span>
+            <span class="cal-leg" style="background:#22c55e;"></span>
+            <span class="cal-leg" style="background:#15803d;"></span>
+            <span>Más</span>
         </div>
     </div>
     </div>
@@ -515,9 +551,54 @@ function anRenderSemanal(data, wrap) {
 }
 
 // ── Init ────────────────────────────────────────────────────────
+// ── Calendario anual (mapa de calor de facturación mensual) ─────
+const _MESES_CAL = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                    "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+// 4 tonos de verde: 0 = más facturación (oscuro) → 3 = menos (claro)
+const _CAL_TONOS = [
+    { bg:"#15803d", fg:"#ffffff" },
+    { bg:"#22c55e", fg:"#ffffff" },
+    { bg:"#86efac", fg:"#14532d" },
+    { bg:"#dcfce7", fg:"#166534" },
+];
+const _CAL_GRIS = { bg:"#f1f5f9", fg:"#94a3b8" };
+let _calAnio = anioActual;
+
+function navCalendario(delta) {
+    _calAnio += delta;
+    cargarCalendarioAnual();
+}
+
+async function cargarCalendarioAnual() {
+    document.getElementById('cal-anio-lbl').textContent = _calAnio;
+    const grid = document.getElementById('cal-grid');
+    grid.innerHTML = '<p style="grid-column:1/-1;color:#aaa;padding:16px;text-align:center;">Cargando…</p>';
+    try {
+        const d = await api.get(`/reportes/facturacion-anual?year=${_calAnio}`);
+        const meses = d.meses || [];
+        // Ranking: índices ordenados por facturación desc → tono por terna (0-2,3-5,6-9,9-11)
+        const orden = meses.map((m, i) => i)
+            .sort((a, b) => (meses[b].facturacion || 0) - (meses[a].facturacion || 0));
+        const tono = new Array(12).fill(3);
+        orden.forEach((idx, rank) => { tono[idx] = Math.min(3, Math.floor(rank / 3)); });
+        grid.innerHTML = meses.map((m, i) => {
+            const sinDatos = !(m.facturacion > 0);
+            const c = sinDatos ? _CAL_GRIS : _CAL_TONOS[tono[i]];
+            return `<div class="cal-mes" style="background:${c.bg};color:${c.fg};"
+                         title="${_MESES_CAL[i]} ${_calAnio}: ${sinDatos ? 'sin datos' : fmt(m.facturacion)}">
+                <div class="cal-mes-nombre">${_MESES_CAL[i]}</div>
+                <div class="cal-mes-monto">${sinDatos ? '—' : fmt(m.facturacion)}</div>
+            </div>`;
+        }).join("");
+    } catch (e) {
+        grid.innerHTML = `<p style="grid-column:1/-1;color:#dc2626;padding:16px;">Error: ${e.message || ''}</p>`;
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     requireAuth();
     cargarGrafico();
+    cargarCalendarioAnual();
 
     // Defaults: diario = últimos 30 días; semanal = año anterior y actual
     const hoy    = new Date();
