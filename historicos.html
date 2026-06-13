@@ -41,6 +41,9 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .chart-col {
     width:100%;
 }
+/* Fila de 2 tarjetas lado a lado (mitad y mitad); apilan en pantallas angostas */
+.chart-row { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+.chart-row > .chart-col { flex:1 1 360px; width:auto; min-width:0; }
 
 .chart-card {
     background:white; border-radius:12px; padding:20px 24px 16px;
@@ -188,7 +191,9 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         <a href="estadisticas.html" class="btn-back">← Volver a Estadísticas</a>
     </div>
 
-    <!-- ═══════ GRÁFICO GASTOS vs VENTAS ═══════ -->
+    <!-- ═══ GASTOS vs VENTAS  +  CALENDARIO ANUAL (lado a lado, mitad y mitad) ═══ -->
+    <div class="chart-row">
+
     <div class="chart-col">
     <div class="chart-card">
         <div class="chart-top">
@@ -215,6 +220,32 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
     </div>
+
+    <div class="chart-col">
+    <div class="chart-card">
+        <div class="chart-top">
+            <span class="section-title" style="font-size:15px;">🗓️ Calendario anual de facturación</span>
+            <span style="font-size:12px;color:#64748b;">Temporada alta</span>
+        </div>
+        <div class="chart-nav">
+            <button id="btn-calprev" onclick="navCalendario(-1)" title="Año anterior">‹</button>
+            <span class="chart-nav-period" id="cal-anio-lbl">—</span>
+            <button id="btn-calnext" onclick="navCalendario(1)" title="Año siguiente">›</button>
+        </div>
+        <div class="cal-anual" id="cal-grid">
+            <p style="grid-column:1/-1;color:#aaa;padding:16px;text-align:center;">Cargando…</p>
+        </div>
+        <div class="cal-legend">
+            <span>Menos</span>
+            <span class="cal-leg" style="background:#dcfce7;"></span>
+            <span class="cal-leg" style="background:#86efac;"></span>
+            <span class="cal-leg" style="background:#22c55e;"></span>
+            <span class="cal-leg" style="background:#15803d;"></span>
+            <span>Más</span>
+        </div>
+    </div>
+    </div>
+
     </div>
 
     <!-- ═══════ ANÁLISIS DE VENTAS ═══════ -->
@@ -282,32 +313,6 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                 </div>
 
             </div>
-        </div>
-    </div>
-    </div>
-
-    <!-- ═══════ CALENDARIO ANUAL (mapa de calor de facturación mensual) ═══════ -->
-    <div class="chart-col">
-    <div class="chart-card">
-        <div class="chart-top">
-            <span class="section-title" style="font-size:15px;">🗓️ Calendario anual de facturación</span>
-            <span style="font-size:12px;color:#64748b;">Temporada alta — meses con más facturación</span>
-        </div>
-        <div class="chart-nav">
-            <button id="btn-calprev" onclick="navCalendario(-1)" title="Año anterior">‹</button>
-            <span class="chart-nav-period" id="cal-anio-lbl">—</span>
-            <button id="btn-calnext" onclick="navCalendario(1)" title="Año siguiente">›</button>
-        </div>
-        <div class="cal-anual" id="cal-grid">
-            <p style="grid-column:1/-1;color:#aaa;padding:16px;text-align:center;">Cargando…</p>
-        </div>
-        <div class="cal-legend">
-            <span>Menos</span>
-            <span class="cal-leg" style="background:#dcfce7;"></span>
-            <span class="cal-leg" style="background:#86efac;"></span>
-            <span class="cal-leg" style="background:#22c55e;"></span>
-            <span class="cal-leg" style="background:#15803d;"></span>
-            <span>Más</span>
         </div>
     </div>
     </div>
