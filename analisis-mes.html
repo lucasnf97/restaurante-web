@@ -1023,18 +1023,17 @@ async function cargarDetalle(tipo) {
                 }
                 const filas = its.map(it => {
                     const esRef = it.tipo === 'refund';
-                    const etq = esRef
-                        ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 6px;font-weight:600;">Refound</span>'
-                        : it.tipo === 'ticket_personal'
-                            ? `🎟️ ${it.descuento_pct}%${it.usuario ? (' · ' + _escH(it.usuario)) : ''}`
-                            : `${it.descuento_pct}%`;
-                    const monto = esRef ? `− ${fmt(it.devuelto)}` : fmt(it.pagado);
+                    const id = it.pedido_id != null ? ('#' + it.pedido_id) : ('R' + (it.refund_ticket_id || ''));
+                    const desc = esRef
+                        ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 6px;font-weight:600;">Refound</span> ' + fmt(it.devuelto)
+                        : `${it.descuento_pct}% · ${fmt(it.descuento_monto)}${it.tipo === 'ticket_personal' ? ' 🎟️' : ''}`;
+                    const pagado = esRef ? `− ${fmt(it.devuelto)}` : fmt(it.pagado);
                     const ver = esRef
                         ? `<button class="btn-ver-mesa" onclick="verRefund(${it.refund_ticket_id})">Ver</button>`
                         : (it.pedido_id ? `<button class="btn-ver-mesa" onclick="verResumenMesa(${it.pedido_id})">Ver</button>` : '');
-                    return `<tr><td>${it.mesa != null ? it.mesa : '—'}</td>
-                        <td class="num">${fmt(it.total)}</td><td>${etq}</td>
-                        <td class="num">${monto}</td><td class="num">${ver}</td></tr>`;
+                    return `<tr><td>${id}</td><td>${_escH(it.usuario || '—')}</td>
+                        <td class="num">${fmt(it.total)}</td><td>${desc}</td>
+                        <td class="num">${pagado}</td><td class="num">${ver}</td></tr>`;
                 }).join('');
                 body.innerHTML = `
                     <div class="bal-row" style="margin-bottom:10px;">
@@ -1042,9 +1041,9 @@ async function cargarDetalle(tipo) {
                         <span class="bal-val rojo">${fmt(dd)}</span></div>
                     ${imp > 0 ? `<p class="bill-sub" style="margin-bottom:8px;">Incluye ${fmt(imp)} de descuentos en ventas importadas (sin mesa asociada).</p>` : ''}
                     <table class="det-table">
-                        <thead><tr><th>Mesa</th><th class="num">Total</th><th>% / tipo</th>
-                            <th class="num">Pagado / Devuelto</th><th></th></tr></thead>
-                        <tbody>${filas || '<tr><td colspan="5" class="det-empty">Sin mesas POS con descuento/refund este mes.</td></tr>'}</tbody>
+                        <thead><tr><th>ID</th><th>Usuario</th><th class="num">Total cuenta</th>
+                            <th>Descuento</th><th class="num">Pagado</th><th></th></tr></thead>
+                        <tbody>${filas || '<tr><td colspan="6" class="det-empty">Sin descuentos/refounds POS este mes.</td></tr>'}</tbody>
                     </table>`;
                 break;
             }
