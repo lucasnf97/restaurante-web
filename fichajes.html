@@ -35,6 +35,8 @@
         .globo-circle { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: white; }
         .globo-name { font-size: 11px; color: #64748b; text-align: center; max-width: 70px; }
         .globo-time { font-size: 10px; color: #94a3b8; }
+        .globo-forzar { margin-top: 4px; background: #fff; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; font-size: 10px; font-weight: 700; padding: 2px 8px; cursor: pointer; }
+        .globo-forzar:hover { background: #fee2e2; }
         .sin-activos { color: #94a3b8; font-size: 13px; }
 
         /* ── Filtros ── */
@@ -257,6 +259,31 @@
 </div>
 
 <!-- Modal revisión -->
+<!-- ── Modal: forzar fin de turno ── -->
+<div class="modal-overlay" id="modal-forzar">
+    <div class="modal-rev" style="max-width:420px;">
+        <div class="modal-rev-head">
+            <h3>⏹ Forzar fin de turno</h3>
+            <button class="modal-close" onclick="cerrarForzar()">✕</button>
+        </div>
+        <div class="modal-rev-body">
+            <p style="font-size:13px;color:#374151;line-height:1.5;margin-bottom:12px;">
+                Vas a cerrar a la fuerza el turno de <strong id="forzar-nombre"></strong>.
+                Usalo si dejó el turno abierto o se colgó el ejecutable.
+            </p>
+            <label style="font-size:12px;font-weight:700;color:#92400e;display:block;margin-bottom:4px;">Nota (opcional)</label>
+            <textarea id="forzar-nota" rows="3" placeholder="Ej: cierre manual, el equipo se colgó…"
+                      style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px 10px;font-size:13px;resize:vertical;"></textarea>
+            <div id="forzar-msg" style="color:#dc2626;font-size:12px;margin-top:8px;"></div>
+        </div>
+        <div class="modal-rev-foot">
+            <button class="btn-rev-cancel" onclick="cerrarForzar()">Cancelar</button>
+            <button class="btn-rev-cancel" id="forzar-confirm" onclick="confirmarForzar()"
+                    style="background:#dc2626;color:#fff;border-color:#dc2626;">Forzar cierre</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="modal-revision">
     <div class="modal-rev">
         <div class="modal-rev-head">
@@ -421,16 +448,54 @@ async function cargarActivos() {
             wrap.innerHTML = '<span class="sin-activos">Sin empleados en turno ahora.</span>';
             return;
         }
+        const puedeForzar = hasEdicionFichajes();
         wrap.innerHTML = activos.map((t, i) => {
             const iniciales = t.iniciales || t.username.substring(0, 3).toUpperCase();
             const color = COLORES[i % COLORES.length];
+            const btnForzar = puedeForzar
+                ? `<button class="globo-forzar" title="Forzar fin de turno"
+                       onclick="forzarCierre(${t.id}, '${t.username.replace(/'/g, "\\'")}')">⏹ Forzar fin</button>`
+                : "";
             return `<div class="globo">
                 <div class="globo-circle" style="background:${color};">${iniciales}</div>
                 <div class="globo-name">${t.username}</div>
                 <div class="globo-time">desde ${formatHoraTs(t.ts_entrada)}</div>
+                ${btnForzar}
             </div>`;
         }).join("");
     } catch(e) { console.error(e); }
+}
+
+// ── Forzar fin de turno (gerente / edicion_fichajes) ──────────
+let _forzarId = null;
+function forzarCierre(id, username) {
+    _forzarId = id;
+    document.getElementById("forzar-nombre").textContent = username || "";
+    document.getElementById("forzar-nota").value = "";
+    document.getElementById("forzar-msg").textContent = "";
+    document.getElementById("modal-forzar").classList.add("open");
+}
+function cerrarForzar() {
+    document.getElementById("modal-forzar").classList.remove("open");
+    _forzarId = null;
+}
+async function confirmarForzar() {
+    if (_forzarId == null) return;
+    const nota = document.getElementById("forzar-nota").value.trim() || null;
+    const btn = document.getElementById("forzar-confirm");
+    btn.disabled = true;
+    try {
+        await apiFetch(`/turnos/${_forzarId}/forzar-salida`, {
+            method: "POST",
+            body: JSON.stringify({ notas: nota }),
+        });
+        cerrarForzar();
+        await Promise.all([cargarActivos(), cargarHistorial()]);
+    } catch(e) {
+        document.getElementById("forzar-msg").textContent = "Error: " + (e.message || e);
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 async function cargarUsuariosFiltro() {
