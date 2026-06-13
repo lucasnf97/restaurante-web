@@ -1569,29 +1569,37 @@ async function cargarDetalle(tipo) {
                 if (!its.length && !(imp > 0) && !(dd > 0)) {
                     body.innerHTML = '<div class="det-empty">Sin descuentos, ticket personal ni refunds este mes.</div>'; break;
                 }
+                const C = 'text-align:center;';
                 const filas = its.map(it => {
                     const esRef = it.tipo === 'refund';
                     const id = it.pedido_id != null ? ('#' + it.pedido_id) : ('R' + (it.refund_ticket_id || ''));
                     const desc = esRef
-                        ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 6px;font-weight:600;">Refound</span> ' + fmt(it.devuelto)
-                        : `${it.descuento_pct}% · ${fmt(it.descuento_monto)}${it.tipo === 'ticket_personal' ? ' 🎟️' : ''}`;
+                        ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 6px;font-weight:600;">Refound</span>'
+                        : `${it.descuento_pct}%`;
                     const pagado = esRef ? `− ${fmt(it.devuelto)}` : fmt(it.pagado);
                     const ver = esRef
                         ? `<button class="btn-ver-mesa" onclick="verRefund(${it.refund_ticket_id})">Ver</button>`
                         : (it.pedido_id ? `<button class="btn-ver-mesa" onclick="verResumenMesa(${it.pedido_id})">Ver</button>` : '');
-                    return `<tr><td>${id}</td><td>${_escH(it.usuario || '—')}</td>
-                        <td class="num">${fmt(it.total)}</td><td>${desc}</td>
-                        <td class="num">${pagado}</td><td class="num">${ver}</td></tr>`;
+                    return `<tr>
+                        <td style="${C}">${id}</td>
+                        <td style="${C}">${_escH(it.usuario || '—')}</td>
+                        <td style="${C}">${fmt(it.total)}</td>
+                        <td style="${C}">${desc}</td>
+                        <td style="${C}">${pagado}</td>
+                        <td style="${C}">${_escH(it.notas || '—')}</td>
+                        <td style="${C}">${ver}</td></tr>`;
                 }).join('');
                 body.innerHTML = `
                     <div class="bal-row" style="margin-bottom:10px;">
                         <span class="bal-label">🎟️ Total descuentos / refounds</span>
                         <span class="bal-val rojo">${fmt(dd)}</span></div>
                     ${imp > 0 ? `<p class="bill-sub" style="margin-bottom:8px;">Incluye ${fmt(imp)} de descuentos en ventas importadas (sin mesa asociada).</p>` : ''}
-                    <table class="det-table">
-                        <thead><tr><th>ID</th><th>Usuario</th><th class="num">Total cuenta</th>
-                            <th>Descuento</th><th class="num">Pagado</th><th></th></tr></thead>
-                        <tbody>${filas || '<tr><td colspan="6" class="det-empty">Sin descuentos/refounds POS este mes.</td></tr>'}</tbody>
+                    <table class="det-table" style="table-layout:fixed;width:100%;">
+                        <thead><tr>
+                            <th style="${C}">ID</th><th style="${C}">Usuario</th><th style="${C}">Total cuenta</th>
+                            <th style="${C}">Descuento</th><th style="${C}">Pagado</th><th style="${C}">Notas</th><th style="${C}"></th>
+                        </tr></thead>
+                        <tbody>${filas || '<tr><td colspan="7" class="det-empty">Sin descuentos/refounds POS este mes.</td></tr>'}</tbody>
                     </table>`;
                 break;
             }
