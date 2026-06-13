@@ -69,6 +69,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .bill-card.insumos::before   { background:#dc2626; }
 .bill-card.servicios::before { background:#6366f1; }
 .bill-card.desechos::before  { background:#f59e0b; }
+.bill-card.descuentos::before{ background:#db2777; }
 .bill-card.balance::before   { background:#0ea5e9; }
 
 .bill-icon { font-size:26px; margin-bottom:10px; }
@@ -318,6 +319,8 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     align-items:center; justify-content:center; padding:20px;
 }
 .detalle-overlay.visible { display:flex; }
+.btn-ver-mesa { background:#6366f1; color:#fff; border:none; border-radius:6px; padding:3px 10px; font-size:12px; font-weight:600; cursor:pointer; }
+.btn-ver-mesa:hover { background:#4f46e5; }
 .detalle-modal {
     background:white; border-radius:14px;
     width:100%; max-width:800px; max-height:88vh;
@@ -671,7 +674,8 @@ function renderProgressBar() {
 
     const ventas  = datosMes.ventas;
     const breakEven = datosMes.costo_insumos_facturados
-                    + datosMes.costo_servicios_facturados;
+                    + datosMes.costo_servicios_facturados
+                    + (datosMes.descuentos_personal || 0);
     const ventasPrev = ventasMesAnterior ?? 0;
     const meta       = getMeta();
 
@@ -717,9 +721,9 @@ async function cargarFacturacion() {
     requireAuth();
 
     document.getElementById("billing-cards").innerHTML = `
-        ${["ventas","stock","insumos","servicios","desechos","balance"].map(c=>`
+        ${["ventas","stock","insumos","servicios","desechos","descuentos","balance"].map(c=>`
         <div class="bill-card ${c} loading-card">
-            <div class="bill-icon">${{ventas:"💰",stock:"🏗️",insumos:"📦",servicios:"🔧",desechos:"🗑️",balance:"⚖️"}[c]}</div>
+            <div class="bill-icon">${{ventas:"💰",stock:"🏗️",insumos:"📦",servicios:"🔧",desechos:"🗑️",descuentos:"🎟️",balance:"⚖️"}[c]}</div>
             <div class="bill-value" style="color:#ddd;background:#f0f0f0;border-radius:6px;width:80%;height:28px;margin-top:14px;"></div>
         </div>`).join("")}`;
     document.getElementById("prog-wrap").innerHTML = '<p class="prog-no-data">Cargando…</p>';
@@ -779,10 +783,16 @@ function renderBillingCards(d) {
             sub: desechos > 0 ? "Pérdida por revisiones de stock" : "Sin revisiones de stock este mes"
         },
         {
+            cls:"descuentos", icon:"🎟️", label:"Descuentos / refounds",
+            value: fmt(d.descuentos_personal || 0),
+            extraCls: (d.descuentos_personal || 0) > 0 ? "negativo" : "",
+            sub: (d.descuentos_personal || 0) > 0 ? "Descuentos, ticket personal y refunds (gasto)" : "Sin descuentos ni refunds este mes"
+        },
+        {
             cls:"balance", icon:"⚖️", label:`Balance mensual${sufijo}`,
             value: fmt(d.balance),
             extraCls: d.balance >= 0 ? "positivo" : "negativo",
-            sub: "Ventas − insumos − servicios − desechos"
+            sub: "Ventas − insumos − servicios − desechos − descuentos"
         },
     ];
 
@@ -803,6 +813,7 @@ const _DET_TITLES = {
     insumos:   '📦 Insumos facturados — compras del mes',
     servicios: '🔧 Servicios facturados',
     desechos:  '🗑️ Desechos / merma',
+    descuentos:'🎟️ Descuentos / refounds',
     balance:   '⚖️ Balance mensual — desglose',
 };
 
@@ -813,6 +824,52 @@ function abrirDetalle(tipo) {
 function cerrarDetalle() {
     document.getElementById('detalle-overlay').classList.remove('visible');
 }
+
+function _escH(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function verResumenMesa(pid){
+    const ov = document.getElementById('resumen-mesa-overlay');
+    const bd = document.getElementById('resumen-mesa-body');
+    document.getElementById('resumen-mesa-titulo').textContent = 'Resumen de mesa';
+    bd.innerHTML = '<div class="det-loading">Cargando…</div>';
+    ov.classList.add('visible');
+    try {
+        const d = await apiFetch(`/reportes/mesa-resumen/${pid}`);
+        bd.innerHTML = `
+            <div class="bill-sub" style="margin-bottom:8px;">Mesa ${d.mesa_numero != null ? d.mesa_numero : '—'}${d.ticket_personal ? ` · 🎟️ Ticket personal${d.ticket_personal_usuario ? (' (' + _escH(d.ticket_personal_usuario) + ')') : ''}` : ''}</div>
+            <table class="det-table">
+                <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">P. unit.</th><th class="num">Desc.%</th><th class="num">Subtotal</th></tr></thead>
+                <tbody>
+                    ${(d.items||[]).map(i=>`<tr><td>${_escH(i.nombre)}</td><td class="num">${i.cantidad}</td><td class="num">${fmt(i.precio_unit)}</td><td class="num">${i.descuento_pct||0}%</td><td class="num">${fmt(i.subtotal)}</td></tr>`).join('')}
+                    ${d.descuento_monto>0 ? `<tr><td colspan="4">Descuento</td><td class="num">− ${fmt(d.descuento_monto)}</td></tr>` : ''}
+                    <tr class="det-total"><td colspan="4">Total cobrado</td><td class="num">${fmt(d.neto)}</td></tr>
+                </tbody>
+            </table>`;
+    } catch(e){ bd.innerHTML = `<div class="det-empty">Error: ${e.message||''}</div>`; }
+}
+
+async function verRefund(tid){
+    const ov = document.getElementById('resumen-mesa-overlay');
+    const bd = document.getElementById('resumen-mesa-body');
+    document.getElementById('resumen-mesa-titulo').textContent = 'Detalle de refund';
+    bd.innerHTML = '<div class="det-loading">Cargando…</div>';
+    ov.classList.add('visible');
+    try {
+        const d = await apiFetch(`/caja/refund/ticket/${tid}`);
+        let its = []; try { its = typeof d.items === 'string' ? JSON.parse(d.items) : (d.items||[]); } catch(_){}
+        bd.innerHTML = `
+            <div class="bill-sub" style="margin-bottom:8px;">Mesa ${d.mesa_ref_numero != null ? d.mesa_ref_numero : '—'}${d.motivo ? (' · ' + _escH(d.motivo)) : ''}${d.creado_por ? (' · ' + _escH(d.creado_por)) : ''}</div>
+            <table class="det-table">
+                <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">P. unit.</th></tr></thead>
+                <tbody>
+                    ${its.map(i=>`<tr><td>${_escH(i.nombre||'')}</td><td class="num">${i.cantidad||0}</td><td class="num">${fmt(i.precio_unit||0)}</td></tr>`).join('')}
+                    <tr class="det-total"><td colspan="2">Total devuelto</td><td class="num">${fmt(d.total)}</td></tr>
+                </tbody>
+            </table>`;
+    } catch(e){ bd.innerHTML = `<div class="det-empty">Error: ${e.message||' (requiere permiso de caja)'}</div>`; }
+}
+
+function cerrarResumenMesa(){ document.getElementById('resumen-mesa-overlay').classList.remove('visible'); }
 
 async function cargarDetalle(tipo) {
     const body   = document.getElementById('detalle-body');
@@ -956,6 +1013,42 @@ async function cargarDetalle(tipo) {
                 break;
             }
 
+            case 'descuentos': {
+                const dd = (datosMes && datosMes.descuentos_personal) || 0;
+                const imp = (datosMes && datosMes.descuentos_importados) || 0;
+                const data = await apiFetch(`/reportes/descuentos-mes?year=${y}&month=${m}`);
+                const its = data.items || [];
+                if (!its.length && !(imp > 0) && !(dd > 0)) {
+                    body.innerHTML = '<div class="det-empty">Sin descuentos, ticket personal ni refunds este mes.</div>'; break;
+                }
+                const filas = its.map(it => {
+                    const esRef = it.tipo === 'refund';
+                    const etq = esRef
+                        ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 6px;font-weight:600;">Refound</span>'
+                        : it.tipo === 'ticket_personal'
+                            ? `🎟️ ${it.descuento_pct}%${it.usuario ? (' · ' + _escH(it.usuario)) : ''}`
+                            : `${it.descuento_pct}%`;
+                    const monto = esRef ? `− ${fmt(it.devuelto)}` : fmt(it.pagado);
+                    const ver = esRef
+                        ? `<button class="btn-ver-mesa" onclick="verRefund(${it.refund_ticket_id})">Ver</button>`
+                        : (it.pedido_id ? `<button class="btn-ver-mesa" onclick="verResumenMesa(${it.pedido_id})">Ver</button>` : '');
+                    return `<tr><td>${it.mesa != null ? it.mesa : '—'}</td>
+                        <td class="num">${fmt(it.total)}</td><td>${etq}</td>
+                        <td class="num">${monto}</td><td class="num">${ver}</td></tr>`;
+                }).join('');
+                body.innerHTML = `
+                    <div class="bal-row" style="margin-bottom:10px;">
+                        <span class="bal-label">🎟️ Total descuentos / refounds</span>
+                        <span class="bal-val rojo">${fmt(dd)}</span></div>
+                    ${imp > 0 ? `<p class="bill-sub" style="margin-bottom:8px;">Incluye ${fmt(imp)} de descuentos en ventas importadas (sin mesa asociada).</p>` : ''}
+                    <table class="det-table">
+                        <thead><tr><th>Mesa</th><th class="num">Total</th><th>% / tipo</th>
+                            <th class="num">Pagado / Devuelto</th><th></th></tr></thead>
+                        <tbody>${filas || '<tr><td colspan="5" class="det-empty">Sin mesas POS con descuento/refund este mes.</td></tr>'}</tbody>
+                    </table>`;
+                break;
+            }
+
             case 'balance': {
                 const d = datosMes;
                 if (!d) { body.innerHTML = '<div class="det-empty">Cargue primero los datos del mes.</div>'; break; }
@@ -981,6 +1074,11 @@ async function cargarDetalle(tipo) {
                         <div class="bal-row">
                             <span class="bal-label">🗑️ Desechos / merma</span>
                             <span class="bal-val rojo">− ${fmt(desechos)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">🎟️ Descuentos / refounds</span>
+                            <span class="bal-val rojo">− ${fmt(d.descuentos_personal || 0)}</span>
                         </div>
                         <div class="bal-op">=</div>
                         <div class="bal-row bal-total">
@@ -1293,7 +1391,7 @@ function renderDayBars() {
 
     // Break-even mensual (de datosMes ya cargado por cargarFacturacion)
     const breakEvenMensual = datosMes
-        ? (datosMes.costo_insumos_facturados + datosMes.costo_servicios_facturados)
+        ? (datosMes.costo_insumos_facturados + datosMes.costo_servicios_facturados + (datosMes.descuentos_personal || 0))
         : 0;
     const breakEvenDiario = breakEvenMensual > 0 ? breakEvenMensual / diasMesActual : 0;
 
@@ -1433,6 +1531,19 @@ document.addEventListener("DOMContentLoaded", () => {
             <button class="det-close" onclick="cerrarDetalle()">✕</button>
         </div>
         <div id="detalle-body" class="detalle-body">
+            <div class="det-loading">Cargando…</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Resumen de mesa (sobre el detalle de descuentos) ── -->
+<div id="resumen-mesa-overlay" class="detalle-overlay" style="z-index:1200;" onclick="cerrarResumenMesa()">
+    <div class="detalle-modal" onclick="event.stopPropagation()">
+        <div class="detalle-hdr">
+            <h3 id="resumen-mesa-titulo">Resumen de mesa</h3>
+            <button class="det-close" onclick="cerrarResumenMesa()">✕</button>
+        </div>
+        <div id="resumen-mesa-body" class="detalle-body">
             <div class="det-loading">Cargando…</div>
         </div>
     </div>

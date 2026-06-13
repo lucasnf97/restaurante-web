@@ -1017,6 +1017,60 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
+    <!-- ═══ DESCUENTO PERSONAL / TICKET PERSONAL ══════════════════ -->
+    <div class="cfg-section" id="sec-descpersonal">
+        <div class="cfg-section-head" onclick="toggleSection('descpersonal')">
+            <span class="cfg-section-icon">🎟️</span>
+            <span class="cfg-section-title">
+                Descuento personal
+                <span class="cfg-section-badge badge-off" id="badge-descpersonal">Desactivado</span>
+            </span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
+                Permite que los empleados consuman con descuento usando su <strong>ticket personal</strong>.
+                Si está activo, en el resumen de la mesa (en el salón) aparece el botón <strong>Ticket personal</strong>:
+                pide usuario y contraseña, aplica el % configurado y la venta queda registrada bajo ese usuario.
+                La venta cuenta al 100% en facturación y el descuento se contabiliza como gasto.
+            </p>
+
+            <label style="display:flex;align-items:center;gap:10px;margin-top:16px;font-size:14px;font-weight:600;cursor:pointer;">
+                <input type="checkbox" id="dp-activo" onchange="actualizarBadgeDescPersonal()">
+                Activar descuento personal (muestra el botón en el salón)
+            </label>
+
+            <div class="cfg-grid" style="margin-top:18px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">% por defecto</label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input class="cfg-input" type="number" id="dp-default" min="0" max="100" step="1"
+                               placeholder="Ej: 20" style="max-width:120px;" oninput="actualizarBadgeDescPersonal()">
+                        <span style="font-size:20px;color:#9ca3af;">%</span>
+                    </div>
+                    <div style="font-size:12px;color:#9ca3af;margin-top:4px;">Se aplica si el usuario no tiene una regla específica.</div>
+                </div>
+            </div>
+
+            <div style="margin-top:20px;">
+                <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Reglas por usuario o rol</div>
+                <div style="font-size:12px;color:#9ca3af;margin-bottom:10px;">
+                    Se aplica el % <strong>MAYOR</strong> entre la regla del usuario y la de su rol (no se suman).
+                </div>
+                <div id="dp-reglas"></div>
+                <button class="btn-secondary" type="button" onclick="agregarReglaDP()"
+                        style="margin-top:8px;padding:7px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;">
+                    + Agregar línea
+                </button>
+            </div>
+
+            <div class="cfg-actions" id="descpersonal-actions">
+                <button class="btn-save" onclick="guardarDescuentoPersonal()">Guardar cambios</button>
+                <span class="save-ok" id="ok-descpersonal">✓ Guardado</span>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ 5. MODO EDICIÓN ══════════════════════════════════════ -->
     <div class="cfg-section" id="sec-edicion">
         <div class="cfg-section-head" onclick="toggleSection('edicion')">
@@ -1664,6 +1718,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarDatos();
     cargarSeccionMoneda();
     cargarSeccionImpuestos();
+    cargarSeccionDescuentoPersonal();
     cargarRoles();
     cargarFamilias();
 });
@@ -1819,6 +1874,93 @@ async function guardarImpuesto() {
     } catch (e) {
         alert('Error al guardar: ' + (e.message || e));
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Sección Descuento personal / ticket personal ─────────────
+// ═══════════════════════════════════════════════════════════════
+
+let _dpUsuarios = [], _dpRoles = [], _dpReglas = [];
+function _dpEsc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function cargarSeccionDescuentoPersonal() {
+    try {
+        const [cfg, usuarios, roles] = await Promise.all([
+            apiFetch('/config/sistema'),
+            apiFetch('/auth/usuarios').catch(() => []),
+            apiFetch('/roles').catch(() => []),
+        ]);
+        _dpUsuarios = (usuarios || []).map(u => u.username).filter(Boolean);
+        _dpRoles    = [...new Set((roles || []).map(r => r.nombre).filter(Boolean))];
+        document.getElementById('dp-activo').checked = !!cfg.desc_personal_activo;
+        if (cfg.desc_personal_default_pct) document.getElementById('dp-default').value = cfg.desc_personal_default_pct;
+        _dpReglas = (cfg.desc_personal_reglas || []).map(r => ({ tipo: r.tipo || 'rol', ref: r.ref || '', pct: r.pct || 0 }));
+        renderReglasDP();
+        actualizarBadgeDescPersonal();
+    } catch (e) {}
+    const user = getUser();
+    if (!user || (user.rol !== 'admin' && user.rol !== 'gerente' && !user.acceso_configuracion)) {
+        const a = document.getElementById('descpersonal-actions'); if (a) a.style.display = 'none';
+    }
+}
+
+function agregarReglaDP() { _dpReglas.push({ tipo: 'rol', ref: '', pct: 0 }); renderReglasDP(); }
+function quitarReglaDP(i) { _dpReglas.splice(i, 1); renderReglasDP(); }
+
+function renderReglasDP() {
+    const cont = document.getElementById('dp-reglas');
+    if (!cont) return;
+    if (!_dpReglas.length) {
+        cont.innerHTML = '<div style="font-size:12px;color:#9ca3af;">Sin reglas: se aplica el % por defecto a todos.</div>';
+        return;
+    }
+    const selStyle = 'padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;background:#fff;';
+    cont.innerHTML = _dpReglas.map((r, i) => {
+        const opts = r.tipo === 'usuario' ? _dpUsuarios : _dpRoles;
+        const optHtml = ['<option value="">Seleccionar…</option>']
+            .concat(opts.map(o => `<option value="${_dpEsc(o)}" ${o === r.ref ? 'selected' : ''}>${_dpEsc(o)}</option>`)).join('');
+        return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+            <select onchange="_dpReglas[${i}].tipo=this.value;_dpReglas[${i}].ref='';renderReglasDP()" style="${selStyle}">
+                <option value="rol" ${r.tipo === 'rol' ? 'selected' : ''}>Rol</option>
+                <option value="usuario" ${r.tipo === 'usuario' ? 'selected' : ''}>Usuario</option>
+            </select>
+            <select onchange="_dpReglas[${i}].ref=this.value" style="${selStyle}min-width:160px;">${optHtml}</select>
+            <input type="number" min="0" max="100" step="1" value="${r.pct}"
+                   oninput="_dpReglas[${i}].pct=parseFloat(this.value)||0"
+                   style="width:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;text-align:right;"> %
+            <button type="button" onclick="quitarReglaDP(${i})"
+                    style="margin-left:auto;background:#fee2e2;color:#b91c1c;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;font-weight:700;">✕</button>
+        </div>`;
+    }).join('');
+}
+
+function actualizarBadgeDescPersonal() {
+    const b = document.getElementById('badge-descpersonal');
+    if (!b) return;
+    const activo = document.getElementById('dp-activo').checked;
+    const def = parseFloat(document.getElementById('dp-default').value || 0);
+    if (activo) { b.textContent = `Activo · ${def}% por defecto`; b.className = 'cfg-section-badge badge-on'; }
+    else { b.textContent = 'Desactivado'; b.className = 'cfg-section-badge badge-off'; }
+}
+
+async function guardarDescuentoPersonal() {
+    const user = getUser();
+    if (!user || (user.rol !== 'admin' && user.rol !== 'gerente' && !user.acceso_configuracion)) {
+        alert('Solo el administrador puede cambiar esta configuración.'); return;
+    }
+    const activo = document.getElementById('dp-activo').checked;
+    const def = parseFloat(document.getElementById('dp-default').value || 0);
+    const reglas = _dpReglas
+        .filter(r => r.ref && String(r.ref).trim())
+        .map(r => ({ tipo: r.tipo, ref: r.ref, pct: Math.max(0, Math.min(100, r.pct || 0)) }));
+    try {
+        await apiFetch('/config/descuento-personal', {
+            method: 'PUT',
+            body: JSON.stringify({ activo, default_pct: def, reglas }),
+        });
+        actualizarBadgeDescPersonal();
+        mostrarOk('ok-descpersonal');
+    } catch (e) { alert('Error al guardar: ' + (e.message || e)); }
 }
 
 // ═══════════════════════════════════════════════════════════════
