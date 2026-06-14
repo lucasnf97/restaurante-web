@@ -1061,11 +1061,17 @@ function _renderIngredientes(prodId) {
     if (typeof ings === 'string') ings = JSON.parse(ings);
     if (!ings.length) return '<span style="color:#9ca3af;font-size:13px;">Sin ingredientes</span>';
     return '<strong style="font-size:12px;color:#555;margin-right:6px;">Ingredientes:</strong>' +
-        ings.map(i => `
-            <span class="ing-tag" style="background:${i.es_produccion ? '#ede9fe' : '#f0fdf4'};
+        ings.map(i => {
+            if (i.agotado) {   // insumo sin stock → resaltar en rojo
+                return `<span class="ing-tag" title="Sin stock"
+                    style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;font-weight:600;">
+                    ⚠️ ${i.insumo_nombre} × ${i.cantidad} ${i.unidad}</span>`;
+            }
+            return `<span class="ing-tag" style="background:${i.es_produccion ? '#ede9fe' : '#f0fdf4'};
                                          color:${i.es_produccion ? '#6d28d9' : '#15803d'};">
                 ${i.es_produccion ? '🏭 ' : ''}${i.insumo_nombre} × ${i.cantidad} ${i.unidad}
-            </span>`).join('');
+            </span>`;
+        }).join('');
 }
 
 async function toggleFavorito(prodId, currentVal) {
