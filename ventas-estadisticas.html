@@ -449,6 +449,7 @@ body.config-open .wgt-drag { display:flex; }
 /* Checkbox impuesto */
 .bar-chk { display:flex; align-items:center; gap:5px; font-size:12px; color:#6b7280; cursor:pointer; }
 .bar-chk input { cursor:pointer; accent-color:#4f46e5; }
+.bar-hint { margin-left:auto; font-size:11px; color:#9ca3af; cursor:help; white-space:nowrap; }
 
 /* Área del gráfico */
 .bar-chart-wrap {
@@ -525,8 +526,9 @@ const BAR_PERIODOS = [
     { label:'Últimos 365 días', dias:365 },
 ];
 const barState = {
-    barras_prod: { dias:30, chart:null },
-    barras_cat:  { dias:30, chart:null },
+    // sortBy: 'rev' (facturación) | 'und' (unidades)  ·  solo: null | 'rev' | 'und'
+    barras_prod: { dias:30, chart:null, raw:[], sortBy:'rev', solo:null },
+    barras_cat:  { dias:30, chart:null, raw:[], sortBy:'rev', solo:null },
 };
 
 // ── Estado análisis de demanda ───────────────────────────────────
@@ -1475,6 +1477,9 @@ function buildBarrasHTML(key) {
             <input type="checkbox" id="${key}-impuesto" onchange="barFetch('${key}')">
             Con impuesto
         </label>
+        <span class="bar-hint" title="Clic izquierdo en un índice de la leyenda: ordenar de mayor a menor por ese valor. Clic derecho: mostrar solo ese índice.">
+            🛈 Clic izq. = ordenar · clic der. = aislar
+        </span>
     </div>
     <div class="bar-chart-wrap" id="${key}-wrap">
         <div class="bar-loading"><div class="tv-spinner"></div>Cargando…</div>
@@ -1555,27 +1560,39 @@ function barRender(key, data) {
     const wrap = document.getElementById(`${key}-wrap`);
     if (!wrap) return;
 
-    /* Destruir gráfico anterior */
-    if (barState[key].chart) {
-        barState[key].chart.destroy();
-        barState[key].chart = null;
-    }
+    /* Si llega `data`, es un fetch nuevo → reemplaza los datos crudos.
+       Si no, es un re-dibujo (ordenar / aislar) sobre los datos ya cargados. */
+    if (data !== undefined) barState[key].raw = data || [];
+    const st  = barState[key];
+    const raw = st.raw || [];
 
-    if (!data.length) {
+    /* Destruir gráfico anterior */
+    if (st.chart) { st.chart.destroy(); st.chart = null; }
+
+    if (!raw.length) {
         wrap.innerHTML = '<div class="bar-empty">Sin datos para el período seleccionado.</div>';
         return;
     }
+
+    const isCateg = key === 'barras_cat';
+
+    /* Ordenar de mayor a menor según el índice elegido (por defecto facturación). */
+    const sorted = raw.slice().sort((a, b) =>
+        st.sortBy === 'und' ? (b.cantidad - a.cantidad) : (b.ingresos - a.ingresos));
+
+    const labels   = sorted.map(d => isCateg ? d.categoria : d.nombre);
+    const revenues = sorted.map(d => d.ingresos);
+    const counts   = sorted.map(d => d.cantidad);
+
+    /* Aislamiento: si `solo` está seteado, se oculta el otro índice (y su eje). */
+    const hideRev = st.solo === 'und';
+    const hideUnd = st.solo === 'rev';
 
     wrap.innerHTML = `<canvas id="${key}-canvas"></canvas>`;
     const canvas = document.getElementById(`${key}-canvas`);
     const ctx    = canvas.getContext('2d');
 
-    const isCateg  = key === 'barras_cat';
-    const labels   = data.map(d => isCateg ? d.categoria : d.nombre);
-    const revenues = data.map(d => d.ingresos);
-    const counts   = data.map(d => d.cantidad);
-
-    barState[key].chart = new Chart(ctx, {
+    st.chart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels,
@@ -1587,6 +1604,7 @@ function barRender(key, data) {
                     borderRadius: 3,
                     yAxisID: 'yRev',
                     order: 1,
+                    hidden: hideRev,
                 },
                 {
                     label: 'Unidades',
@@ -1595,6 +1613,7 @@ function barRender(key, data) {
                     borderRadius: 3,
                     yAxisID: 'yUnd',
                     order: 2,
+                    hidden: hideUnd,
                 },
             ],
         },
@@ -1605,6 +1624,11 @@ function barRender(key, data) {
                 legend: {
                     position: 'bottom',
                     labels: { font:{ size:11 }, boxWidth:14, padding:16 },
+                    /* Clic izquierdo: ordenar de mayor a menor por ese índice. */
+                    onClick: (e, item) => {
+                        barState[key].sortBy = item.datasetIndex === 0 ? 'rev' : 'und';
+                        barRender(key);
+                    },
                 },
                 tooltip: {
                     callbacks: {
@@ -1627,6 +1651,7 @@ function barRender(key, data) {
                     grid: { display: false },
                 },
                 yRev: {
+                    display: !hideRev,
                     position: 'left',
                     beginAtZero: true,           // ancla el eje en 0 (no se corre por descuentos)
                     ticks: {
@@ -1639,6 +1664,7 @@ function barRender(key, data) {
                     },
                 },
                 yUnd: {
+                    display: !hideUnd,
                     position: 'right',
                     beginAtZero: true,
                     grid: { drawOnChartArea: false },
@@ -1653,6 +1679,28 @@ function barRender(key, data) {
                 },
             },
         },
+    });
+
+    /* Clic derecho sobre un índice de la leyenda: mostrar solo ese índice
+       (alterna). Si el clic no cae sobre la leyenda, se deja el menú normal. */
+    canvas.addEventListener('contextmenu', e => {
+        const chart = barState[key].chart;
+        if (!chart || !chart.legend) return;
+        const rect  = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const boxes = chart.legend.legendHitBoxes || [];
+        let hit = -1;
+        for (let i = 0; i < boxes.length; i++) {
+            const b = boxes[i];
+            if (x >= b.left && x <= b.left + b.width && y >= b.top && y <= b.top + b.height) { hit = i; break; }
+        }
+        if (hit < 0) return;                 // no fue sobre un índice
+        e.preventDefault();
+        const di = chart.legend.legendItems[hit].datasetIndex;
+        const metric = di === 0 ? 'rev' : 'und';
+        barState[key].solo = (barState[key].solo === metric) ? null : metric;
+        barRender(key);
     });
 }
 
