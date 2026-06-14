@@ -204,6 +204,8 @@
             <select id="filtro-prod-prov" onchange="cargarInsumosProduccion()" style="min-width:160px;">
                 <option value="">Todos los proveedores</option>
             </select>
+            <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirProduccion()"
+                    title="Imprimir el listado según el filtro aplicado">🖨 Imprimir listado</button>
         </div>
         <div class="tabla-wrapper">
             <table>
@@ -217,6 +219,8 @@
     <div id="vista-historial" style="display:none">
         <div class="filtros">
             <input type="text" id="filtro-hist-nombre" placeholder="Buscar por insumo..." oninput="cargarHistorial()" style="min-width:240px;">
+            <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirHistorial()"
+                    title="Imprimir el historial según el filtro aplicado">🖨 Imprimir listado</button>
         </div>
         <div class="tabla-wrapper">
             <table>
@@ -236,6 +240,8 @@
                 <option value="sin">Sin receta</option>
             </select>
             <span class="hint" style="color:#9ca3af;font-size:12px;align-self:center;">Costo = desde la receta · margen y food-cost % sobre el precio de venta. Cargá costo a los insumos para que sea exacto.</span>
+            <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirCostos()"
+                    title="Imprimir el listado según el filtro aplicado">🖨 Imprimir listado</button>
         </div>
         <div class="tabla-wrapper">
             <table>
@@ -606,30 +612,24 @@ async function cargarInsumos() {
     } catch(e) { console.error(e); }
 }
 
-// ── Imprimir listado de insumos según el filtro aplicado ─────────
+// ── Imprimir listados según el filtro aplicado ───────────────────
 function _escH(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-function abrirImprimirStock() {
-    const nombre = (document.getElementById('filtro-ins-nombre').value || '').toLowerCase();
-    const estado = document.getElementById('filtro-ins-estado').value || '';
-    const prov   = document.getElementById('filtro-ins-prov').value || '';
+// Helper: llena el modal de impresión y lo abre.
+function _mostrarImpresion(titulo, theadHtml, filasHtml, count) {
+    document.getElementById('imprimir-titulo').textContent = titulo;
+    document.getElementById('imprimir-body').innerHTML = `
+        <div style="font-size:12px;color:#6b7280;margin:2px 0 12px;">${count} fila(s) · ${new Date().toLocaleString('es-AR')}</div>
+        <table class="print-table">
+            <thead>${theadHtml}</thead>
+            <tbody>${filasHtml || '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:16px;">Sin datos para este filtro.</td></tr>'}</tbody>
+        </table>`;
+    document.getElementById('modal-imprimir-stock').classList.add('active');
+}
 
-    // Mismo filtrado que cargarInsumos()
-    let data = (_insumos || []).slice();
-    if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre));
-    if (estado === 'agotado')          data = data.filter(i => i.agotado);
-    else if (estado === 'advertencia') data = data.filter(i => i.en_advertencia && !i.agotado);
-    else if (estado === 'ok')          data = data.filter(i => !i.en_advertencia);
-    if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || '') === prov);
-    data = data.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-    const titMap = { '': 'Listado de insumos — todos', agotado: 'Insumos agotados',
-                     advertencia: 'Insumos en alerta', ok: 'Insumos OK' };
-    let titulo = titMap[estado] || 'Listado de stock';
-    if (prov) titulo += ' · ' + prov;
-    if (nombre) titulo += ` · "${document.getElementById('filtro-ins-nombre').value.trim()}"`;
-
-    const filas = data.map(i => {
+// Filas Producto / Stock actual / Falta (compartidas por insumos y producción)
+function _filasStockImprimir(data) {
+    return data.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(i => {
         const actual   = parseFloat(i.cantidad_actual) || 0;
         const estandar = parseFloat(i.cantidad_estandar) || 0;
         const faltante = Math.max(estandar - actual, 0);
@@ -640,19 +640,107 @@ function abrirImprimirStock() {
             <td class="num">${faltante > 0 ? '<strong>' + (+faltante.toFixed(3)) + ' ' + u + '</strong>' : '—'}</td>
         </tr>`;
     }).join('');
+}
+const _THEAD_STOCK = `<tr><th>Producto</th><th class="num">Stock actual</th><th class="num">Falta para stock habitual</th></tr>`;
 
-    document.getElementById('imprimir-titulo').textContent = titulo;
-    document.getElementById('imprimir-body').innerHTML = `
-        <div style="font-size:12px;color:#6b7280;margin:2px 0 12px;">${data.length} insumo(s) · ${new Date().toLocaleString('es-AR')}</div>
-        <table class="print-table">
-            <thead><tr>
-                <th>Producto</th>
-                <th class="num">Stock actual</th>
-                <th class="num">Falta para stock habitual</th>
-            </tr></thead>
-            <tbody>${filas || '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:16px;">Sin insumos para este filtro.</td></tr>'}</tbody>
-        </table>`;
-    document.getElementById('modal-imprimir-stock').classList.add('active');
+// Insumos de stock
+function abrirImprimirStock() {
+    const nombre = (document.getElementById('filtro-ins-nombre').value || '').toLowerCase();
+    const estado = document.getElementById('filtro-ins-estado').value || '';
+    const prov   = document.getElementById('filtro-ins-prov').value || '';
+    let data = (_insumos || []).slice();
+    if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre));
+    if (estado === 'agotado')          data = data.filter(i => i.agotado);
+    else if (estado === 'advertencia') data = data.filter(i => i.en_advertencia && !i.agotado);
+    else if (estado === 'ok')          data = data.filter(i => !i.en_advertencia);
+    if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || '') === prov);
+    const titMap = { '': 'Insumos de stock — todos', agotado: 'Insumos agotados', advertencia: 'Insumos en alerta', ok: 'Insumos OK' };
+    let titulo = titMap[estado] || 'Listado de stock';
+    if (prov) titulo += ' · ' + prov;
+    if (nombre) titulo += ` · "${document.getElementById('filtro-ins-nombre').value.trim()}"`;
+    _mostrarImpresion(titulo, _THEAD_STOCK, _filasStockImprimir(data), data.length);
+}
+
+// Insumos de producción
+function abrirImprimirProduccion() {
+    const nombre = (document.getElementById('filtro-prod-nombre').value || '').toLowerCase();
+    const estado = document.getElementById('filtro-prod-estado').value || '';
+    const prov   = document.getElementById('filtro-prod-prov')?.value || '';
+    let data = (_insumosProduccion || []).slice();
+    if (estado === 'agotado')          data = data.filter(i => i.agotado);
+    else if (estado === 'advertencia') data = data.filter(i => i.en_advertencia && !i.agotado);
+    else if (estado === 'ok')          data = data.filter(i => !i.en_advertencia);
+    if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre));
+    if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || '') === prov);
+    const titMap = { '': 'Insumos de producción — todos', agotado: 'Producción — agotados', advertencia: 'Producción — en alerta', ok: 'Producción — OK' };
+    let titulo = titMap[estado] || 'Insumos de producción';
+    if (prov) titulo += ' · ' + prov;
+    if (nombre) titulo += ` · "${document.getElementById('filtro-prod-nombre').value.trim()}"`;
+    _mostrarImpresion(titulo, _THEAD_STOCK, _filasStockImprimir(data), data.length);
+}
+
+// Historial de movimientos (re-consulta con el mismo filtro de nombre)
+async function abrirImprimirHistorial() {
+    const nombre = document.getElementById('filtro-hist-nombre')?.value?.trim() || '';
+    let data = [];
+    try {
+        const url = nombre ? `/stock/movimientos?insumo_nombre=${encodeURIComponent(nombre)}` : '/stock/movimientos';
+        data = await api.get(url);
+    } catch (e) { alert('No se pudo cargar el historial: ' + (e.message || '')); return; }
+    const tipoLbl = m => m.tipo === 'desecho' ? 'Desecho' : m.tipo === 'produccion' ? 'Producción'
+        : m.tipo === 'revision_resumen' ? 'Revisión' : 'Compra';
+    const filas = data.map(m => {
+        const fecha = new Date(m.creado_en).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
+        const cant = m.tipo === 'revision_resumen' ? '—'
+            : (m.tipo === 'desecho' ? '−' : '+') + (+Math.abs(parseFloat(m.cantidad) || 0));
+        const precio = (m.precio_unitario != null && +m.precio_unitario > 0)
+            ? (+m.precio_unitario).toFixed(2) + (m.moneda ? (' ' + _escH(m.moneda)) : '') : '—';
+        return `<tr>
+            <td>${fecha}</td>
+            <td>${_escH(m.insumo_nombre || '')} ${_escH(m.unidad || '')}</td>
+            <td>${_escH(tipoLbl(m))}</td>
+            <td class="num">${cant}</td>
+            <td class="num">${precio}</td>
+            <td>${_escH(m.proveedor_nombre || '—')}</td>
+            <td>${_escH(m.usuario || '—')}</td>
+        </tr>`;
+    }).join('');
+    const thead = `<tr><th>Fecha</th><th>Insumo</th><th>Tipo</th><th class="num">Cantidad</th><th class="num">Precio</th><th>Proveedor</th><th>Usuario</th></tr>`;
+    let titulo = 'Historial de movimientos';
+    if (nombre) titulo += ` · "${nombre}"`;
+    _mostrarImpresion(titulo, thead, filas, data.length);
+}
+
+// Costos y márgenes
+function abrirImprimirCostos() {
+    const nombre  = (document.getElementById('filtro-cos-nombre').value || '').trim().toLowerCase();
+    const filtroR = document.getElementById('filtro-cos-receta').value;
+    let data = (_costos || []).slice();
+    if (nombre) data = data.filter(p => p.nombre.toLowerCase().includes(nombre));
+    if (filtroR === 'con') data = data.filter(p => p.tiene_receta);
+    if (filtroR === 'sin') data = data.filter(p => !p.tiene_receta);
+    data.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const f = v => v == null ? '—' : (+v).toFixed(2);
+    const filas = data.map(p => {
+        if (!p.tiene_receta) {
+            return `<tr><td>${_escH(p.nombre)}</td><td>${_escH(p.categoria || '—')}</td>
+                <td class="num">${f(p.precio)}</td>
+                <td colspan="4" style="color:#9ca3af;font-style:italic;">Sin receta cargada</td></tr>`;
+        }
+        return `<tr>
+            <td>${_escH(p.nombre)}</td><td>${_escH(p.categoria || '—')}</td>
+            <td class="num">${f(p.precio)}</td>
+            <td class="num">${f(p.costo)}</td>
+            <td class="num">${f(p.margen)}</td>
+            <td class="num">${p.margen_pct == null ? '—' : p.margen_pct + '%'}</td>
+            <td class="num">${p.food_cost_pct == null ? '—' : p.food_cost_pct + '%'}</td>
+        </tr>`;
+    }).join('');
+    const titMap = { '': 'Costos y márgenes — todos', con: 'Costos y márgenes — con receta', sin: 'Costos y márgenes — sin receta' };
+    let titulo = titMap[filtroR] || 'Costos y márgenes';
+    if (nombre) titulo += ` · "${document.getElementById('filtro-cos-nombre').value.trim()}"`;
+    const thead = `<tr><th>Producto</th><th>Categoría</th><th class="num">Precio</th><th class="num">Costo</th><th class="num">Margen</th><th class="num">Margen %</th><th class="num">Food-cost %</th></tr>`;
+    _mostrarImpresion(titulo, thead, filas, data.length);
 }
 
 function abrirModalInsumo() {
