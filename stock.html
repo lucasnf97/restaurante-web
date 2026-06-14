@@ -33,6 +33,17 @@
         .filtros { background: white; border-radius: 12px; padding: 14px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
         .filtros input, .filtros select { padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
         .filtros input:focus, .filtros select:focus { border-color: #4f46e5; }
+        /* Listado imprimible de stock */
+        .print-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .print-table th, .print-table td { border:1px solid #e5e7eb; padding:6px 10px; text-align:left; }
+        .print-table th { background:#f3f4f6; font-weight:700; }
+        .print-table td.num, .print-table th.num { text-align:right; }
+        @media print {
+            body > *:not(#modal-imprimir-stock) { display:none !important; }
+            #modal-imprimir-stock { display:block !important; position:static; padding:0; background:#fff; }
+            #modal-imprimir-stock .modal { box-shadow:none; max-width:none; width:auto; margin:0; }
+            .no-print { display:none !important; }
+        }
         .acciones-bar { background: white; border-radius: 12px; padding: 12px 20px; display: flex; gap: 10px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
         .tabla-wrapper { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
         table { width: 100%; border-collapse: collapse; }
@@ -163,6 +174,8 @@
             <select id="filtro-ins-prov" onchange="cargarInsumos()" style="min-width:160px;">
                 <option value="">Todos los proveedores</option>
             </select>
+            <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirStock()"
+                    title="Imprimir el listado según el filtro aplicado">🖨 Imprimir listado</button>
         </div>
         <div class="tabla-wrapper">
             <table>
@@ -591,6 +604,55 @@ async function cargarInsumos() {
             </tr>`;
         }).join("");
     } catch(e) { console.error(e); }
+}
+
+// ── Imprimir listado de insumos según el filtro aplicado ─────────
+function _escH(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function abrirImprimirStock() {
+    const nombre = (document.getElementById('filtro-ins-nombre').value || '').toLowerCase();
+    const estado = document.getElementById('filtro-ins-estado').value || '';
+    const prov   = document.getElementById('filtro-ins-prov').value || '';
+
+    // Mismo filtrado que cargarInsumos()
+    let data = (_insumos || []).slice();
+    if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre));
+    if (estado === 'agotado')          data = data.filter(i => i.agotado);
+    else if (estado === 'advertencia') data = data.filter(i => i.en_advertencia && !i.agotado);
+    else if (estado === 'ok')          data = data.filter(i => !i.en_advertencia);
+    if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || '') === prov);
+    data = data.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    const titMap = { '': 'Listado de insumos — todos', agotado: 'Insumos agotados',
+                     advertencia: 'Insumos en alerta', ok: 'Insumos OK' };
+    let titulo = titMap[estado] || 'Listado de stock';
+    if (prov) titulo += ' · ' + prov;
+    if (nombre) titulo += ` · "${document.getElementById('filtro-ins-nombre').value.trim()}"`;
+
+    const filas = data.map(i => {
+        const actual   = parseFloat(i.cantidad_actual) || 0;
+        const estandar = parseFloat(i.cantidad_estandar) || 0;
+        const faltante = Math.max(estandar - actual, 0);
+        const u = _escH(i.unidad || '');
+        return `<tr>
+            <td>${_escH(i.nombre)}</td>
+            <td class="num">${+actual.toFixed(3)} ${u}</td>
+            <td class="num">${faltante > 0 ? '<strong>' + (+faltante.toFixed(3)) + ' ' + u + '</strong>' : '—'}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('imprimir-titulo').textContent = titulo;
+    document.getElementById('imprimir-body').innerHTML = `
+        <div style="font-size:12px;color:#6b7280;margin:2px 0 12px;">${data.length} insumo(s) · ${new Date().toLocaleString('es-AR')}</div>
+        <table class="print-table">
+            <thead><tr>
+                <th>Producto</th>
+                <th class="num">Stock actual</th>
+                <th class="num">Falta para stock habitual</th>
+            </tr></thead>
+            <tbody>${filas || '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:16px;">Sin insumos para este filtro.</td></tr>'}</tbody>
+        </table>`;
+    document.getElementById('modal-imprimir-stock').classList.add('active');
 }
 
 function abrirModalInsumo() {
@@ -1687,5 +1749,23 @@ async function confirmarRevision() {
      style="position:fixed;background:white;border:1.5px solid #c4b5fd;border-radius:8px;
             box-shadow:0 4px 20px rgba(0,0,0,0.15);max-height:220px;overflow-y:auto;
             z-index:9999;display:none;min-width:200px;"></div>
+
+<!-- Modal: imprimir listado de stock según filtro -->
+<div class="modal-overlay" id="modal-imprimir-stock">
+    <div class="modal" style="max-width:680px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <h3 id="imprimir-titulo" style="margin:0;font-size:17px;color:#1a1a2e;">Listado de stock</h3>
+            <button class="btn btn-secondary btn-sm no-print" onclick="cerrarModal('modal-imprimir-stock')">✕</button>
+        </div>
+        <div id="imprimir-body"></div>
+        <p class="no-print" style="font-size:12px;color:#6b7280;margin-top:12px;">
+            🖨 Al imprimir se abre el cuadro de impresión del navegador: ahí elegís la impresora instalada y confirmás.
+        </p>
+        <div class="modal-footer no-print" style="margin-top:8px;">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-imprimir-stock')">Cerrar</button>
+            <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
