@@ -516,6 +516,7 @@ function setTab(tab) {
 let _costos = [];
 async function cargarCostos() {
     const tbody = document.getElementById("tbody-costos");
+    window.UI && UI.skeleton(tbody, 6, 7);
     try {
         _costos = await api.get("/stock/costos-productos");
         renderCostos();
@@ -557,6 +558,7 @@ async function cargarInsumos() {
     const nombre = document.getElementById("filtro-ins-nombre").value.trim();
     const estado = document.getElementById("filtro-ins-estado").value;
     const prov   = document.getElementById("filtro-ins-prov")?.value || "";
+    window.UI && UI.skeleton(document.getElementById("tbody-insumos"), 6, 10);
     try {
         _insumos = await api.get("/stock/insumos");
         let data = _insumos;
@@ -815,7 +817,8 @@ async function eliminarInsumo(id) {
 async function cargarHistorial() {
     const nombre = document.getElementById("filtro-hist-nombre")?.value?.trim() || "";
     const tbody  = document.getElementById("tbody-historial");
-    tbody.innerHTML = `<tr><td colspan="8" class="empty">Cargando...</td></tr>`;
+    if (window.UI) UI.skeleton(tbody, 6, 8);
+    else tbody.innerHTML = `<tr><td colspan="8" class="empty">Cargando...</td></tr>`;
     try {
         const url = nombre ? `/stock/movimientos?insumo_nombre=${encodeURIComponent(nombre)}` : "/stock/movimientos";
         const data = await api.get(url);
@@ -914,6 +917,7 @@ async function cargarInsumosProduccion() {
     const nombre = document.getElementById("filtro-prod-nombre").value.trim();
     const estado = document.getElementById("filtro-prod-estado").value;
     const prov   = document.getElementById("filtro-prod-prov")?.value || "";
+    window.UI && UI.skeleton(document.getElementById("tbody-produccion"), 6, 9);
     try {
         let data = await api.get("/stock/insumos-produccion");
         _insumosProduccion = data;

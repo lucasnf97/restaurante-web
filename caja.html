@@ -573,6 +573,7 @@ async function cargarCierres() {
     const desde     = document.getElementById("filtro-desde").value;
     const hasta     = document.getElementById("filtro-hasta").value;
     const cierreId  = document.getElementById("filtro-cierre-id").value.trim();
+    window.UI && UI.skeleton(document.getElementById("tabla-body"), 6, 7);
     let url = "/caja/cierres?";
     if (desde) url += `desde=${desde}&`;
     if (hasta) url += `hasta=${hasta}&`;
@@ -807,19 +808,27 @@ async function verItems(pedidoId, mesaNumero) {
 
 async function abrirCaja() {
     if (!confirm("¿Abrir la caja?")) return;
+    const btn = document.getElementById("btn-abrir");
+    window.UI && UI.busy(btn, true, "Abriendo…");
     try {
         await api.post("/caja/abrir", {});
-        await cargarEstado();
     } catch(err) { alert("Error: " + err.message); }
+    // busy(off) primero y luego cargarEstado, que fija el disabled correcto de los botones.
+    finally { window.UI && UI.busy(btn, false); await cargarEstado(); }
 }
 
 async function cerrarCaja() {
     if (!confirm("¿Cerrar la caja? Se generará el registro del turno.")) return;
+    const btn = document.getElementById("btn-cerrar");
+    window.UI && UI.busy(btn, true, "Cerrando…");
     try {
         const res = await api.post("/caja/cerrar", {});
         alert(`Caja cerrada. Total del turno: $${res.total.toFixed(2)}`);
-        await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
     } catch(err) { alert("Error: " + err.message); }
+    finally {
+        window.UI && UI.busy(btn, false);
+        await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
+    }
 }
 
 function cerrarModal(id) {

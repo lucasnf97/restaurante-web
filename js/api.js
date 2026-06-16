@@ -81,30 +81,71 @@ function hasAlgunPermiso(...perms) {
 }
 
 // ── FETCH BASE ────────────────────────────────────────────────
+// Timeout por request (ms). Generoso para tolerar el cold-start de Railway.
+const _API_TIMEOUT_MS = 20000;
+// Métodos idempotentes: se pueden reintentar ante un fallo de red / 502-503-504 sin
+// riesgo de duplicar la operación. POST/PATCH NO se reintentan (un POST que el server
+// igual procesó duplicaría, p.ej. un cobro).
+const _RETRY_METHODS = new Set(["GET", "HEAD", "PUT", "DELETE"]);
+
+function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
 async function apiFetch(endpoint, options = {}) {
-    const token = getToken();
+    const token  = getToken();
+    const method = (options.method || "GET").toUpperCase();
     const headers = {
         "Content-Type": "application/json",
         ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         ...(options.headers || {})
     };
 
-    const res = await fetch(`${API_URL}${endpoint}`, {
-        ...options,
-        headers
-    });
+    const reintentable = _RETRY_METHODS.has(method);
+    const maxIntentos  = reintentable ? 3 : 1;
 
-    if (res.status === 401) {
-        logout();
-        return;
+    if (window.UI) window.UI._reqStart();
+    try {
+        let ultimoError = null;
+        for (let intento = 0; intento < maxIntentos; intento++) {
+            // AbortController: corta un request que se cuelga (no deja la barra eterna).
+            const ctrl  = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), _API_TIMEOUT_MS);
+            let res;
+            try {
+                res = await fetch(`${API_URL}${endpoint}`, { ...options, headers, signal: ctrl.signal });
+            } catch (e) {
+                clearTimeout(timer);
+                // Error de red / abort → reintentar si es idempotente.
+                ultimoError = (e.name === "AbortError")
+                    ? new Error("La solicitud tardó demasiado. Reintentá.")
+                    : new Error("Sin conexión con el servidor.");
+                if (reintentable && intento < maxIntentos - 1) {
+                    await _sleep(400 * Math.pow(2, intento));   // backoff 0.4s, 0.8s
+                    continue;
+                }
+                throw ultimoError;
+            }
+            clearTimeout(timer);
+
+            if (res.status === 401) { logout(); return; }
+
+            // Cold start de Railway: reintentar los idempotentes ante 502/503/504.
+            if (reintentable && [502, 503, 504].includes(res.status) && intento < maxIntentos - 1) {
+                await _sleep(400 * Math.pow(2, intento));
+                continue;
+            }
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
+                throw new Error(err.detail || "Error en la API");
+            }
+
+            if (res.status === 204) return null;
+            return res.json();
+        }
+        throw ultimoError || new Error("Error en la API");
+    } finally {
+        if (window.UI) window.UI._reqEnd();
     }
-
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
-        throw new Error(err.detail || "Error en la API");
-    }
-
-    return res.json();
 }
 
 // ── MÉTODOS SHORTHAND ─────────────────────────────────────────
@@ -204,3 +245,156 @@ async function abrirDocumento(url) {
         if (!w) alert(msg);
     }
 }
+
+// ── UI: indicadores de carga compartidos ──────────────────────
+// Inyecta CSS una sola vez y expone window.UI con: barra de progreso global (que
+// apiFetch dispara automáticamente en cada request), skeletons, overlay bloqueante y
+// estado "busy" de botones. Disponible en TODA página que incluya js/api.js.
+(function () {
+    if (window.UI) return;
+
+    const css = `
+    @keyframes ui-spin { to { transform: rotate(360deg); } }
+    @keyframes ui-shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+    #ui-progress {
+        position: fixed; top: 0; left: 0; height: 3px; width: 0;
+        background: linear-gradient(90deg,#6366f1,#a855f7);
+        box-shadow: 0 0 8px rgba(99,102,241,.6);
+        z-index: 99999; opacity: 0; pointer-events: none;
+        transition: width .2s ease, opacity .3s ease;
+    }
+    .ui-spinner {
+        display: inline-block; width: 18px; height: 18px; vertical-align: middle;
+        border: 2.5px solid rgba(255,255,255,.35); border-top-color: currentColor;
+        border-radius: 50%; animation: ui-spin .7s linear infinite;
+    }
+    .ui-overlay {
+        position: fixed; inset: 0; z-index: 99998;
+        background: rgba(17,24,39,.45);
+        display: flex; align-items: center; justify-content: center;
+    }
+    .ui-overlay-box {
+        background: #fff; border-radius: 14px; padding: 26px 34px;
+        box-shadow: 0 16px 48px rgba(0,0,0,.28);
+        display: flex; flex-direction: column; align-items: center; gap: 14px;
+        font-family: 'Segoe UI', sans-serif; color: #374151; font-size: 14px;
+        min-width: 200px; text-align: center;
+    }
+    .ui-overlay-box .ui-spinner {
+        width: 38px; height: 38px; border-width: 3.5px; color: #6366f1;
+        border-color: #e5e7eb; border-top-color: #6366f1;
+    }
+    .ui-skel {
+        display: inline-block; height: 12px; border-radius: 6px; background: #e5e7eb;
+        background-image: linear-gradient(90deg,#e5e7eb 0px,#f3f4f6 200px,#e5e7eb 400px);
+        background-size: 800px 100%; animation: ui-shimmer 1.2s infinite linear;
+    }
+    .ui-skel-card {
+        border-radius: 12px; min-height: 90px; background: #f3f4f6;
+        background-image: linear-gradient(90deg,#f3f4f6 0px,#e9eaee 200px,#f3f4f6 400px);
+        background-size: 800px 100%; animation: ui-shimmer 1.2s infinite linear;
+    }
+    button[data-ui-busy] { pointer-events: none; opacity: .7; }
+    `;
+    const st = document.createElement("style");
+    st.textContent = css;
+    (document.head || document.documentElement).appendChild(st);
+
+    // Barra de progreso ligada al contador de requests en vuelo.
+    let _pending = 0, _bar = null, _trickle = null, _prog = 0;
+    function _ensureBar() {
+        if (_bar && document.body.contains(_bar)) return _bar;
+        _bar = document.getElementById("ui-progress") || document.createElement("div");
+        _bar.id = "ui-progress";
+        if (!_bar.parentNode) (document.body || document.documentElement).appendChild(_bar);
+        return _bar;
+    }
+    function _set(p) { _prog = p; _ensureBar().style.width = p + "%"; }
+
+    window.UI = {
+        // Hooks que apiFetch llama en cada request (no usar directamente).
+        _reqStart() {
+            _pending++;
+            if (_pending === 1) {
+                _ensureBar().style.opacity = "1";
+                _set(8);
+                clearInterval(_trickle);
+                _trickle = setInterval(() => { if (_prog < 90) _set(_prog + (90 - _prog) * 0.12); }, 300);
+            }
+        },
+        _reqEnd() {
+            _pending = Math.max(0, _pending - 1);
+            if (_pending === 0) {
+                clearInterval(_trickle);
+                _set(100);
+                const b = _ensureBar();
+                setTimeout(() => { b.style.opacity = "0"; setTimeout(() => _set(0), 300); }, 220);
+            }
+        },
+        // Rellena un <tbody> con filas "shimmer" mientras carga la tabla.
+        skeleton(tbody, rows = 6, cols = 4) {
+            if (!tbody) return;
+            let html = "";
+            for (let r = 0; r < rows; r++) {
+                let tds = "";
+                for (let c = 0; c < cols; c++) {
+                    tds += `<td><span class="ui-skel" style="width:${40 + ((r * 7 + c * 13) % 50)}%"></span></td>`;
+                }
+                html += `<tr>${tds}</tr>`;
+            }
+            tbody.innerHTML = html;
+        },
+        // Tarjetas grises (para grids de stats/dashboard).
+        skeletonCards(cont, n = 4) {
+            if (!cont) return;
+            cont.innerHTML = Array.from({ length: n }, () => `<div class="ui-skel-card"></div>`).join("");
+        },
+        // Overlay bloqueante con spinner + texto (acciones: cobrar/guardar/importar/IA).
+        overlay(show, texto = "Procesando…") {
+            let ov = document.getElementById("ui-overlay");
+            if (show) {
+                if (!ov) {
+                    ov = document.createElement("div");
+                    ov.id = "ui-overlay"; ov.className = "ui-overlay";
+                    ov.innerHTML = `<div class="ui-overlay-box"><div class="ui-spinner"></div><div id="ui-overlay-txt"></div></div>`;
+                    document.body.appendChild(ov);
+                }
+                ov.querySelector("#ui-overlay-txt").textContent = texto;
+                ov.style.display = "flex";
+            } else if (ov) {
+                ov.style.display = "none";
+            }
+        },
+        // Cambia el texto del overlay ya abierto (p.ej. contador de segundos).
+        overlayText(texto) {
+            const el = document.getElementById("ui-overlay-txt");
+            if (el) el.textContent = texto;
+        },
+        // Deshabilita un botón + spinner inline mientras dura una acción; lo restaura al apagar.
+        busy(btn, on, texto) {
+            if (!btn) return;
+            if (on) {
+                if (btn.dataset.uiBusy) return;
+                btn.dataset.uiBusy = "1";
+                btn.dataset.uiHtml = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = `<span class="ui-spinner"></span>${texto ? " " + texto : ""}`;
+            } else {
+                if (!btn.dataset.uiBusy) return;
+                btn.innerHTML = btn.dataset.uiHtml || "";
+                btn.disabled = false;
+                delete btn.dataset.uiBusy;
+                delete btn.dataset.uiHtml;
+            }
+        },
+    };
+
+    // ── Keep-warm ─────────────────────────────────────────────
+    // Mientras la página está abierta y hay sesión, ping liviano a la raíz (sin DB)
+    // cada ~3.5 min para que Railway no "duerma" el server y la próxima acción no
+    // pague el cold-start. No usa apiFetch → no mueve la barra de progreso.
+    setInterval(() => {
+        if (!getToken()) return;
+        fetch(`${API_URL}/`, { method: "GET", cache: "no-store" }).catch(() => {});
+    }, 210000);
+})();

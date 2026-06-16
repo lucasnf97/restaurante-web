@@ -520,7 +520,8 @@ async function cargarHistorial() {
     if (hasta) url += `hasta=${hasta}T23:59:59&`;
 
     const container = document.getElementById("fichajes-container");
-    container.innerHTML = '<div class="empty">Cargando...</div>';
+    if (window.UI) UI.skeletonCards(container, 4);
+    else container.innerHTML = '<div class="empty">Cargando...</div>';
 
     try {
         let fichajes = await api.get(url);

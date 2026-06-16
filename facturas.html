@@ -1036,7 +1036,8 @@ function formatFecha(str) {
 
 async function cargarHistorialFacturas() {
     const tbody = document.getElementById("tbody-facturas");
-    tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
+    if (window.UI) UI.skeleton(tbody, 6, 7);
+    else tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
     try {
         _historialFacturas = await api.get("/stock/facturas/historial");
         filtrarHistorial();

@@ -295,27 +295,41 @@ function _otraDetalle(f){
     return parts.join(' · ');
 }
 
+// Overlay de "Analizando con IA" con contador de segundos (se ve que avanza).
+function _iaCargando(base){
+    const t0 = Date.now();
+    const tick = () => window.UI && window.UI.overlayText(`${base}  (${Math.round((Date.now()-t0)/1000)}s)`);
+    if (window.UI) window.UI.overlay(true, base);
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => { clearInterval(iv); if (window.UI) window.UI.overlay(false); };
+}
+
 async function iaAnalizar(){
     const f=document.getElementById('arch').files[0];
     const msg=document.getElementById('msg-an');
     if(!f){ msg.className='msg err'; msg.textContent='Elegí un archivo.'; return; }
     msg.className='msg'; msg.textContent='🤖 Analizando con IA…';
+    const detener=_iaCargando('🤖 Analizando con IA…');
     try{
         const fd=new FormData(); fd.append('file', f);
         const res=await fetch(`${API_URL}/importar/ia-analizar`,{method:'POST',headers:{Authorization:`Bearer ${getToken()}`},body:fd});
         if(!res.ok){ const e=await res.json().catch(()=>({detail:'Error'})); throw new Error(e.detail||('HTTP '+res.status)); }
         renderPropuestaIA(await res.json(), msg);
     }catch(err){ msg.className='msg err'; msg.textContent='Error IA: '+err.message+' — probá «Cargar manualmente».'; }
+    finally{ detener(); }
 }
 
 async function iaAnalizarCarpeta(){
     const cid=_carpetaSel(); const msg=document.getElementById('msg-an');
     if(!cid){ msg.className='msg err'; msg.textContent='Elegí una carpeta (creala arriba) y adjuntá archivos.'; return; }
     msg.className='msg'; msg.textContent='🤖 Analizando la carpeta con IA… (puede tardar)';
+    const detener=_iaCargando('🤖 Analizando la carpeta con IA…');
     try{
         const d=await api.post('/importar/carpetas/'+cid+'/ia-analizar', {});
         renderPropuestaIA(d, msg);
     }catch(err){ msg.className='msg err'; msg.textContent='Error IA: '+err.message; }
+    finally{ detener(); }
 }
 
 async function adjuntar(){
