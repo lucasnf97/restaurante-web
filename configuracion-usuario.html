@@ -126,7 +126,15 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
         <div class="field">
             <label>Contraseña actual</label>
-            <input type="password" id="p-pass-actual" placeholder="Contraseña actual" autocomplete="current-password">
+            <!-- Seguridad: el navegador NO debe autocompletar la contraseña guardada acá,
+                 o cualquiera con la sesión abierta podría cambiarla sin conocerla.
+                 - autocomplete="new-password": el navegador nunca ofrece la credencial
+                   existente en este campo (Chrome ignora autocomplete="off" en password).
+                 - readonly hasta el foco: evita además el autorrelleno silencioso al cargar.
+                 El login (index.html) NO se toca, ahí el autofill sigue permitido. -->
+            <input type="password" id="p-pass-actual" placeholder="Contraseña actual"
+                   autocomplete="new-password" readonly
+                   onfocus="this.removeAttribute('readonly')">
         </div>
         <div class="field">
             <label>Nueva contraseña</label>
