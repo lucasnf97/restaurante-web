@@ -90,6 +90,31 @@ function formatMonto(n, opciones = {}) {
 }
 
 /**
+ * Devuelve el símbolo/acrónimo de la divisa del sistema (ej: "€", "$", "DKK").
+ * Helper global para reemplazar el "$" fijo en cualquier página.
+ */
+function simboloMoneda() {
+    return (window.SISTEMA_MONEDA && window.SISTEMA_MONEDA.simbolo) || '$';
+}
+window.simboloMoneda = simboloMoneda;
+
+/**
+ * Formatea un monto con el símbolo del sistema y N decimales (default 2).
+ * fmtDinero(1234.5)        → "€ 1.234,50"
+ * fmtDinero(1234.5, 0)     → "€ 1.235"
+ */
+function fmtDinero(n, decimales = 2) {
+    const valor = parseFloat(n || 0);
+    const formatted = valor.toLocaleString('es-AR', {
+        minimumFractionDigits: decimales,
+        maximumFractionDigits: decimales,
+    });
+    return `${simboloMoneda()} ${formatted}`;
+}
+window.fmtDinero  = fmtDinero;
+window.formatMonto = formatMonto;
+
+/**
  * Calcula el precio sin impuestos dado el precio con impuestos.
  * Fórmula: sinIVA = conIVA * (1 - pct/100)
  * Ejemplo: 200 kr con 25% → 200 * 0.75 = 150 kr s/IVA

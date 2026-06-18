@@ -247,6 +247,7 @@ input:checked + .tsl::before { transform:translateX(14px); }
 
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
 <script>
 requireAuth();
 
@@ -371,7 +372,7 @@ let salasMesa      = null;
 let coccinaData    = [];
 let ventasHistData = null;
 let resPag         = 0;
-let _monedaSim     = "$";
+let _monedaSim     = simboloMoneda();
 
 async function cargarDatos() {
     // Mientras carga todo, mostrar tarjetas "skeleton" para que no se vea vacío/colgado.
@@ -379,7 +380,7 @@ async function cargarDatos() {
     // Cargar todo en paralelo para máxima velocidad
     await Promise.all([
         (async () => {
-            try { const c = await api.get("/config/sistema"); _monedaSim = c?.moneda_simbolo || "$"; } catch(e) {}
+            try { const c = await api.get("/config/sistema"); _monedaSim = c?.moneda_simbolo || simboloMoneda(); } catch(e) {}
         })(),
         (async () => {
             try { periodos = await api.get("/reportes/resumen-periodos"); } catch(e) {}

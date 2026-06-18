@@ -375,6 +375,7 @@
 
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
 <script>
 requireAuth();
 requirePermiso('gestion_stock', 'gestion_produccion', 'ver_stock', 'revision_stock');
@@ -1511,17 +1512,12 @@ async function abrirModalRevision() {
     document.getElementById("rev-filtro-nombre").value = "";
     document.getElementById("rev-filtro-ubicacion").value = "";
     document.getElementById("rev-tbody").innerHTML = `<tr><td colspan="7" class="empty">Cargando…</td></tr>`;
-    document.getElementById("rev-total-val").textContent = "$ 0,00";
+    document.getElementById("rev-total-val").textContent = simboloMoneda() + " 0,00";
     document.getElementById("rev-total-bar").classList.add("cero");
     document.getElementById("modal-revision").classList.add("active");
 
     try {
-        if (!_monedaSimbolo) {
-            try {
-                const cfg = await api.get("/config/sistema");
-                _monedaSimbolo = cfg.moneda_simbolo || "$";
-            } catch { _monedaSimbolo = "$"; }
-        }
+        if (!_monedaSimbolo) _monedaSimbolo = simboloMoneda();
         _revDataFull = await api.get("/stock/revision/preview");
         _revData = _revDataFull;
 
@@ -1804,7 +1800,7 @@ async function confirmarRevision() {
         <div class="rev-modal-footer">
             <div class="rev-total-bar cero" id="rev-total-bar">
                 <span class="rev-total-lbl">💸 Pérdida total del período</span>
-                <span class="rev-total-val" id="rev-total-val">$ 0,00</span>
+                <span class="rev-total-val" id="rev-total-val">—</span>
             </div>
             <div class="modal-footer" style="border-top:none;">
                 <button class="btn btn-secondary" onclick="cerrarModal('modal-revision')">Cancelar</button>

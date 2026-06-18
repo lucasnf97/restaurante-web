@@ -769,6 +769,7 @@
 
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
 <script>
 requireAuth();
 requirePermiso('edicion_carta', 'ver_carta');
@@ -1007,7 +1008,7 @@ function renderProductos(lista) {
             <td><strong>${p.nombre}</strong>${p.descripcion ? `<br><small style="color:#888">${p.descripcion}</small>` : ''}</td>
             <td>${p.categoria || '—'}</td>
             <td>${p.area || '—'}</td>
-            <td><strong>$${parseFloat(p.precio).toFixed(2)}</strong>${p.descuento_pct > 0 ? ` <span class="badge badge-green">-${p.descuento_pct}%</span>` : ''}</td>
+            <td><strong>${simboloMoneda()} ${parseFloat(p.precio).toFixed(2)}</strong>${p.descuento_pct > 0 ? ` <span class="badge badge-green">-${p.descuento_pct}%</span>` : ''}</td>
             <td id="promo-cell-${p.id}"><span class="badge badge-gray">—</span></td>
             <td><span class="badge ${p.en_carta ? 'badge-green' : 'badge-gray'}">${p.en_carta ? 'Sí' : 'No'}</span></td>
             <td><span class="badge ${p.agotado ? 'badge-orange' : 'badge-gray'}">${p.agotado ? 'Agotado' : 'No'}</span></td>
@@ -1302,7 +1303,7 @@ function renderCombos() {
         <tr class="${comboSel && comboSel.id === c.id ? 'sel' : ''}" onclick="selCombo(${c.id})">
             <td>${c.favorito ? '<span class="fav-star">★</span>' : ''}</td>
             <td><strong>${c.nombre}</strong>${c.descripcion ? `<br><small style="color:#888">${c.descripcion}</small>` : ''}</td>
-            <td><strong>$${parseFloat(c.precio).toFixed(2)}</strong></td>
+            <td><strong>${simboloMoneda()} ${parseFloat(c.precio).toFixed(2)}</strong></td>
             <td>${c.categoria || '—'}</td>
             <td>${c.items.map(i => `${i.cantidad}x ${i.categoria_nombre}`).join(', ')}</td>
             <td><span class="badge ${c.disponible ? 'badge-green' : 'badge-gray'}">${c.disponible ? 'Sí' : 'No'}</span></td>
@@ -1461,7 +1462,7 @@ async function abrirModalCombosHab() {
         cont.innerHTML = todosLosCombos.map(c => `
             <label class="checkbox-item" style="display:flex;gap:8px;padding:8px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:${habIds.has(c.id) ? '#f5f3ff' : '#fafafa'}">
                 <input type="checkbox" class="cb-combo-hab" value="${c.id}" ${habIds.has(c.id) ? 'checked' : ''}>
-                <span style="font-size:14px"><strong>${c.nombre}</strong> — $${parseFloat(c.precio).toFixed(2)}</span>
+                <span style="font-size:14px"><strong>${c.nombre}</strong> — ${simboloMoneda()} ${parseFloat(c.precio).toFixed(2)}</span>
             </label>
         `).join('');
     }

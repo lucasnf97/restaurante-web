@@ -578,11 +578,11 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
             </div>
 
             <!-- ── Divisa del sistema ── -->
-            <div style="margin-top:28px;padding-top:20px;border-top:2px solid #f0f0f0;">
+            <div id="moneda-block" style="margin-top:28px;padding-top:20px;border-top:2px solid #f0f0f0;">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
                     <span style="font-size:16px;">💱</span>
                     <span style="font-size:14px;font-weight:700;color:#1a1a2e;">Divisa del sistema</span>
-                    <span class="cfg-section-badge badge-on" id="badge-moneda">€ EUR</span>
+                    <span class="cfg-section-badge badge-off" id="badge-moneda">Cargando…</span>
                 </div>
                 <p style="font-size:13px;color:#6b7280;line-height:1.6;">
                     Todos los precios, estadísticas y reportes del sistema se mostrarán en esta divisa.
@@ -596,16 +596,16 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                             <option value="EUR|€|Euro">€ EUR — Euro</option>
                             <option value="USD|$|Dólar americano">$ USD — Dólar americano</option>
                             <option value="GBP|£|Libra esterlina">£ GBP — Libra esterlina</option>
-                            <option value="ARS|$|Peso argentino">$ ARS — Peso argentino</option>
+                            <option value="ARS|ARS|Peso argentino">ARS — Peso argentino</option>
                             <option value="BRL|R$|Real brasileño">R$ BRL — Real brasileño</option>
                             <option value="UYU|$U|Peso uruguayo">$U UYU — Peso uruguayo</option>
-                            <option value="DKK|kr|Corona danesa">kr DKK — Corona danesa</option>
-                            <option value="SEK|kr|Corona sueca">kr SEK — Corona sueca</option>
-                            <option value="NOK|kr|Corona noruega">kr NOK — Corona noruega</option>
+                            <option value="DKK|DKK|Corona danesa">DKK — Corona danesa</option>
+                            <option value="SEK|SEK|Corona sueca">SEK — Corona sueca</option>
+                            <option value="NOK|NOK|Corona noruega">NOK — Corona noruega</option>
                             <option value="CHF|Fr|Franco suizo">Fr CHF — Franco suizo</option>
-                            <option value="MXN|$|Peso mexicano">$ MXN — Peso mexicano</option>
-                            <option value="COP|$|Peso colombiano">$ COP — Peso colombiano</option>
-                            <option value="CLP|$|Peso chileno">$ CLP — Peso chileno</option>
+                            <option value="MXN|MXN|Peso mexicano">MXN — Peso mexicano</option>
+                            <option value="COP|COP|Peso colombiano">COP — Peso colombiano</option>
+                            <option value="CLP|CLP|Peso chileno">CLP — Peso chileno</option>
                             <option value="PEN|S/|Sol peruano">S/ PEN — Sol peruano</option>
                             <option value="otro||">Otra divisa…</option>
                         </select>
@@ -839,134 +839,6 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
-    <!-- ═══ SECCIÓN ELIMINADA (contenido movido a secciones anteriores) ══ -->
-    <div class="cfg-section" id="sec-moneda" style="display:none;">
-        <div class="cfg-section-head" onclick="toggleSection('moneda')">
-            <span class="cfg-section-icon">💱</span>
-            <span class="cfg-section-title">
-                Divisa del sistema
-            </span>
-            <span class="cfg-section-arrow">›</span>
-        </div>
-        <div class="cfg-section-body">
-            <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
-                Todos los precios, estadísticas y reportes del sistema se mostrarán en esta divisa.
-                Cuando una factura venga en otra moneda, el sistema te mostrará la equivalencia
-                usando las tasas configuradas aquí.
-            </p>
-
-            <!-- Moneda predeterminada -->
-            <div class="cfg-grid" style="margin-top:18px;">
-                <div class="cfg-field">
-                    <label class="cfg-label">Moneda predeterminada</label>
-                    <select class="moneda-select" id="m-codigo" onchange="autocompletarMoneda()">
-                        <option value="">Seleccionar…</option>
-                        <option value="EUR|€|Euro">€ EUR — Euro</option>
-                        <option value="USD|$|Dólar americano">$ USD — Dólar americano</option>
-                        <option value="GBP|£|Libra esterlina">£ GBP — Libra esterlina</option>
-                        <option value="ARS|$|Peso argentino">$ ARS — Peso argentino</option>
-                        <option value="BRL|R$|Real brasileño">R$ BRL — Real brasileño</option>
-                        <option value="UYU|$U|Peso uruguayo">$U UYU — Peso uruguayo</option>
-                        <option value="DKK|kr|Corona danesa">kr DKK — Corona danesa</option>
-                        <option value="SEK|kr|Corona sueca">kr SEK — Corona sueca</option>
-                        <option value="NOK|kr|Corona noruega">kr NOK — Corona noruega</option>
-                        <option value="CHF|Fr|Franco suizo">Fr CHF — Franco suizo</option>
-                        <option value="MXN|$|Peso mexicano">$ MXN — Peso mexicano</option>
-                        <option value="COP|$|Peso colombiano">$ COP — Peso colombiano</option>
-                        <option value="CLP|$|Peso chileno">$ CLP — Peso chileno</option>
-                        <option value="PEN|S/|Sol peruano">S/ PEN — Sol peruano</option>
-                        <option value="otro||">Otra divisa…</option>
-                    </select>
-                </div>
-                <div class="cfg-field">
-                    <label class="cfg-label">Símbolo</label>
-                    <input class="cfg-input" type="text" id="m-simbolo"
-                           placeholder="€, $, £, kr…" maxlength="5">
-                </div>
-            </div>
-            <!-- Campo manual para divisa no listada -->
-            <div class="cfg-grid full" id="m-otro-wrap" style="display:none;margin-top:12px;">
-                <div class="cfg-field">
-                    <label class="cfg-label">Código ISO de la divisa (ej: THB, MAD…)</label>
-                    <input class="cfg-input" type="text" id="m-otro-codigo"
-                           placeholder="USD, EUR, GBP…" maxlength="10"
-                           style="text-transform:uppercase;">
-                </div>
-                <div class="cfg-field">
-                    <label class="cfg-label">Nombre de la divisa</label>
-                    <input class="cfg-input" type="text" id="m-otro-nombre"
-                           placeholder="Ej: Baht tailandés">
-                </div>
-            </div>
-
-            <!-- Tasas de cambio -->
-            <div style="margin-top:26px;padding-top:20px;border-top:1px solid #f0f0f0;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                    <div>
-                        <div style="font-size:13px;font-weight:700;color:#1a1a2e;">Tasas de cambio</div>
-                        <div style="font-size:12px;color:#9ca3af;margin-top:2px;">
-                            1 [moneda sistema] = X [moneda extranjera]
-                        </div>
-                    </div>
-                    <button class="btn-save" style="padding:7px 14px;font-size:12px;"
-                            onclick="abrirAddTasa()">+ Agregar tasa</button>
-                </div>
-
-                <table class="tasa-table" id="tasa-table">
-                    <thead>
-                        <tr>
-                            <th>Divisa extranjera</th>
-                            <th>Equivalencia</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tasa-tbody">
-                        <tr><td colspan="3" class="tasa-empty">Sin tasas configuradas</td></tr>
-                    </tbody>
-                </table>
-
-                <!-- Formulario inline para agregar tasa -->
-                <div class="tasa-add-row" id="tasa-add-row">
-                    <select id="ta-select" style="min-width:180px;" onchange="autocompletarAddTasa()">
-                        <option value="">Seleccionar divisa…</option>
-                        <option value="USD|Dólar americano">USD — Dólar americano</option>
-                        <option value="EUR|Euro">EUR — Euro</option>
-                        <option value="GBP|Libra esterlina">GBP — Libra esterlina</option>
-                        <option value="ARS|Peso argentino">ARS — Peso argentino</option>
-                        <option value="BRL|Real brasileño">BRL — Real brasileño</option>
-                        <option value="UYU|Peso uruguayo">UYU — Peso uruguayo</option>
-                        <option value="DKK|Corona danesa">DKK — Corona danesa</option>
-                        <option value="SEK|Corona sueca">SEK — Corona sueca</option>
-                        <option value="NOK|Corona noruega">NOK — Corona noruega</option>
-                        <option value="CHF|Franco suizo">CHF — Franco suizo</option>
-                        <option value="MXN|Peso mexicano">MXN — Peso mexicano</option>
-                        <option value="COP|Peso colombiano">COP — Peso colombiano</option>
-                        <option value="CLP|Peso chileno">CLP — Peso chileno</option>
-                        <option value="PEN|Sol peruano">PEN — Sol peruano</option>
-                        <option value="otro|">Otra…</option>
-                    </select>
-                    <input id="ta-codigo" type="text" placeholder="Código (ej: THB)"
-                           maxlength="10" style="width:90px;display:none;text-transform:uppercase;">
-                    <input id="ta-nombre" type="text" placeholder="Nombre"
-                           style="min-width:140px;display:none;">
-                    <span style="font-size:13px;color:#6b7280;white-space:nowrap;">
-                        1 <span id="ta-sistema-codigo">EUR</span> =
-                    </span>
-                    <input id="ta-tasa" type="number" step="0.0001" min="0.0001"
-                           placeholder="0.87" style="width:90px;">
-                    <span id="ta-foreign-codigo" style="font-size:13px;color:#6b7280;min-width:40px;"></span>
-                    <button class="btn-tasa-ok" onclick="confirmarAddTasa()">Agregar</button>
-                    <button class="btn-tasa-cancel" onclick="cerrarAddTasa()">✕</button>
-                </div>
-            </div>
-
-            <div class="cfg-actions" id="moneda-actions">
-                <button class="btn-save" onclick="guardarMoneda()">Guardar cambios</button>
-                <span class="save-ok" id="ok-moneda">✓ Guardado</span>
-            </div>
-        </div>
-    </div>
-
     <div class="cfg-section" id="sec-impuestos" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('impuestos')">
             <span class="cfg-section-icon">🧾</span>
@@ -1116,13 +988,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
         <div class="cfg-section-body" style="padding-bottom:0;">
 
-            <!-- Tabs: Roles / Familias -->
-            <div class="roles-tabs">
-                <button class="roles-tab active" onclick="switchRolesTab('roles')">🎭 Roles</button>
-                <button class="roles-tab" onclick="switchRolesTab('familias')">📂 Familias</button>
-            </div>
-
-            <!-- ─── TAB: Roles ─── -->
+            <!-- ─── Roles ─── -->
             <div class="roles-tab-panel active" id="rtab-roles">
                 <!-- Lista -->
                 <div class="roles-list-col">
@@ -1134,22 +1000,6 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                     <div class="editor-empty">
                         <span class="editor-empty-icon">🎭</span>
                         Seleccioná un rol para editarlo<br>o creá uno nuevo
-                    </div>
-                </div>
-            </div>
-
-            <!-- ─── TAB: Familias ─── -->
-            <div class="roles-tab-panel" id="rtab-familias">
-                <!-- Lista -->
-                <div class="roles-list-col">
-                    <button class="btn-new-role" onclick="nuevaFamilia()">＋ Nueva familia</button>
-                    <div id="familias-list"></div>
-                </div>
-                <!-- Editor -->
-                <div class="roles-editor-col" id="familias-editor">
-                    <div class="editor-empty">
-                        <span class="editor-empty-icon">📂</span>
-                        Seleccioná una familia para editarla<br>o creá una nueva
                     </div>
                 </div>
             </div>
@@ -1719,8 +1569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarSeccionMoneda();
     cargarSeccionImpuestos();
     cargarSeccionDescuentoPersonal();
-    cargarRoles();
-    cargarFamilias();
+    cargarPermisosDef().then(cargarRoles);
 });
 
 
@@ -1969,20 +1818,20 @@ async function guardarDescuentoPersonal() {
 
 // Mapa de divisas comunes: código → { simbolo, nombre }
 const DIVISAS_INFO = {
-    EUR: { simbolo: '€',  nombre: 'Euro' },
-    USD: { simbolo: '$',  nombre: 'Dólar americano' },
-    GBP: { simbolo: '£',  nombre: 'Libra esterlina' },
-    ARS: { simbolo: '$',  nombre: 'Peso argentino' },
-    BRL: { simbolo: 'R$', nombre: 'Real brasileño' },
-    UYU: { simbolo: '$U', nombre: 'Peso uruguayo' },
-    DKK: { simbolo: 'kr', nombre: 'Corona danesa' },
-    SEK: { simbolo: 'kr', nombre: 'Corona sueca' },
-    NOK: { simbolo: 'kr', nombre: 'Corona noruega' },
-    CHF: { simbolo: 'Fr', nombre: 'Franco suizo' },
-    MXN: { simbolo: '$',  nombre: 'Peso mexicano' },
-    COP: { simbolo: '$',  nombre: 'Peso colombiano' },
-    CLP: { simbolo: '$',  nombre: 'Peso chileno' },
-    PEN: { simbolo: 'S/', nombre: 'Sol peruano' },
+    EUR: { simbolo: '€',   nombre: 'Euro' },
+    USD: { simbolo: '$',   nombre: 'Dólar americano' },
+    GBP: { simbolo: '£',   nombre: 'Libra esterlina' },
+    ARS: { simbolo: 'ARS', nombre: 'Peso argentino' },
+    BRL: { simbolo: 'R$',  nombre: 'Real brasileño' },
+    UYU: { simbolo: '$U',  nombre: 'Peso uruguayo' },
+    DKK: { simbolo: 'DKK', nombre: 'Corona danesa' },
+    SEK: { simbolo: 'SEK', nombre: 'Corona sueca' },
+    NOK: { simbolo: 'NOK', nombre: 'Corona noruega' },
+    CHF: { simbolo: 'Fr',  nombre: 'Franco suizo' },
+    MXN: { simbolo: 'MXN', nombre: 'Peso mexicano' },
+    COP: { simbolo: 'COP', nombre: 'Peso colombiano' },
+    CLP: { simbolo: 'CLP', nombre: 'Peso chileno' },
+    PEN: { simbolo: 'S/',  nombre: 'Sol peruano' },
 };
 
 let _tasas = [];   // array de { codigo, nombre, tasa }
@@ -2001,7 +1850,7 @@ async function cargarSeccionMoneda() {
     const user = getUser();
     if (!user || (user.rol !== 'admin' && user.rol !== 'gerente')) {
         document.getElementById('moneda-actions').style.display = 'none';
-        document.querySelectorAll('#sec-moneda input, #sec-moneda select, #sec-moneda button')
+        document.querySelectorAll('#moneda-block input, #moneda-block select, #moneda-block button')
             .forEach(el => {
                 if (el.id !== 'badge-moneda') el.disabled = true;
             });
@@ -2049,7 +1898,9 @@ function autocompletarMoneda() {
 function actualizarBadgeMoneda(codigo, simbolo) {
     const badge = document.getElementById('badge-moneda');
     if (codigo) {
-        badge.textContent = `${simbolo || ''} ${codigo}`.trim();
+        // Si el símbolo es el mismo acrónimo (ej: DKK, ARS), no lo repetimos
+        badge.textContent = (simbolo && simbolo !== codigo)
+            ? `${simbolo} ${codigo}` : codigo;
         badge.className   = 'cfg-section-badge badge-on';
     } else {
         badge.textContent = 'Sin configurar';
@@ -2227,47 +2078,26 @@ function confirmarAddTasa() {
 // ── Sección Roles y Permisos ─────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 
-const PERMISOS_DEF = [
-    { key: "gestion_caja",        label: "Gestión de caja",        desc: "Abrir y cerrar la caja diaria",                      grupo: "Sala" },
-    { key: "editar_resumen",      label: "Editar resumen",          desc: "Aplicar descuentos al cerrar mesas",                 grupo: "Sala" },
-    { key: "revision",            label: "Revisión de cuentas",     desc: "Modificar pedidos ya cobrados",                      grupo: "Sala" },
-    { key: "gestion_pedidos",     label: "Gestión de pedidos",      desc: "Gestionar comandas y pedidos activos",               grupo: "Sala" },
-    { key: "edicion_sala",        label: "Edición de sala",         desc: "Configurar mesas y layout de sala",                  grupo: "Sala" },
-    { key: "edicion_carta",       label: "Edición de carta",        desc: "Editar productos, categorías, combos y menú",        grupo: "Carta" },
-    { key: "gestion_stock",       label: "Gestión de stock",        desc: "Gestionar insumos, recargas y proveedores",          grupo: "Stock" },
-    { key: "gestion_produccion",  label: "Gestión de producción",   desc: "Gestionar insumos de producción y elaboraciones",    grupo: "Stock" },
-    { key: "revision_stock",      label: "Revisión de stock",       desc: "Realizar revisiones de inventario (sin poder editar insumos)", grupo: "Stock" },
-    { key: "edicion_agenda",      label: "Edición de agenda",       desc: "Editar horarios del personal y bloqueos",            grupo: "Agenda" },
-    { key: "edicion_horarios",    label: "Edición de horarios",     desc: "Configurar horarios de apertura del restaurante",    grupo: "Agenda" },
-    { key: "gestion_reservas",    label: "Gestión de reservas",     desc: "Crear, editar y cancelar reservas",                  grupo: "Agenda" },
-    { key: "acceso_estadisticas", label: "Acceso a estadísticas",   desc: "Ver reportes, análisis y estadísticas del negocio",  grupo: "Administración" },
-    { key: "acceso_facturacion",  label: "Acceso a facturación",    desc: "Ver y gestionar datos de facturación y finanzas",    grupo: "Administración" },
-    { key: "acceso_usuarios",     label: "Acceso a usuarios",       desc: "Ver y gestionar usuarios del sistema",               grupo: "Administración" },
-    { key: "acceso_configuracion",label: "Acceso a configuración",  desc: "Modificar la configuración general del sistema",     grupo: "Administración" },
-    { key: "gestion_clientes",    label: "Gestión base de datos de clientes", desc: "Ver, buscar y unificar registros de clientes",  grupo: "Clientes" },
-    // Solo visualización
-    { key: "ver_clientes",        label: "Ver base de datos de clientes",     desc: "Ver y buscar clientes sin poder unificarlos",   grupo: "Visualización" },
-    { key: "ver_reservas",        label: "Ver reservas",            desc: "Ver el listado de reservas sin poder editarlas",     grupo: "Visualización" },
-    { key: "ver_carta",           label: "Ver carta",               desc: "Ver productos, combos y recetas sin poder editarlos",grupo: "Visualización" },
-    { key: "ver_fichajes",        label: "Ver fichajes",            desc: "Ver el registro de fichajes del personal",           grupo: "Visualización" },
-    { key: "ver_horarios",        label: "Ver horarios",            desc: "Ver el cuadrante de horarios del personal",          grupo: "Visualización" },
-    { key: "ver_stock",           label: "Ver stock",               desc: "Ver insumos de stock y producción, recetas y proveedores sin poder editarlos", grupo: "Visualización" },
-];
+// Lista de permisos y su agrupación: se cargan desde el backend (GET /roles/permisos),
+// que es la ÚNICA fuente de verdad (mismas claves que las columnas de `usuarios`). Así
+// la UI nunca se desincroniza de lo que realmente se propaga a los usuarios.
+let PERMISOS_DEF = [];
+let GRUPOS_ORDEN = [];
 
-const GRUPOS_ORDEN = ["Sala","Carta","Stock","Agenda","Administración","Visualización"];
+async function cargarPermisosDef() {
+    try {
+        const perms = await apiFetch('/roles/permisos');
+        if (Array.isArray(perms) && perms.length) {
+            PERMISOS_DEF = perms;
+            GRUPOS_ORDEN = [...new Set(perms.map(p => p.grupo).filter(Boolean))];
+        }
+    } catch (e) {
+        console.warn('No se pudieron cargar los permisos:', e);
+    }
+}
 
 let _roles    = [];
-let _familias = [];
 let _rolSel   = null;   // objeto rol seleccionado
-let _famSel   = null;   // objeto familia seleccionada
-
-// ── Tab switching ────────────────────────────────────────────
-function switchRolesTab(tab) {
-    document.querySelectorAll('.roles-tab').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.roles-tab-panel').forEach(p => p.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-    document.getElementById('rtab-' + tab).classList.add('active');
-}
 
 // ═══ ROLES ══════════════════════════════════════════════════
 
@@ -2341,19 +2171,6 @@ function renderEditorRol() {
             ⚠️ Los roles de sistema tienen acceso total y no se pueden editar.
         </div>` : '';
 
-    const familiasBtns = _familias.length && !esSistema ? `
-        <div style="margin-bottom:12px;">
-            <label class="cfg-label" style="margin-bottom:6px;display:block;">Aplicar familia de permisos</label>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                ${_familias.map(f => `
-                    <button onclick="aplicarFamiliaARol(${f.id})"
-                            style="font-size:11px;padding:4px 10px;border-radius:6px;
-                                   border:1px solid #c4b5fd;background:#f5f3ff;color:#6d28d9;
-                                   cursor:pointer;">${f.nombre}</button>
-                `).join('')}
-            </div>
-        </div>` : '';
-
     el.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:14px;">
             ${sysNote}
@@ -2390,7 +2207,6 @@ function renderEditorRol() {
                     <div class="toggle-desc">Al cerrar sesión, muestra el estado actual del restaurante (salas y cocina) antes de volver al login.</div>
                 </div>
             </label>
-            ${familiasBtns}
             <div>
                 <label class="cfg-label" style="margin-bottom:8px;display:block;">Permisos</label>
                 <div class="perm-groups">${gruposHtml}</div>
@@ -2468,146 +2284,6 @@ async function aplicarRol(id) {
     }
 }
 
-function aplicarFamiliaARol(famId) {
-    const fam = _familias.find(f => f.id === famId);
-    if (!fam || !_rolSel) return;
-    // Marcar los checkboxes según los permisos de la familia
-    PERMISOS_DEF.forEach(p => {
-        const el = document.getElementById('rp-' + p.key);
-        if (el) el.checked = !!fam.permisos[p.key];
-    });
-}
-
-// ═══ FAMILIAS ═══════════════════════════════════════════════
-
-async function cargarFamilias() {
-    try {
-        _familias = await apiFetch('/roles/familias');
-    } catch { _familias = []; }
-    renderListaFamilias();
-}
-
-function renderListaFamilias() {
-    const el = document.getElementById('familias-list');
-    if (!_familias.length) {
-        el.innerHTML = '<p style="font-size:12px;color:#9ca3af;padding:12px 14px;">Sin familias</p>';
-        return;
-    }
-    el.innerHTML = _familias.map(f => `
-        <div class="role-item ${_famSel?.id === f.id ? 'selected' : ''}" onclick="seleccionarFamilia(${f.id})">
-            <span class="role-item-name">${f.nombre}</span>
-        </div>
-    `).join('');
-}
-
-function seleccionarFamilia(id) {
-    _famSel = _familias.find(f => f.id === id) || null;
-    renderListaFamilias();
-    renderEditorFamilia();
-}
-
-function nuevaFamilia() {
-    _famSel = { id: null, nombre: '', descripcion: '', permisos: {} };
-    renderListaFamilias();
-    renderEditorFamilia();
-}
-
-function renderEditorFamilia() {
-    const el = document.getElementById('familias-editor');
-    if (!_famSel) {
-        el.innerHTML = `<div class="editor-empty"><span class="editor-empty-icon">📂</span>Seleccioná una familia para editarla<br>o creá una nueva</div>`;
-        return;
-    }
-    const f = _famSel;
-
-    const gruposHtml = GRUPOS_ORDEN.map(grupo => {
-        const perms = PERMISOS_DEF.filter(p => p.grupo === grupo);
-        const checksHtml = perms.map(p => `
-            <label class="perm-check-row">
-                <input type="checkbox" id="fp-${p.key}" ${f.permisos[p.key] ? 'checked' : ''}>
-                <span class="perm-check-label">
-                    ${p.label}
-                    <span class="perm-check-desc">${p.desc}</span>
-                </span>
-            </label>
-        `).join('');
-        return `
-            <div>
-                <div class="perm-group-title">${grupo}</div>
-                <div class="perm-checks">${checksHtml}</div>
-            </div>
-        `;
-    }).join('');
-
-    el.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:14px;">
-            <div style="display:flex;flex-direction:column;gap:10px;">
-                <div class="cfg-field">
-                    <label class="cfg-label">Nombre de la familia</label>
-                    <input class="cfg-input" id="fe-nombre" value="${f.nombre}"
-                           placeholder="Ej: Equipo de Sala">
-                </div>
-                <div class="cfg-field">
-                    <label class="cfg-label">Descripción (opcional)</label>
-                    <input class="cfg-input" id="fe-desc" value="${f.descripcion||''}"
-                           placeholder="Descripción del conjunto de permisos">
-                </div>
-            </div>
-            <div>
-                <label class="cfg-label" style="margin-bottom:8px;display:block;">Permisos de la familia</label>
-                <div class="perm-groups">${gruposHtml}</div>
-            </div>
-            <div class="editor-actions">
-                <button class="btn-save" onclick="guardarFamilia()" style="font-size:13px;padding:9px 20px;">
-                    ${f.id ? 'Guardar cambios' : 'Crear familia'}
-                </button>
-                ${f.id ? `<button class="btn-del-role" onclick="eliminarFamilia(${f.id})">🗑 Eliminar</button>` : ''}
-            </div>
-        </div>
-    `;
-}
-
-function _leerPermisosFamilia() {
-    const permisos = {};
-    PERMISOS_DEF.forEach(p => {
-        const el = document.getElementById('fp-' + p.key);
-        if (el) permisos[p.key] = el.checked;
-    });
-    return permisos;
-}
-
-async function guardarFamilia() {
-    const nombre = document.getElementById('fe-nombre').value.trim();
-    const descripcion = document.getElementById('fe-desc').value.trim();
-    if (!nombre) { alert('El nombre de la familia es obligatorio.'); return; }
-    const permisos = _leerPermisosFamilia();
-    try {
-        if (_famSel.id) {
-            await apiFetch(`/roles/familias/${_famSel.id}`, { method:'PATCH', body: JSON.stringify({ nombre, descripcion, permisos }) });
-        } else {
-            await apiFetch('/roles/familias', { method:'POST', body: JSON.stringify({ nombre, descripcion, permisos }) });
-        }
-        await cargarFamilias();
-        const encontrado = _familias.find(f => f.nombre === nombre);
-        if (encontrado) seleccionarFamilia(encontrado.id);
-    } catch(e) {
-        alert('Error al guardar familia: ' + (e.message || e));
-    }
-}
-
-async function eliminarFamilia(id) {
-    const f = _familias.find(f => f.id === id);
-    if (!f) return;
-    if (!confirm(`¿Eliminar la familia "${f.nombre}"?`)) return;
-    try {
-        await apiFetch(`/roles/familias/${id}`, { method:'DELETE' });
-        _famSel = null;
-        await cargarFamilias();
-        renderEditorFamilia();
-    } catch(e) {
-        alert('No se pudo eliminar: ' + (e.message || e));
-    }
-}
 </script>
 </body>
 </html>

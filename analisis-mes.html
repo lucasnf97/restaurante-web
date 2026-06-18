@@ -573,6 +573,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
 <script>
 // ── Umbrales (localStorage) ─────────────────────────────────────
 const UMBRAL_KEY = "est_umbrales_v1";
@@ -609,8 +610,7 @@ function cargarUmbralesUI() {
 }
 
 // ── Formato moneda ──────────────────────────────────────────────
-const FMT = new Intl.NumberFormat("es-AR", { style:"currency", currency:"ARS", maximumFractionDigits:2 });
-function fmt(n) { return FMT.format(n); }
+function fmt(n) { return fmtDinero(n); }
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
                "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -713,7 +713,7 @@ function renderProgressBar() {
             <div class="prog-fill" style="width:${ventasPct}%;">${fillLbl}</div>
             ${mkHtml}
         </div>
-        <div class="prog-scale"><span>$ 0</span><span>${fmt(Math.round(barMax))}</span></div>`;
+        <div class="prog-scale"><span>${simboloMoneda()} 0</span><span>${fmt(Math.round(barMax))}</span></div>`;
 }
 
 // ── Facturación mensual ─────────────────────────────────────────

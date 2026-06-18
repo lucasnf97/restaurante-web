@@ -253,6 +253,7 @@
 
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
 <script>
 requireAuth();
 requirePermiso('gestion_caja');
@@ -289,7 +290,7 @@ async function abrirRevision(cierreId, pedidoId, mesaNumero) {
                         <div style="font-size:12px;color:#888;">${m.comensales} personas · ${formatTs(m.ts_cobro)}</div>
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <span style="font-weight:700;color:#16a34a;">$${parseFloat(m.total).toFixed(2)}</span>
+                        <span style="font-weight:700;color:#16a34a;">${simboloMoneda()} ${parseFloat(m.total).toFixed(2)}</span>
                         <button onclick="abrirEditorMesa(${m.pedido_id}, ${m.mesa_numero})"
                             style="background:#ede9fe;color:#7c3aed;border:none;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;">
                             Editar
@@ -390,11 +391,11 @@ function revActualizarDiff() {
     const diff = nuevoTotal - _revOrigTotal;
     const box  = document.getElementById("rev-diff-box");
     if (Math.abs(diff) < 0.01) {
-        box.innerHTML = `<div class="diff-box diff-ok">ℹ️ Sin diferencia de importe — Total: <strong>$${nuevoTotal.toFixed(2)}</strong></div>`;
+        box.innerHTML = `<div class="diff-box diff-ok">ℹ️ Sin diferencia de importe — Total: <strong>${simboloMoneda()} ${nuevoTotal.toFixed(2)}</strong></div>`;
     } else if (diff > 0) {
-        box.innerHTML = `<div class="diff-box diff-cobro">⚠️ Cobro adicional requerido: <strong>$${diff.toFixed(2)}</strong> — Nuevo total: $${nuevoTotal.toFixed(2)}</div>`;
+        box.innerHTML = `<div class="diff-box diff-cobro">⚠️ Cobro adicional requerido: <strong>${simboloMoneda()} ${diff.toFixed(2)}</strong> — Nuevo total: ${simboloMoneda()} ${nuevoTotal.toFixed(2)}</div>`;
     } else {
-        box.innerHTML = `<div class="diff-box diff-refund">✅ Refund a realizar: <strong>$${Math.abs(diff).toFixed(2)}</strong> — Nuevo total: $${nuevoTotal.toFixed(2)}</div>`;
+        box.innerHTML = `<div class="diff-box diff-refund">✅ Refund a realizar: <strong>${simboloMoneda()} ${Math.abs(diff).toFixed(2)}</strong> — Nuevo total: ${simboloMoneda()} ${nuevoTotal.toFixed(2)}</div>`;
     }
 }
 
@@ -416,9 +417,9 @@ async function revConfirmar() {
     try {
         const res = await api.post("/caja/revision/aplicar", payload);
         const tipos = { cobro_adicional: "⚠️ Cobro adicional", refund: "✅ Refund", sin_diferencia: "ℹ️ Sin cambio de importe" };
-        let msg = `Ajuste guardado.\n${tipos[res.tipo] || ""}\nOriginal: $${res.monto_original.toFixed(2)} → Ajustado: $${res.monto_ajustado.toFixed(2)}`;
+        let msg = `Ajuste guardado.\n${tipos[res.tipo] || ""}\nOriginal: ${simboloMoneda()} ${res.monto_original.toFixed(2)} → Ajustado: ${simboloMoneda()} ${res.monto_ajustado.toFixed(2)}`;
         if (Math.abs(res.diferencia) >= 0.01)
-            msg += `\nDiferencia: $${Math.abs(res.diferencia).toFixed(2)}`;
+            msg += `\nDiferencia: ${simboloMoneda()} ${Math.abs(res.diferencia).toFixed(2)}`;
         alert(msg);
         cerrarModal("modal-revision");
         await cargarCierres();
@@ -445,8 +446,8 @@ async function verHistorialRev(cierreId) {
                         <span style="font-weight:700;color:${diffColor};">${tipos[r.tipo] || r.tipo}</span>
                     </div>
                     <div style="margin-top:8px;font-size:13px;color:#555;">
-                        $${parseFloat(r.monto_original).toFixed(2)} → $${parseFloat(r.monto_ajustado).toFixed(2)}
-                        ${r.diferencia != 0 ? ` <strong>(${r.diferencia > 0 ? '+' : ''}$${parseFloat(r.diferencia).toFixed(2)})</strong>` : ''}
+                        ${simboloMoneda()} ${parseFloat(r.monto_original).toFixed(2)} → ${simboloMoneda()} ${parseFloat(r.monto_ajustado).toFixed(2)}
+                        ${r.diferencia != 0 ? ` <strong>(${r.diferencia > 0 ? '+' : ''}${simboloMoneda()} ${parseFloat(r.diferencia).toFixed(2)})</strong>` : ''}
                         ${r.motivo ? `<br><em style="color:#888;">"${r.motivo}"</em>` : ''}
                     </div>
                 </div>`;
@@ -478,9 +479,9 @@ async function verRefundTicket(ticketId) {
             return `<tr>
                 <td>${i.nombre || '—'}</td>
                 <td style="text-align:center;">${i.cantidad || 1}</td>
-                <td style="text-align:right;">$${parseFloat(i.precio_unit || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${simboloMoneda()} ${parseFloat(i.precio_unit || 0).toFixed(2)}</td>
                 <td style="text-align:center;">—</td>
-                <td style="text-align:right;font-weight:600;color:#dc2626;">-$${linea.toFixed(2)}</td>
+                <td style="text-align:right;font-weight:600;color:#dc2626;">-${simboloMoneda()} ${linea.toFixed(2)}</td>
             </tr>`;
         }).join("");
 
@@ -490,13 +491,13 @@ async function verRefundTicket(ticketId) {
                     ${t.pedido_id_ref ? `📋 Pedido de referencia: #${t.pedido_id_ref}` : '📋 Sin pedido de referencia'}
                     ${t.motivo ? `&nbsp;&nbsp;·&nbsp;&nbsp; 📝 ${t.motivo}` : ''}
                     &nbsp;&nbsp;·&nbsp;&nbsp; 💳 ${t.metodo_pago || '—'}
-                    ${t.monto_entregado ? `&nbsp;&nbsp;·&nbsp;&nbsp; Entregado: $${parseFloat(t.monto_entregado).toFixed(2)}` : ''}
+                    ${t.monto_entregado ? `&nbsp;&nbsp;·&nbsp;&nbsp; Entregado: ${simboloMoneda()} ${parseFloat(t.monto_entregado).toFixed(2)}` : ''}
                     &nbsp;&nbsp;·&nbsp;&nbsp; Por: ${t.creado_por}
                 </td>
             </tr>
             <tr style="background:#fff1f2;">
                 <td colspan="4" style="text-align:right;font-weight:700;color:#dc2626;">TOTAL REFUND</td>
-                <td style="text-align:right;font-weight:700;font-size:15px;color:#dc2626;">-$${parseFloat(t.total).toFixed(2)}</td>
+                <td style="text-align:right;font-weight:700;font-size:15px;color:#dc2626;">-${simboloMoneda()} ${parseFloat(t.total).toFixed(2)}</td>
             </tr>`;
 
         tbody.innerHTML = filas + info;
@@ -520,7 +521,7 @@ async function buscarPorPedidoId() {
                     <td>${formatTs(c.ts_apertura)}</td>
                     <td>${c.cerrado_por}</td>
                     <td>${formatTs(c.ts_cierre)}</td>
-                    <td><strong>$${parseFloat(c.total).toFixed(2)}</strong></td>
+                    <td><strong>${simboloMoneda()} ${parseFloat(c.total).toFixed(2)}</strong></td>
                     <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
                 </tr>`;
                 verDetalle(c.id);
@@ -565,7 +566,7 @@ async function cargarResumen() {
     try {
         const r = await api.get("/caja/resumen/hoy");
         document.getElementById("stat-pedidos").textContent = r.pedidos_cobrados;
-        document.getElementById("stat-total").textContent = `$${r.total_hoy.toFixed(2)}`;
+        document.getElementById("stat-total").textContent = `${simboloMoneda()} ${r.total_hoy.toFixed(2)}`;
     } catch(e) {}
 }
 
@@ -594,7 +595,7 @@ async function cargarCierres() {
                 <td>${formatTs(c.ts_apertura)}</td>
                 <td>${c.cerrado_por}</td>
                 <td>${formatTs(c.ts_cierre)}</td>
-                <td><strong>$${parseFloat(c.total).toFixed(2)}</strong></td>
+                <td><strong>${simboloMoneda()} ${parseFloat(c.total).toFixed(2)}</strong></td>
                 <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
             </tr>`;
         } catch(e) {
@@ -625,14 +626,14 @@ async function cargarCierres() {
                 <td>${formatTs(c.ts_apertura)}</td>
                 <td>${c.cerrado_por}</td>
                 <td>${formatTs(c.ts_cierre)}</td>
-                <td><strong>$${parseFloat(c.total).toFixed(2)}</strong></td>
+                <td><strong>${simboloMoneda()} ${parseFloat(c.total).toFixed(2)}</strong></td>
                 <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
             </tr>`;
         }).join("");
         const totalRow = cierres.length ? `
             <tr style="background:#f8f9fa">
                 <td colspan="5" style="text-align:right;font-weight:700;color:#666;">TOTAL PERÍODO</td>
-                <td style="font-weight:700;font-size:16px;">$${totalGeneral.toFixed(2)}</td>
+                <td style="font-weight:700;font-size:16px;">${simboloMoneda()} ${totalGeneral.toFixed(2)}</td>
                 <td></td>
             </tr>` : "";
         tbody.innerHTML = abiertaRow + filasCierres + totalRow;
@@ -646,7 +647,7 @@ function filaCajaAbierta(ab) {
         <td>${formatTs(ab.ts_apertura)}</td>
         <td>—</td>
         <td>—</td>
-        <td><strong>$${parseFloat(ab.total).toFixed(2)}</strong></td>
+        <td><strong>${simboloMoneda()} ${parseFloat(ab.total).toFixed(2)}</strong></td>
         <td><button class="btn btn-secondary btn-sm" onclick="verDetalleAbierta()">Ver mesas cobradas</button></td>
     </tr>`;
 }
@@ -657,7 +658,7 @@ async function verDetalleAbierta() {
         if (!data || !data.abierta) { alert("No hay una caja abierta."); return; }
         document.getElementById("modal-titulo").textContent = `Caja abierta #${data.id}`;
         document.getElementById("modal-sub").textContent =
-            `Mesas ya cobradas en la sesión — Total parcial: $${parseFloat(data.total).toFixed(2)}`;
+            `Mesas ya cobradas en la sesión — Total parcial: ${simboloMoneda()} ${parseFloat(data.total).toFixed(2)}`;
         const tbody = document.getElementById("modal-tabla");
         const det = data.detalle || [];
         if (!det.length) {
@@ -672,7 +673,7 @@ async function verDetalleAbierta() {
                     <td style="color:#666;font-size:12px;">#${d.pedido_id}</td>
                     <td>${mesaLabel}</td>
                     <td>${d.comensales} persona${d.comensales != 1 ? 's' : ''}</td>
-                    <td><strong>$${parseFloat(d.total).toFixed(2)}</strong></td>
+                    <td><strong>${simboloMoneda()} ${parseFloat(d.total).toFixed(2)}</strong></td>
                     <td>${formatTs(d.ts_cobro)}</td>
                     <td><button class="btn-libreta" onclick="verItems(${d.pedido_id}, ${esTakeAway ? "'Take Away'" : d.mesa_numero})" title="Ver productos">📒</button></td>
                 </tr>`;
@@ -707,7 +708,7 @@ async function verDetalle(id) {
             tbody.innerHTML = data.detalle.map(d => {
                 const esRefund = !d.pedido_id;
                 const totalVal = parseFloat(d.total);
-                const totalStr = `<span style="color:${totalVal < 0 ? '#dc2626' : 'inherit'};font-weight:700;">$${totalVal.toFixed(2)}</span>`;
+                const totalStr = `<span style="color:${totalVal < 0 ? '#dc2626' : 'inherit'};font-weight:700;">${simboloMoneda()} ${totalVal.toFixed(2)}</span>`;
                 if (esRefund) {
                     return `<tr style="background:#fff1f2;">
                         <td style="color:#9ca3af;">—</td>
@@ -775,9 +776,9 @@ async function verItems(pedidoId, mesaNumero) {
                 return `<tr>
                     <td>${i.nombre}${i.notas ? `<br><small style="color:#888">📝 ${i.notas}</small>` : ''}${parcialBadge}</td>
                     <td style="text-align:center;">${i._cant_ef}</td>
-                    <td style="text-align:right;">$${parseFloat(i.precio_unit).toFixed(2)}</td>
+                    <td style="text-align:right;">${simboloMoneda()} ${parseFloat(i.precio_unit).toFixed(2)}</td>
                     <td style="text-align:center;color:#16a34a;">${descuento > 0 ? descuento.toFixed(1) + '%' : '—'}</td>
-                    <td style="text-align:right;font-weight:600;">$${linea.toFixed(2)}</td>
+                    <td style="text-align:right;font-weight:600;">${simboloMoneda()} ${linea.toFixed(2)}</td>
                 </tr>`;
             }).join("");
 
@@ -790,7 +791,7 @@ async function verItems(pedidoId, mesaNumero) {
                   eliminados.map(i => `<tr style="opacity:.6;">
                     <td style="text-decoration:line-through;color:#9ca3af;">${i.nombre}</td>
                     <td style="text-align:center;color:#9ca3af;">${i.cantidad}</td>
-                    <td style="text-align:right;color:#9ca3af;">$${parseFloat(i.precio_unit).toFixed(2)}</td>
+                    <td style="text-align:right;color:#9ca3af;">${simboloMoneda()} ${parseFloat(i.precio_unit).toFixed(2)}</td>
                     <td style="text-align:center;color:#9ca3af;">—</td>
                     <td style="text-align:right;color:#9ca3af;">—</td>
                   </tr>`).join("")
@@ -799,7 +800,7 @@ async function verItems(pedidoId, mesaNumero) {
             tbody.innerHTML = filasNormales + filasEliminados + `
                 <tr style="background:#f8f9fa;border-top:2px solid #e2e8f0;">
                     <td colspan="4" style="text-align:right;font-weight:700;color:#666;">SUBTOTAL COBRADO</td>
-                    <td style="text-align:right;font-weight:700;font-size:15px;">$${subtotal.toFixed(2)}</td>
+                    <td style="text-align:right;font-weight:700;font-size:15px;">${simboloMoneda()} ${subtotal.toFixed(2)}</td>
                 </tr>`;
         }
         document.getElementById("modal-items").classList.add("active");
@@ -823,7 +824,7 @@ async function cerrarCaja() {
     window.UI && UI.busy(btn, true, "Cerrando…");
     try {
         const res = await api.post("/caja/cerrar", {});
-        alert(`Caja cerrada. Total del turno: $${res.total.toFixed(2)}`);
+        alert(`Caja cerrada. Total del turno: ${simboloMoneda()} ${res.total.toFixed(2)}`);
     } catch(err) { alert("Error: " + err.message); }
     finally {
         window.UI && UI.busy(btn, false);

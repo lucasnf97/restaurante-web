@@ -321,10 +321,10 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
 <script>
 // ── Formato moneda ──────────────────────────────────────────────
-const FMT = new Intl.NumberFormat("es-AR", { style:"currency", currency:"ARS", maximumFractionDigits:2 });
-function fmt(n) { return FMT.format(n); }
+function fmt(n) { return fmtDinero(n); }
 
 // ── Mes actual del sistema ──────────────────────────────────────
 const mesActual  = new Date().getMonth() + 1;
@@ -344,9 +344,10 @@ function navGrafico(dir) {
 }
 
 function fmtK(n) {
-    if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
-    if (n >= 1000)    return '$' + (n / 1000).toFixed(1) + 'k';
-    return '$' + Math.round(n);
+    const s = simboloMoneda();
+    if (n >= 1000000) return s + ' ' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000)    return s + ' ' + (n / 1000).toFixed(1) + 'k';
+    return s + ' ' + Math.round(n);
 }
 
 async function cargarGrafico() {
