@@ -256,7 +256,7 @@
                 <div class="mesas-header">
                     <h3 id="mesas-titulo">Seleccioná una sala</h3>
                     <button class="btn btn-primary btn-sm" id="btn-nueva-mesa"
-                            onclick="abrirModalMesa()" style="display:none">+ Nueva mesa</button>
+                            onclick="crearMesaRapida()" style="display:none">+ Nueva mesa</button>
                 </div>
                 <div class="mesas-grid" id="mesas-grid">
                     <div class="empty" style="grid-column:1/-1">Seleccioná una sala para ver sus mesas</div>
@@ -284,6 +284,8 @@
                     <div class="size-control">
                         <input type="number" id="inp-h" value="90" min="60" max="400" oninput="aplicarTamano()">px
                     </div>
+                    <button class="btn btn-primary btn-sm" id="btn-nueva-mesa-diseno"
+                            onclick="crearMesaRapida()" style="display:none;margin-left:auto">+ Nueva mesa</button>
                 </div>
                 <div id="canvas-editor"></div>
                 <div class="editor-footer">
@@ -490,6 +492,7 @@ async function seleccionarSala(id) {
     mesas = await api.get(`/mesas/?sala_id=${id}`);
     document.getElementById('mesas-titulo').textContent = `Mesas — ${sala.nombre}`;
     document.getElementById('btn-nueva-mesa').style.display = 'block';
+    document.getElementById('btn-nueva-mesa-diseno').style.display = '';
     document.getElementById('editor-sala-label').textContent = sala.nombre;
     renderMesasConfig();
     if (_tabModo === 'diseno') renderEditor();
@@ -553,6 +556,31 @@ async function eliminarSala(id) {
         if (salaSelId === id) { salaSelId = null; mesas = []; renderMesasConfig(); }
         salas = await api.get('/mesas/salas');
         renderSalas();
+    } catch (err) { alert('Error: ' + err.message); }
+}
+
+// ── MESA: alta rápida ──────────────────────────────────────────
+// Crea una mesa al instante: el siguiente número libre de la sala y
+// capacidad 4 por defecto. Para cambiar número/capacidad/notas se usa
+// el botón editar (✏️). Funciona igual desde Configuración y Diseño.
+async function crearMesaRapida() {
+    if (!salaSelId) { alert('Seleccioná una sala primero.'); return; }
+    // Siguiente número libre: el menor entero ≥ 1 no usado en esta sala.
+    const usados = new Set(mesas.map(m => m.numero));
+    let numero = 1;
+    while (usados.has(numero)) numero++;
+    // Posición en cascada para que las nuevas no se apilen en el diseño.
+    const n = mesas.length;
+    const layout_x = 20 + (n % 6) * 140;
+    const layout_y = 20 + Math.floor(n / 6) * 120;
+    try {
+        await api.post('/mesas/', {
+            sala_id: salaSelId, numero, capacidad: 4,
+            layout_x, layout_y, layout_w: 120, layout_h: 90
+        });
+        mesas = await api.get(`/mesas/?sala_id=${salaSelId}`);
+        renderMesasConfig();
+        if (_tabModo === 'diseno') renderEditor();
     } catch (err) { alert('Error: ' + err.message); }
 }
 
