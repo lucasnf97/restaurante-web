@@ -48,6 +48,15 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
    type=password, por lo que el navegador no lo detecta como tal ni ofrece
    contraseñas guardadas. Soportado en Chrome, Edge, Safari y Firefox 117+. */
 .field input.masked { -webkit-text-security: disc; text-security: disc; }
+/* Campo con botón de "ojo" embebido */
+.field .input-wrap { position:relative; }
+.field .input-wrap input { padding-right:40px; }
+.field .eye-btn {
+    position:absolute; right:4px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; padding:6px;
+    font-size:16px; line-height:1; opacity:.6; user-select:none;
+}
+.field .eye-btn:hover { opacity:1; }
 
 .checkrow {
     display:flex; align-items:flex-start; gap:10px; margin-top:10px;
@@ -135,9 +144,16 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                  texto común (enmascarado con CSS .masked), no lo detecta como contraseña y
                  nunca ofrece autocompletar las guardadas. Así nadie con la sesión abierta
                  puede cambiarla sin conocer la actual. El login (index.html) no se toca. -->
-            <input type="text" id="p-pass-actual" class="masked" placeholder="Contraseña actual"
-                   autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
-                   data-lpignore="true" data-1p-ignore data-form-type="other">
+            <div class="input-wrap">
+                <input type="text" id="p-pass-actual" class="masked" placeholder="Contraseña actual"
+                       autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                       data-lpignore="true" data-1p-ignore data-form-type="other">
+                <button type="button" class="eye-btn" tabindex="-1" aria-label="Mostrar contraseña"
+                        onmousedown="mostrarPassActual(true)" onmouseup="mostrarPassActual(false)"
+                        onmouseleave="mostrarPassActual(false)"
+                        ontouchstart="event.preventDefault();mostrarPassActual(true)"
+                        ontouchend="event.preventDefault();mostrarPassActual(false)">👁️</button>
+            </div>
         </div>
         <div class="field">
             <label>Nueva contraseña</label>
@@ -211,6 +227,12 @@ async function guardarDatos() {
     } finally {
         btn.disabled = false;
     }
+}
+
+// Mostrar/ocultar lo escrito en "Contraseña actual" mientras se mantiene el ojo.
+// Revelar = quitar la máscara CSS; al soltar se vuelve a enmascarar.
+function mostrarPassActual(ver) {
+    document.getElementById('p-pass-actual').classList.toggle('masked', !ver);
 }
 
 async function cambiarPassword() {
