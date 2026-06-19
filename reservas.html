@@ -708,7 +708,13 @@ function dibujar(){
         ctxC.fillStyle=color;ctxC.globalAlpha=esTerminada?0.6:1;
         roundRect(ctxC,x,y,w,h,5);ctxC.fill();
         ctxC.globalAlpha=1;ctxC.shadowBlur=0;ctxC.shadowOffsetY=0;
-        ctxC.strokeStyle=darken(color,30);ctxC.lineWidth=1.5;roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
+        // Reserva online sin ver → borde punteado (se vuelve sólido al interactuar).
+        const esOnlineNueva=(r.origen==='online'&&!r.visto);
+        ctxC.strokeStyle=darken(color,esOnlineNueva?55:30);
+        ctxC.lineWidth=esOnlineNueva?2.5:1.5;
+        if(esOnlineNueva)ctxC.setLineDash([6,4]);
+        roundRect(ctxC,x,y,w,h,5);ctxC.stroke();
+        ctxC.setLineDash([]);
         // Texto (VIP: estrella a la izquierda del nombre)
         ctxC.fillStyle=esTerminada?'#64748b':'#1e293b';ctxC.font='bold 10px Segoe UI';
         ctxC.save();ctxC.beginPath();ctxC.rect(x+3,y+1,w-6,h-2);ctxC.clip();
@@ -1127,7 +1133,7 @@ async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
     }
 
     try{
-        await api.patch('/reservas/'+r.id,{mesa_id:nuevaMesaId,hora_inicio:nuevaHoraInicio,hora_fin:nuevaHoraFin});
+        await api.patch('/reservas/'+r.id,{mesa_id:nuevaMesaId,hora_inicio:nuevaHoraInicio,hora_fin:nuevaHoraFin,visto:true});
         await cargarDatos();
     }catch(err){alert('Error al mover reserva: '+err.message);}
 }
@@ -1169,7 +1175,7 @@ canvas.addEventListener('dblclick',e=>{
     if(dragMoved)return;
     const{x,y}=canvasPos(e);
     const hit=hitReserva(x,y);
-    if(hit){cerrarEstadoPopup();abrirModalEditar(hit.r);return;}
+    if(hit){cerrarEstadoPopup();marcarVista(hit.r);abrirModalEditar(hit.r);return;}
     const mesa=mesaEnY(y);
     if(mesa){
         cerrarEstadoPopup();
@@ -1180,9 +1186,17 @@ canvas.addEventListener('dblclick',e=>{
     }
 });
 
+// Reserva online "nueva": al interactuar (click/editar/estado) se quita el punteado.
+async function marcarVista(r){
+    if(!r||r.origen!=='online'||r.visto)return;
+    r.visto=true; dibujar();                       // optimista: se ve sólida al instante
+    try{ await api.patch('/reservas/'+r.id,{visto:true}); }catch(e){ /* reintenta al refrescar */ }
+}
+
 // ── Popup de estado ───────────────────────────────────────────
 function mostrarEstadoPopup(r,cx,cy){
     epReserva=r;
+    marcarVista(r);
     const popup=document.getElementById('estado-popup');
     // Posicionar cerca del click sin salirse de la ventana
     const pw=230, ph=220;

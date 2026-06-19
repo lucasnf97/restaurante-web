@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Reservá tu mesa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+    --ink:#1f2024; --ink-soft:#5d5f66; --faint:#8b8d94;
+    --paper:#fbfaf8; --card:#ffffff; --line:#e8e3d9; --line-soft:#f0ece4;
+    --wine:#8a2b3a; --wine-deep:#6f2230; --gold:#bfa24e; --ok:#3f7a52;
+    --shadow:0 18px 50px -28px rgba(31,32,36,.45);
+    --r:14px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;}
+body{
+    font-family:'Inter',system-ui,sans-serif; color:var(--ink);
+    background:
+        radial-gradient(120% 60% at 50% -10%, #fff 0%, var(--paper) 55%, #f4f0e8 100%);
+    min-height:100vh; display:flex; align-items:flex-start; justify-content:center;
+    padding:32px 18px 48px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.card{
+    width:100%; max-width:520px; background:var(--card); border:1px solid var(--line);
+    border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden;
+}
+
+/* ── Encabezado ── */
+.head{ padding:34px 34px 26px; border-bottom:1px solid var(--line-soft);
+    background:linear-gradient(180deg,#fff, #fdfcfa); }
+.eyebrow{ font-size:11px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--wine); margin:0 0 10px; }
+.rest-name{ font-family:'Fraunces',serif; font-weight:500; font-size:30px; line-height:1.12;
+    margin:0; letter-spacing:-.01em; }
+.rest-name .sk{ display:inline-block; width:60%; height:.9em; border-radius:6px;
+    background:linear-gradient(90deg,#efeae1,#f7f3ec,#efeae1); animation:sh 1.2s infinite; }
+@keyframes sh{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
+.rule{ display:flex; align-items:center; gap:10px; margin-top:14px; color:var(--gold); }
+.rule::before,.rule::after{ content:""; height:1px; flex:1; background:var(--line); }
+.rule span{ font-size:13px; letter-spacing:.05em; }
+.sub{ margin:14px 0 0; font-size:14px; color:var(--ink-soft); }
+
+/* ── Cuerpo ── */
+.body{ padding:26px 34px 32px; }
+.section{ margin-top:24px; }
+.section:first-child{ margin-top:0; }
+.label{ display:block; font-size:12px; font-weight:600; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--faint); margin:0 0 8px; }
+.row{ display:flex; gap:14px; }
+.row > *{ flex:1; }
+
+input[type=date], input[type=text], input[type=email], textarea{
+    width:100%; font:inherit; color:var(--ink); background:#fff;
+    border:1.5px solid var(--line); border-radius:10px; padding:12px 13px; outline:none;
+    transition:border-color .15s, box-shadow .15s;
+}
+textarea{ resize:vertical; min-height:62px; }
+input:focus, textarea:focus{ border-color:var(--wine); box-shadow:0 0 0 3px rgba(138,43,58,.12); }
+
+/* Stepper de comensales */
+.stepper{ display:flex; align-items:center; border:1.5px solid var(--line); border-radius:10px;
+    overflow:hidden; height:46px; }
+.stepper button{ width:48px; flex:0 0 48px; border:none; background:#faf7f2; color:var(--wine);
+    font-size:22px; cursor:pointer; transition:background .12s; }
+.stepper button:hover{ background:#f3ece2; }
+.stepper button:disabled{ color:#cdc9c0; cursor:default; background:#fafafa; }
+.stepper .val{ flex:1; text-align:center; font-weight:600; font-variant-numeric:tabular-nums; }
+
+/* Botón primario */
+.btn{ width:100%; border:none; border-radius:11px; padding:14px 18px; font:inherit;
+    font-weight:600; font-size:15px; cursor:pointer; background:var(--wine); color:#fff;
+    transition:background .15s, transform .05s; margin-top:24px; }
+.btn:hover{ background:var(--wine-deep); }
+.btn:active{ transform:translateY(1px); }
+.btn[disabled]{ background:#c9b9bc; cursor:default; }
+.btn.ghost{ background:transparent; color:var(--wine); margin-top:14px; padding:6px;
+    font-weight:600; font-size:14px; }
+.btn.ghost:hover{ background:transparent; text-decoration:underline; }
+
+/* Chips de horario */
+.slots{ display:flex; flex-wrap:wrap; gap:9px; }
+.slot{ font:inherit; font-weight:500; font-variant-numeric:tabular-nums; cursor:pointer;
+    border:1.5px solid var(--line); background:#fff; color:var(--ink);
+    border-radius:999px; padding:9px 16px; transition:all .13s; }
+.slot:hover{ border-color:var(--wine); color:var(--wine); }
+.slot[aria-pressed=true]{ background:var(--wine); border-color:var(--wine); color:#fff; }
+.muted{ font-size:14px; color:var(--ink-soft); }
+.note{ font-size:13px; color:var(--faint); margin-top:8px; }
+
+/* Resumen de selección */
+.pick{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+    background:#faf7f2; border:1px solid var(--line-soft); border-radius:10px;
+    padding:13px 15px; }
+.pick b{ font-family:'Fraunces',serif; font-weight:600; font-size:17px; }
+.pick .chg{ margin-left:auto; font-size:13px; color:var(--wine); cursor:pointer; background:none;
+    border:none; font-weight:600; }
+
+.err{ background:#fdf2f3; border:1px solid #f3c7cd; color:var(--wine-deep);
+    border-radius:10px; padding:11px 13px; font-size:14px; margin-top:16px; display:none; }
+
+/* honeypot */
+.hp{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+
+/* ── Confirmación (firma: tarjeta de mesa con sello) ── */
+.done{ text-align:center; padding:40px 34px 44px; }
+.seal{ width:78px; height:78px; margin:0 auto 22px; border-radius:50%;
+    background:radial-gradient(120% 120% at 30% 25%, #d8bd6a, var(--gold));
+    color:#fff; font-family:'Fraunces',serif; font-weight:600; font-size:34px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 10px 24px -10px rgba(191,162,78,.7), inset 0 2px 6px rgba(255,255,255,.4); }
+.done h2{ font-family:'Fraunces',serif; font-weight:500; font-size:26px; margin:0 0 6px; }
+.done .who{ color:var(--ink-soft); font-size:15px; margin:0 0 22px; }
+.ticket{ border:1px dashed var(--line); border-radius:12px; padding:4px 0; margin:0 0 18px;
+    text-align:left; }
+.ticket .li{ display:flex; justify-content:space-between; gap:14px; padding:13px 18px;
+    border-bottom:1px solid var(--line-soft); font-size:15px; }
+.ticket .li:last-child{ border-bottom:none; }
+.ticket .li span{ color:var(--faint); }
+.ticket .li b{ font-weight:600; font-variant-numeric:tabular-nums; }
+.done .post{ font-size:13.5px; color:var(--ink-soft); }
+
+.foot{ text-align:center; font-size:12px; color:var(--faint); padding:16px; }
+.foot a{ color:var(--faint); }
+
+.hidden{ display:none !important; }
+
+@media (max-width:480px){
+    body{ padding:0; }
+    .card{ border-radius:0; border-left:none; border-right:none; min-height:100vh; }
+    .head{ padding:28px 22px 22px; } .body{ padding:22px 22px 28px; }
+    .rest-name{ font-size:26px; }
+}
+@media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<main class="card" id="card">
+    <div class="head">
+        <p class="eyebrow">Reservá tu mesa</p>
+        <h1 class="rest-name" id="rest-name"><span class="sk"></span></h1>
+        <div class="rule"><span>◆</span></div>
+        <p class="sub" id="sub">Elegí día y cantidad de personas para ver los horarios disponibles.</p>
+    </div>
+
+    <div class="body" id="form-wrap">
+        <!-- Paso 1: fecha + personas -->
+        <div class="section">
+            <div class="row">
+                <div>
+                    <label class="label" for="f-fecha">Día</label>
+                    <input type="date" id="f-fecha" onchange="resetDisponibilidad()">
+                </div>
+                <div>
+                    <label class="label">Personas</label>
+                    <div class="stepper">
+                        <button type="button" aria-label="Menos personas" onclick="cambiarPersonas(-1)">−</button>
+                        <span class="val" id="f-personas" aria-live="polite">2</span>
+                        <button type="button" aria-label="Más personas" onclick="cambiarPersonas(1)">+</button>
+                    </div>
+                </div>
+            </div>
+            <button class="btn" id="btn-buscar" onclick="buscarDisponibilidad()">Ver horarios</button>
+        </div>
+
+        <!-- Paso 2: horarios -->
+        <div class="section hidden" id="sec-horarios">
+            <span class="label">Horarios disponibles</span>
+            <div class="slots" id="slots"></div>
+            <p class="muted hidden" id="sin-horarios">No hay horarios disponibles ese día. Probá con otra fecha.</p>
+        </div>
+
+        <!-- Paso 3: datos -->
+        <div class="section hidden" id="sec-datos">
+            <div class="pick">
+                Reservás para <b id="pick-txt">—</b>
+                <button class="chg" type="button" onclick="volverAHorarios()">Cambiar</button>
+            </div>
+
+            <div class="section">
+                <label class="label" for="d-nombre">Nombre y apellido</label>
+                <input type="text" id="d-nombre" placeholder="¿A nombre de quién?" autocomplete="name">
+            </div>
+            <div class="section row">
+                <div>
+                    <label class="label" for="d-tel">Teléfono</label>
+                    <input type="text" id="d-tel" placeholder="Opcional" autocomplete="tel" inputmode="tel">
+                </div>
+                <div>
+                    <label class="label" for="d-email">Email</label>
+                    <input type="email" id="d-email" placeholder="Opcional" autocomplete="email">
+                </div>
+            </div>
+            <p class="note">Dejá al menos un teléfono o un email para confirmar la reserva.</p>
+            <div class="section">
+                <label class="label" for="d-alergeno">Alergias o restricciones</label>
+                <input type="text" id="d-alergeno" placeholder="Opcional (ej: sin gluten)">
+            </div>
+            <div class="section">
+                <label class="label" for="d-notas">Notas</label>
+                <textarea id="d-notas" placeholder="Opcional (ocasión, preferencia de mesa…)"></textarea>
+            </div>
+            <!-- honeypot anti-bots -->
+            <div class="hp" aria-hidden="true"><label>No completar<input type="text" id="d-website" tabindex="-1" autocomplete="off"></label></div>
+
+            <div class="err" id="err"></div>
+            <button class="btn" id="btn-confirmar" onclick="confirmar()">Confirmar reserva</button>
+        </div>
+    </div>
+
+    <div class="foot">Reservas en línea</div>
+</main>
+
+<script>
+const API  = "https://restaurante-backend-production-459b.up.railway.app";
+const CODE = new URLSearchParams(location.search).get('r') || '';
+
+const state = { info:null, personas:2, hora:null, horarios:[] };
+
+// ── Fetch con header de restaurante (sin login) ──
+async function api(path, opts={}){
+    const headers = {'Content-Type':'application/json','X-Restaurant-Code':CODE, ...(opts.headers||{})};
+    const res = await fetch(API + path, {...opts, headers});
+    let data = null; try{ data = await res.json(); }catch{}
+    if(!res.ok) throw new Error((data && data.detail) || ('Error ' + res.status));
+    return data;
+}
+const $ = id => document.getElementById(id);
+
+// ── Iframe: avisar la altura al contenedor anfitrión ──
+function postHeight(){
+    try{ parent.postMessage({type:'reserva-height', height:document.body.scrollHeight}, '*'); }catch{}
+}
+new ResizeObserver(postHeight).observe(document.body);
+
+// ── Fechas ──
+function hoyStr(){
+    const d = new Date(); const p = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+function fmtFechaLarga(iso){
+    const [y,m,dd] = iso.split('-').map(Number);
+    const d = new Date(y, m-1, dd);
+    const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    return `${dias[d.getDay()]} ${dd} de ${meses[m-1]}`;
+}
+
+// ── Init ──
+async function init(){
+    const f = $('f-fecha'); f.min = hoyStr(); f.value = hoyStr();
+    if(!CODE){
+        $('rest-name').textContent = 'Restaurante no indicado';
+        $('sub').textContent = 'El enlace no incluye el restaurante. Pedí el enlace correcto.';
+        $('form-wrap').classList.add('hidden');
+        return;
+    }
+    try{
+        state.info = await api('/publico/info');
+        $('rest-name').textContent = state.info.restaurante || 'Reservá tu mesa';
+        document.title = 'Reservá en ' + (state.info.restaurante || '');
+    }catch(e){
+        $('rest-name').textContent = 'No encontramos el restaurante';
+        $('sub').textContent = 'Verificá el enlace de reservas.';
+        $('form-wrap').classList.add('hidden');
+    }
+    postHeight();
+}
+
+function cambiarPersonas(d){
+    state.personas = Math.min(20, Math.max(1, state.personas + d));
+    $('f-personas').textContent = state.personas;
+    resetDisponibilidad();
+}
+
+function resetDisponibilidad(){
+    $('sec-horarios').classList.add('hidden');
+    $('sec-datos').classList.add('hidden');
+    state.hora = null; postHeight();
+}
+
+async function buscarDisponibilidad(){
+    const fecha = $('f-fecha').value;
+    if(!fecha){ return; }
+    const btn = $('btn-buscar'); btn.disabled = true; btn.textContent = 'Buscando…';
+    try{
+        const data = await api(`/publico/disponibilidad?fecha=${fecha}&comensales=${state.personas}`);
+        let horas = data.horarios || [];
+        // Para hoy, ocultar horarios ya pasados (hora local del cliente)
+        if(fecha === hoyStr()){
+            const ahora = new Date();
+            const hm = ahora.getHours()*60 + ahora.getMinutes();
+            horas = horas.filter(h => { const [H,M]=h.split(':').map(Number); return H*60+M > hm; });
+        }
+        state.horarios = horas;
+        renderHorarios();
+    }catch(e){
+        alert(e.message || 'No se pudieron cargar los horarios.');
+    }finally{
+        btn.disabled = false; btn.textContent = 'Ver horarios';
+    }
+}
+
+function renderHorarios(){
+    const cont = $('slots'); cont.innerHTML = '';
+    $('sec-horarios').classList.remove('hidden');
+    $('sec-datos').classList.add('hidden');
+    state.hora = null;
+    const vacio = $('sin-horarios');
+    if(!state.horarios.length){ vacio.classList.remove('hidden'); postHeight(); return; }
+    vacio.classList.add('hidden');
+    state.horarios.forEach(h => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'slot'; b.textContent = h;
+        b.setAttribute('aria-pressed','false');
+        b.onclick = () => elegirHora(h, b);
+        cont.appendChild(b);
+    });
+    postHeight();
+}
+
+function elegirHora(h, btn){
+    state.hora = h;
+    document.querySelectorAll('.slot').forEach(s => s.setAttribute('aria-pressed','false'));
+    btn.setAttribute('aria-pressed','true');
+    $('pick-txt').textContent = `${fmtFechaLarga($('f-fecha').value)} · ${h} · ${state.personas} ${state.personas===1?'persona':'personas'}`;
+    $('sec-datos').classList.remove('hidden');
+    $('err').style.display = 'none';
+    $('d-nombre').focus({preventScroll:true});
+    $('sec-datos').scrollIntoView({behavior:'smooth', block:'nearest'});
+    postHeight();
+}
+
+function volverAHorarios(){
+    $('sec-datos').classList.add('hidden');
+    state.hora = null;
+    document.querySelectorAll('.slot').forEach(s => s.setAttribute('aria-pressed','false'));
+    $('sec-horarios').scrollIntoView({behavior:'smooth', block:'nearest'});
+    postHeight();
+}
+
+function mostrarErr(msg){ const e = $('err'); e.textContent = msg; e.style.display = 'block'; postHeight(); }
+
+async function confirmar(){
+    const nombre = $('d-nombre').value.trim();
+    const tel    = $('d-tel').value.trim();
+    const email  = $('d-email').value.trim();
+    if(!nombre){ mostrarErr('Indicá tu nombre.'); $('d-nombre').focus(); return; }
+    if(!tel && !email){ mostrarErr('Dejá un teléfono o un email para confirmar.'); $('d-tel').focus(); return; }
+    if(!state.hora){ mostrarErr('Elegí un horario.'); return; }
+
+    const btn = $('btn-confirmar'); btn.disabled = true; btn.textContent = 'Confirmando…';
+    $('err').style.display = 'none';
+    try{
+        const r = await api('/publico/reservas', { method:'POST', body: JSON.stringify({
+            nombre, telefono: tel || null, email: email || null,
+            comensales: state.personas, fecha: $('f-fecha').value, hora_inicio: state.hora,
+            alergeno: $('d-alergeno').value.trim() || null,
+            notas: $('d-notas').value.trim() || null,
+            website: $('d-website').value || null,
+        })});
+        mostrarConfirmacion(r);
+    }catch(e){
+        btn.disabled = false; btn.textContent = 'Confirmar reserva';
+        // Si justo se ocupó la última mesa, refrescar horarios
+        if(/disponibles|409/.test(e.message||'')){
+            mostrarErr('Ese horario se acaba de ocupar. Elegí otro, por favor.');
+            buscarDisponibilidad();
+        }else{
+            mostrarErr(e.message || 'No pudimos confirmar la reserva. Probá de nuevo.');
+        }
+    }
+}
+
+function mostrarConfirmacion(r){
+    const inicial = (r.restaurante || '·').trim().charAt(0).toUpperCase() || '◆';
+    const card = $('card');
+    card.innerHTML = `
+        <div class="done">
+            <div class="seal">${inicial}</div>
+            <h2>Mesa reservada</h2>
+            <p class="who">${r.restaurante || ''}</p>
+            <div class="ticket">
+                <div class="li"><span>Día</span><b>${fmtFechaLarga(r.fecha)}</b></div>
+                <div class="li"><span>Hora</span><b>${r.hora}</b></div>
+                <div class="li"><span>Personas</span><b>${r.comensales}</b></div>
+            </div>
+            <p class="post">${r.email_enviado
+                ? 'Te enviamos la confirmación por email. La mesa se asigna al llegar.'
+                : 'Tu reserva quedó registrada. La mesa se asigna al llegar.'}</p>
+        </div>
+        <div class="foot">Reservas en línea</div>`;
+    postHeight();
+    try{ window.scrollTo({top:0, behavior:'smooth'}); }catch{}
+}
+
+init();
+</script>
+</body>
+</html>
