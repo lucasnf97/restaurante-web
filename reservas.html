@@ -499,7 +499,10 @@ const ctxT       = canvasTime.getContext('2d');
 const mesaCol    = document.getElementById('mesa-col');
 
 // ── Fecha ─────────────────────────────────────────────────────
-function fechaISO(d){return d.toISOString().split('T')[0];}
+// Fecha LOCAL en YYYY-MM-DD (no usar toISOString: de tarde, en husos negativos como
+// UTC-3, devolvía el día siguiente y la grilla no encontraba las reservas del día —
+// y no coincidía con la fecha local que guarda la página pública de reservas).
+function fechaISO(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
 function formatFechaBonita(d){
     const dias=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
     const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -854,8 +857,8 @@ async function _autoSync(){
     try{
         const f=fechaISO(fechaActual);
         const [r,b]=await Promise.all([
-            api.get('/reservas/?fecha='+f),
-            api.get('/horarios/bloqueos?fecha='+f)
+            api.getSilent('/reservas/?fecha='+f),
+            api.getSilent('/horarios/bloqueos?fecha='+f)
         ]);
         // Si el usuario empezó a interactuar mientras cargaba, descartar
         if(_interactuando()){ _syncBusy=false; return; }
@@ -1518,7 +1521,7 @@ function _wlFechaHoy(){ return fechaISO(new Date()); }
 
 async function _wlRecargar(){
     try{
-        const data = await api.get('/reservas/espera?fecha='+_wlFechaHoy());
+        const data = await api.getSilent('/reservas/espera?fecha='+_wlFechaHoy());
         _waitingList    = data.filter(x=>x.estado==='esperando');
         _waitingPasados = data.filter(x=>x.estado==='pasado');
     }catch(e){ _waitingList=[]; _waitingPasados=[]; }

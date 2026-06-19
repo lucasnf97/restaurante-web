@@ -102,7 +102,8 @@ async function apiFetch(endpoint, options = {}) {
     const reintentable = _RETRY_METHODS.has(method);
     const maxIntentos  = reintentable ? 3 : 1;
 
-    if (window.UI) window.UI._reqStart();
+    // options.silent → no muestra la barra de carga global (para polling de fondo).
+    if (window.UI && !options.silent) window.UI._reqStart();
     try {
         let ultimoError = null;
         for (let intento = 0; intento < maxIntentos; intento++) {
@@ -144,13 +145,15 @@ async function apiFetch(endpoint, options = {}) {
         }
         throw ultimoError || new Error("Error en la API");
     } finally {
-        if (window.UI) window.UI._reqEnd();
+        if (window.UI && !options.silent) window.UI._reqEnd();
     }
 }
 
 // ── MÉTODOS SHORTHAND ─────────────────────────────────────────
 const api = {
     get: (endpoint) => apiFetch(endpoint),
+    // Igual que get pero sin la barra de carga global (para refrescos en segundo plano).
+    getSilent: (endpoint) => apiFetch(endpoint, { silent: true }),
     post: (endpoint, body) => apiFetch(endpoint, { method: "POST", body: JSON.stringify(body) }),
     put: (endpoint, body) => apiFetch(endpoint, { method: "PUT", body: JSON.stringify(body) }),
     patch: (endpoint, body) => apiFetch(endpoint, { method: "PATCH", body: JSON.stringify(body) }),
