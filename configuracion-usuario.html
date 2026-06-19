@@ -44,6 +44,10 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 }
 .field input:focus { border-color:#4f46e5; }
 .field .hint { font-size:11px; color:#9ca3af; margin-top:4px; }
+/* Campo de texto enmascarado: se ve como contraseña (puntitos) pero NO es
+   type=password, por lo que el navegador no lo detecta como tal ni ofrece
+   contraseñas guardadas. Soportado en Chrome, Edge, Safari y Firefox 117+. */
+.field input.masked { -webkit-text-security: disc; text-security: disc; }
 
 .checkrow {
     display:flex; align-items:flex-start; gap:10px; margin-top:10px;
@@ -126,15 +130,14 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
         <div class="field">
             <label>Contraseña actual</label>
-            <!-- Seguridad: el navegador NO debe autocompletar la contraseña guardada acá,
-                 o cualquiera con la sesión abierta podría cambiarla sin conocerla.
-                 - autocomplete="new-password": el navegador nunca ofrece la credencial
-                   existente en este campo (Chrome ignora autocomplete="off" en password).
-                 - readonly hasta el foco: evita además el autorrelleno silencioso al cargar.
-                 El login (index.html) NO se toca, ahí el autofill sigue permitido. -->
-            <input type="password" id="p-pass-actual" placeholder="Contraseña actual"
-                   autocomplete="new-password" readonly
-                   onfocus="this.removeAttribute('readonly')">
+            <!-- Seguridad: este NO es un type=password a propósito. El navegador solo
+                 ofrece contraseñas guardadas en campos type=password; al ser un input de
+                 texto común (enmascarado con CSS .masked), no lo detecta como contraseña y
+                 nunca ofrece autocompletar las guardadas. Así nadie con la sesión abierta
+                 puede cambiarla sin conocer la actual. El login (index.html) no se toca. -->
+            <input type="text" id="p-pass-actual" class="masked" placeholder="Contraseña actual"
+                   autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                   data-lpignore="true" data-1p-ignore data-form-type="other">
         </div>
         <div class="field">
             <label>Nueva contraseña</label>
