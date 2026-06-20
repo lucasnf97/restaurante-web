@@ -289,11 +289,15 @@
             </div>
         </div>
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background:#f8fafc;border:1px solid #eef0f3;border-radius:8px;margin-top:4px;">
-            <input type="checkbox" id="ins-es-extra" style="width:18px;height:18px;margin-top:1px;accent-color:#4f46e5;cursor:pointer;">
+            <input type="checkbox" id="ins-es-extra" onchange="toggleExtraCats('ins', this.checked)" style="width:18px;height:18px;margin-top:1px;accent-color:#4f46e5;cursor:pointer;">
             <span style="font-size:13px;color:#374151;line-height:1.4;">Se puede agregar como <b>extra</b> a un plato
                 <small style="display:block;color:#9ca3af;">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
             </span>
         </label>
+        <div id="ins-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:#faf7ff;border:1px solid #e9d5ff;border-radius:8px;">
+            <div style="font-size:12px;font-weight:600;color:#6b21a8;margin-bottom:6px;">¿En qué categorías se puede agregar como extra?</div>
+            <div id="ins-extra-cats" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-insumo')">Cancelar</button>
             <button class="btn btn-primary" onclick="guardarInsumo()">Guardar</button>
@@ -340,11 +344,15 @@
         </div>
 
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background:#f8fafc;border:1px solid #eef0f3;border-radius:8px;margin-top:14px;">
-            <input type="checkbox" id="ip-es-extra" style="width:18px;height:18px;margin-top:1px;accent-color:#4f46e5;cursor:pointer;">
+            <input type="checkbox" id="ip-es-extra" onchange="toggleExtraCats('ip', this.checked)" style="width:18px;height:18px;margin-top:1px;accent-color:#4f46e5;cursor:pointer;">
             <span style="font-size:13px;color:#374151;line-height:1.4;">Se puede agregar como <b>extra</b> a un plato
                 <small style="display:block;color:#9ca3af;">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
             </span>
         </label>
+        <div id="ip-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:#faf7ff;border:1px solid #e9d5ff;border-radius:8px;">
+            <div style="font-size:12px;font-weight:600;color:#6b21a8;margin-bottom:6px;">¿En qué categorías se puede agregar como extra?</div>
+            <div id="ip-extra-cats" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
 
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-insumo-produccion')">Cancelar</button>
@@ -759,6 +767,36 @@ function abrirImprimirCostos() {
     _mostrarImpresion(titulo, thead, filas, data.length);
 }
 
+// ── Categorías habilitadas para un insumo-extra ───────────────────────────
+let _catsExtra = null;                 // cache de categorías
+let _selCatsTmp = { ins: [], ip: [] }; // selección a precargar al renderizar
+
+async function _ensureCatsExtra() {
+    if (_catsExtra) return _catsExtra;
+    try { _catsExtra = (await api.get('/productos/categorias')) || []; }
+    catch { _catsExtra = []; }
+    return _catsExtra;
+}
+async function toggleExtraCats(prefix, show) {
+    const wrap = document.getElementById(prefix + '-extra-cats-wrap');
+    if (wrap) wrap.style.display = show ? '' : 'none';
+    if (show) {
+        const cats = await _ensureCatsExtra();
+        const sel  = new Set((_selCatsTmp[prefix] || []).map(Number));
+        const cont = document.getElementById(prefix + '-extra-cats');
+        const visibles = cats.filter(c => c.nombre !== 'Extra');
+        cont.innerHTML = visibles.length ? visibles.map(c => `
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:4px 10px;cursor:pointer;">
+                <input type="checkbox" class="${prefix}-cat-chk" value="${c.id}" ${sel.has(c.id) ? 'checked' : ''}>
+                ${c.nombre}
+            </label>`).join('') : '<span style="font-size:12px;color:#9ca3af;">No hay categorías creadas todavía.</span>';
+    }
+}
+function getExtraCats(prefix) {
+    return Array.from(document.querySelectorAll('.' + prefix + '-cat-chk:checked'))
+                .map(c => parseInt(c.value));
+}
+
 function abrirModalInsumo() {
     _editandoInsumoId = null;
     document.getElementById("insumo-titulo").textContent = "Nuevo insumo";
@@ -770,6 +808,8 @@ function abrirModalInsumo() {
     document.getElementById("ins-costo-auto").dataset.precio = "";
     document.getElementById("ins-costo-hint").textContent = "";
     document.getElementById("ins-es-extra").checked = false;
+    _selCatsTmp.ins = [];
+    toggleExtraCats('ins', false);
     poblarSelectUbicacion("ins-ubicacion", null);
     document.getElementById("modal-insumo").classList.add("active");
 }
@@ -790,6 +830,8 @@ function editarInsumo(id) {
     document.getElementById("ins-costo-hint").textContent = up != null
         ? `Último precio de compra: ${(+up).toFixed(2)}` : "Sin compras registradas todavía.";
     document.getElementById("ins-es-extra").checked = !!ins.es_extra;
+    _selCatsTmp.ins = ins.extra_categoria_ids || [];
+    toggleExtraCats('ins', !!ins.es_extra);
     poblarSelectUbicacion("ins-ubicacion", ins.ubicacion_id);
     document.getElementById("modal-insumo").classList.add("active");
 }
@@ -813,6 +855,7 @@ async function guardarInsumo() {
         ubicacion_id:         ubid,
         costo_unitario:       (costoRaw === "" ? null : (parseFloat(costoRaw) || 0)),
         es_extra:             document.getElementById("ins-es-extra").checked,
+        extra_categorias:     document.getElementById("ins-es-extra").checked ? getExtraCats('ins') : null,
     };
     if (!body.nombre) { alert("El nombre es obligatorio."); return; }
     try {
@@ -1073,6 +1116,8 @@ async function abrirModalInsumoProduccion() {
     });
     document.getElementById("ip-unidad").value = "unidad";
     document.getElementById("ip-es-extra").checked = false;
+    _selCatsTmp.ip = [];
+    toggleExtraCats('ip', false);
     poblarSelectUbicacion("ip-ubicacion", null);
     try { _insumos = await api.get("/stock/insumos"); } catch(e) { console.error(e); }
     renderRecetaLista();
@@ -1090,6 +1135,8 @@ async function editarInsumoProduccion(id) {
     document.getElementById("ip-advertencia").value = ip.cantidad_advertencia;
     document.getElementById("ip-minima").value      = ip.cantidad_minima;
     document.getElementById("ip-es-extra").checked   = !!ip.es_extra;
+    _selCatsTmp.ip = ip.extra_categoria_ids || [];
+    toggleExtraCats('ip', !!ip.es_extra);
     poblarSelectUbicacion("ip-ubicacion", ip.ubicacion_id);
 
     // Cargar receta actual e insumos completos en paralelo
@@ -1299,6 +1346,7 @@ async function guardarInsumoProduccion() {
         cantidad_minima:      parseFloat(document.getElementById("ip-minima").value)      || 0,
         ubicacion_id:         parseInt(document.getElementById("ip-ubicacion").value)     || null,
         es_extra:             document.getElementById("ip-es-extra").checked,
+        extra_categorias:     document.getElementById("ip-es-extra").checked ? getExtraCats('ip') : null,
         receta: _recetaItems.map(r => ({ insumo_stock_id: r.insumo_stock_id, cantidad: r.cantidad })),
     };
     try {
