@@ -591,6 +591,21 @@ body.config-open .hub-wgt-grid {
         </a>
     </div>
 
+    <!-- ═══════ EXTRAS Y RESTRICCIONES ═══════ -->
+    <div class="resumen-header">
+        <span class="section-title">Extras y restricciones</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px;">
+        <div style="background:#fff;border:1px solid #eef0f3;border-radius:12px;padding:16px;">
+            <div style="font-weight:700;color:#16a34a;margin-bottom:8px;">➕ Extras vendidos</div>
+            <div id="pers-extras"><div style="color:#9ca3af;font-size:13px;">Cargando…</div></div>
+        </div>
+        <div style="background:#fff;border:1px solid #eef0f3;border-radius:12px;padding:16px;">
+            <div style="font-weight:700;color:#dc2626;margin-bottom:8px;">➖ Ingredientes quitados</div>
+            <div id="pers-quitados"><div style="color:#9ca3af;font-size:13px;">Cargando…</div></div>
+        </div>
+    </div>
+
     <!-- ═══════ RESUMEN CONFIGURABLE ═══════ -->
     <div class="resumen-header">
         <span class="section-title">Resumen</span>
@@ -814,6 +829,32 @@ body.config-open .hub-wgt-grid {
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
 <script>
+// ── Extras y restricciones (lee /analitica/personalizacion) ─────
+async function cargarPersStats(){
+    const ex = document.getElementById('pers-extras');
+    const qu = document.getElementById('pers-quitados');
+    if (!ex || !qu) return;
+    try{
+        const d = await api.get('/analitica/personalizacion');
+        ex.innerHTML = (d.extras && d.extras.length)
+            ? '<table style="width:100%;font-size:13px;border-collapse:collapse;">' +
+              d.extras.map(e => `<tr><td style="padding:3px 0;">${e.nombre||'—'}</td>`+
+                  `<td style="text-align:right;font-weight:600;">${e.unidades}</td>`+
+                  `<td style="text-align:right;color:#16a34a;">${fmtDinero(e.ingresos)}</td></tr>`).join('') +
+              '</table>'
+            : '<div style="color:#9ca3af;font-size:13px;">Sin extras vendidos todavía.</div>';
+        qu.innerHTML = (d.quitados && d.quitados.length)
+            ? '<table style="width:100%;font-size:13px;border-collapse:collapse;">' +
+              d.quitados.map(q => `<tr><td style="padding:3px 0;">sin ${q.nombre||'—'}</td>`+
+                  `<td style="text-align:right;font-weight:600;">${q.veces}×</td></tr>`).join('') +
+              '</table>'
+            : '<div style="color:#9ca3af;font-size:13px;">Sin ingredientes quitados todavía.</div>';
+    }catch(e){
+        ex.innerHTML = qu.innerHTML = '<div style="color:#9ca3af;font-size:13px;">No se pudo cargar.</div>';
+    }
+}
+window.addEventListener('load', cargarPersStats);
+
 // ── Hub config (panel lateral tipo dashboard) ───────────────────
 const EST_CFG_KEY = 'est_hub_cfg_v2';
 
