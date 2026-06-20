@@ -998,14 +998,14 @@ function renderProductos(lista) {
         const expanded = _expandedProdId === p.id;
         const starEditable = modoEdicion ? ' editable' : '';
         const starOnClick  = modoEdicion ? `onclick="event.stopPropagation();toggleFavorito(${p.id},${p.favorito})"` : '';
-        const dblClick     = modoEdicion ? `ondblclick="event.stopPropagation();abrirModalProducto(${p.id})"` : '';
+        const pencil       = modoEdicion ? `<span class="prod-edit-pencil" title="Editar producto" onclick="event.stopPropagation();abrirModalProducto(${p.id})" style="cursor:pointer;margin-right:8px;">✏️</span>` : '';
         html += `
         <tr class="prod-row${expanded ? ' expanded' : ''}"
-            onclick="toggleIngredientes(${p.id})" ${dblClick}>
+            onclick="toggleIngredientes(${p.id})">
             <td><span class="fav-star ${p.favorito ? 'gold' : 'gray'}${starEditable}"
                       title="${modoEdicion ? (p.favorito ? 'Quitar favorito' : 'Marcar como favorito') : (p.favorito ? 'Favorito' : '')}"
                       ${starOnClick}>★</span></td>
-            <td><strong>${p.nombre}</strong>${p.es_extra ? ' <span class="badge badge-purple" title="Extra generado desde un insumo">Extra</span>' : ''}${p.descripcion ? `<br><small style="color:#888">${p.descripcion}</small>` : ''}</td>
+            <td>${pencil}<strong>${p.nombre}</strong>${p.es_extra ? ' <span class="badge badge-purple" title="Extra generado desde un insumo">Extra</span>' : ''}${p.descripcion ? `<br><small style="color:#888">${p.descripcion}</small>` : ''}</td>
             <td>${p.categoria || '—'}</td>
             <td>${p.area || '—'}</td>
             <td><strong>${simboloMoneda()} ${parseFloat(p.precio).toFixed(2)}</strong>${p.descuento_pct > 0 ? ` <span class="badge badge-green">-${p.descuento_pct}%</span>` : ''}</td>
