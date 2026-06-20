@@ -771,13 +771,13 @@ async function verItems(pedidoId, mesaNumero) {
                 let p = i.personalizacion;
                 if (!p) return '';
                 if (typeof p === 'string') { try { p = JSON.parse(p); } catch { return ''; } }
-                let out = '';
-                (p.extras || []).forEach(e => {
-                    const q = (e.cantidad && e.cantidad > 1) ? ' ×' + e.cantidad : '';
-                    out += `<br><small style="color:#16a34a;">+ ${e.nombre || 'Extra'}${q}</small>`;
-                });
-                (p.quitados || []).forEach(q => {
-                    out += `<br><small style="color:#dc2626;">− sin ${q.nombre || ''}</small>`;
+                const ex = p.extras || [];
+                if (!ex.length) return '';   // en la cuenta se detallan los extras vendidos (no los quitados)
+                let out = '<br><small style="color:#16a34a;font-weight:600;">+ extras</small>';
+                ex.forEach(e => {
+                    const q  = (e.cantidad && e.cantidad > 1) ? ' ×' + e.cantidad : '';
+                    const pr = (parseFloat(e.precio) || 0) * (e.cantidad || 1);
+                    out += `<br><small style="color:#16a34a;">&nbsp;&nbsp;+ ${e.nombre || 'Extra'}${q} · ${simboloMoneda()} ${pr.toFixed(2)}</small>`;
                 });
                 return out;
             };
