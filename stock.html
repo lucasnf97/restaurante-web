@@ -288,6 +288,12 @@
                 <button type="button" class="btn-nueva-ub" onclick="abrirNuevaUbicacion('ins-ubicacion')" title="Nueva ubicación">✏️</button>
             </div>
         </div>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background:#f8fafc;border:1px solid #eef0f3;border-radius:8px;margin-top:4px;">
+            <input type="checkbox" id="ins-es-extra" style="width:18px;height:18px;margin-top:1px;accent-color:#4f46e5;cursor:pointer;">
+            <span style="font-size:13px;color:#374151;line-height:1.4;">Se puede agregar como <b>extra</b> a un plato
+                <small style="display:block;color:#9ca3af;">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
+            </span>
+        </label>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-insumo')">Cancelar</button>
             <button class="btn btn-primary" onclick="guardarInsumo()">Guardar</button>
@@ -332,6 +338,13 @@
             <div id="ip-receta-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
             <div id="ip-receta-vacia" style="font-size:13px;color:#9ca3af;text-align:center;padding:12px 0;">Sin insumos en la receta</div>
         </div>
+
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background:#f8fafc;border:1px solid #eef0f3;border-radius:8px;margin-top:14px;">
+            <input type="checkbox" id="ip-es-extra" style="width:18px;height:18px;margin-top:1px;accent-color:#4f46e5;cursor:pointer;">
+            <span style="font-size:13px;color:#374151;line-height:1.4;">Se puede agregar como <b>extra</b> a un plato
+                <small style="display:block;color:#9ca3af;">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
+            </span>
+        </label>
 
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-insumo-produccion')">Cancelar</button>
@@ -756,6 +769,7 @@ function abrirModalInsumo() {
     document.getElementById("ins-costo").value = "";
     document.getElementById("ins-costo-auto").dataset.precio = "";
     document.getElementById("ins-costo-hint").textContent = "";
+    document.getElementById("ins-es-extra").checked = false;
     poblarSelectUbicacion("ins-ubicacion", null);
     document.getElementById("modal-insumo").classList.add("active");
 }
@@ -775,6 +789,7 @@ function editarInsumo(id) {
     document.getElementById("ins-costo-auto").dataset.precio = up != null ? up : "";
     document.getElementById("ins-costo-hint").textContent = up != null
         ? `Último precio de compra: ${(+up).toFixed(2)}` : "Sin compras registradas todavía.";
+    document.getElementById("ins-es-extra").checked = !!ins.es_extra;
     poblarSelectUbicacion("ins-ubicacion", ins.ubicacion_id);
     document.getElementById("modal-insumo").classList.add("active");
 }
@@ -797,6 +812,7 @@ async function guardarInsumo() {
         cantidad_minima:      parseFloat(document.getElementById("ins-minima").value) || 0,
         ubicacion_id:         ubid,
         costo_unitario:       (costoRaw === "" ? null : (parseFloat(costoRaw) || 0)),
+        es_extra:             document.getElementById("ins-es-extra").checked,
     };
     if (!body.nombre) { alert("El nombre es obligatorio."); return; }
     try {
@@ -1056,6 +1072,7 @@ async function abrirModalInsumoProduccion() {
         document.getElementById(id).value = id === "ip-nombre" ? "" : "0";
     });
     document.getElementById("ip-unidad").value = "unidad";
+    document.getElementById("ip-es-extra").checked = false;
     poblarSelectUbicacion("ip-ubicacion", null);
     try { _insumos = await api.get("/stock/insumos"); } catch(e) { console.error(e); }
     renderRecetaLista();
@@ -1072,6 +1089,7 @@ async function editarInsumoProduccion(id) {
     document.getElementById("ip-estandar").value    = ip.cantidad_estandar;
     document.getElementById("ip-advertencia").value = ip.cantidad_advertencia;
     document.getElementById("ip-minima").value      = ip.cantidad_minima;
+    document.getElementById("ip-es-extra").checked   = !!ip.es_extra;
     poblarSelectUbicacion("ip-ubicacion", ip.ubicacion_id);
 
     // Cargar receta actual e insumos completos en paralelo
@@ -1280,6 +1298,7 @@ async function guardarInsumoProduccion() {
         cantidad_advertencia: parseFloat(document.getElementById("ip-advertencia").value) || 0,
         cantidad_minima:      parseFloat(document.getElementById("ip-minima").value)      || 0,
         ubicacion_id:         parseInt(document.getElementById("ip-ubicacion").value)     || null,
+        es_extra:             document.getElementById("ip-es-extra").checked,
         receta: _recetaItems.map(r => ({ insumo_stock_id: r.insumo_stock_id, cantidad: r.cantidad })),
     };
     try {

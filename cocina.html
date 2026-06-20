@@ -352,6 +352,21 @@ function renderOrdenes() {
     `;
 }
 
+function persHtml(it) {
+    let p = it.personalizacion;
+    if (!p) return '';
+    if (typeof p === 'string') { try { p = JSON.parse(p); } catch { return ''; } }
+    let out = '';
+    (p.extras || []).forEach(e => {
+        const q = (e.cantidad && e.cantidad > 1) ? ' ×' + e.cantidad : '';
+        out += `<div style="margin-left:26px;font-size:13px;color:#16a34a;font-weight:600;">+ ${e.nombre || 'Extra'}${q}</div>`;
+    });
+    (p.quitados || []).forEach(q => {
+        out += `<div style="margin-left:26px;font-size:13px;color:#dc2626;font-weight:600;">− sin ${q.nombre || ''}</div>`;
+    });
+    return out;
+}
+
 function cardOrden(o) {
     const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items) : []);
     const seg   = elapsed(o);
@@ -363,6 +378,7 @@ function cardOrden(o) {
             <span class="item-nombre">${it.nombre || '—'}</span>
             ${it.notas ? `<span class="item-nota">⚑ ${it.notas}</span>` : ''}
         </div>
+        ${persHtml(it)}
     `).join('');
 
     let footerHtml = '';

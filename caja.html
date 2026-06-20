@@ -767,6 +767,20 @@ async function verItems(pedidoId, mesaNumero) {
                 }
             });
 
+            const persCaja = (i) => {
+                let p = i.personalizacion;
+                if (!p) return '';
+                if (typeof p === 'string') { try { p = JSON.parse(p); } catch { return ''; } }
+                let out = '';
+                (p.extras || []).forEach(e => {
+                    const q = (e.cantidad && e.cantidad > 1) ? ' ×' + e.cantidad : '';
+                    out += `<br><small style="color:#16a34a;">+ ${e.nombre || 'Extra'}${q}</small>`;
+                });
+                (p.quitados || []).forEach(q => {
+                    out += `<br><small style="color:#dc2626;">− sin ${q.nombre || ''}</small>`;
+                });
+                return out;
+            };
             const filasNormales = normales.map(i => {
                 const descuento = parseFloat(i.descuento_pct) || 0;
                 const linea = i._cant_ef * parseFloat(i.precio_unit) * (1 - descuento / 100);
@@ -774,7 +788,7 @@ async function verItems(pedidoId, mesaNumero) {
                 const parcialBadge = i._cant_el > 0
                     ? `<br><small style="color:#b45309;">(${i._cant_el} elim.)</small>` : '';
                 return `<tr>
-                    <td>${i.nombre}${i.notas ? `<br><small style="color:#888">📝 ${i.notas}</small>` : ''}${parcialBadge}</td>
+                    <td>${i.nombre}${i.notas ? `<br><small style="color:#888">📝 ${i.notas}</small>` : ''}${parcialBadge}${persCaja(i)}</td>
                     <td style="text-align:center;">${i._cant_ef}</td>
                     <td style="text-align:right;">${simboloMoneda()} ${parseFloat(i.precio_unit).toFixed(2)}</td>
                     <td style="text-align:center;color:#16a34a;">${descuento > 0 ? descuento.toFixed(1) + '%' : '—'}</td>
