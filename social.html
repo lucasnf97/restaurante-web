@@ -15,12 +15,16 @@
 
         .content { margin-top: 60px; padding: 24px 16px 60px; max-width: 600px; margin-left: auto; margin-right: auto; }
 
-        /* Selector de feed */
-        .feeds-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; align-items: center; }
-        .feed-chip { padding: 7px 16px; border: 1px solid #d7dbe3; background: #fff; border-radius: 20px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; }
-        .feed-chip.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
-        .feed-chip .chip-cog { margin-left: 6px; opacity: .7; }
-        .btn-grupo-nuevo { padding: 7px 14px; border: 1px dashed #c4b5fd; background: #faf5ff; border-radius: 20px; font-size: 13px; font-weight: 700; color: #7c3aed; cursor: pointer; }
+        /* Selector de feed — tabs estilo "Para ti / Siguiendo" */
+        .feeds-bar { display: flex; gap: 24px; align-items: center; margin-bottom: 18px;
+            border-bottom: 1px solid #e5e7eb; overflow-x: auto;
+            position: sticky; top: 60px; background: #f0f2f5; z-index: 50; }
+        .feed-tab { padding: 12px 2px; font-size: 15px; font-weight: 600; color: #9ca3af;
+            cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+        .feed-tab:hover { color: #4b5563; }
+        .feed-tab.active { color: #1a1a2e; font-weight: 800; border-bottom-color: #1a1a2e; }
+        .feed-cog { font-size: 12px; opacity: .7; margin-left: 4px; }
+        .feed-add { color: #7c3aed; font-weight: 800; }
 
         /* Composer */
         .composer { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); padding: 16px; margin-bottom: 22px; }
@@ -172,12 +176,13 @@ async function cargarGrupos() {
 
 function renderFeedsBar() {
     const bar = document.getElementById('feeds-bar');
-    let html = `<div class="feed-chip ${_feedGrupoId === null ? 'active' : ''}" onclick="seleccionarFeed(null)">📣 General</div>`;
+    let html = `<div class="feed-tab ${_feedGrupoId === null ? 'active' : ''}" onclick="seleccionarFeed(null)">General</div>`;
     html += _grupos.map(g => {
-        const cog = _puedeGestionar ? `<span class="chip-cog" onclick="event.stopPropagation();abrirGrupoModal(${g.id})">⚙️</span>` : '';
-        return `<div class="feed-chip ${_feedGrupoId === g.id ? 'active' : ''}" onclick="seleccionarFeed(${g.id})">${esc(g.nombre)}${cog}</div>`;
+        const active = _feedGrupoId === g.id;
+        const cog = (active && _puedeGestionar) ? `<span class="feed-cog" onclick="event.stopPropagation();abrirGrupoModal(${g.id})">⚙️</span>` : '';
+        return `<div class="feed-tab ${active ? 'active' : ''}" onclick="seleccionarFeed(${g.id})">${esc(g.nombre)}${cog}</div>`;
     }).join('');
-    if (_puedeGestionar) html += `<button class="btn-grupo-nuevo" onclick="abrirGrupoModal(null)">＋ Grupo</button>`;
+    if (_puedeGestionar) html += `<div class="feed-tab feed-add" onclick="abrirGrupoModal(null)" title="Nuevo grupo">＋</div>`;
     bar.innerHTML = html;
 }
 

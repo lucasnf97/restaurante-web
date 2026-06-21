@@ -157,7 +157,11 @@ body.config-open .block-drag { display:inline; }
 
 /* SOCIAL WIDGET (preview, ~4 filas de alto) */
 .social-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; height:360px; display:flex; flex-direction:column; }
-.social-list { flex:1; overflow-y:auto; margin-top:8px; display:flex; flex-direction:column; gap:10px; }
+.sw-tabs { display:flex; gap:14px; overflow-x:auto; border-bottom:1px solid #eef0f3; margin-top:8px; flex-shrink:0; }
+.sw-tab { font-size:12px; font-weight:600; color:#9ca3af; cursor:pointer; padding:6px 1px; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
+.sw-tab:hover { color:#4b5563; }
+.sw-tab.active { color:#1a1a2e; font-weight:800; border-bottom-color:#4f46e5; }
+.social-list { flex:1; overflow-y:auto; margin-top:10px; display:flex; flex-direction:column; gap:10px; }
 .social-item { border-bottom:1px solid #f3f4f6; padding-bottom:9px; }
 .social-item:last-child { border-bottom:none; }
 .social-item-top { display:flex; align-items:center; gap:7px; }
@@ -401,7 +405,9 @@ let resPag         = 0;
 let _monedaSim     = simboloMoneda();
 let mensajesData       = [];   // últimos mensajes recibidos (widget general)
 let horariosSemanaData = [];   // horarios propios de la semana en curso (widget general)
-let socialData         = [];   // últimas publicaciones del feed general (widget Social)
+let socialData         = [];   // publicaciones del feed activo del widget Social
+let socialGruposData   = { grupos: [] };   // grupos visibles (tabs del widget)
+let _socialWidgetGrupo = null; // tab activa del widget (null = General)
 
 // Lunes y domingo (YYYY-MM-DD, hora local) de la semana en curso.
 function _semanaActual() {
@@ -471,6 +477,7 @@ async function cargarDatos() {
         (async () => { try { ventasHistData = await api.get("/reportes/ventas-diarias"); } catch(e) {} })(),
         (async () => { try { mensajesData = (await api.get("/mensajes/recibidos")) || []; } catch(e) {} })(),
         (async () => { try { socialData = (await api.get("/social/feed?limit=6")) || []; } catch(e) {} })(),
+        (async () => { try { socialGruposData = (await api.get("/social/grupos")) || { grupos: [] }; } catch(e) {} })(),
         (async () => {
             try {
                 const { lunes, domingo } = _semanaActual();
@@ -570,10 +577,14 @@ function buildBlock(b) {
     return "";
 }
 
-// ── WIDGET: preview de Social (feed general, ~4 filas de alto) ──
+// ── WIDGET: preview de Social (tabs General/subgrupos, ~4 filas de alto) ──
 function buildSocial(b) {
     const esc = s => (s == null ? '' : String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
     const ini = n => (n || '?').substring(0, 2).toUpperCase();
+    const grupos = (socialGruposData && socialGruposData.grupos) || [];
+    const tabs = [`<span class="sw-tab ${_socialWidgetGrupo === null ? 'active' : ''}" onclick="socialWidgetTab(null)">General</span>`]
+        .concat(grupos.map(g => `<span class="sw-tab ${_socialWidgetGrupo === g.id ? 'active' : ''}" onclick="socialWidgetTab(${g.id})">${esc(g.nombre)}</span>`))
+        .join('');
     const posts = (socialData || []).slice(0, 6);
     let inner;
     if (!posts.length) {
@@ -595,8 +606,18 @@ function buildSocial(b) {
     return `${blockHeader("")}
     <div class="social-card">
         <a href="social.html" class="widget-title">📣 Social</a>
+        <div class="sw-tabs">${tabs}</div>
         <div class="social-list">${inner}</div>
     </div>`;
+}
+
+// Cambiar de feed dentro del widget (re-renderiza solo ese bloque)
+async function socialWidgetTab(gid) {
+    _socialWidgetGrupo = gid;
+    try { socialData = (await api.get(`/social/feed?limit=6${gid ? '&grupo_id=' + gid : ''}`)) || []; }
+    catch (e) { socialData = []; }
+    const el = document.querySelector('.db-block[data-id="social"]');
+    if (el) el.innerHTML = buildSocial({});
 }
 
 // ── WIDGET: últimos mensajes recibidos (general, máx 3) ──────
