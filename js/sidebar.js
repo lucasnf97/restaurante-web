@@ -48,6 +48,7 @@
                 { href: "ventas-estadisticas.html",   icon: "🛒", label: "Est. de Ventas" },
             ]
         },
+        { href: "social.html", icon: "📣", label: "Social" },
         { href: "mensajes.html", icon: "💬", label: "Mensajes" },
         { href: "configuracion-usuario.html", icon: "🙍", label: "Configuración de usuario" },
         { href: "configuracion.html", icon: "⚙️", label: "Configuración de sistema", perm: "acceso_configuracion" },

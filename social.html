@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Social</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+
+        .content { margin-top: 60px; padding: 24px 16px 60px; max-width: 600px; margin-left: auto; margin-right: auto; }
+
+        /* Selector de feed */
+        .feeds-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; align-items: center; }
+        .feed-chip { padding: 7px 16px; border: 1px solid #d7dbe3; background: #fff; border-radius: 20px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; }
+        .feed-chip.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+        .feed-chip .chip-cog { margin-left: 6px; opacity: .7; }
+        .btn-grupo-nuevo { padding: 7px 14px; border: 1px dashed #c4b5fd; background: #faf5ff; border-radius: 20px; font-size: 13px; font-weight: 700; color: #7c3aed; cursor: pointer; }
+
+        /* Composer */
+        .composer { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); padding: 16px; margin-bottom: 22px; }
+        .composer textarea { width: 100%; border: 1px solid #e5e7eb; border-radius: 10px; padding: 11px 13px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 70px; outline: none; }
+        .composer textarea:focus { border-color: #4f46e5; }
+        .composer-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+        .comp-link { flex: 1; min-width: 180px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 11px; font-size: 13px; outline: none; }
+        .comp-link:focus { border-color: #4f46e5; }
+        .btn-attach { padding: 8px 13px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #4f46e5; cursor: pointer; }
+        .btn-publicar { padding: 8px 22px; border: none; background: #4f46e5; color: #fff; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: auto; }
+        .btn-publicar:disabled { opacity: .5; cursor: default; }
+        .adj-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .adj-chip { font-size: 12px; background: #eef2ff; color: #3730a3; border-radius: 8px; padding: 4px 10px; display: flex; align-items: center; gap: 6px; }
+        .adj-chip .x { cursor: pointer; font-weight: 800; color: #6366f1; }
+
+        /* Post card */
+        .post { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 18px; overflow: hidden; }
+        .post-head { display: flex; align-items: center; gap: 10px; padding: 13px 16px; }
+        .post-avatar { width: 38px; height: 38px; border-radius: 50%; background: #4f46e5; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+        .post-meta { flex: 1; min-width: 0; }
+        .post-user { font-size: 14px; font-weight: 700; color: #1a1a2e; }
+        .post-fecha { font-size: 11px; color: #9ca3af; }
+        .post-acciones { display: flex; gap: 4px; }
+        .post-acc-btn { border: none; background: transparent; cursor: pointer; font-size: 15px; padding: 4px 6px; border-radius: 6px; color: #6b7280; }
+        .post-acc-btn:hover { background: #f3f4f6; }
+        .post-texto { padding: 0 16px 12px; font-size: 14px; color: #1f2937; white-space: pre-wrap; word-break: break-word; }
+        .post-img { width: 100%; display: block; background: #f3f4f6; }
+        .post-files { display: flex; flex-direction: column; gap: 6px; padding: 0 16px 12px; }
+        .post-file { display: flex; align-items: center; gap: 10px; border: 1px solid #eef0f3; border-radius: 10px; padding: 9px 12px; text-decoration: none; color: #1f2937; font-size: 13px; font-weight: 600; }
+        .post-file:hover { background: #fafafe; }
+        .post-file .fi { font-size: 20px; }
+        .post-enlace { padding: 0 16px 14px; }
+        .post-enlace a { color: #4f46e5; font-size: 13px; font-weight: 600; word-break: break-all; }
+        .empty { text-align: center; color: #9ca3af; font-size: 14px; padding: 40px 0; }
+        .btn-mas { display: block; margin: 0 auto; padding: 9px 24px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #4f46e5; cursor: pointer; }
+
+        /* Modal grupo */
+        .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 400; align-items: center; justify-content: center; }
+        .modal-ov.open { display: flex; }
+        .modal { background: #fff; border-radius: 14px; width: 460px; max-width: 94vw; max-height: 88vh; overflow-y: auto; padding: 22px; }
+        .modal h3 { font-size: 18px; margin-bottom: 14px; color: #1a1a2e; }
+        .modal label.lbl { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; display: block; margin: 12px 0 6px; }
+        .modal input.txt { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; font-size: 14px; outline: none; }
+        .checks { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 8px; }
+        .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; padding: 3px 4px; }
+        .modal-acc { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+        .btn-save { padding: 9px 20px; border: none; background: #4f46e5; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .btn-sec { padding: 9px 16px; border: 1px solid #d1d5db; background: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; }
+        .btn-del { padding: 9px 16px; border: 1px solid #fecaca; background: #fef2f2; color: #dc2626; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-left: auto; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="feeds-bar" id="feeds-bar"></div>
+
+    <div class="composer">
+        <textarea id="comp-texto" placeholder="Escribí una publicación…"></textarea>
+        <div class="adj-preview" id="comp-adj"></div>
+        <div class="composer-row">
+            <input type="text" class="comp-link" id="comp-link" placeholder="Enlace (opcional): https://…">
+            <input type="file" id="comp-files" multiple style="display:none" onchange="onFilesSel(this.files)">
+            <button class="btn-attach" onclick="document.getElementById('comp-files').click()">📎 Adjuntar</button>
+            <button class="btn-publicar" id="btn-publicar" onclick="publicar()">Publicar</button>
+        </div>
+    </div>
+
+    <div id="feed"></div>
+    <button class="btn-mas" id="btn-mas" style="display:none" onclick="cargarMas()">Cargar más</button>
+</div>
+
+<!-- Modal Grupo -->
+<div class="modal-ov" id="modal-grupo">
+    <div class="modal">
+        <h3 id="grupo-title">Nuevo grupo</h3>
+        <label class="lbl">Nombre del grupo</label>
+        <input type="text" class="txt" id="grupo-nombre" placeholder="Ej: Camareros">
+        <label class="lbl">Roles</label>
+        <div class="checks" id="grupo-roles"></div>
+        <label class="lbl">Usuarios</label>
+        <div class="checks" id="grupo-usuarios"></div>
+        <div class="modal-acc">
+            <button class="btn-save" onclick="guardarGrupo()">Guardar</button>
+            <button class="btn-sec" onclick="cerrarModal('modal-grupo')">Cancelar</button>
+            <button class="btn-del" id="grupo-del" style="display:none" onclick="eliminarGrupo()">🗑 Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar publicación -->
+<div class="modal-ov" id="modal-editar">
+    <div class="modal">
+        <h3>Editar publicación</h3>
+        <textarea class="txt" id="edit-texto" style="min-height:90px;resize:vertical"></textarea>
+        <label class="lbl">Enlace</label>
+        <input type="text" class="txt" id="edit-link" placeholder="https://…">
+        <label class="lbl">Adjuntos actuales</label>
+        <div class="checks" id="edit-adjuntos"></div>
+        <label class="lbl">Agregar adjuntos</label>
+        <input type="file" id="edit-files" multiple>
+        <div class="modal-acc">
+            <button class="btn-save" onclick="guardarEdicion()">Guardar cambios</button>
+            <button class="btn-sec" onclick="cerrarModal('modal-editar')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+// Social es de acceso libre: todos entran. edicion_social = moderar ajenas + grupos.
+const _user = getUser() || {};
+const _canModerar = hasPermiso('edicion_social');   // admin/gerente también (vía hasPermiso)
+
+let _grupos = [];           // grupos visibles {id, nombre, es_miembro, roles, usuarios}
+let _puedeGestionar = false;
+let _feedGrupoId = null;    // null = general
+let _composerFiles = [];
+let _lastId = null;         // para paginar
+let _editId = null;
+const _postsCache = {};     // id → post (para el editor)
+
+const esc = s => (s == null ? '' : String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
+const iniciales = n => (n || '?').substring(0, 2).toUpperCase();
+function fmtFecha(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) + ' ' +
+           d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Feeds (general + grupos) ─────────────────────────────────
+async function cargarGrupos() {
+    try {
+        const r = await api.get('/social/grupos');
+        _grupos = r.grupos || [];
+        _puedeGestionar = !!r.puede_gestionar;
+    } catch (e) { _grupos = []; _puedeGestionar = false; }
+    renderFeedsBar();
+}
+
+function renderFeedsBar() {
+    const bar = document.getElementById('feeds-bar');
+    let html = `<div class="feed-chip ${_feedGrupoId === null ? 'active' : ''}" onclick="seleccionarFeed(null)">📣 General</div>`;
+    html += _grupos.map(g => {
+        const cog = _puedeGestionar ? `<span class="chip-cog" onclick="event.stopPropagation();abrirGrupoModal(${g.id})">⚙️</span>` : '';
+        return `<div class="feed-chip ${_feedGrupoId === g.id ? 'active' : ''}" onclick="seleccionarFeed(${g.id})">${esc(g.nombre)}${cog}</div>`;
+    }).join('');
+    if (_puedeGestionar) html += `<button class="btn-grupo-nuevo" onclick="abrirGrupoModal(null)">＋ Grupo</button>`;
+    bar.innerHTML = html;
+}
+
+function seleccionarFeed(grupoId) {
+    _feedGrupoId = grupoId;
+    renderFeedsBar();
+    cargarFeed(true);
+}
+
+// ── Feed ─────────────────────────────────────────────────────
+async function cargarFeed(reset) {
+    const cont = document.getElementById('feed');
+    if (reset) { cont.innerHTML = '<div class="empty">Cargando…</div>'; _lastId = null; }
+    let url = `/social/feed?limit=20${_feedGrupoId ? '&grupo_id=' + _feedGrupoId : ''}`;
+    if (!reset && _lastId) url += '&before_id=' + _lastId;
+    let posts = [];
+    try { posts = await api.get(url); } catch (e) { cont.innerHTML = '<div class="empty">No se pudo cargar el feed.</div>'; return; }
+    if (reset) cont.innerHTML = '';
+    if (reset && !posts.length) { cont.innerHTML = '<div class="empty">Todavía no hay publicaciones.</div>'; }
+    posts.forEach(p => cont.insertAdjacentHTML('beforeend', renderPost(p)));
+    if (posts.length) _lastId = posts[posts.length - 1].id;
+    document.getElementById('btn-mas').style.display = posts.length === 20 ? 'block' : 'none';
+}
+function cargarMas() { cargarFeed(false); }
+
+function renderPost(p) {
+    _postsCache[p.id] = p;
+    const imgs = (p.adjuntos || []).filter(a => a.tipo === 'imagen')
+        .map(a => `<img class="post-img" src="${esc(a.url)}" alt="" loading="lazy">`).join('');
+    const files = (p.adjuntos || []).filter(a => a.tipo === 'archivo')
+        .map(a => `<a class="post-file" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="fi">📄</span>${esc(a.nombre)}</a>`).join('');
+    const filesBlock = files ? `<div class="post-files">${files}</div>` : '';
+    const enlace = p.enlace ? `<div class="post-enlace"><a href="${esc(p.enlace)}" target="_blank" rel="noopener">🔗 ${esc(p.enlace)}</a></div>` : '';
+    const texto = p.contenido ? `<div class="post-texto">${esc(p.contenido)}</div>` : '';
+    const acc = p.can_edit ? `
+        <div class="post-acciones">
+            <button class="post-acc-btn" title="Editar" onclick="abrirEditar(${p.id})">✏️</button>
+            <button class="post-acc-btn" title="Eliminar" onclick="eliminarPost(${p.id})">🗑</button>
+        </div>` : '';
+    const editado = p.editado_en ? ' · editado' : '';
+    return `
+    <div class="post" id="post-${p.id}">
+        <div class="post-head">
+            <div class="post-avatar">${esc(iniciales(p.username))}</div>
+            <div class="post-meta">
+                <div class="post-user">${esc(p.username)}</div>
+                <div class="post-fecha">${fmtFecha(p.creado_en)}${editado}</div>
+            </div>
+            ${acc}
+        </div>
+        ${texto}${imgs}${filesBlock}${enlace}
+    </div>`;
+}
+
+// ── Composer ─────────────────────────────────────────────────
+function onFilesSel(files) {
+    _composerFiles = _composerFiles.concat(Array.from(files));
+    renderComposerAdj();
+}
+function renderComposerAdj() {
+    document.getElementById('comp-adj').innerHTML = _composerFiles.map((f, i) =>
+        `<span class="adj-chip">${esc(f.name)} <span class="x" onclick="quitarAdjComposer(${i})">✕</span></span>`).join('');
+}
+function quitarAdjComposer(i) { _composerFiles.splice(i, 1); renderComposerAdj(); }
+
+async function publicar() {
+    const texto = document.getElementById('comp-texto').value.trim();
+    const link = document.getElementById('comp-link').value.trim();
+    if (!texto && !link && !_composerFiles.length) { alert('La publicación está vacía.'); return; }
+    const btn = document.getElementById('btn-publicar');
+    btn.disabled = true;
+    try {
+        const fd = new FormData();
+        fd.append('contenido', texto);
+        fd.append('enlace', link);
+        fd.append('grupo_id', _feedGrupoId ? String(_feedGrupoId) : '');
+        _composerFiles.forEach(f => fd.append('files', f));
+        const p = await apiFetch('/social/posts', { method: 'POST', body: fd });
+        // limpiar y mostrar arriba
+        document.getElementById('comp-texto').value = '';
+        document.getElementById('comp-link').value = '';
+        _composerFiles = []; renderComposerAdj();
+        const feed = document.getElementById('feed');
+        if (feed.querySelector('.empty')) feed.innerHTML = '';
+        feed.insertAdjacentHTML('afterbegin', renderPost(p));
+    } catch (e) {
+        alert('No se pudo publicar: ' + (e.message || e));
+    } finally { btn.disabled = false; }
+}
+
+async function eliminarPost(id) {
+    if (!confirm('¿Eliminar esta publicación?')) return;
+    try {
+        await apiFetch(`/social/posts/${id}`, { method: 'DELETE' });
+        document.getElementById('post-' + id)?.remove();
+    } catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+
+// ── Editar publicación ───────────────────────────────────────
+let _editAdjuntos = [];
+async function abrirEditar(id) {
+    // Traer el post desde el feed cargado no guarda adjuntos completos; recargamos el feed item simple:
+    // usamos los datos ya renderizados pidiendo de nuevo el feed sería costoso → guardamos en memoria al render.
+    const p = _postsCache[id];
+    if (!p) return;
+    _editId = id;
+    _editAdjuntos = (p.adjuntos || []).slice();
+    document.getElementById('edit-texto').value = p.contenido || '';
+    document.getElementById('edit-link').value = p.enlace || '';
+    document.getElementById('edit-files').value = '';
+    document.getElementById('edit-adjuntos').innerHTML = _editAdjuntos.length
+        ? _editAdjuntos.map(a => `<label class="check-row"><input type="checkbox" value="${esc(a.public_id)}"> Quitar: ${esc(a.nombre)} (${a.tipo})</label>`).join('')
+        : '<span style="font-size:12px;color:#9ca3af">Sin adjuntos</span>';
+    document.getElementById('modal-editar').classList.add('open');
+}
+async function guardarEdicion() {
+    if (_editId == null) return;
+    const quitar = [...document.querySelectorAll('#edit-adjuntos input:checked')].map(c => c.value);
+    const fd = new FormData();
+    fd.append('contenido', document.getElementById('edit-texto').value.trim());
+    fd.append('enlace', document.getElementById('edit-link').value.trim());
+    fd.append('quitar', quitar.join(','));
+    const nuevos = document.getElementById('edit-files').files;
+    Array.from(nuevos).forEach(f => fd.append('files', f));
+    try {
+        const p = await apiFetch(`/social/posts/${_editId}`, { method: 'PATCH', body: fd });
+        cerrarModal('modal-editar');
+        const el = document.getElementById('post-' + _editId);
+        if (el) el.outerHTML = renderPost(p);
+        _postsCache[_editId] = p;
+        _editId = null;
+    } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
+}
+
+// ── Grupos (modal) ───────────────────────────────────────────
+let _rolesDisp = [], _usuariosDisp = [], _grupoEdit = null;
+async function _cargarRolesUsuarios() {
+    if (!_rolesDisp.length) { try { _rolesDisp = await api.get('/roles'); } catch (e) { _rolesDisp = []; } }
+    if (!_usuariosDisp.length) {
+        try { _usuariosDisp = (await api.get('/auth/usuarios')).filter(u => u.rol !== 'admin'); }
+        catch (e) { _usuariosDisp = []; }
+    }
+}
+async function abrirGrupoModal(grupoId) {
+    await _cargarRolesUsuarios();
+    _grupoEdit = grupoId ? _grupos.find(g => g.id === grupoId) : null;
+    document.getElementById('grupo-title').textContent = _grupoEdit ? 'Editar grupo' : 'Nuevo grupo';
+    document.getElementById('grupo-nombre').value = _grupoEdit ? _grupoEdit.nombre : '';
+    const rolesSel = new Set(_grupoEdit ? (_grupoEdit.roles || []) : []);
+    const usrSel = new Set(_grupoEdit ? (_grupoEdit.usuarios || []) : []);
+    document.getElementById('grupo-roles').innerHTML = _rolesDisp.map(r =>
+        `<label class="check-row"><input type="checkbox" value="${esc(r.nombre)}" ${rolesSel.has(r.nombre) ? 'checked' : ''}> ${esc(r.nombre)}</label>`).join('')
+        || '<span style="font-size:12px;color:#9ca3af">Sin roles</span>';
+    document.getElementById('grupo-usuarios').innerHTML = _usuariosDisp.map(u =>
+        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(u.username)} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`).join('')
+        || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
+    document.getElementById('grupo-del').style.display = _grupoEdit ? '' : 'none';
+    document.getElementById('modal-grupo').classList.add('open');
+}
+async function guardarGrupo() {
+    const nombre = document.getElementById('grupo-nombre').value.trim();
+    if (!nombre) { alert('Poné un nombre al grupo.'); return; }
+    const roles = [...document.querySelectorAll('#grupo-roles input:checked')].map(c => c.value);
+    const usuarios = [...document.querySelectorAll('#grupo-usuarios input:checked')].map(c => Number(c.value));
+    const body = { nombre, roles, usuarios };
+    try {
+        if (_grupoEdit) await apiFetch(`/social/grupos/${_grupoEdit.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+        else await apiFetch('/social/grupos', { method: 'POST', body: JSON.stringify(body) });
+        cerrarModal('modal-grupo');
+        await cargarGrupos();
+    } catch (e) { alert('No se pudo guardar el grupo: ' + (e.message || e)); }
+}
+async function eliminarGrupo() {
+    if (!_grupoEdit) return;
+    if (!confirm(`¿Eliminar el grupo "${_grupoEdit.nombre}" y sus publicaciones?`)) return;
+    try {
+        await apiFetch(`/social/grupos/${_grupoEdit.id}`, { method: 'DELETE' });
+        cerrarModal('modal-grupo');
+        if (_feedGrupoId === _grupoEdit.id) _feedGrupoId = null;
+        await cargarGrupos();
+        cargarFeed(true);
+    } catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+
+function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── Init ─────────────────────────────────────────────────────
+(async function () {
+    await cargarGrupos();
+    await cargarFeed(true);
+})();
+</script>
+</body>
+</html>

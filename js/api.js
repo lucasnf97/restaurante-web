@@ -89,8 +89,9 @@ function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 async function apiFetch(endpoint, options = {}) {
     const token  = getToken();
     const method = (options.method || "GET").toUpperCase();
+    // Con FormData (multipart) NO seteamos Content-Type: el browser pone el boundary solo.
     const headers = {
-        "Content-Type": "application/json",
+        ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
         ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         ...(options.headers || {})
     };
