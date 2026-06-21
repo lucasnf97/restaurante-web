@@ -2192,7 +2192,7 @@ function seleccionarRol(id) {
 }
 
 function nuevoRol() {
-    _rolSel = { id: null, nombre: '', descripcion: '', permisos: {}, es_sistema: false, pantalla_default: 'dashboard', preview_logout: false };
+    _rolSel = { id: null, nombre: '', descripcion: '', permisos: {}, es_sistema: false, pantalla_default: 'dashboard' };
     _permTab = null;
     renderListaRoles();
     renderEditorRol();
@@ -2291,6 +2291,14 @@ function _permPanelHtml(esSistema) {
           + ` onchange="_permSimple('${key}', ${val==='on'})"><label for="${name}-${val}">${txt}</label>`;
         return `<div class="perm-seg">${opt('off','No',!on)}${opt('on','Sí',on)}</div>`;
     };
+    // Control Ver/Editar (acceso libre: todos entran; solo se elige el nivel)
+    const seg2VE = (verKey, editarKey, cur, pag) => {
+        const name = `nv-${_permTab}-${pag}`;
+        const opt = (val, txt) =>
+            `<input type="radio" id="${name}-${val}" name="${name}" ${cur===val?'checked':''} ${dis}`
+          + ` onchange="_permNivel('${verKey}','${editarKey}','${val}')"><label for="${name}-${val}">${txt}</label>`;
+        return `<div class="perm-seg">${opt('ver','Ver')}${opt('editar','Editar')}</div>`;
+    };
 
     const gruposHtml = grupos.map(grupo => {
         const gperms  = perms.filter(p => p[grupoField] === grupo);
@@ -2300,6 +2308,17 @@ function _permPanelHtml(esSistema) {
             const ver    = pp.find(p => p.nivel === 'ver');
             const editar = pp.find(p => p.nivel === 'editar');
             if (ver && editar) {
+                // Acceso libre: todos pueden entrar; el control es Ver/Editar (sin "Sin acceso").
+                if (ver.acceso_libre || editar.acceso_libre) {
+                    const cur = r.permisos[editar.key] ? 'editar' : 'ver';
+                    return `
+                        <div class="perm-row">
+                            <div class="perm-row-label">${editar.label}
+                                <span class="perm-row-desc">Ver: ${ver.desc.toLowerCase()} · Editar: ${editar.desc.toLowerCase()}</span>
+                            </div>
+                            ${seg2VE(ver.key, editar.key, cur, pag)}
+                        </div>`;
+                }
                 const cur = r.permisos[editar.key] ? 'editar' : (r.permisos[ver.key] ? 'ver' : 'none');
                 return `
                     <div class="perm-row">
@@ -2389,8 +2408,7 @@ async function guardarRol() {
     if (!nombre) { alert('El nombre del rol es obligatorio.'); return; }
     const permisos        = _leerPermisosRol();
     const pantalla_default = _rolSel.pantalla_default || 'dashboard';
-    // La vista previa al cerrar sesión está siempre activa (no es configurable por rol).
-    const payload         = { nombre, descripcion, permisos, pantalla_default, preview_logout: true };
+    const payload         = { nombre, descripcion, permisos, pantalla_default };
     try {
         if (_rolSel.id) {
             await apiFetch(`/roles/${_rolSel.id}`, { method:'PATCH', body: JSON.stringify(payload) });

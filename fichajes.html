@@ -373,7 +373,9 @@
 <script src="js/api.js"></script>
 <script>
 requireAuth();
-requirePermiso('ver_fichajes', 'edicion_fichajes');
+// Fichajes: acceso libre para todos. Sin edicion_fichajes, el backend devuelve
+// solo los fichajes propios y el usuario puede agregarles notas (nivel "ver").
+// Con edicion_fichajes se ven todos y se habilita la gestión completa.
 
 const COLORES = ["#4f46e5","#16a34a","#dc2626","#ca8a04","#0891b2","#7c3aed","#be185d","#0f766e"];
 
@@ -393,9 +395,8 @@ function hasVerFichajes() {
     return !!u.ver_fichajes || hasEdicionFichajes();
 }
 function canEditNota(fichaje) {
-    if (hasEdicionFichajes()) return true;
-    if (hasVerFichajes() && fichaje.usuario_id == currentUser().id) return true;
-    return false;
+    // Todos pueden anotar sus propios fichajes; editar ajenos requiere edición.
+    return hasEdicionFichajes() || fichaje.usuario_id == currentUser().id;
 }
 
 // ── Init ─────────────────────────────────────────────────────
@@ -441,7 +442,9 @@ async function init() {
 
 async function cargarActivos() {
     try {
-        const activos = await api.get("/turnos/activos");
+        let activos = await api.get("/turnos/activos");
+        // Nivel "ver" (sin edición): solo el turno propio.
+        if (!hasEdicionFichajes()) activos = activos.filter(t => t.usuario_id == currentUser().id);
         document.getElementById("stat-activos").textContent = activos.length;
         const wrap = document.getElementById("globos-activos");
         if (!activos.length) {

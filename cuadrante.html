@@ -8,14 +8,15 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; overflow:hidden; }
 
-/* Modo solo-vista: permiso ver_horarios sin edición → grilla de solo lectura */
+/* Modo solo-vista: sin edicion_agenda → grilla de solo lectura (todos acceden) */
 body.solo-vista #btn-publicar,
-body.solo-vista .btn-horarios-rest,
 body.solo-vista .btn-bloqueos,
 body.solo-vista .tpl-add-btn,
 body.solo-vista .ms-btn-save,
 body.solo-vista .ms-btn-elim,
 body.solo-vista #tpl-btn-del { display:none !important; }
+/* El horario de apertura del local es un permiso aparte (edicion_horarios) */
+body.sin-apertura .btn-horarios-rest { display:none !important; }
 
 /* ── Navbar ─────────────────────────────────────────────────── */
 .navbar {
@@ -800,8 +801,10 @@ body.view-mes         .th-day { min-width:58px; }
 <script src="js/api.js"></script>
 <script>
 requireAuth();
-requirePermiso('ver_horarios', 'edicion_agenda', 'edicion_horarios');
-if (!hasPermiso('edicion_agenda') && !hasPermiso('edicion_horarios')) document.body.classList.add('solo-vista');
+// Horarios: acceso libre para todos. Sin edicion_agenda → grilla de solo lectura.
+if (!hasPermiso('edicion_agenda'))  document.body.classList.add('solo-vista');
+// El horario de apertura del local requiere su propio permiso.
+if (!hasPermiso('edicion_horarios')) document.body.classList.add('sin-apertura');
 
 // ── Constantes ──────────────────────────────────────────────────
 const DIAS_LARGO = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];

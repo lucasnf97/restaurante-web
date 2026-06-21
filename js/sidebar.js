@@ -27,9 +27,9 @@
             label: "Personal",
             mod: "personal",
             children: [
-                { href: "fichajes.html",   icon: "🕐", label: "Fichajes",  perm: ["ver_fichajes","edicion_fichajes"] },
+                { href: "fichajes.html",   icon: "🕐", label: "Fichajes" },
                 { href: "usuarios.html",   icon: "👤", label: "Usuarios",  perm: ["acceso_usuarios","ver_usuarios"] },
-                { href: "cuadrante.html",  icon: "📋", label: "Horarios",  perm: ["edicion_agenda","edicion_horarios","ver_horarios"] },
+                { href: "cuadrante.html",  icon: "📋", label: "Horarios" },
                 { href: "salarios.html",   icon: "💼", label: "Salarios",  perm: "revision_salarios" },
             ]
         },
