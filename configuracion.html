@@ -1086,10 +1086,12 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
             <div class="dash-cfg-tabs">
                 <button type="button" class="dash-cfg-tab active" id="dctab-roles" onclick="dashCfgTab('roles')">Roles</button>
                 <button type="button" class="dash-cfg-tab" id="dctab-usuarios" onclick="dashCfgTab('usuarios')">Usuarios</button>
+                <button type="button" class="dash-cfg-tab" id="dctab-plantillas" onclick="dashCfgTab('plantillas')">Gestión Plantillas</button>
             </div>
             <p class="cfg-hint" id="dctab-hint">Diseñá el dashboard de cada rol; todos los usuarios con ese rol lo verán.</p>
             <div id="dash-cfg-roles"></div>
             <div id="dash-cfg-usuarios" style="display:none;"></div>
+            <div id="dash-cfg-plantillas" style="display:none;"></div>
         </div>
     </div>
 
@@ -1665,17 +1667,21 @@ async function cargarDashboardCfg() {
     catch (e) { _dashOverview = { roles: [], usuarios: [], templates: [] }; }
     renderDashCfgRoles();
     renderDashCfgUsuarios();
+    renderDashCfgPlantillas();
 }
 
 function dashCfgTab(t) {
-    const esRoles = t === 'roles';
-    document.getElementById('dctab-roles').classList.toggle('active', esRoles);
-    document.getElementById('dctab-usuarios').classList.toggle('active', !esRoles);
-    document.getElementById('dash-cfg-roles').style.display    = esRoles ? '' : 'none';
-    document.getElementById('dash-cfg-usuarios').style.display = esRoles ? 'none' : '';
-    document.getElementById('dctab-hint').textContent = esRoles
-        ? 'Diseñá el dashboard de cada rol; todos los usuarios con ese rol lo verán.'
-        : 'Asigná a cada usuario el dashboard de su rol, una plantilla del pool, o personalizá uno nuevo.';
+    const tabs = ['roles', 'usuarios', 'plantillas'];
+    tabs.forEach(x => {
+        document.getElementById('dctab-' + x).classList.toggle('active', x === t);
+        document.getElementById('dash-cfg-' + x).style.display = (x === t) ? '' : 'none';
+    });
+    const hints = {
+        roles: 'Diseñá el dashboard de cada rol; todos los usuarios con ese rol lo verán.',
+        usuarios: 'Editá el dashboard de un usuario; al guardar le ponés un nombre y queda como plantilla propia.',
+        plantillas: 'Gestioná las plantillas: renombrar, copiar el diseño a otra, duplicar o eliminar.',
+    };
+    document.getElementById('dctab-hint').textContent = hints[t] || '';
 }
 
 function renderDashCfgRoles() {
@@ -1691,24 +1697,49 @@ function renderDashCfgRoles() {
         </div>`).join('');
 }
 
+function _tplNombre(id) {
+    const t = (_dashOverview.templates || []).find(t => t.id === id);
+    return t ? t.nombre : null;
+}
+
 function renderDashCfgUsuarios() {
     const cont = document.getElementById('dash-cfg-usuarios');
     if (!cont) return;
-    const usuarios  = _dashOverview.usuarios  || [];
-    const templates = _dashOverview.templates || [];
+    const usuarios = _dashOverview.usuarios || [];
     if (!usuarios.length) { cont.innerHTML = '<p class="cfg-hint">No hay usuarios.</p>'; return; }
     cont.innerHTML = usuarios.map(u => {
         const tplId = u.dashboard_template_id;
-        const opciones = [
-            `<option value="rol" ${!tplId ? 'selected' : ''}>Hereda del rol</option>`,
-            ...templates.map(t => `<option value="tpl:${t.id}" ${tplId === t.id ? 'selected' : ''}>Plantilla: ${t.nombre}</option>`),
-            `<option value="nuevo">Personalizar…</option>`,
-        ].join('');
+        const estado = tplId
+            ? `<span class="dc-badge-cfg">Personalizado: ${_tplNombre(tplId) || '—'}</span>`
+            : `<span class="dc-badge-no">Hereda del rol</span>`;
         return `
         <div class="dc-row">
             <div class="dc-name">${u.username}<span class="dc-rol">${u.rol}</span></div>
-            <select onchange="onUsuarioDashSel(${u.id}, this.value)">${opciones}</select>
-            ${tplId ? `<button class="dc-btn" onclick="editarDashboardTemplate(${tplId})">✏️ Editar</button>` : ''}
+            ${estado}
+            <button class="dc-btn" onclick="editarDashboardUsuario(${u.id})">✏️ Editar</button>
+        </div>`;
+    }).join('');
+}
+
+// ── Solapa Gestión Plantillas ────────────────────────────────
+function renderDashCfgPlantillas() {
+    const cont = document.getElementById('dash-cfg-plantillas');
+    if (!cont) return;
+    const templates = _dashOverview.templates || [];
+    if (!templates.length) { cont.innerHTML = '<p class="cfg-hint">Todavía no hay plantillas. Se crean al editar el dashboard de un rol o usuario.</p>'; return; }
+    cont.innerHTML = templates.map(t => {
+        const otras = templates.filter(o => o.id !== t.id);
+        const opcCopiar = [`<option value="">Copiar diseño a…</option>`]
+            .concat(otras.map(o => `<option value="${o.id}">${o.nombre}</option>`)).join('');
+        return `
+        <div class="dc-row">
+            <div class="dc-name">${t.nombre}
+                <button class="dc-btn" style="padding:2px 7px;margin-left:6px;" title="Renombrar" onclick="renombrarPlantilla(${t.id})">✏️</button>
+            </div>
+            <button class="dc-btn" onclick="editarDashboardTemplate(${t.id})">Editar diseño</button>
+            <select onchange="copiarDisenoA(${t.id}, this.value)" ${otras.length ? '' : 'disabled'}>${opcCopiar}</select>
+            <button class="dc-btn" onclick="duplicarPlantilla(${t.id})">Duplicar</button>
+            <button class="dc-btn" style="color:#dc2626;border-color:#fecaca;" onclick="eliminarPlantilla(${t.id})">Eliminar</button>
         </div>`;
     }).join('');
 }
@@ -1720,28 +1751,52 @@ async function editarDashboardRol(rolId) {
     } catch (e) { alert('No se pudo abrir el editor: ' + (e.message || e)); }
 }
 
+function editarDashboardUsuario(uid) {
+    window.location.href = `dashboard.html?editar=user:${uid}`;
+}
+
 function editarDashboardTemplate(tplId) {
     window.location.href = `dashboard.html?editar=${tplId}`;
 }
 
-async function onUsuarioDashSel(uid, val) {
+async function renombrarPlantilla(tplId) {
+    const actual = _tplNombre(tplId) || '';
+    const nombre = prompt('Nuevo nombre de la plantilla:', actual);
+    if (nombre === null || !nombre.trim() || nombre.trim() === actual) return;
     try {
-        if (val === 'rol') {
-            await apiFetch(`/dashboards/usuario/${uid}`, { method: 'PUT', body: JSON.stringify({ template_id: null }) });
-            await cargarDashboardCfg();
-        } else if (val.startsWith('tpl:')) {
-            await apiFetch(`/dashboards/usuario/${uid}`, { method: 'PUT', body: JSON.stringify({ template_id: Number(val.slice(4)) }) });
-            await cargarDashboardCfg();
-        } else if (val === 'nuevo') {
-            const nombre = prompt('Nombre de la plantilla personalizada (se podrá reutilizar en otros usuarios):');
-            if (!nombre || !nombre.trim()) { renderDashCfgUsuarios(); return; }
-            const r = await apiFetch(`/dashboards/usuario/${uid}/personalizar`, { method: 'POST', body: JSON.stringify({ nombre: nombre.trim() }) });
-            window.location.href = `dashboard.html?editar=${r.template_id}`;
-        }
-    } catch (e) {
-        alert('No se pudo actualizar: ' + (e.message || e));
-        renderDashCfgUsuarios();
+        await apiFetch(`/dashboards/templates/${tplId}`, { method: 'PATCH', body: JSON.stringify({ nombre: nombre.trim() }) });
+        await cargarDashboardCfg();
+    } catch (e) { alert('No se pudo renombrar: ' + (e.message || e)); }
+}
+
+async function copiarDisenoA(srcId, destId) {
+    if (!destId) return;
+    const destNom = _tplNombre(Number(destId)) || 'la plantilla seleccionada';
+    if (!confirm(`Se sobrescribirá el diseño de "${destNom}" con el de "${_tplNombre(srcId)}". ¿Continuar?`)) {
+        renderDashCfgPlantillas(); return;
     }
+    try {
+        const src = await apiFetch(`/dashboards/templates/${srcId}`);
+        await apiFetch(`/dashboards/templates/${destId}`, { method: 'PATCH', body: JSON.stringify({ config: src.config }) });
+        alert('✅ Diseño copiado.');
+        await cargarDashboardCfg();
+    } catch (e) { alert('No se pudo copiar: ' + (e.message || e)); renderDashCfgPlantillas(); }
+}
+
+async function duplicarPlantilla(tplId) {
+    try {
+        const src = await apiFetch(`/dashboards/templates/${tplId}`);
+        await apiFetch('/dashboards/templates', { method: 'POST', body: JSON.stringify({ nombre: `Copia de ${src.nombre}`, config: src.config }) });
+        await cargarDashboardCfg();
+    } catch (e) { alert('No se pudo duplicar: ' + (e.message || e)); }
+}
+
+async function eliminarPlantilla(tplId) {
+    if (!confirm(`¿Eliminar la plantilla "${_tplNombre(tplId)}"? Los roles/usuarios que la usen volverán al dashboard de su rol.`)) return;
+    try {
+        await apiFetch(`/dashboards/templates/${tplId}`, { method: 'DELETE' });
+        await cargarDashboardCfg();
+    } catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
 }
 
 // ── Init ─────────────────────────────────────────────────────

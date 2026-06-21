@@ -367,9 +367,10 @@ function _mergeConfig(saved) {
 }
 
 // Estado de edición (se setea en initDashboard)
-let _canEditDash = false;        // puede editar este dashboard (admin/gerente o editor de plantilla)
-let _saveTarget  = null;         // 'mio' | { tpl: <id> }
-let _editorTplId = null;         // si estamos editando una plantilla (modo admin)
+let _canEditDash = false;        // puede editar este dashboard (admin/gerente o editor)
+let _saveTarget  = null;         // 'mio' | { tpl: <id> } | { user: <uid>, nombre }
+let _editorTplId = null;         // id de plantilla en edición (modo plantilla)
+let _modoEditor  = false;        // true en cualquier editor admin (plantilla o usuario)
 
 let config = _mergeConfig(null); // default seguro hasta que initDashboard cargue del backend
 
@@ -1199,22 +1200,25 @@ async function guardarConfig() {
             await apiFetch('/dashboards/mio', { method: 'PUT', body: JSON.stringify({ config }) });
         } else if (_saveTarget && _saveTarget.tpl) {
             await apiFetch(`/dashboards/templates/${_saveTarget.tpl}`, { method: 'PATCH', body: JSON.stringify({ config }) });
+        } else if (_saveTarget && _saveTarget.user) {
+            const nombre = prompt('Guardar dashboard como (nombre de la plantilla):', _saveTarget.nombre || '');
+            if (nombre === null) return;                       // canceló: seguir editando
+            if (!nombre.trim()) { alert('Tenés que ponerle un nombre.'); return; }
+            await apiFetch(`/dashboards/usuario/${_saveTarget.user}/guardar`,
+                { method: 'POST', body: JSON.stringify({ nombre: nombre.trim(), config }) });
         }
     } catch (e) {
         alert('No se pudo guardar el dashboard: ' + (e.message || e));
         return;
     }
     cerrarConfig();
-    if (_editorTplId) {
-        // Veníamos del menú de Configuración → volver allá
-        window.location.href = 'configuracion.html#dashboard';
-    }
+    if (_modoEditor) window.location.href = 'configuracion.html#dashboard';  // volver a Configuración
 }
 
 function resetConfig() {
     if (!confirm("¿Restablecer este dashboard?")) return;
-    // En el editor de plantilla → mínimo (accesos). En el propio (admin/gerente) → default completo.
-    config = _mergeConfig(_editorTplId ? MINIMAL_CONFIG : null);
+    // En un editor admin → mínimo (accesos). En el propio (admin/gerente) → default completo.
+    config = _mergeConfig(_modoEditor ? MINIMAL_CONFIG : null);
     resPag = 0;
     renderDash();
     renderConfigPanel();
@@ -1222,17 +1226,30 @@ function resetConfig() {
 
 // ── INIT ─────────────────────────────────────────────────────
 async function initDashboard() {
-    const params    = new URLSearchParams(window.location.search);
-    const editarTpl = params.get('editar');   // editar plantilla (modo admin)
+    const params = new URLSearchParams(window.location.search);
+    const editar = params.get('editar');   // 'user:<uid>' (personalizar usuario) | '<tplId>' (plantilla)
 
-    if (editarTpl) {
-        // MODO EDITOR: el admin configura una plantilla (de rol o personalizada)
-        _editorTplId = editarTpl;
-        _canEditDash = true;
-        _saveTarget  = { tpl: editarTpl };
+    if (editar && editar.startsWith('user:')) {
+        // MODO EDITOR de usuario: parte de la plantilla que le aplica; el nombre se pide al guardar
+        const uid = editar.slice(5);
+        _modoEditor = true; _canEditDash = true;
+        let data = null;
+        try { data = await api.get(`/dashboards/usuario/${uid}/editor`); } catch (e) {}
+        _saveTarget = { user: uid, nombre: (data && data.nombre) || '' };
+        const cfg = (data && data.config && Array.isArray(data.config.blocks) && data.config.blocks.length)
+            ? data.config : MINIMAL_CONFIG;
+        config = _mergeConfig(cfg);
+        document.body.classList.add('modo-editor');
+        const wm = document.getElementById('welcome-msg');
+        if (wm) wm.textContent = `Personalizando dashboard de: ${(data && data.username) || 'usuario'}`;
+    } else if (editar) {
+        // MODO EDITOR de plantilla (rol o del pool)
+        _modoEditor = true; _canEditDash = true;
+        _editorTplId = editar;
+        _saveTarget  = { tpl: editar };
         let tplCfg = null, tplNom = '';
         try {
-            const tpl = await api.get(`/dashboards/templates/${editarTpl}`);
+            const tpl = await api.get(`/dashboards/templates/${editar}`);
             tplNom = tpl.nombre || '';
             tplCfg = (tpl.config && Array.isArray(tpl.config.blocks) && tpl.config.blocks.length)
                 ? tpl.config : MINIMAL_CONFIG;
@@ -1256,8 +1273,8 @@ async function initDashboard() {
     const btnCfg = document.querySelector('.btn-config');
     if (btnCfg) btnCfg.style.display = _canEditDash ? '' : 'none';
 
-    await cargarDatos();          // trae datos y renderiza
-    if (_editorTplId) abrirConfig();   // en el editor, abrir el panel de widgets
+    await cargarDatos();              // trae datos y renderiza
+    if (_modoEditor) abrirConfig();   // en el editor, abrir el panel de widgets
 }
 
 initDashboard();
