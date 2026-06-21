@@ -1638,19 +1638,19 @@ function actualizarBadgeImpuesto() {
     if (pct > 0) {
         badge.textContent = `${pct}%`;
         badge.className   = 'cfg-section-badge badge-on';
-        const factor = 1 - pct / 100;
+        const mult   = 1 + pct / 100;
         const bruto  = 200;
-        const neto   = Math.round(bruto * factor * 100) / 100;
-        const neto2  = Math.round(bruto / factor * 100) / 100;
+        const neto   = Math.round(bruto / mult * 100) / 100;   // c/imp → s/imp (discrimina IVA)
+        const conImp = Math.round(bruto * mult * 100) / 100;   // s/imp → c/imp
         const simb   = window.SISTEMA_MONEDA?.simbolo || '';
         if (ejemplo) {
             ejemplo.style.display = '';
             ejemplo.innerHTML = `
                 <strong>Ejemplo con tus valores:</strong><br>
                 Factura de <strong>${simb} ${bruto}</strong> c/ impuestos incluidos
-                → <strong>${simb} ${neto}</strong> sin impuestos (${simb} ${bruto} × ${factor.toFixed(4)})<br>
+                → <strong>${simb} ${neto}</strong> sin impuestos (${simb} ${bruto} ÷ ${mult.toFixed(4)})<br>
                 Factura de <strong>${simb} ${bruto}</strong> sin impuestos
-                → <strong>${simb} ${neto2}</strong> con impuestos incluidos (${simb} ${bruto} ÷ ${factor.toFixed(4)})
+                → <strong>${simb} ${conImp}</strong> con impuestos incluidos (${simb} ${bruto} × ${mult.toFixed(4)})
             `;
         }
     } else {

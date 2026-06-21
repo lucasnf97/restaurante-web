@@ -115,27 +115,25 @@ window.fmtDinero  = fmtDinero;
 window.formatMonto = formatMonto;
 
 /**
- * Calcula el precio sin impuestos dado el precio con impuestos.
- * Fórmula: sinIVA = conIVA * (1 - pct/100)
- * Ejemplo: 200 kr con 25% → 200 * 0.75 = 150 kr s/IVA
+ * Calcula el precio sin impuestos dado el precio con impuestos (discrimina el IVA).
+ * Fórmula: sinIVA = conIVA / (1 + pct/100)
+ * Ejemplo: 200 con 25% → 200 / 1.25 = 160 s/IVA
  */
 function precioSinIVA(conIVA, pct) {
     const p = (pct !== undefined && pct !== null) ? pct : window.SISTEMA_MONEDA.impuesto_pct;
     if (!p || p <= 0) return conIVA;
-    return Math.round(conIVA * (1 - p / 100) * 10000) / 10000;
+    return Math.round(conIVA / (1 + p / 100) * 10000) / 10000;
 }
 
 /**
  * Calcula el precio con impuestos dado el precio sin impuestos.
- * Fórmula: conIVA = sinIVA / (1 - pct/100)
- * Ejemplo: 150 kr s/IVA con 25% → 150 / 0.75 = 200 kr c/IVA
+ * Fórmula: conIVA = sinIVA * (1 + pct/100)
+ * Ejemplo: 160 s/IVA con 25% → 160 * 1.25 = 200 c/IVA
  */
 function precioConIVA(sinIVA, pct) {
     const p = (pct !== undefined && pct !== null) ? pct : window.SISTEMA_MONEDA.impuesto_pct;
     if (!p || p <= 0) return sinIVA;
-    const factor = 1 - p / 100;
-    if (factor <= 0) return sinIVA;
-    return Math.round(sinIVA / factor * 10000) / 10000;
+    return Math.round(sinIVA * (1 + p / 100) * 10000) / 10000;
 }
 
 // Inicializar en cuanto el script se carga (requiere que api.js ya esté cargado)

@@ -579,11 +579,10 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioP
 
     const impPct   = window.SISTEMA_MONEDA?.impuesto_pct || 0;
     const tieneImp = impPct > 0;
-    const factor   = 1 - impPct / 100;
-
-    // Precio pagado = total de la línea (bruto, con impuestos si los hay)
+    // Precio pagado = total de la línea (bruto, con impuestos si los hay).
+    // Discriminar IVA = dividir por (1 + tasa/100), no multiplicar por (1 - tasa/100).
     const precioNeto = (precioPagado !== null && precioPagado !== undefined && tieneImp)
-        ? Math.round(precioPagado * factor * 10000) / 10000
+        ? Math.round(precioPagado / (1 + impPct / 100) * 10000) / 10000
         : null;
 
     // Precio unitario calculado = precio_pagado / cantidad
@@ -1262,7 +1261,7 @@ function sincPrecioConIVA(idx) {
     const netoEl = document.getElementById(`ci-precio-neto-${idx}`);
     if (!netoEl) return;
     if (!isNaN(bruto) && bruto !== 0) {
-        netoEl.value = Math.round(bruto * (1 - impPct / 100) * 10000) / 10000;
+        netoEl.value = Math.round(bruto / (1 + impPct / 100) * 10000) / 10000;
     } else {
         netoEl.value = '';
     }
@@ -1275,7 +1274,7 @@ function sincPrecioSinIVA(idx) {
     const brutoEl = document.getElementById(`ci-precio-${idx}`);
     if (!brutoEl) return;
     if (!isNaN(neto) && neto !== 0) {
-        brutoEl.value = Math.round(neto / (1 - impPct / 100) * 10000) / 10000;
+        brutoEl.value = Math.round(neto * (1 + impPct / 100) * 10000) / 10000;
     } else {
         brutoEl.value = '';
     }
