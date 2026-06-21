@@ -130,6 +130,31 @@ body.config-open .block-drag { display:inline; }
 .caja-stat-row:last-child { border-bottom:none; }
 .caja-stat-row strong { color:#1a1a2e; font-size:14px; font-weight:700; }
 
+/* MENSAJES WIDGET */
+.msg-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
+.msg-list { display:flex; flex-direction:column; margin-top:8px; }
+.msg-row { display:flex; gap:8px; align-items:flex-start; padding:9px 0; border-bottom:1px solid #f3f4f6; text-decoration:none; color:inherit; }
+.msg-row:last-child { border-bottom:none; }
+.msg-row:hover { background:#fafafe; }
+.msg-dot { width:8px; height:8px; border-radius:50%; background:#4f46e5; flex-shrink:0; margin-top:6px; }
+.msg-main { flex:1; min-width:0; }
+.msg-top { display:flex; justify-content:space-between; gap:8px; }
+.msg-de { font-size:13px; font-weight:700; color:#1a1a2e; }
+.msg-fecha { font-size:11px; color:#9ca3af; flex-shrink:0; }
+.msg-asunto { font-size:12px; font-weight:600; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.msg-cuerpo { font-size:12px; color:#9ca3af; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* HORARIOS DE LA SEMANA WIDGET */
+.hs-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
+.hs-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:10px; }
+.hs-dia { border:1px solid #eef0f3; border-radius:10px; padding:8px 6px; min-height:74px; display:flex; flex-direction:column; gap:6px; background:#fafafe; }
+.hs-dia.hs-hoy { border-color:#4f46e5; background:#eef2ff; }
+.hs-dia-lbl { font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.4px; text-align:center; }
+.hs-turnos { display:flex; flex-direction:column; gap:4px; align-items:center; }
+.hs-turno { font-size:12px; font-weight:700; color:#3730a3; background:#e0e7ff; border-radius:6px; padding:3px 6px; white-space:nowrap; }
+.hs-libre { font-size:11px; color:#cbd0d8; }
+@media (max-width:720px) { .hs-grid { grid-template-columns:repeat(7,minmax(64px,1fr)); overflow-x:auto; } }
+
 /* PERSONAL EN TURNO */
 .personal-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
 .turno-row { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #f3f4f6; }
@@ -295,6 +320,25 @@ function _bloqueHabilitado(block) {
         return _moduloHabilitado(_MOD_ACCESO[block.moduleId]);
     return _moduloHabilitado(_MOD_BLOQUE[block.type]);
 }
+// ── Gateo por PERMISO del rol ────────────────────────────────
+// Un widget que muestra datos de una sección solo se ve si el rol tiene permiso
+// para esa sección. Los bloques sin entrada acá son generales (todos los ven).
+// admin/gerente siempre pasan (vía hasAlgunPermiso).
+const _PERM_BLOQUE = {
+    'stats':          ['acceso_estadisticas'],
+    'ventas-7dias':   ['acceso_estadisticas'],
+    'reservas':       ['gestion_reservas','ver_reservas'],
+    'stock':          ['gestion_stock','gestion_produccion','ver_stock'],
+    'caja-estado':    ['gestion_caja'],
+    'personal-turno': ['edicion_fichajes'],
+    'mesas-estado':   ['edicion_sala','gestion_pedidos'],
+    'ordenes-cocina': ['gestion_pedidos','gestion_produccion'],
+};
+function _bloquePermitido(block) {
+    const perms = _PERM_BLOQUE[block.type];
+    if (!perms) return true;            // bloque general (sin restricción de permiso)
+    return hasAlgunPermiso(...perms);   // admin/gerente siempre true
+}
 
 // ── CONFIG POR DEFECTO (v5) ──────────────────────────────────
 const DEFAULT_CONFIG = { blocks: [
@@ -302,6 +346,8 @@ const DEFAULT_CONFIG = { blocks: [
     { id:"reservas",       type:"reservas",        label:"Reservas del día",       visible:true,  span:3 },
     { id:"accesos",        type:"accesos",         label:"Accesos rápidos",        visible:true,  span:6,
       modules:["mesas","productos","caja","fichajes","usuarios","stock","facturas"] },
+    { id:"horarios-semana",type:"horarios-semana", label:"Mis horarios de la semana", visible:true, span:6 },
+    { id:"mensajes",       type:"mensajes",        label:"Últimos mensajes",       visible:true,  span:3 },
     { id:"stock-status",   type:"stock",           label:"Estado del stock",       visible:true,  span:3 },
     { id:"caja-estado",    type:"caja-estado",     label:"Estado de caja",         visible:false, span:3 },
     { id:"personal-turno", type:"personal-turno",  label:"Personal en turno",      visible:false, span:3 },
@@ -313,14 +359,16 @@ const DEFAULT_CONFIG = { blocks: [
 // ── LOAD / SAVE ──────────────────────────────────────────────
 // IDs canónicos de los nuevos widgets: se agregan si faltan en cualquier config guardada
 const _NEW_BLOCK_IDS = ["caja-estado","personal-turno","mesas-estado","ordenes-cocina","ventas-7dias"];
+// Widgets generales (para todos): se agregan VISIBLES si faltan.
+const _NEW_GENERAL_IDS = ["horarios-semana","mensajes"];
 
 function _ensureNewBlocks(cfg) {
     // Garantiza que los nuevos widgets estén siempre en el config, aunque falten
     const existingIds = new Set(cfg.blocks.map(b => b.id));
     DEFAULT_CONFIG.blocks.forEach(nb => {
-        if (_NEW_BLOCK_IDS.includes(nb.id) && !existingIds.has(nb.id)) {
-            cfg.blocks.push({ ...nb, visible: false });
-        }
+        if (existingIds.has(nb.id)) return;
+        if (_NEW_BLOCK_IDS.includes(nb.id))   cfg.blocks.push({ ...nb, visible: false });
+        if (_NEW_GENERAL_IDS.includes(nb.id)) cfg.blocks.push({ ...nb });  // visibles por defecto
     });
     return cfg;
 }
@@ -373,6 +421,18 @@ let coccinaData    = [];
 let ventasHistData = null;
 let resPag         = 0;
 let _monedaSim     = simboloMoneda();
+let mensajesData       = [];   // últimos mensajes recibidos (widget general)
+let horariosSemanaData = [];   // horarios propios de la semana en curso (widget general)
+
+// Lunes y domingo (YYYY-MM-DD, hora local) de la semana en curso.
+function _semanaActual() {
+    const hoy = new Date();
+    const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;   // 0 = lunes
+    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem);
+    const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return { lunes: fmt(lunes), domingo: fmt(domingo), lunesDate: lunes, fmt };
+}
 
 async function cargarDatos() {
     // Mientras carga todo, mostrar tarjetas "skeleton" para que no se vea vacío/colgado.
@@ -430,6 +490,15 @@ async function cargarDatos() {
             } catch(e) {}
         })(),
         (async () => { try { ventasHistData = await api.get("/reportes/ventas-diarias"); } catch(e) {} })(),
+        (async () => { try { mensajesData = (await api.get("/mensajes/recibidos")) || []; } catch(e) {} })(),
+        (async () => {
+            try {
+                const { lunes, domingo } = _semanaActual();
+                const hp  = await api.get(`/horarios-personal?desde=${lunes}&hasta=${domingo}`);
+                const uid = (typeof user !== 'undefined' && user) ? user.id : null;
+                horariosSemanaData = (hp || []).filter(h => h.usuario_id == uid);
+            } catch(e) {}
+        })(),
     ]);
     renderDash();
 }
@@ -469,6 +538,7 @@ function renderDash() {
     config.blocks.forEach(block => {
         if (!block.visible) return;
         if (!_bloqueHabilitado(block)) return;   // módulo no habilitado en este restaurante
+        if (!_bloquePermitido(block)) return;    // el rol no tiene permiso para esta sección
         const el = document.createElement("div");
         el.className = `db-block span-${block.span}`;
         el.dataset.id = block.id;
@@ -515,7 +585,69 @@ function buildBlock(b) {
     if (b.type === "mesas-estado")   return buildMesasEstado(b);
     if (b.type === "ordenes-cocina") return buildOrdenesCocina(b);
     if (b.type === "ventas-7dias")   return buildVentas7Dias(b);
+    if (b.type === "mensajes")        return buildMensajes(b);
+    if (b.type === "horarios-semana") return buildHorariosSemana(b);
     return "";
+}
+
+// ── WIDGET: últimos mensajes recibidos (general, máx 3) ──────
+function buildMensajes(b) {
+    const esc  = s => (s == null ? '' : String(s).replace(/</g, '&lt;'));
+    const msgs = (mensajesData || []).slice(0, 3);
+    let inner;
+    if (!msgs.length) {
+        inner = `<div class="res-empty">Sin mensajes</div>`;
+    } else {
+        inner = msgs.map(m => {
+            const fecha = m.creado_en
+                ? new Date(m.creado_en).toLocaleDateString("es-AR", { day:'2-digit', month:'2-digit' }) : '';
+            const dot = !m.leido ? `<span class="msg-dot" title="No leído"></span>` : '';
+            return `<a href="mensajes.html" class="msg-row">
+                ${dot}
+                <div class="msg-main">
+                    <div class="msg-top">
+                        <span class="msg-de">${esc(m.de_username)}</span>
+                        <span class="msg-fecha">${fecha}</span>
+                    </div>
+                    <div class="msg-asunto">${esc(m.asunto) || '(sin asunto)'}</div>
+                    <div class="msg-cuerpo">${esc(m.cuerpo)}</div>
+                </div>
+            </a>`;
+        }).join("");
+    }
+    return `${blockHeader("")}
+    <div class="msg-card">
+        <a href="mensajes.html" class="widget-title">💬 Últimos mensajes</a>
+        <div class="msg-list">${inner}</div>
+    </div>`;
+}
+
+// ── WIDGET: mis horarios de la semana (general, barra de 7 días) ──
+function buildHorariosSemana(b) {
+    const { lunesDate, fmt } = _semanaActual();
+    const dias = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+    const byFecha = {};
+    (horariosSemanaData || []).forEach(h => { byFecha[h.fecha] = h; });
+    const hoyStr = fmt(new Date());
+    let celdas = "";
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(lunesDate); d.setDate(lunesDate.getDate() + i);
+        const key = fmt(d);
+        const h = byFecha[key];
+        const franjas = (h && Array.isArray(h.franjas)) ? h.franjas : [];
+        const turnos = franjas.length
+            ? franjas.map(f => `<div class="hs-turno">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</div>`).join("")
+            : `<div class="hs-libre">Libre</div>`;
+        celdas += `<div class="hs-dia ${key === hoyStr ? 'hs-hoy' : ''}">
+            <div class="hs-dia-lbl">${dias[i]} ${d.getDate()}</div>
+            <div class="hs-turnos">${turnos}</div>
+        </div>`;
+    }
+    return `${blockHeader("")}
+    <div class="hs-card">
+        <a href="cuadrante.html" class="widget-title">📅 Mis horarios de la semana</a>
+        <div class="hs-grid">${celdas}</div>
+    </div>`;
 }
 
 function blockHeader(label) {
@@ -973,11 +1105,11 @@ function cerrarConfig() {
 function renderConfigPanel() {
     // Oculta del panel los widgets de módulos no habilitados (conserva el índice original)
     document.getElementById("cfg-blocks-list").innerHTML =
-        config.blocks.map((b,i) => (b.type === "accesos" || _bloqueHabilitado(b)) ? buildCblock(b,i) : "").join("");
+        config.blocks.map((b,i) => ((b.type === "accesos" || _bloqueHabilitado(b)) && _bloquePermitido(b)) ? buildCblock(b,i) : "").join("");
 }
 
 const TIPOS_FIJOS = new Set(["stats"]);          // sin selector de columnas
-const TIPOS_NUEVOS = new Set(["caja-estado","personal-turno","mesas-estado","ordenes-cocina","ventas-7dias"]);
+const TIPOS_NUEVOS = new Set(["caja-estado","personal-turno","mesas-estado","ordenes-cocina","ventas-7dias","horarios-semana","mensajes"]);
 
 function buildCblock(b, i) {
     const spanLabel = `${b.span} col${b.span===1?"":"s"}`;
