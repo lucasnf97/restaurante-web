@@ -360,77 +360,77 @@
 
 <!-- Modal producto -->
 <div class="modal-overlay" id="modal-producto">
-    <div class="modal">
+    <div class="modal" style="max-width:600px;">
         <h3 id="modal-prod-titulo">Nuevo producto</h3>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Nombre *</label>
-                <input type="text" id="fp-nombre" placeholder="Nombre del producto">
+        <!-- Solapas -->
+        <div style="display:flex;gap:4px;border-bottom:1.5px solid #e5e7eb;margin:10px 0 16px;">
+            <button type="button" id="ptab-btn-config" onclick="switchProdTab('config')"
+                    style="padding:8px 18px;border:none;background:none;font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid #4f46e5;color:#4f46e5;">Config</button>
+            <button type="button" id="ptab-btn-receta" onclick="switchProdTab('receta')"
+                    style="padding:8px 18px;border:none;background:none;font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:#9ca3af;">Receta</button>
+        </div>
+
+        <!-- ── TAB CONFIG ── -->
+        <div id="ptab-config">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <input type="text" id="fp-nombre" placeholder="Nombre del producto">
+                </div>
+                <div class="form-group">
+                    <label>Precio *</label>
+                    <input type="number" id="fp-precio" min="0" step="0.01" placeholder="0.00">
+                </div>
             </div>
             <div class="form-group">
-                <label>Precio *</label>
-                <input type="number" id="fp-precio" min="0" step="0.01" placeholder="0.00">
+                <label>Descripción</label>
+                <textarea id="fp-descripcion" rows="2" placeholder="Opcional"></textarea>
             </div>
-        </div>
-        <div class="form-group">
-            <label>Descripción</label>
-            <textarea id="fp-descripcion" rows="2" placeholder="Opcional"></textarea>
-        </div>
-        <div class="form-row">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select id="fp-categoria"></select>
+                </div>
+                <div class="form-group">
+                    <label>Área</label>
+                    <select id="fp-area"></select>
+                </div>
+            </div>
             <div class="form-group">
-                <label>Categoría</label>
-                <select id="fp-categoria"></select>
+                <label>Descuento % en carta</label>
+                <input type="number" id="fp-descuento" min="0" max="100" step="0.1" value="0">
             </div>
-            <div class="form-group">
-                <label>Área</label>
-                <select id="fp-area"></select>
+            <div class="checkbox-row" style="margin-top:8px">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="fp-encarta" checked> En carta
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="fp-agotado"> Agotado
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="fp-favorito"> ★ Favorito
+                </label>
             </div>
         </div>
-        <div class="form-group">
-            <label>Descuento % en carta</label>
-            <input type="number" id="fp-descuento" min="0" max="100" step="0.1" value="0">
+
+        <!-- ── TAB RECETA ── -->
+        <div id="ptab-receta" style="display:none;">
+            <p style="color:#6b7280;font-size:13px;margin:0 0 12px;">Agregá los ingredientes. Si el producto no lleva receta, dejalo vacío.</p>
+            <div id="rn-items" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+            <div style="border:1.5px dashed #d1d5db;border-radius:10px;padding:12px;background:#fafafa;">
+                <input type="text" id="rn-buscar"
+                       placeholder="🔍 Buscar insumo para agregar..."
+                       oninput="filtrarInsumosNueva()"
+                       style="width:100%;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;">
+                <div id="rn-lista" style="max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;"></div>
+            </div>
         </div>
-        <div class="checkbox-row" style="margin-top:8px">
-            <label class="checkbox-item">
-                <input type="checkbox" id="fp-encarta" checked> En carta
-            </label>
-            <label class="checkbox-item">
-                <input type="checkbox" id="fp-agotado"> Agotado
-            </label>
-            <label class="checkbox-item">
-                <input type="checkbox" id="fp-favorito"> ★ Favorito
-            </label>
-        </div>
+
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-producto')">Cancelar</button>
             <button class="btn btn-danger btn-sm" id="btn-elim-en-modal" style="display:none;margin-right:auto"
                     onclick="eliminarProductoDesdeModal()">🗑 Eliminar producto</button>
-            <button class="btn btn-primary" id="btn-guardar-prod" onclick="guardarProducto()">Continuar</button>
-        </div>
-    </div>
-</div>
-
-<!-- ── MODAL RECETA NUEVA (flujo creación) ── -->
-<div class="modal-overlay" id="modal-receta-nueva">
-    <div class="modal" style="max-width:560px">
-        <h3>Receta — <span id="rn-titulo"></span></h3>
-        <p style="color:#6b7280;font-size:13px;margin:0 0 12px;">Agregá los ingredientes. Si el producto no tiene receta podés saltearlo.</p>
-
-        <!-- Items seleccionados -->
-        <div id="rn-items" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
-
-        <!-- Buscador para agregar -->
-        <div style="border:1.5px dashed #d1d5db;border-radius:10px;padding:12px;background:#fafafa;">
-            <input type="text" id="rn-buscar"
-                   placeholder="🔍 Buscar insumo para agregar..."
-                   oninput="filtrarInsumosNueva()"
-                   style="width:100%;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;">
-            <div id="rn-lista" style="max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;"></div>
-        </div>
-
-        <div class="modal-footer" style="margin-top:16px;">
-            <button class="btn btn-secondary" onclick="cancelarRecetaNueva()">Saltear</button>
-            <button class="btn btn-primary" onclick="guardarRecetaNueva()">Guardar receta</button>
+            <button class="btn btn-primary" id="btn-guardar-prod" onclick="confirmarProducto()">Confirmar</button>
         </div>
     </div>
 </div>
@@ -1090,7 +1090,18 @@ async function toggleFavorito(prodId, currentVal) {
 }
 
 // ── MODAL PRODUCTO ────────────────────────────────────────────
-function abrirModalProducto(id = null) {
+function switchProdTab(tab) {
+    const isC = tab === 'config';
+    document.getElementById('ptab-config').style.display = isC ? '' : 'none';
+    document.getElementById('ptab-receta').style.display = isC ? 'none' : '';
+    const bc = document.getElementById('ptab-btn-config'), br = document.getElementById('ptab-btn-receta');
+    bc.style.borderBottomColor = isC ? '#4f46e5' : 'transparent';
+    bc.style.color             = isC ? '#4f46e5' : '#9ca3af';
+    br.style.borderBottomColor = isC ? 'transparent' : '#4f46e5';
+    br.style.color             = isC ? '#9ca3af' : '#4f46e5';
+}
+
+async function abrirModalProducto(id = null) {
     editandoProdId = id;
     document.getElementById('modal-prod-titulo').textContent = id ? 'Editar producto' : 'Nuevo producto';
     const prod = id ? productos.find(p => p.id === id) : null;
@@ -1108,13 +1119,39 @@ function abrirModalProducto(id = null) {
         ['fp-nombre','fp-descripcion'].forEach(fid => document.getElementById(fid).value = '');
         document.getElementById('fp-precio').value = '';
         document.getElementById('fp-descuento').value = '0';
+        document.getElementById('fp-categoria').value = '';
+        document.getElementById('fp-area').value = '';
         document.getElementById('fp-encarta').checked = true;
         document.getElementById('fp-agotado').checked = false;
         document.getElementById('fp-favorito').checked = false;
     }
-    document.getElementById('btn-guardar-prod').textContent = 'Continuar';
     document.getElementById('btn-elim-en-modal').style.display = id ? '' : 'none';
+    switchProdTab('config');
     document.getElementById('modal-producto').classList.add('active');
+    await _cargarRecetaTab(id);
+}
+
+async function _cargarRecetaTab(prodId) {
+    _rnProdId = prodId;
+    _rnItems  = [];
+    if (prodId) {
+        try {
+            const ings = await api.get(`/stock/receta/${prodId}`);
+            _rnItems = (ings || []).map(i => ({
+                tipo:     i.es_produccion ? 'prod' : 'stock',
+                id:       i.es_produccion ? i.insumo_produccion_id : i.insumo_id,
+                nombre:   i.insumo_nombre, unidad: i.unidad, cantidad: i.cantidad
+            }));
+        } catch(e) { _rnItems = []; }
+    }
+    document.getElementById('rn-buscar').value = '';
+    if (!_insumos.length && !_insumosProduccion.length) {
+        try { [_insumos, _insumosProduccion] = await Promise.all([
+            api.get('/stock/insumos'), api.get('/stock/insumos-produccion')]); }
+        catch(e) { console.error(e); }
+    }
+    renderRnItems();
+    filtrarInsumosNueva();
 }
 
 async function eliminarProductoDesdeModal() {
@@ -1127,7 +1164,7 @@ async function eliminarProductoDesdeModal() {
     } catch(err) { alert('Error: ' + err.message); }
 }
 
-async function guardarProducto() {
+async function confirmarProducto() {
     const body = {
         nombre: document.getElementById('fp-nombre').value.trim(),
         descripcion: document.getElementById('fp-descripcion').value.trim() || null,
@@ -1140,17 +1177,24 @@ async function guardarProducto() {
         favorito: document.getElementById('fp-favorito').checked,
         disponible: !document.getElementById('fp-agotado').checked
     };
-    if (!body.nombre || isNaN(body.precio)) { alert('Nombre y precio son obligatorios.'); return; }
+    if (!body.nombre || isNaN(body.precio)) { alert('Nombre y precio son obligatorios.'); switchProdTab('config'); return; }
+    const sinCant = _rnItems.filter(i => !i.cantidad || i.cantidad <= 0);
+    if (sinCant.length) {
+        alert('Completá la cantidad de: ' + sinCant.map(i => i.nombre).join(', '));
+        switchProdTab('receta'); return;
+    }
+    const items = _rnItems.map(i => i.tipo === 'prod'
+        ? { insumo_produccion_id: i.id, cantidad: i.cantidad }
+        : { insumo_id: i.id, cantidad: i.cantidad });
     try {
-        if (editandoProdId) {
-            await api.patch(`/productos/${editandoProdId}`, body);
-            cerrarModal('modal-producto');
-            await abrirModalRecetaNueva(editandoProdId, body.nombre);
-        } else {
-            const res = await api.post('/productos/', body);
-            cerrarModal('modal-producto');
-            await abrirModalRecetaNueva(res.id, body.nombre);
-        }
+        let pid = editandoProdId;
+        if (pid) await api.patch(`/productos/${pid}`, body);
+        else { const res = await api.post('/productos/', body); pid = res.id; }
+        // Receta unificada: si hay ingredientes se guarda; si no, se borra la receta existente.
+        if (items.length) await api.post('/stock/receta', { producto_id: pid, items });
+        else { try { await api.delete(`/stock/receta/${pid}`); } catch(e) {} }
+        cerrarModal('modal-producto');
+        await cargarProductos();
     } catch(err) { alert('Error: ' + err.message); }
 }
 
