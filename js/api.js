@@ -19,13 +19,10 @@ function setUser(user) {
 }
 
 function logout() {
-    const _u = JSON.parse(localStorage.getItem("user") || "{}");
-    if (_u.preview_logout) {
-        // Llevar a vista previa antes de limpiar sesión
-        window.location.href = "preview-sesion.html";
-        return;
-    }
-    _doLogout();
+    // La vista previa al cerrar sesión está siempre activa: muestra el estado
+    // del restaurante antes de limpiar la sesión. El logout real lo hace
+    // preview-sesion.html con _doLogout().
+    window.location.href = "preview-sesion.html";
 }
 
 function _doLogout() {
