@@ -19,10 +19,9 @@ function setUser(user) {
 }
 
 function logout() {
-    // La vista previa al cerrar sesión está siempre activa: muestra el estado
-    // del restaurante antes de limpiar la sesión. El logout real lo hace
-    // preview-sesion.html con _doLogout().
-    window.location.href = "preview-sesion.html";
+    // En la web, cerrar sesión va directo al login. (La "vista previa al cerrar
+    // sesión" es una función exclusiva del ejecutable, no de la web.)
+    _doLogout();
 }
 
 function _doLogout() {
