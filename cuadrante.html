@@ -8,6 +8,15 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; overflow:hidden; }
 
+/* Modo solo-vista: permiso ver_horarios sin edición → grilla de solo lectura */
+body.solo-vista #btn-publicar,
+body.solo-vista .btn-horarios-rest,
+body.solo-vista .btn-bloqueos,
+body.solo-vista .tpl-add-btn,
+body.solo-vista .ms-btn-save,
+body.solo-vista .ms-btn-elim,
+body.solo-vista #tpl-btn-del { display:none !important; }
+
 /* ── Navbar ─────────────────────────────────────────────────── */
 .navbar {
     background:#1a1a2e; color:white; padding:0 32px; height:60px;
@@ -791,6 +800,8 @@ body.view-mes         .th-day { min-width:58px; }
 <script src="js/api.js"></script>
 <script>
 requireAuth();
+requirePermiso('ver_horarios', 'edicion_agenda', 'edicion_horarios');
+if (!hasPermiso('edicion_agenda') && !hasPermiso('edicion_horarios')) document.body.classList.add('solo-vista');
 
 // ── Constantes ──────────────────────────────────────────────────
 const DIAS_LARGO = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];

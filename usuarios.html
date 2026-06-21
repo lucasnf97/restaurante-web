@@ -8,6 +8,13 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
 
+        /* Modo solo-vista: permiso ver_usuarios sin acceso_usuarios → sin edición */
+        body.solo-vista [onclick*="abrirModalNuevo"],
+        body.solo-vista [onclick*="abrirModalEditar"],
+        body.solo-vista [onclick*="abrirModalClave"],
+        body.solo-vista [onclick*="toggleActivo"],
+        body.solo-vista [onclick*="eliminarUsuario"] { display: none !important; }
+
         .navbar {
             background: #1a1a2e; color: white; padding: 0 32px; height: 60px;
             display: flex; align-items: center; justify-content: space-between;
@@ -241,7 +248,8 @@
 <script src="js/api.js"></script>
 <script>
     requireAuth();
-    requirePermiso('acceso_usuarios');
+    requirePermiso('acceso_usuarios', 'ver_usuarios');
+    if (!hasPermiso('acceso_usuarios')) document.body.classList.add('solo-vista');
 
     let usuarios = [];
     let rolesDisp = [];

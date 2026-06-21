@@ -14,9 +14,9 @@
                 { href: "productos.html", icon: "🍽️", label: "Productos",              mod: "productos", perm: ["edicion_carta","ver_carta"] },
                 { href: "importar-ventas.html", icon: "📥", label: "Importar ventas",  mod: "importar",  perm: ["edicion_carta","acceso_estadisticas"] },
                 { href: "mesas.html",     icon: "🗺️", label: "Herramienta de Edición", mod: "mesas",    perm: "edicion_sala" },
-                { href: "stock.html",     icon: "📦", label: "Stock",                  mod: "stock",     perm: ["gestion_stock","gestion_produccion"] },
+                { href: "stock.html",     icon: "📦", label: "Stock",                  mod: "stock",     perm: ["gestion_stock","gestion_produccion","ver_stock"] },
                 { href: "clientes.html",  icon: "🧑‍🤝‍🧑", label: "Clientes",             mod: "clientes",  perm: ["gestion_clientes","ver_clientes"] },
-                { href: "facturas.html",  icon: "🧾", label: "Facturas",               mod: "facturas",  perm: "acceso_facturacion" },
+                { href: "facturas.html",  icon: "🧾", label: "Facturas",               mod: "facturas",  perm: ["acceso_facturacion","ver_facturas"] },
                 { href: "caja.html",      icon: "💰", label: "Caja",                   mod: "caja",      perm: "gestion_caja" },
             ]
         },
@@ -28,7 +28,7 @@
             mod: "personal",
             children: [
                 { href: "fichajes.html",   icon: "🕐", label: "Fichajes",  perm: ["ver_fichajes","edicion_fichajes"] },
-                { href: "usuarios.html",   icon: "👤", label: "Usuarios",  perm: "acceso_usuarios" },
+                { href: "usuarios.html",   icon: "👤", label: "Usuarios",  perm: ["acceso_usuarios","ver_usuarios"] },
                 { href: "cuadrante.html",  icon: "📋", label: "Horarios",  perm: ["edicion_agenda","edicion_horarios","ver_horarios"] },
                 { href: "salarios.html",   icon: "💼", label: "Salarios",  perm: "revision_salarios" },
             ]

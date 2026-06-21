@@ -7,6 +7,15 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        /* Modo solo-vista: permiso ver_facturas sin acceso_facturacion → solo Historial */
+        body.solo-vista #tab-cargar,
+        body.solo-vista #tab-servicios,
+        body.solo-vista #tab-proveedores,
+        body.solo-vista [onclick*="abrirModalServicio"],
+        body.solo-vista [onclick*="abrirModalProveedor"],
+        body.solo-vista [onclick*="cargarManual"] { display: none !important; }
+
         .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .navbar-brand { font-size: 18px; font-weight: 700; }
         .navbar-links { display: flex; gap: 16px; align-items: center; }
@@ -362,6 +371,9 @@
 <script src="js/moneda.js"></script>
 <script>
 requireAuth();
+requirePermiso('acceso_facturacion', 'ver_facturas');
+const _facturasSoloVista = !hasPermiso('acceso_facturacion');
+if (_facturasSoloVista) document.body.classList.add('solo-vista');
 
 let _insumos     = [];
 let _servicios   = [];
@@ -1344,6 +1356,9 @@ Promise.all([
     api.get("/stock/servicios").then(d => _servicios = d),
     api.get("/stock/proveedores").then(d => _proveedores = d)
 ]).catch(console.error);
+
+// Solo-vista (ver_facturas): la pestaña de carga está oculta → arrancar en Historial
+if (_facturasSoloVista) setTab('historial');
 </script>
 </body>
 </html>
