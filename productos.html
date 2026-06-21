@@ -1037,17 +1037,124 @@ async function cargarPromoCell(prodId) {
     } catch(e) {}
 }
 
-function toggleModoEdicion() {
-    modoEdicion = !modoEdicion;
+// ── Guardado diferido (modo edición): los cambios de productos se acumulan y se
+//    escriben en la BD recién al "Guardar y salir". ──────────────────────────────
+let _pendientes = {};   // id(real>0 o temporal<0) -> { body, recipe, _new, _del }
+let _tmpSeq = 0;
+
+function _hayPendientes() { return Object.keys(_pendientes).length > 0; }
+
+function _actualizarBtnModo() {
     const btn = document.getElementById('btn-modo-edicion');
-    btn.classList.toggle('active', modoEdicion);
-    btn.textContent = modoEdicion ? '✏️ Modo edición ON' : '✏️ Edición';
-    document.getElementById('bar-exportar').style.display = modoEdicion ? '' : 'none';
-    document.getElementById('bar-importar').style.display = modoEdicion ? '' : 'none';
-    document.getElementById('btn-gestionar-cats').style.display = modoEdicion ? '' : 'none';
-    document.getElementById('btn-precios-masivo').style.display = modoEdicion ? '' : 'none';
+    if (modoEdicion) {
+        const n = Object.keys(_pendientes).length;
+        btn.textContent = n ? `💾 Guardar y salir (${n})` : '💾 Guardar y salir';
+        btn.classList.add('active');
+    } else {
+        btn.textContent = '✏️ Edición';
+        btn.classList.remove('active');
+    }
+}
+
+function _toolsEdicion(show) {
+    document.getElementById('bar-exportar').style.display = show ? '' : 'none';
+    document.getElementById('bar-importar').style.display = show ? '' : 'none';
+    document.getElementById('btn-gestionar-cats').style.display = show ? '' : 'none';
+    document.getElementById('btn-precios-masivo').style.display = show ? '' : 'none';
+}
+
+function toggleModoEdicion() {
+    if (modoEdicion) { guardarYSalir(); return; }   // en edición, el botón guarda y sale
+    modoEdicion = true;
+    _pendientes = {};
+    _toolsEdicion(true);
+    _actualizarBtnModo();
     renderProductos(_productosFiltrados || productos);
 }
+
+function _salirModoEdicion() {
+    modoEdicion = false;
+    _pendientes = {};
+    _toolsEdicion(false);
+    _actualizarBtnModo();
+    renderProductos(_productosFiltrados || productos);
+}
+
+async function _guardarRecetaApi(pid, items) {
+    if (items && items.length) await api.post('/stock/receta', { producto_id: pid, items });
+    else { try { await api.delete(`/stock/receta/${pid}`); } catch(e) {} }
+}
+
+async function guardarYSalir() {
+    if (!_hayPendientes()) { _salirModoEdicion(); return; }
+    const btn = document.getElementById('btn-modo-edicion');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+        for (const key of Object.keys(_pendientes)) {
+            const e = _pendientes[key];
+            if (e._del) {
+                if (!e._new) await api.delete(`/productos/${key}`);
+            } else if (e._new) {
+                const res = await api.post('/productos/', e.body);
+                if (e.recipe !== undefined) await _guardarRecetaApi(res.id, e.recipe);
+            } else {
+                await api.patch(`/productos/${key}`, e.body);
+                if (e.recipe !== undefined) await _guardarRecetaApi(key, e.recipe);
+            }
+        }
+        _pendientes = {};
+        await cargarProductos();
+        _salirModoEdicion();
+    } catch(err) {
+        btn.disabled = false; _actualizarBtnModo();
+        alert('Error al guardar: ' + err.message + '\nQuedan cambios pendientes.');
+    }
+}
+
+// Aplica en memoria los cambios de un producto para que la tabla los refleje al instante.
+function _aplicarLocalProducto(id, body, catNombre, areaNombre) {
+    let p = productos.find(x => x.id === id);
+    if (!p) { p = { id }; productos.push(p); if (_productosFiltrados) _productosFiltrados.push(p); }
+    Object.assign(p, {
+        nombre: body.nombre, descripcion: body.descripcion, precio: body.precio,
+        descuento_pct: body.descuento_pct, categoria_id: body.categoria_id, area_id: body.area_id,
+        categoria: catNombre, area: areaNombre, en_carta: body.en_carta,
+        agotado: body.agotado, favorito: body.favorito,
+    });
+}
+
+function _stageProducto(body, items) {
+    const catSel  = document.getElementById('fp-categoria');
+    const areaSel = document.getElementById('fp-area');
+    const catNombre  = catSel.value  ? catSel.options[catSel.selectedIndex].text   : '—';
+    const areaNombre = areaSel.value ? areaSel.options[areaSel.selectedIndex].text : '—';
+    let id = editandoProdId;
+    if (id == null) id = --_tmpSeq;   // producto nuevo → id temporal negativo
+    const isNew = id < 0;
+    _pendientes[id] = { body, recipe: items, _new: isNew, _del: false };
+    _aplicarLocalProducto(id, body, catNombre, areaNombre);
+    _actualizarBtnModo();
+    renderProductos(_productosFiltrados || productos);
+}
+
+// Alerta de cambios sin guardar al navegar por un link, cerrar o recargar.
+let _navOk = false;   // true cuando el usuario ya confirmó salir desde un link
+document.addEventListener('click', (e) => {
+    if (!(modoEdicion && _hayPendientes())) return;
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    const href = a.getAttribute('href') || '';
+    if (!href || href.startsWith('#') || href.startsWith('javascript')) return;
+    if (confirm('Tenés cambios sin guardar.\n¿Salir sin guardar? Se perderán los cambios.')) {
+        _navOk = true;   // evita que beforeunload pregunte de nuevo
+    } else {
+        e.preventDefault(); e.stopPropagation();
+    }
+}, true);
+window.addEventListener('beforeunload', (e) => {
+    if (_navOk) return;
+    if (modoEdicion && _hayPendientes()) { e.preventDefault(); e.returnValue = ''; }
+});
 
 function toggleIngredientes(prodId) {
     _expandedProdId = (_expandedProdId === prodId) ? null : prodId;
@@ -1077,13 +1184,25 @@ function _renderIngredientes(prodId) {
 }
 
 async function toggleFavorito(prodId, currentVal) {
-    try {
-        await api.patch(`/productos/${prodId}`, { favorito: !currentVal });
+    const nuevo = !currentVal;
+    // En modo edición: acumular (no escribir en BD hasta "Guardar y salir").
+    if (modoEdicion) {
         const prod = productos.find(p => p.id === prodId);
-        if (prod) prod.favorito = !currentVal;
+        if (prod) prod.favorito = nuevo;
+        const e = _pendientes[prodId] || { _new: prodId < 0, _del: false, body: {}, recipe: undefined };
+        e.body = Object.assign({}, e.body, { favorito: nuevo });
+        _pendientes[prodId] = e;
+        _actualizarBtnModo();
+        renderProductos(_productosFiltrados || productos);
+        return;
+    }
+    try {
+        await api.patch(`/productos/${prodId}`, { favorito: nuevo });
+        const prod = productos.find(p => p.id === prodId);
+        if (prod) prod.favorito = nuevo;
         if (_productosFiltrados) {
             const fp = _productosFiltrados.find(p => p.id === prodId);
-            if (fp) fp.favorito = !currentVal;
+            if (fp) fp.favorito = nuevo;
         }
         renderProductos(_productosFiltrados || productos);
     } catch(e) { alert('Error: ' + e.message); }
@@ -1156,7 +1275,22 @@ async function _cargarRecetaTab(prodId) {
 
 async function eliminarProductoDesdeModal() {
     const prod = productos.find(p => p.id === editandoProdId);
-    if (!prod || !confirm(`¿Eliminar "${prod.nombre}"? Esta acción no se puede deshacer.`)) return;
+    if (!prod || !confirm(`¿Eliminar "${prod.nombre}"?`)) return;
+    // En modo edición: acumular la baja (o descartar si era nuevo no guardado).
+    if (modoEdicion) {
+        if (editandoProdId < 0) delete _pendientes[editandoProdId];      // nuevo sin guardar → descartar
+        else _pendientes[editandoProdId] = { _del: true, _new: false };  // existente → baja diferida
+        const idx = productos.findIndex(p => p.id === editandoProdId);
+        if (idx >= 0) productos.splice(idx, 1);
+        if (_productosFiltrados) {
+            const fi = _productosFiltrados.findIndex(p => p.id === editandoProdId);
+            if (fi >= 0) _productosFiltrados.splice(fi, 1);
+        }
+        cerrarModal('modal-producto');
+        _actualizarBtnModo();
+        renderProductos(_productosFiltrados || productos);
+        return;
+    }
     try {
         await api.delete(`/productos/${editandoProdId}`);
         cerrarModal('modal-producto');
@@ -1186,6 +1320,14 @@ async function confirmarProducto() {
     const items = _rnItems.map(i => i.tipo === 'prod'
         ? { insumo_produccion_id: i.id, cantidad: i.cantidad }
         : { insumo_id: i.id, cantidad: i.cantidad });
+
+    // En modo edición: NO escribe en la BD, acumula hasta "Guardar y salir".
+    if (modoEdicion) {
+        _stageProducto(body, items);
+        cerrarModal('modal-producto');
+        return;
+    }
+
     try {
         let pid = editandoProdId;
         if (pid) await api.patch(`/productos/${pid}`, body);
