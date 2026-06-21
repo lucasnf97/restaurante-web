@@ -63,6 +63,25 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 }
 .cfg-section.open .cfg-section-body { display:block; }
 
+/* ── Master-detail: lista a la izquierda, contenido a la derecha ── */
+#cfg-acordeon { position:relative; min-height:60vh; }
+#cfg-acordeon .cfg-section { width:42%; overflow:visible; }
+#cfg-acordeon .cfg-section.open { box-shadow:0 0 0 2px #4f46e5, 0 2px 8px rgba(0,0,0,.06); }
+#cfg-acordeon .cfg-section.open .cfg-section-body {
+    position:absolute; top:0; left:calc(42% + 24px); width:calc(58% - 24px);
+    background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06);
+    border-top:none; padding:20px 22px;
+    max-height:calc(100vh - 130px); overflow-y:auto;
+}
+@media (max-width:900px) {
+    /* Pantallas chicas: volver al acordeón vertical clásico */
+    #cfg-acordeon .cfg-section { width:100%; }
+    #cfg-acordeon .cfg-section.open .cfg-section-body {
+        position:static; width:auto; max-height:none; overflow:visible;
+        box-shadow:none; border-top:1px solid #f0f0f0; padding:6px 22px 24px;
+    }
+}
+
 /* ── Form fields ───────────────────────────────────────────── */
 .cfg-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
 .cfg-grid.full { grid-template-columns:1fr; }
@@ -432,6 +451,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         <p>Personalizá los datos y preferencias del sistema</p>
     </div>
 
+    <div id="cfg-acordeon">
     <!-- ═══ 1. DATOS DEL RESTAURANTE ═══════════════════════════ -->
     <div class="cfg-section" id="sec-restaurante">
         <div class="cfg-section-head" onclick="toggleSection('restaurante')">
@@ -1149,6 +1169,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
         </div>
     </div>
+    </div><!-- /cfg-acordeon -->
 
 </div>
 
@@ -1197,7 +1218,12 @@ const EDIT_MODE_KEY = 'edit_mode';
 // ── Accordion ───────────────────────────────────────────────
 function toggleSection(id) {
     const sec = document.getElementById('sec-' + id);
-    if (sec) sec.classList.toggle('open');
+    if (!sec) return;
+    const yaAbierta = sec.classList.contains('open');
+    // Single-open: cerrar las demás (master-detail, una sola a la vez)
+    document.querySelectorAll('#cfg-acordeon .cfg-section.open')
+            .forEach(s => s.classList.remove('open'));
+    if (!yaAbierta) sec.classList.add('open');
 }
 
 // ── Período de facturación (carga desde API) ─────────────────
@@ -1570,6 +1596,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarSeccionImpuestos();
     cargarSeccionDescuentoPersonal();
     cargarPermisosDef().then(cargarRoles);
+    toggleSection('restaurante');   // abrir la primera por defecto (master-detail)
 });
 
 
