@@ -320,27 +320,12 @@ function _bloqueHabilitado(block) {
         return _moduloHabilitado(_MOD_ACCESO[block.moduleId]);
     return _moduloHabilitado(_MOD_BLOQUE[block.type]);
 }
-// ── Gateo por PERMISO del rol ────────────────────────────────
-// Un widget que muestra datos de una sección solo se ve si el rol tiene permiso
-// para esa sección. Los bloques sin entrada acá son generales (todos los ven).
-// admin/gerente siempre pasan (vía hasAlgunPermiso).
-const _PERM_BLOQUE = {
-    'stats':          ['acceso_estadisticas'],
-    'ventas-7dias':   ['acceso_estadisticas'],
-    'reservas':       ['gestion_reservas','ver_reservas'],
-    'stock':          ['gestion_stock','gestion_produccion','ver_stock'],
-    'caja-estado':    ['gestion_caja'],
-    'personal-turno': ['edicion_fichajes'],
-    'mesas-estado':   ['edicion_sala','gestion_pedidos'],
-    'ordenes-cocina': ['gestion_pedidos','gestion_produccion'],
-};
-function _bloquePermitido(block) {
-    const perms = _PERM_BLOQUE[block.type];
-    if (!perms) return true;            // bloque general (sin restricción de permiso)
-    return hasAlgunPermiso(...perms);   // admin/gerente siempre true
-}
+// Nota: el dashboard ya NO se gatea por permiso de widget. Cada dashboard lo
+// curan el admin/gerente (plantilla del rol o del usuario). Se mantiene el gateo
+// por MÓDULO del restaurante (_bloqueHabilitado) y el auto-filtrado de tarjetas
+// del widget "Accesos rápidos" (_canSeeMod).
 
-// ── CONFIG POR DEFECTO (v5) ──────────────────────────────────
+// ── CONFIG POR DEFECTO ───────────────────────────────────────
 const DEFAULT_CONFIG = { blocks: [
     { id:"stats",          type:"stats",          label:"Resumen de facturación", visible:true,  span:3 },
     { id:"reservas",       type:"reservas",        label:"Reservas del día",       visible:true,  span:3 },
@@ -356,57 +341,37 @@ const DEFAULT_CONFIG = { blocks: [
     { id:"ventas-7dias",   type:"ventas-7dias",    label:"Tendencia de ventas",    visible:false, span:6 },
 ]};
 
-// ── LOAD / SAVE ──────────────────────────────────────────────
-// IDs canónicos de los nuevos widgets: se agregan si faltan en cualquier config guardada
-const _NEW_BLOCK_IDS = ["caja-estado","personal-turno","mesas-estado","ordenes-cocina","ventas-7dias"];
-// Widgets generales (para todos): se agregan VISIBLES si faltan.
-const _NEW_GENERAL_IDS = ["horarios-semana","mensajes"];
+// ── CONFIG: merge + defaults ─────────────────────────────────
+// Dashboard mínimo (default de un rol sin configurar): solo accesos rápidos.
+const MINIMAL_CONFIG = { blocks: [{ id: "accesos", visible: true }] };
 
-function _ensureNewBlocks(cfg) {
-    // Garantiza que los nuevos widgets estén siempre en el config, aunque falten
-    const existingIds = new Set(cfg.blocks.map(b => b.id));
-    DEFAULT_CONFIG.blocks.forEach(nb => {
-        if (existingIds.has(nb.id)) return;
-        if (_NEW_BLOCK_IDS.includes(nb.id))   cfg.blocks.push({ ...nb, visible: false });
-        if (_NEW_GENERAL_IDS.includes(nb.id)) cfg.blocks.push({ ...nb });  // visibles por defecto
-    });
-    return cfg;
-}
-
-function loadConfig() {
-    // 1. Intentar cargar v5
-    try {
-        const s = localStorage.getItem("dash_cfg_v5");
-        if (s) {
-            const cfg = JSON.parse(s);
-            return _ensureNewBlocks(cfg);   // asegura que nuevos widgets estén presentes
-        }
-    } catch(e) {}
-
-    // 2. Migrar desde v4 preservando layout del usuario
+// Fusiona una config guardada (del backend) con las definiciones de bloques de
+// DEFAULT_CONFIG: respeta visibilidad/orden/columnas/módulos de lo guardado y
+// agrega los bloques faltantes como ocultos (así el panel ofrece TODAS las widgets).
+function _mergeConfig(saved) {
     let base = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-    try {
-        const v4 = JSON.parse(localStorage.getItem("dash_cfg_v4") || "null");
-        if (v4?.blocks) {
-            const mergedIds = new Set();
-            const merged = v4.blocks.map(ob => {
-                const nb = base.blocks.find(b => b.id === ob.id);
-                if (nb) { mergedIds.add(ob.id); return { ...nb, ...ob }; }
-                return ob; // quick blocks personalizados del usuario
-            });
-            base.blocks.forEach(nb => {
-                if (!mergedIds.has(nb.id)) merged.push({ ...nb, visible: false });
-            });
-            base.blocks = merged;
-        }
-    } catch(e) {}
+    if (!saved || !Array.isArray(saved.blocks)) {
+        return base;   // null → default completo (admin/gerente sin config propia)
+    }
+    const mergedIds = new Set();
+    const merged = saved.blocks.map(ob => {
+        const nb = base.blocks.find(b => b.id === ob.id);
+        if (nb) { mergedIds.add(ob.id); return { ...nb, ...ob }; }
+        return ob;   // accesos rápidos (quick) personalizados
+    });
+    base.blocks.forEach(nb => {
+        if (!mergedIds.has(nb.id)) merged.push({ ...nb, visible: false });
+    });
+    base.blocks = merged;
     return base;
 }
-function saveConfig() { localStorage.setItem("dash_cfg_v5", JSON.stringify(config)); }
 
-let config = loadConfig();
-// Si se agregaron nuevos bloques que no estaban guardados, persistir silenciosamente
-saveConfig();
+// Estado de edición (se setea en initDashboard)
+let _canEditDash = false;        // puede editar este dashboard (admin/gerente o editor de plantilla)
+let _saveTarget  = null;         // 'mio' | { tpl: <id> }
+let _editorTplId = null;         // si estamos editando una plantilla (modo admin)
+
+let config = _mergeConfig(null); // default seguro hasta que initDashboard cargue del backend
 
 // ── DATOS ────────────────────────────────────────────────────
 let periodos       = null;
@@ -538,7 +503,6 @@ function renderDash() {
     config.blocks.forEach(block => {
         if (!block.visible) return;
         if (!_bloqueHabilitado(block)) return;   // módulo no habilitado en este restaurante
-        if (!_bloquePermitido(block)) return;    // el rol no tiene permiso para esta sección
         const el = document.createElement("div");
         el.className = `db-block span-${block.span}`;
         el.dataset.id = block.id;
@@ -1105,7 +1069,7 @@ function cerrarConfig() {
 function renderConfigPanel() {
     // Oculta del panel los widgets de módulos no habilitados (conserva el índice original)
     document.getElementById("cfg-blocks-list").innerHTML =
-        config.blocks.map((b,i) => ((b.type === "accesos" || _bloqueHabilitado(b)) && _bloquePermitido(b)) ? buildCblock(b,i) : "").join("");
+        config.blocks.map((b,i) => (b.type === "accesos" || _bloqueHabilitado(b)) ? buildCblock(b,i) : "").join("");
 }
 
 const TIPOS_FIJOS = new Set(["stats"]);          // sin selector de columnas
@@ -1228,24 +1192,75 @@ function agregarAccesoRapido() {
     if (body) body.scrollTop = body.scrollHeight;
 }
 
-function guardarConfig() {
+async function guardarConfig() {
     syncOrder();
-    saveConfig();
+    try {
+        if (_saveTarget === 'mio') {
+            await apiFetch('/dashboards/mio', { method: 'PUT', body: JSON.stringify({ config }) });
+        } else if (_saveTarget && _saveTarget.tpl) {
+            await apiFetch(`/dashboards/templates/${_saveTarget.tpl}`, { method: 'PATCH', body: JSON.stringify({ config }) });
+        }
+    } catch (e) {
+        alert('No se pudo guardar el dashboard: ' + (e.message || e));
+        return;
+    }
     cerrarConfig();
+    if (_editorTplId) {
+        // Veníamos del menú de Configuración → volver allá
+        window.location.href = 'configuracion.html#dashboard';
+    }
 }
 
 function resetConfig() {
-    if (!confirm("¿Restablecer la configuración por defecto?")) return;
-    config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-    saveConfig();
+    if (!confirm("¿Restablecer este dashboard?")) return;
+    // En el editor de plantilla → mínimo (accesos). En el propio (admin/gerente) → default completo.
+    config = _mergeConfig(_editorTplId ? MINIMAL_CONFIG : null);
     resPag = 0;
     renderDash();
     renderConfigPanel();
 }
 
 // ── INIT ─────────────────────────────────────────────────────
-renderDash();
-cargarDatos();
+async function initDashboard() {
+    const params    = new URLSearchParams(window.location.search);
+    const editarTpl = params.get('editar');   // editar plantilla (modo admin)
+
+    if (editarTpl) {
+        // MODO EDITOR: el admin configura una plantilla (de rol o personalizada)
+        _editorTplId = editarTpl;
+        _canEditDash = true;
+        _saveTarget  = { tpl: editarTpl };
+        let tplCfg = null, tplNom = '';
+        try {
+            const tpl = await api.get(`/dashboards/templates/${editarTpl}`);
+            tplNom = tpl.nombre || '';
+            tplCfg = (tpl.config && Array.isArray(tpl.config.blocks) && tpl.config.blocks.length)
+                ? tpl.config : MINIMAL_CONFIG;
+        } catch (e) { tplCfg = MINIMAL_CONFIG; }
+        config = _mergeConfig(tplCfg);
+        document.body.classList.add('modo-editor');
+        const wm = document.getElementById('welcome-msg');
+        if (wm) wm.textContent = `Editando dashboard: ${tplNom}`;
+    } else {
+        // MODO RUNTIME: el usuario ve su dashboard resuelto en el backend
+        let resp = null;
+        try { resp = await api.get('/dashboards/mio'); } catch (e) {}
+        _canEditDash = !!(resp && resp.can_edit);
+        _saveTarget  = _canEditDash ? 'mio' : null;
+        let saved = resp && resp.config;
+        if (!saved) saved = _canEditDash ? null : MINIMAL_CONFIG;  // admin/gerente=completo; resto=accesos
+        config = _mergeConfig(saved);
+    }
+
+    // El botón "Personalizar" solo aparece si este dashboard es editable
+    const btnCfg = document.querySelector('.btn-config');
+    if (btnCfg) btnCfg.style.display = _canEditDash ? '' : 'none';
+
+    await cargarDatos();          // trae datos y renderiza
+    if (_editorTplId) abrirConfig();   // en el editor, abrir el panel de widgets
+}
+
+initDashboard();
 </script>
 </body>
 </html>
