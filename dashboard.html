@@ -155,6 +155,17 @@ body.config-open .block-drag { display:inline; }
 .hs-libre { font-size:11px; color:#cbd0d8; }
 @media (max-width:720px) { .hs-grid { grid-template-columns:repeat(7,minmax(64px,1fr)); overflow-x:auto; } }
 
+/* SOCIAL WIDGET (preview, ~4 filas de alto) */
+.social-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; height:360px; display:flex; flex-direction:column; }
+.social-list { flex:1; overflow-y:auto; margin-top:8px; display:flex; flex-direction:column; gap:10px; }
+.social-item { border-bottom:1px solid #f3f4f6; padding-bottom:9px; }
+.social-item:last-child { border-bottom:none; }
+.social-item-top { display:flex; align-items:center; gap:7px; }
+.social-item-av { width:24px; height:24px; border-radius:50%; background:#4f46e5; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.social-item-user { font-size:12px; font-weight:700; color:#1a1a2e; }
+.social-item-txt { font-size:12px; color:#4b5563; margin-top:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.social-item-img { width:100%; height:90px; object-fit:cover; border-radius:8px; margin-top:6px; background:#f3f4f6; }
+
 /* PERSONAL EN TURNO */
 .personal-card { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
 .turno-row { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #f3f4f6; }
@@ -339,6 +350,7 @@ const DEFAULT_CONFIG = { blocks: [
     { id:"mesas-estado",   type:"mesas-estado",    label:"Estado del salón",       visible:false, span:3 },
     { id:"ordenes-cocina", type:"ordenes-cocina",  label:"Órdenes en cocina",      visible:false, span:3 },
     { id:"ventas-7dias",   type:"ventas-7dias",    label:"Tendencia de ventas",    visible:false, span:6 },
+    { id:"social",         type:"social",          label:"Social (publicaciones)", visible:false, span:3 },
 ]};
 
 // ── CONFIG: merge + defaults ─────────────────────────────────
@@ -389,6 +401,7 @@ let resPag         = 0;
 let _monedaSim     = simboloMoneda();
 let mensajesData       = [];   // últimos mensajes recibidos (widget general)
 let horariosSemanaData = [];   // horarios propios de la semana en curso (widget general)
+let socialData         = [];   // últimas publicaciones del feed general (widget Social)
 
 // Lunes y domingo (YYYY-MM-DD, hora local) de la semana en curso.
 function _semanaActual() {
@@ -457,6 +470,7 @@ async function cargarDatos() {
         })(),
         (async () => { try { ventasHistData = await api.get("/reportes/ventas-diarias"); } catch(e) {} })(),
         (async () => { try { mensajesData = (await api.get("/mensajes/recibidos")) || []; } catch(e) {} })(),
+        (async () => { try { socialData = (await api.get("/social/feed?limit=6")) || []; } catch(e) {} })(),
         (async () => {
             try {
                 const { lunes, domingo } = _semanaActual();
@@ -552,7 +566,37 @@ function buildBlock(b) {
     if (b.type === "ventas-7dias")   return buildVentas7Dias(b);
     if (b.type === "mensajes")        return buildMensajes(b);
     if (b.type === "horarios-semana") return buildHorariosSemana(b);
+    if (b.type === "social")          return buildSocial(b);
     return "";
+}
+
+// ── WIDGET: preview de Social (feed general, ~4 filas de alto) ──
+function buildSocial(b) {
+    const esc = s => (s == null ? '' : String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
+    const ini = n => (n || '?').substring(0, 2).toUpperCase();
+    const posts = (socialData || []).slice(0, 6);
+    let inner;
+    if (!posts.length) {
+        inner = `<div class="res-empty">Sin publicaciones</div>`;
+    } else {
+        inner = posts.map(p => {
+            const img = (p.adjuntos || []).find(a => a.tipo === 'imagen');
+            const imgHtml = img ? `<img class="social-item-img" src="${esc(img.url)}" alt="" loading="lazy">` : '';
+            const txt = p.contenido ? `<div class="social-item-txt">${esc(p.contenido)}</div>` : '';
+            return `<div class="social-item">
+                <div class="social-item-top">
+                    <div class="social-item-av">${esc(ini(p.username))}</div>
+                    <span class="social-item-user">${esc(p.username)}</span>
+                </div>
+                ${txt}${imgHtml}
+            </div>`;
+        }).join("");
+    }
+    return `${blockHeader("")}
+    <div class="social-card">
+        <a href="social.html" class="widget-title">📣 Social</a>
+        <div class="social-list">${inner}</div>
+    </div>`;
 }
 
 // ── WIDGET: últimos mensajes recibidos (general, máx 3) ──────
@@ -1074,7 +1118,7 @@ function renderConfigPanel() {
 }
 
 const TIPOS_FIJOS = new Set(["stats"]);          // sin selector de columnas
-const TIPOS_NUEVOS = new Set(["caja-estado","personal-turno","mesas-estado","ordenes-cocina","ventas-7dias","horarios-semana","mensajes"]);
+const TIPOS_NUEVOS = new Set(["caja-estado","personal-turno","mesas-estado","ordenes-cocina","ventas-7dias","horarios-semana","mensajes","social"]);
 
 function buildCblock(b, i) {
     const spanLabel = `${b.span} col${b.span===1?"":"s"}`;
