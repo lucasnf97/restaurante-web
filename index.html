@@ -132,20 +132,12 @@
 
     <script src="js/api.js"></script>
     <script>
-        // Si ya está logueado, ir a la pantalla por defecto del rol
+        // Si ya está logueado, ir a la pantalla de inicio de la web.
+        // OJO: `pantalla_default` configura SOLO el ejecutable (PyQt). En la web
+        // todos los usuarios entran al dashboard y ven lo que sus permisos habilitan.
         if (getToken()) {
             const _u = JSON.parse(localStorage.getItem('user') || '{}');
-            window.location.href = (_u.rol === 'superadmin') ? 'restaurantes.html' : _pantallaDestino(_u.pantalla_default);
-        }
-
-        function _pantallaDestino(pd) {
-            const map = {
-                'mesas':         'mesas.html',
-                'cocina_cocina': 'cocina.html?area=cocina',
-                'cocina_bar':    'cocina.html?area=bar',
-                'restaurantes':  'restaurantes.html',
-            };
-            return map[pd] || 'dashboard.html';
+            window.location.href = (_u.rol === 'superadmin') ? 'restaurantes.html' : 'dashboard.html';
         }
 
         // Permitir login con Enter
@@ -172,7 +164,7 @@
             try {
                 await login(username, password, codigo);
                 const _u2 = JSON.parse(localStorage.getItem('user') || '{}');
-                window.location.href = (_u2.rol === 'superadmin') ? 'restaurantes.html' : _pantallaDestino(_u2.pantalla_default);
+                window.location.href = (_u2.rol === 'superadmin') ? 'restaurantes.html' : 'dashboard.html';
             } catch (err) {
                 mostrarError(err.message);
             } finally {
