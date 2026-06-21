@@ -354,6 +354,20 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .roles-tab-panel { display:none; }
 .roles-tab-panel.active { display:flex; gap:0; }
 
+/* ── Menú Dashboard (solapas + filas) ── */
+.dash-cfg-tabs { display:flex; gap:8px; margin-bottom:10px; }
+.dash-cfg-tab { padding:7px 20px; border:1px solid #d7dbe3; background:#fff; border-radius:8px; font-size:13px; font-weight:700; color:#64748b; cursor:pointer; }
+.dash-cfg-tab.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
+.dc-row { display:flex; align-items:center; gap:12px; padding:10px 4px; border-bottom:1px solid #f1f3f5; }
+.dc-row:last-child { border-bottom:none; }
+.dc-name { flex:1; font-size:14px; font-weight:600; color:#1f2937; }
+.dc-rol  { font-size:11px; font-weight:600; color:#9ca3af; background:#f3f4f6; padding:1px 8px; border-radius:10px; margin-left:6px; }
+.dc-row select { padding:6px 8px; border:1px solid #d1d5db; border-radius:7px; font-size:13px; cursor:pointer; min-width:180px; }
+.dc-btn { padding:6px 12px; border:1px solid #d7dbe3; background:#fff; border-radius:7px; font-size:12px; font-weight:700; color:#4f46e5; cursor:pointer; white-space:nowrap; }
+.dc-btn:hover { background:#eef2ff; }
+.dc-badge-cfg { font-size:11px; font-weight:700; color:#16a34a; background:#dcfce7; padding:2px 8px; border-radius:10px; }
+.dc-badge-no  { font-size:11px; font-weight:700; color:#9ca3af; background:#f3f4f6; padding:2px 8px; border-radius:10px; }
+
 .roles-list-col {
     width:220px; flex-shrink:0;
     border-right:1px solid #f0f0f0;
@@ -1062,6 +1076,23 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
+    <div class="cfg-section" id="sec-dashboard">
+        <div class="cfg-section-head" onclick="toggleSection('dashboard')">
+            <span class="cfg-section-icon">⚙️</span>
+            <span class="cfg-section-title">Dashboard</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <div class="dash-cfg-tabs">
+                <button type="button" class="dash-cfg-tab active" id="dctab-roles" onclick="dashCfgTab('roles')">Roles</button>
+                <button type="button" class="dash-cfg-tab" id="dctab-usuarios" onclick="dashCfgTab('usuarios')">Usuarios</button>
+            </div>
+            <p class="cfg-hint" id="dctab-hint">Diseñá el dashboard de cada rol; todos los usuarios con ese rol lo verán.</p>
+            <div id="dash-cfg-roles"></div>
+            <div id="dash-cfg-usuarios" style="display:none;"></div>
+        </div>
+    </div>
+
     <div class="cfg-section" id="sec-facturacion" style="display:none;">
         <div class="cfg-section-head" onclick="toggleSection('facturacion')">
             <span class="cfg-section-icon">📅</span>
@@ -1624,6 +1655,95 @@ function mostrarOk(id) {
     setTimeout(() => el.classList.remove('visible'), 2500);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ── Menú Dashboard (plantillas por rol y por usuario) ────────
+// ═══════════════════════════════════════════════════════════════
+let _dashOverview = { roles: [], usuarios: [], templates: [] };
+
+async function cargarDashboardCfg() {
+    try { _dashOverview = await apiFetch('/dashboards/overview'); }
+    catch (e) { _dashOverview = { roles: [], usuarios: [], templates: [] }; }
+    renderDashCfgRoles();
+    renderDashCfgUsuarios();
+}
+
+function dashCfgTab(t) {
+    const esRoles = t === 'roles';
+    document.getElementById('dctab-roles').classList.toggle('active', esRoles);
+    document.getElementById('dctab-usuarios').classList.toggle('active', !esRoles);
+    document.getElementById('dash-cfg-roles').style.display    = esRoles ? '' : 'none';
+    document.getElementById('dash-cfg-usuarios').style.display = esRoles ? 'none' : '';
+    document.getElementById('dctab-hint').textContent = esRoles
+        ? 'Diseñá el dashboard de cada rol; todos los usuarios con ese rol lo verán.'
+        : 'Asigná a cada usuario el dashboard de su rol, una plantilla del pool, o personalizá uno nuevo.';
+}
+
+function renderDashCfgRoles() {
+    const cont = document.getElementById('dash-cfg-roles');
+    if (!cont) return;
+    const roles = _dashOverview.roles || [];
+    if (!roles.length) { cont.innerHTML = '<p class="cfg-hint">No hay roles.</p>'; return; }
+    cont.innerHTML = roles.map(r => `
+        <div class="dc-row">
+            <div class="dc-name">${r.nombre}</div>
+            <span class="${r.dashboard_template_id ? 'dc-badge-cfg' : 'dc-badge-no'}">${r.dashboard_template_id ? 'Configurado' : 'Sin configurar'}</span>
+            <button class="dc-btn" onclick="editarDashboardRol(${r.id})">✏️ Editar dashboard</button>
+        </div>`).join('');
+}
+
+function renderDashCfgUsuarios() {
+    const cont = document.getElementById('dash-cfg-usuarios');
+    if (!cont) return;
+    const usuarios  = _dashOverview.usuarios  || [];
+    const templates = _dashOverview.templates || [];
+    if (!usuarios.length) { cont.innerHTML = '<p class="cfg-hint">No hay usuarios.</p>'; return; }
+    cont.innerHTML = usuarios.map(u => {
+        const tplId = u.dashboard_template_id;
+        const opciones = [
+            `<option value="rol" ${!tplId ? 'selected' : ''}>Hereda del rol</option>`,
+            ...templates.map(t => `<option value="tpl:${t.id}" ${tplId === t.id ? 'selected' : ''}>Plantilla: ${t.nombre}</option>`),
+            `<option value="nuevo">Personalizar…</option>`,
+        ].join('');
+        return `
+        <div class="dc-row">
+            <div class="dc-name">${u.username}<span class="dc-rol">${u.rol}</span></div>
+            <select onchange="onUsuarioDashSel(${u.id}, this.value)">${opciones}</select>
+            ${tplId ? `<button class="dc-btn" onclick="editarDashboardTemplate(${tplId})">✏️ Editar</button>` : ''}
+        </div>`;
+    }).join('');
+}
+
+async function editarDashboardRol(rolId) {
+    try {
+        const r = await apiFetch(`/dashboards/rol/${rolId}/asegurar`, { method: 'POST' });
+        window.location.href = `dashboard.html?editar=${r.template_id}`;
+    } catch (e) { alert('No se pudo abrir el editor: ' + (e.message || e)); }
+}
+
+function editarDashboardTemplate(tplId) {
+    window.location.href = `dashboard.html?editar=${tplId}`;
+}
+
+async function onUsuarioDashSel(uid, val) {
+    try {
+        if (val === 'rol') {
+            await apiFetch(`/dashboards/usuario/${uid}`, { method: 'PUT', body: JSON.stringify({ template_id: null }) });
+            await cargarDashboardCfg();
+        } else if (val.startsWith('tpl:')) {
+            await apiFetch(`/dashboards/usuario/${uid}`, { method: 'PUT', body: JSON.stringify({ template_id: Number(val.slice(4)) }) });
+            await cargarDashboardCfg();
+        } else if (val === 'nuevo') {
+            const nombre = prompt('Nombre de la plantilla personalizada (se podrá reutilizar en otros usuarios):');
+            if (!nombre || !nombre.trim()) { renderDashCfgUsuarios(); return; }
+            const r = await apiFetch(`/dashboards/usuario/${uid}/personalizar`, { method: 'POST', body: JSON.stringify({ nombre: nombre.trim() }) });
+            window.location.href = `dashboard.html?editar=${r.template_id}`;
+        }
+    } catch (e) {
+        alert('No se pudo actualizar: ' + (e.message || e));
+        renderDashCfgUsuarios();
+    }
+}
+
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     cargarDatos();
@@ -1631,7 +1751,10 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarSeccionImpuestos();
     cargarSeccionDescuentoPersonal();
     cargarPermisosDef().then(cargarRoles);
-    toggleSection('restaurante');   // abrir la primera por defecto (master-detail)
+    cargarDashboardCfg();
+    // Al volver del editor de dashboard se vuelve con #dashboard
+    const _initSection = (location.hash === '#dashboard') ? 'dashboard' : 'restaurante';
+    toggleSection(_initSection);
 });
 
 
