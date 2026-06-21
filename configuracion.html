@@ -365,6 +365,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .dc-row select { padding:6px 8px; border:1px solid #d1d5db; border-radius:7px; font-size:13px; cursor:pointer; min-width:180px; }
 .dc-btn { padding:6px 12px; border:1px solid #d7dbe3; background:#fff; border-radius:7px; font-size:12px; font-weight:700; color:#4f46e5; cursor:pointer; white-space:nowrap; }
 .dc-btn:hover { background:#eef2ff; }
+.tpl-nom-input { font-size:14px; font-weight:600; color:#1f2937; padding:4px 8px; border:1px solid #4f46e5; border-radius:7px; min-width:200px; outline:none; }
 .dc-badge-cfg { font-size:11px; font-weight:700; color:#16a34a; background:#dcfce7; padding:2px 8px; border-radius:10px; }
 .dc-badge-no  { font-size:11px; font-weight:700; color:#9ca3af; background:#f3f4f6; padding:2px 8px; border-radius:10px; }
 
@@ -1661,6 +1662,7 @@ function mostrarOk(id) {
 // ── Menú Dashboard (plantillas por rol y por usuario) ────────
 // ═══════════════════════════════════════════════════════════════
 let _dashOverview = { roles: [], usuarios: [], templates: [] };
+let _renombrandoTpl = null;   // id de plantilla cuyo nombre se está editando inline
 
 async function cargarDashboardCfg() {
     try { _dashOverview = await apiFetch('/dashboards/overview'); }
@@ -1731,17 +1733,24 @@ function renderDashCfgPlantillas() {
         const otras = templates.filter(o => o.id !== t.id);
         const opcCopiar = [`<option value="">Copiar diseño a…</option>`]
             .concat(otras.map(o => `<option value="${o.id}">${o.nombre}</option>`)).join('');
+        const nombreCell = (t.id === _renombrandoTpl)
+            ? `<input id="tpl-nom-inp-${t.id}" class="tpl-nom-input" value="${(t.nombre || '').replace(/"/g, '&quot;')}"
+                      onkeydown="onRenombrarKey(event, ${t.id})" onblur="commitRenombrar(${t.id})">`
+            : `${t.nombre}
+               <button class="dc-btn" style="padding:2px 7px;margin-left:6px;" title="Renombrar" onclick="iniciarRenombrar(${t.id})">✏️</button>`;
         return `
         <div class="dc-row">
-            <div class="dc-name">${t.nombre}
-                <button class="dc-btn" style="padding:2px 7px;margin-left:6px;" title="Renombrar" onclick="renombrarPlantilla(${t.id})">✏️</button>
-            </div>
+            <div class="dc-name">${nombreCell}</div>
             <button class="dc-btn" onclick="editarDashboardTemplate(${t.id})">Editar diseño</button>
             <select onchange="copiarDisenoA(${t.id}, this.value)" ${otras.length ? '' : 'disabled'}>${opcCopiar}</select>
             <button class="dc-btn" onclick="duplicarPlantilla(${t.id})">Duplicar</button>
             <button class="dc-btn" style="color:#dc2626;border-color:#fecaca;" onclick="eliminarPlantilla(${t.id})">Eliminar</button>
         </div>`;
     }).join('');
+    if (_renombrandoTpl != null) {
+        const inp = document.getElementById('tpl-nom-inp-' + _renombrandoTpl);
+        if (inp) { inp.focus(); inp.select(); }
+    }
 }
 
 async function editarDashboardRol(rolId) {
@@ -1759,14 +1768,27 @@ function editarDashboardTemplate(tplId) {
     window.location.href = `dashboard.html?editar=${tplId}`;
 }
 
-async function renombrarPlantilla(tplId) {
+function iniciarRenombrar(tplId) {
+    _renombrandoTpl = tplId;
+    renderDashCfgPlantillas();
+}
+
+function onRenombrarKey(e, tplId) {
+    if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }   // blur → guarda
+    else if (e.key === 'Escape') { _renombrandoTpl = null; renderDashCfgPlantillas(); }
+}
+
+async function commitRenombrar(tplId) {
+    if (_renombrandoTpl !== tplId) return;        // ya se canceló (Escape)
+    const inp = document.getElementById('tpl-nom-inp-' + tplId);
+    const nuevo = inp ? inp.value.trim() : '';
     const actual = _tplNombre(tplId) || '';
-    const nombre = prompt('Nuevo nombre de la plantilla:', actual);
-    if (nombre === null || !nombre.trim() || nombre.trim() === actual) return;
+    _renombrandoTpl = null;
+    if (!nuevo || nuevo === actual) { renderDashCfgPlantillas(); return; }
     try {
-        await apiFetch(`/dashboards/templates/${tplId}`, { method: 'PATCH', body: JSON.stringify({ nombre: nombre.trim() }) });
+        await apiFetch(`/dashboards/templates/${tplId}`, { method: 'PATCH', body: JSON.stringify({ nombre: nuevo }) });
         await cargarDashboardCfg();
-    } catch (e) { alert('No se pudo renombrar: ' + (e.message || e)); }
+    } catch (e) { alert('No se pudo renombrar: ' + (e.message || e)); renderDashCfgPlantillas(); }
 }
 
 async function copiarDisenoA(srcId, destId) {
