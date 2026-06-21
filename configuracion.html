@@ -415,6 +415,39 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .perm-check-label { font-size:13px; color:#374151; flex:1; }
 .perm-check-desc { font-size:11px; color:#9ca3af; display:block; margin-top:1px; }
 
+/* ── Solapas de permisos (Web / Programa) ── */
+.perm-tabs { display:flex; gap:8px; margin-bottom:14px; }
+.perm-tab {
+    padding:8px 22px; border:1px solid #d7dbe3; background:#fff;
+    border-radius:8px; font-size:13px; font-weight:700; color:#64748b;
+    cursor:pointer; transition:all .15s;
+}
+.perm-tab:hover { background:#f8fafc; }
+.perm-tab.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
+.perm-hint {
+    font-size:13px; color:#9ca3af; padding:22px; text-align:center;
+    background:#f8fafc; border:1px dashed #d7dbe3; border-radius:10px;
+}
+.perm-panel { display:flex; flex-direction:column; gap:16px; }
+/* Fila con control de 3 estados (Sin acceso / Ver / Editar) */
+.perm-row {
+    display:flex; justify-content:space-between; align-items:center;
+    gap:14px; padding:8px 2px; border-bottom:1px solid #f1f3f5;
+}
+.perm-row:last-child { border-bottom:none; }
+.perm-row-label { font-size:13px; font-weight:600; color:#1f2937; display:flex; flex-direction:column; }
+.perm-row-desc { font-size:11px; font-weight:400; color:#9ca3af; margin-top:2px; }
+.perm-seg { display:inline-flex; border:1px solid #d7dbe3; border-radius:8px; overflow:hidden; flex-shrink:0; }
+.perm-seg input { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
+.perm-seg label {
+    padding:5px 12px; font-size:12px; font-weight:600; color:#64748b;
+    cursor:pointer; background:#fff; border-left:1px solid #e5e7eb; user-select:none;
+    transition:background .12s, color .12s;
+}
+.perm-seg label:first-of-type { border-left:none; }
+.perm-seg input:checked + label { background:#4f46e5; color:#fff; }
+.perm-seg input:disabled + label { cursor:not-allowed; opacity:.55; }
+
 .editor-actions {
     display:flex; align-items:center; gap:10px;
     margin-top:16px; padding-top:14px;
@@ -2109,14 +2142,12 @@ function confirmarAddTasa() {
 // que es la ÚNICA fuente de verdad (mismas claves que las columnas de `usuarios`). Así
 // la UI nunca se desincroniza de lo que realmente se propaga a los usuarios.
 let PERMISOS_DEF = [];
-let GRUPOS_ORDEN = [];
 
 async function cargarPermisosDef() {
     try {
         const perms = await apiFetch('/roles/permisos');
         if (Array.isArray(perms) && perms.length) {
             PERMISOS_DEF = perms;
-            GRUPOS_ORDEN = [...new Set(perms.map(p => p.grupo).filter(Boolean))];
         }
     } catch (e) {
         console.warn('No se pudieron cargar los permisos:', e);
@@ -2125,6 +2156,7 @@ async function cargarPermisosDef() {
 
 let _roles    = [];
 let _rolSel   = null;   // objeto rol seleccionado
+let _permTab  = null;   // solapa de permisos activa: null | 'web' | 'programa'
 
 // ═══ ROLES ══════════════════════════════════════════════════
 
@@ -2151,12 +2183,15 @@ function renderListaRoles() {
 
 function seleccionarRol(id) {
     _rolSel = _roles.find(r => r.id === id) || null;
+    if (_rolSel && !_rolSel.permisos) _rolSel.permisos = {};
+    _permTab = null;   // por defecto ninguna solapa seleccionada
     renderListaRoles();
     renderEditorRol();
 }
 
 function nuevoRol() {
     _rolSel = { id: null, nombre: '', descripcion: '', permisos: {}, es_sistema: false, pantalla_default: 'dashboard', preview_logout: false };
+    _permTab = null;
     renderListaRoles();
     renderEditorRol();
 }
@@ -2169,28 +2204,6 @@ function renderEditorRol() {
     }
     const r = _rolSel;
     const esSistema = r.es_sistema;
-
-    // Build permission groups HTML
-    const gruposHtml = GRUPOS_ORDEN.map(grupo => {
-        const perms = PERMISOS_DEF.filter(p => p.grupo === grupo);
-        const checksHtml = perms.map(p => `
-            <label class="perm-check-row" ${esSistema ? 'style="opacity:.55;pointer-events:none;"' : ''}>
-                <input type="checkbox" id="rp-${p.key}"
-                       ${r.permisos[p.key] ? 'checked' : ''}
-                       ${esSistema ? 'disabled' : ''}>
-                <span class="perm-check-label">
-                    ${p.label}
-                    <span class="perm-check-desc">${p.desc}</span>
-                </span>
-            </label>
-        `).join('');
-        return `
-            <div>
-                <div class="perm-group-title">${grupo}</div>
-                <div class="perm-checks">${checksHtml}</div>
-            </div>
-        `;
-    }).join('');
 
     const sysNote = esSistema ? `
         <div style="font-size:12px;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;
@@ -2212,6 +2225,14 @@ function renderEditorRol() {
                     <input class="cfg-input" id="re-desc" value="${r.descripcion||''}"
                            placeholder="Breve descripción del rol" ${esSistema ? 'disabled' : ''}>
                 </div>
+            </div>
+
+            <div>
+                <label class="cfg-label" style="margin-bottom:8px;display:block;">Permisos</label>
+                ${_permPanelHtml(esSistema)}
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid #eef0f3;padding-top:12px;">
                 <div class="cfg-field">
                     <label class="cfg-label">Pantalla de inicio (ejecutable)</label>
                     <select class="cfg-input" id="re-pantalla" ${esSistema ? 'disabled' : ''} style="cursor:pointer;">
@@ -2222,22 +2243,19 @@ function renderEditorRol() {
                     </select>
                     <span class="cfg-hint">Pantalla a la que accede este rol al iniciar sesión en el ejecutable.</span>
                 </div>
+                <label class="toggle-row" style="${esSistema ? 'opacity:.5;pointer-events:none;' : ''}"
+                       onclick="event.preventDefault();toggleCheck('re-preview')">
+                    <div class="toggle-wrap">
+                        <input type="checkbox" id="re-preview" ${r.preview_logout ? 'checked' : ''} ${esSistema ? 'disabled' : ''}>
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <div class="toggle-text">
+                        <div class="toggle-label">Vista previa al cerrar sesión</div>
+                        <div class="toggle-desc">Al cerrar sesión, muestra el estado actual del restaurante (salas y cocina) antes de volver al login.</div>
+                    </div>
+                </label>
             </div>
-            <label class="toggle-row" style="${esSistema ? 'opacity:.5;pointer-events:none;' : ''}"
-                   onclick="event.preventDefault();toggleCheck('re-preview')">
-                <div class="toggle-wrap">
-                    <input type="checkbox" id="re-preview" ${r.preview_logout ? 'checked' : ''} ${esSistema ? 'disabled' : ''}>
-                    <span class="toggle-slider"></span>
-                </div>
-                <div class="toggle-text">
-                    <div class="toggle-label">Vista previa al cerrar sesión</div>
-                    <div class="toggle-desc">Al cerrar sesión, muestra el estado actual del restaurante (salas y cocina) antes de volver al login.</div>
-                </div>
-            </label>
-            <div>
-                <label class="cfg-label" style="margin-bottom:8px;display:block;">Permisos</label>
-                <div class="perm-groups">${gruposHtml}</div>
-            </div>
+
             <div class="editor-actions">
                 ${!esSistema ? `<button class="btn-save" onclick="guardarRol()" style="font-size:13px;padding:9px 20px;">
                     ${r.id ? 'Guardar cambios' : 'Crear rol'}
@@ -2254,12 +2272,103 @@ function renderEditorRol() {
     `;
 }
 
+// ── Panel de permisos por solapa (Web / Programa) ──────────────
+// Arma las solapas y, para la activa, agrupa por menú (grupo_web/grupo_prog) y
+// por página. Las páginas con par ver+editar usan un control de 3 estados
+// (Sin acceso / Ver / Editar); las simples, un checkbox. El estado vive en
+// _rolSel.permisos, así los permisos compartidos (ámbito "ambos") se reflejan
+// solos en las dos solapas.
+function _permPanelHtml(esSistema) {
+    const tabs = `
+        <div class="perm-tabs">
+            <button type="button" class="perm-tab ${_permTab==='web'?'active':''}" onclick="setPermTab('web')">🌐 Web</button>
+            <button type="button" class="perm-tab ${_permTab==='programa'?'active':''}" onclick="setPermTab('programa')">🖥️ Programa</button>
+        </div>`;
+    if (!_permTab) {
+        return tabs + `<div class="perm-hint">Elegí <b>Web</b> o <b>Programa</b> para configurar los permisos de ese ámbito.</div>`;
+    }
+    const r = _rolSel;
+    const esWeb = _permTab === 'web';
+    const grupoField = esWeb ? 'grupo_web' : 'grupo_prog';
+    const inAmbito = p => esWeb ? (p.ambito === 'web' || p.ambito === 'ambos')
+                                : (p.ambito === 'programa' || p.ambito === 'ambos');
+    const perms  = PERMISOS_DEF.filter(inAmbito);
+    const grupos = [...new Set(perms.map(p => p[grupoField]).filter(Boolean))];
+
+    const dis = esSistema ? 'disabled' : '';
+    const gruposHtml = grupos.map(grupo => {
+        const gperms  = perms.filter(p => p[grupoField] === grupo);
+        const paginas = [...new Set(gperms.map(p => p.pagina))];
+        const rows = paginas.map(pag => {
+            const pp     = gperms.filter(p => p.pagina === pag);
+            const ver    = pp.find(p => p.nivel === 'ver');
+            const editar = pp.find(p => p.nivel === 'editar');
+            if (ver && editar) {
+                const cur  = r.permisos[editar.key] ? 'editar' : (r.permisos[ver.key] ? 'ver' : 'none');
+                const name = `nv-${_permTab}-${pag}`;
+                const opt = (val, txt) => `
+                    <input type="radio" id="${name}-${val}" name="${name}" ${cur===val?'checked':''} ${dis}
+                           onchange="_permNivel('${ver.key}','${editar.key}','${val}')">
+                    <label for="${name}-${val}">${txt}</label>`;
+                return `
+                    <div class="perm-row">
+                        <div class="perm-row-label">${editar.label}
+                            <span class="perm-row-desc">Ver: solo lectura · Editar: ${editar.desc.toLowerCase()}</span>
+                        </div>
+                        <div class="perm-seg">${opt('none','Sin acceso')}${opt('ver','Ver')}${opt('editar','Editar')}</div>
+                    </div>`;
+            }
+            // Permisos simples (un solo nivel) → checkbox
+            return pp.map(p => `
+                <label class="perm-check-row" ${esSistema ? 'style="opacity:.55;pointer-events:none;"' : ''}>
+                    <input type="checkbox" ${r.permisos[p.key] ? 'checked' : ''} ${dis}
+                           onchange="_permSimple('${p.key}', this.checked)">
+                    <span class="perm-check-label">${p.label}<span class="perm-check-desc">${p.desc}</span></span>
+                </label>`).join('');
+        }).join('');
+        return `<div class="perm-group"><div class="perm-group-title">${grupo}</div><div class="perm-checks">${rows}</div></div>`;
+    }).join('');
+
+    return tabs + `<div class="perm-panel">${gruposHtml}</div>`;
+}
+
+// Captura los campos de texto del editor a _rolSel antes de un re-render
+// (al cambiar de solapa) para no perder lo tipeado.
+function _capturarCamposRol() {
+    if (!_rolSel) return;
+    const n  = document.getElementById('re-nombre');   if (n)  _rolSel.nombre          = n.value;
+    const d  = document.getElementById('re-desc');     if (d)  _rolSel.descripcion     = d.value;
+    const p  = document.getElementById('re-pantalla'); if (p)  _rolSel.pantalla_default = p.value;
+    const pv = document.getElementById('re-preview');  if (pv) _rolSel.preview_logout  = pv.checked;
+}
+
+function setPermTab(t) {
+    _capturarCamposRol();
+    _permTab = t;
+    renderEditorRol();
+}
+
+// Control de 3 estados: editar implica ver.
+function _permNivel(verKey, editarKey, nivel) {
+    if (!_rolSel) return;
+    if (!_rolSel.permisos) _rolSel.permisos = {};
+    _rolSel.permisos[verKey]    = (nivel === 'ver' || nivel === 'editar');
+    _rolSel.permisos[editarKey] = (nivel === 'editar');
+}
+
+function _permSimple(key, checked) {
+    if (!_rolSel) return;
+    if (!_rolSel.permisos) _rolSel.permisos = {};
+    _rolSel.permisos[key] = !!checked;
+}
+
 function _leerPermisosRol() {
+    // El estado se mantiene en vivo en _rolSel.permisos (los controles lo
+    // actualizan vía _permNivel/_permSimple). Devolvemos el set completo de
+    // claves para que el backend nunca reciba undefined.
+    const fuente = (_rolSel && _rolSel.permisos) || {};
     const permisos = {};
-    PERMISOS_DEF.forEach(p => {
-        const el = document.getElementById('rp-' + p.key);
-        if (el) permisos[p.key] = el.checked;
-    });
+    PERMISOS_DEF.forEach(p => { permisos[p.key] = !!fuente[p.key]; });
     return permisos;
 }
 
