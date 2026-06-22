@@ -963,10 +963,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     <div class="cfg-section" id="sec-descpersonal">
         <div class="cfg-section-head" onclick="toggleSection('descpersonal')">
             <span class="cfg-section-icon">🎟️</span>
-            <span class="cfg-section-title">
-                Descuento personal
-                <span class="cfg-section-badge badge-off" id="badge-descpersonal">Desactivado</span>
-            </span>
+            <span class="cfg-section-title">Descuento personal</span>
             <span class="cfg-section-arrow">›</span>
         </div>
         <div class="cfg-section-body">
@@ -1864,7 +1861,6 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarDatos();              // restaurante/legal (localStorage) + período + corte (config coalescido)
     cargarSeccionMoneda();      // badge + form de moneda (config coalescido)
     cargarSeccionImpuestos();   // badge + form de impuestos (config coalescido)
-    cargarBadgeDescPersonal();  // solo el badge; la sección se carga al abrirla (lazy)
     // Roles, Dashboard y Descuento personal se cargan al abrir su sección (lazy, ver toggleSection)
     const _initSection = (location.hash === '#dashboard') ? 'dashboard' : 'restaurante';
     toggleSection(_initSection);
@@ -2029,17 +2025,6 @@ async function guardarImpuesto() {
 
 let _dpUsuarios = [], _dpRoles = [], _dpReglas = [];
 function _dpEsc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-
-// En carga solo el badge (config liviano, coalescido). La data pesada del editor
-// (usuarios + roles para las reglas) se trae al abrir la sección (lazy).
-async function cargarBadgeDescPersonal() {
-    try {
-        const cfg = await getCfg();
-        const chk = document.getElementById('dp-activo');
-        if (chk) chk.checked = !!cfg.desc_personal_activo;
-        actualizarBadgeDescPersonal();
-    } catch (e) {}
-}
 
 async function cargarSeccionDescuentoPersonal() {
     try {
