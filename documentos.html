@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Documentos</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+        .content { margin-top: 60px; padding: 24px 32px 60px; max-width: 1000px; margin-left: auto; margin-right: auto; }
+
+        /* Tabs de categoría */
+        .cat-tabs { display: flex; gap: 26px; align-items: center; border-bottom: 1px solid #e5e7eb; margin-bottom: 18px; }
+        .cat-tab { padding: 12px 2px; font-size: 15px; font-weight: 600; color: #9ca3af; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+        .cat-tab:hover { color: #4b5563; }
+        .cat-tab.active { color: #1a1a2e; font-weight: 800; border-bottom-color: #1a1a2e; }
+
+        /* Toolbar */
+        .doc-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+        .doc-bread { font-size: 14px; color: #6b7280; flex: 1; min-width: 200px; }
+        .doc-bread a { color: #4f46e5; cursor: pointer; text-decoration: none; font-weight: 600; }
+        .doc-bread .sep { margin: 0 6px; color: #c4b5fd; }
+        .doc-bread .cur { color: #1f2937; font-weight: 700; }
+        .btn { padding: 8px 16px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; color: #4f46e5; }
+        .btn:hover { background: #eef2ff; }
+        .btn-primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .btn-primary:hover { background: #4338ca; }
+
+        /* Carpetas */
+        .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-bottom: 22px; }
+        .doc-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 14px; cursor: pointer; position: relative; transition: box-shadow .15s; }
+        .doc-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+        .doc-card .ic { font-size: 34px; }
+        .doc-card .nm { font-size: 13px; font-weight: 600; color: #1f2937; margin-top: 8px; word-break: break-word; }
+        .doc-card .acc { position: absolute; top: 8px; right: 8px; display: none; gap: 2px; }
+        .doc-card:hover .acc { display: flex; }
+        .doc-card .acc button { border: none; background: rgba(255,255,255,.9); border-radius: 6px; cursor: pointer; font-size: 13px; padding: 3px 5px; }
+
+        /* Archivos (lista) */
+        .doc-files { display: flex; flex-direction: column; gap: 8px; }
+        .doc-file { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.05); padding: 11px 14px; }
+        .doc-file .fic { font-size: 24px; flex-shrink: 0; }
+        .doc-file img.thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+        .doc-file .fnm { flex: 1; font-size: 14px; color: #1f2937; font-weight: 600; word-break: break-word; }
+        .doc-file .fdt { font-size: 11px; color: #9ca3af; }
+        .doc-file a.dl { color: #4f46e5; font-weight: 700; font-size: 13px; text-decoration: none; }
+        .doc-file button.del { border: none; background: #fef2f2; color: #dc2626; border-radius: 7px; cursor: pointer; font-weight: 700; padding: 5px 9px; }
+        .doc-empty { text-align: center; color: #9ca3af; font-size: 14px; padding: 30px 0; }
+        .doc-sec-title { font-size: 12px; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: .6px; margin: 4px 0 10px; }
+
+        /* Lock personal */
+        .lock-card { max-width: 380px; margin: 40px auto; background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.08); padding: 26px; text-align: center; }
+        .lock-card .lk { font-size: 40px; }
+        .lock-card h3 { font-size: 17px; color: #1a1a2e; margin: 10px 0 4px; }
+        .lock-card p { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+        .lock-card input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+        .lock-card .err { color: #dc2626; font-size: 12px; min-height: 16px; margin-bottom: 8px; }
+
+        /* Modal grupo */
+        .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 400; align-items: center; justify-content: center; }
+        .modal-ov.open { display: flex; }
+        .modal { background: #fff; border-radius: 14px; width: 460px; max-width: 94vw; max-height: 88vh; overflow-y: auto; padding: 22px; }
+        .modal h3 { font-size: 18px; margin-bottom: 14px; color: #1a1a2e; }
+        .modal label.lbl { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; display: block; margin: 12px 0 6px; }
+        .modal input.txt { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; font-size: 14px; }
+        .checks { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 8px; }
+        .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; }
+        .modal-acc { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+        .btn-del { padding: 9px 16px; border: 1px solid #fecaca; background: #fef2f2; color: #dc2626; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-left: auto; }
+        .btn-sec { padding: 9px 16px; border: 1px solid #d1d5db; background: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; }
+        .grp-chip-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: #fff; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.05); margin-bottom: 8px; }
+        .grp-chip-row .gn { flex: 1; font-size: 14px; font-weight: 600; color: #1f2937; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div><button class="btn-logout" onclick="logout()">Cerrar sesión</button></div>
+</nav>
+
+<div class="content">
+    <div class="cat-tabs" id="cat-tabs"></div>
+    <div id="doc-body"></div>
+</div>
+
+<!-- Modal Grupo -->
+<div class="modal-ov" id="modal-grupo">
+    <div class="modal">
+        <h3 id="grupo-title">Nuevo grupo</h3>
+        <label class="lbl">Nombre del grupo</label>
+        <input type="text" class="txt" id="grupo-nombre" placeholder="Ej: Cocina">
+        <label class="lbl">Roles</label>
+        <div class="checks" id="grupo-roles"></div>
+        <label class="lbl">Usuarios</label>
+        <div class="checks" id="grupo-usuarios"></div>
+        <div class="modal-acc">
+            <button class="btn-primary btn" onclick="guardarGrupo()">Guardar</button>
+            <button class="btn-sec" onclick="cerrarModal('modal-grupo')">Cancelar</button>
+            <button class="btn-del" id="grupo-del" style="display:none" onclick="eliminarGrupo()">🗑 Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="file-input" style="display:none" onchange="onFileSel(this.files)">
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+const _user = getUser() || {};
+const canEdit = hasPermiso('edicion_documentos');   // admin/gerente también
+
+let _cat = 'general';            // general | grupos | personal
+let _grupos = [], _grupoSel = null, _puedeGestionar = false;
+let _usuariosPersonal = [], _usuarioSel = null;   // editor: usuario cuyos personales mira
+let _personalDesbloqueado = false;                // no-editor: abrió su personal con contraseña
+let _carpetaId = null;
+let _contenido = null;
+
+const esc = s => (s == null ? '' : String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
+function fmtFecha(ts) { if (!ts) return ''; const d = new Date(ts); return d.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'2-digit' }); }
+function _ext(n) { const m = /\.([a-z0-9]+)$/i.exec(n || ''); return m ? m[1].toLowerCase() : ''; }
+function _icono(a) {
+    if (a.resource_type === 'image') return '🖼️';
+    const e = _ext(a.nombre);
+    if (e === 'pdf') return '📄';
+    if (['doc','docx','txt','rtf','odt'].includes(e)) return '📝';
+    if (['xls','xlsx','csv','ods'].includes(e)) return '📊';
+    if (['ppt','pptx'].includes(e)) return '📑';
+    if (['zip','rar','7z'].includes(e)) return '🗜️';
+    return '📎';
+}
+
+// ── Tabs ─────────────────────────────────────────────────────
+function renderTabs() {
+    const cats = [['general','📂 General'], ['grupos','👥 Grupos'], ['personal','🔒 Personal']];
+    document.getElementById('cat-tabs').innerHTML = cats.map(([c, l]) =>
+        `<div class="cat-tab ${_cat === c ? 'active' : ''}" onclick="seleccionarCat('${c}')">${l}</div>`).join('');
+}
+
+function seleccionarCat(cat) {
+    _cat = cat; _carpetaId = null; _grupoSel = null; _usuarioSel = null;
+    renderTabs();
+    if (cat === 'general') {
+        cargarContenido(null);
+    } else if (cat === 'grupos') {
+        cargarGrupos();
+    } else { // personal
+        if (canEdit) { cargarUsuariosPersonal(); }
+        else if (_personalDesbloqueado) { cargarContenido(null); }
+        else { renderLockPersonal(); }
+    }
+}
+
+// ── Grupos ───────────────────────────────────────────────────
+async function cargarGrupos() {
+    try { const r = await api.get('/documentos/grupos'); _grupos = r.grupos || []; _puedeGestionar = !!r.puede_gestionar; }
+    catch (e) { _grupos = []; _puedeGestionar = false; }
+    renderGruposLista();
+}
+function renderGruposLista() {
+    const body = document.getElementById('doc-body');
+    let html = '<div class="doc-sec-title">Grupos</div>';
+    if (!_grupos.length) {
+        html += `<div class="doc-empty">${_puedeGestionar ? 'Todavía no hay grupos. Creá uno con “＋ Grupo”.' : 'No estás en ningún grupo.'}</div>`;
+    } else {
+        html += _grupos.map(g => `
+            <div class="grp-chip-row">
+                <span style="font-size:20px;">👥</span>
+                <span class="gn" onclick="abrirGrupo(${g.id})" style="cursor:pointer;">${esc(g.nombre)}</span>
+                <button class="btn" onclick="abrirGrupo(${g.id})">Abrir</button>
+                ${_puedeGestionar ? `<button class="btn" onclick="abrirGrupoModal(${g.id})">⚙️ Editar</button>` : ''}
+            </div>`).join('');
+    }
+    if (_puedeGestionar) html += `<button class="btn" style="margin-top:12px;" onclick="abrirGrupoModal(null)">＋ Grupo</button>`;
+    body.innerHTML = html;
+}
+function abrirGrupo(id) { _grupoSel = id; _carpetaId = null; cargarContenido(null); }
+
+// ── Personal (editor: picker de usuario / no-editor: lock) ───
+async function cargarUsuariosPersonal() {
+    try { _usuariosPersonal = (await api.get('/auth/usuarios')).filter(u => u.rol !== 'admin'); }
+    catch (e) { _usuariosPersonal = []; }
+    const body = document.getElementById('doc-body');
+    body.innerHTML = '<div class="doc-sec-title">Documentos personales — elegí un usuario</div>' +
+        (_usuariosPersonal.length
+            ? _usuariosPersonal.map(u => `
+                <div class="grp-chip-row">
+                    <span style="font-size:20px;">🔒</span>
+                    <span class="gn">${esc(u.username)} <span style="color:#9ca3af;font-weight:400;">(${esc(u.rol)})</span></span>
+                    <button class="btn" onclick="abrirPersonal(${u.id})">Abrir</button>
+                </div>`).join('')
+            : '<div class="doc-empty">Sin usuarios.</div>');
+}
+function abrirPersonal(uid) { _usuarioSel = uid; _carpetaId = null; cargarContenido(null); }
+
+function renderLockPersonal() {
+    document.getElementById('doc-body').innerHTML = `
+        <div class="lock-card">
+            <div class="lk">🔒</div>
+            <h3>Documentos personales</h3>
+            <p>Reingresá tu contraseña para acceder a tus documentos (recibos, contratos, etc.).</p>
+            <div class="err" id="lock-err"></div>
+            <input type="password" id="lock-pass" placeholder="Tu contraseña" onkeydown="if(event.key==='Enter')desbloquearPersonal()">
+            <button class="btn-primary btn" style="width:100%;" onclick="desbloquearPersonal()">Desbloquear</button>
+        </div>`;
+    setTimeout(() => document.getElementById('lock-pass')?.focus(), 50);
+}
+async function desbloquearPersonal() {
+    const pass = document.getElementById('lock-pass').value;
+    const err = document.getElementById('lock-err');
+    if (!pass) { err.textContent = 'Ingresá tu contraseña.'; return; }
+    try {
+        await apiFetch('/documentos/personal/verificar', { method: 'POST', body: JSON.stringify({ password: pass }) });
+        _personalDesbloqueado = true;
+        cargarContenido(null);
+    } catch (e) { err.textContent = 'Contraseña incorrecta.'; }
+}
+
+// ── Contenido (carpetas + archivos) ──────────────────────────
+function _ctxParams() {
+    let q = `categoria=${_cat}`;
+    if (_cat === 'grupos' && _grupoSel) q += `&grupo_id=${_grupoSel}`;
+    if (_cat === 'personal' && _usuarioSel) q += `&usuario_id=${_usuarioSel}`;
+    return q;
+}
+async function cargarContenido(carpetaId) {
+    _carpetaId = carpetaId;
+    let q = _ctxParams();
+    if (carpetaId) q += `&carpeta_id=${carpetaId}`;
+    try { _contenido = await api.get('/documentos/contenido?' + q); }
+    catch (e) { document.getElementById('doc-body').innerHTML = `<div class="doc-empty">No tenés acceso o hubo un error.</div>`; return; }
+    renderContenido();
+}
+
+function renderContenido() {
+    const c = _contenido;
+    const body = document.getElementById('doc-body');
+    const puedeEditar = !!c.puede_editar;
+
+    // Breadcrumb
+    const raizLabel = _cat === 'grupos' ? (_grupos.find(g => g.id === _grupoSel)?.nombre || 'Grupo')
+                    : _cat === 'personal' ? 'Personal' : 'General';
+    let bread = `<span class="doc-bread">`;
+    if (_cat === 'grupos') bread += `<a onclick="seleccionarCat('grupos')">Grupos</a><span class="sep">›</span>`;
+    if (_cat === 'personal' && canEdit) bread += `<a onclick="seleccionarCat('personal')">Usuarios</a><span class="sep">›</span>`;
+    bread += (c.ruta.length ? `<a onclick="cargarContenido(null)">${esc(raizLabel)}</a>` : `<span class="cur">${esc(raizLabel)}</span>`);
+    c.ruta.forEach((r, i) => {
+        const last = i === c.ruta.length - 1;
+        bread += `<span class="sep">›</span>` + (last ? `<span class="cur">${esc(r.nombre)}</span>` : `<a onclick="cargarContenido(${r.id})">${esc(r.nombre)}</a>`);
+    });
+    bread += `</span>`;
+
+    const toolbar = `<div class="doc-toolbar">${bread}` +
+        (puedeEditar ? `<button class="btn" onclick="nuevaCarpeta()">📁 Nueva carpeta</button>
+                        <button class="btn-primary btn" onclick="document.getElementById('file-input').click()">⬆ Subir archivo</button>` : '') +
+        `</div>`;
+
+    let html = toolbar;
+    // Carpetas
+    if (c.carpetas.length) {
+        html += '<div class="doc-grid">' + c.carpetas.map(f => `
+            <div class="doc-card" onclick="cargarContenido(${f.id})">
+                <div class="ic">📁</div>
+                <div class="nm">${esc(f.nombre)}</div>
+                ${puedeEditar ? `<div class="acc">
+                    <button title="Renombrar" onclick="event.stopPropagation();renombrarCarpeta(${f.id})">✏️</button>
+                    <button title="Eliminar" onclick="event.stopPropagation();eliminarCarpeta(${f.id}, '${esc(f.nombre).replace(/'/g,'')}')">🗑</button>
+                </div>` : ''}
+            </div>`).join('') + '</div>';
+    }
+    // Archivos
+    html += '<div class="doc-files">';
+    if (c.archivos.length) {
+        html += c.archivos.map(a => {
+            const thumb = a.resource_type === 'image'
+                ? `<img class="thumb" src="${esc(a.url)}" alt="">`
+                : `<span class="fic">${_icono(a)}</span>`;
+            return `<div class="doc-file">
+                ${thumb}
+                <div class="fnm">${esc(a.nombre)}<div class="fdt">${fmtFecha(a.creado_en)}</div></div>
+                <a class="dl" href="${esc(a.url)}" target="_blank" rel="noopener">${a.resource_type === 'image' ? 'Ver' : 'Descargar'}</a>
+                ${puedeEditar ? `<button class="del" onclick="eliminarArchivo(${a.id})">🗑</button>` : ''}
+            </div>`;
+        }).join('');
+    } else if (!c.carpetas.length) {
+        html += '<div class="doc-empty">Carpeta vacía.</div>';
+    }
+    html += '</div>';
+
+    body.innerHTML = html;
+}
+
+// ── Acciones editor: carpetas / archivos ─────────────────────
+async function nuevaCarpeta() {
+    const nombre = prompt('Nombre de la carpeta:');
+    if (!nombre || !nombre.trim()) return;
+    const body = { categoria: _cat, nombre: nombre.trim(), parent_id: _carpetaId,
+                   grupo_id: _cat === 'grupos' ? _grupoSel : null,
+                   usuario_id: _cat === 'personal' ? _usuarioSel : null };
+    try { await apiFetch('/documentos/carpetas', { method: 'POST', body: JSON.stringify(body) }); cargarContenido(_carpetaId); }
+    catch (e) { alert('No se pudo crear la carpeta: ' + (e.message || e)); }
+}
+async function renombrarCarpeta(id) {
+    const nombre = prompt('Nuevo nombre de la carpeta:');
+    if (!nombre || !nombre.trim()) return;
+    try { await apiFetch(`/documentos/carpetas/${id}`, { method: 'PATCH', body: JSON.stringify({ nombre: nombre.trim() }) }); cargarContenido(_carpetaId); }
+    catch (e) { alert('No se pudo renombrar: ' + (e.message || e)); }
+}
+async function eliminarCarpeta(id, nombre) {
+    if (!confirm(`¿Eliminar la carpeta "${nombre}" y todo su contenido (subcarpetas y archivos)?`)) return;
+    try { await apiFetch(`/documentos/carpetas/${id}`, { method: 'DELETE' }); cargarContenido(_carpetaId); }
+    catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+async function onFileSel(files) {
+    if (!files || !files.length) return;
+    const fd = new FormData();
+    fd.append('categoria', _cat);
+    if (_cat === 'grupos' && _grupoSel) fd.append('grupo_id', String(_grupoSel));
+    if (_cat === 'personal' && _usuarioSel) fd.append('usuario_id', String(_usuarioSel));
+    if (_carpetaId) fd.append('carpeta_id', String(_carpetaId));
+    fd.append('file', files[0]);
+    document.getElementById('file-input').value = '';
+    try { await apiFetch('/documentos/archivos', { method: 'POST', body: fd }); cargarContenido(_carpetaId); }
+    catch (e) { alert('No se pudo subir el archivo: ' + (e.message || e)); }
+}
+async function eliminarArchivo(id) {
+    if (!confirm('¿Eliminar este archivo?')) return;
+    try { await apiFetch(`/documentos/archivos/${id}`, { method: 'DELETE' }); cargarContenido(_carpetaId); }
+    catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+
+// ── Modal de grupo ───────────────────────────────────────────
+let _rolesDisp = [], _usuariosDisp = [], _grupoEdit = null;
+async function _cargarRolesUsuarios() {
+    if (!_rolesDisp.length) { try { _rolesDisp = await api.get('/roles'); } catch (e) { _rolesDisp = []; } }
+    if (!_usuariosDisp.length) { try { _usuariosDisp = (await api.get('/auth/usuarios')).filter(u => u.rol !== 'admin'); } catch (e) { _usuariosDisp = []; } }
+}
+async function abrirGrupoModal(id) {
+    await _cargarRolesUsuarios();
+    _grupoEdit = id ? _grupos.find(g => g.id === id) : null;
+    document.getElementById('grupo-title').textContent = _grupoEdit ? 'Editar grupo' : 'Nuevo grupo';
+    document.getElementById('grupo-nombre').value = _grupoEdit ? _grupoEdit.nombre : '';
+    const rolesSel = new Set(_grupoEdit ? (_grupoEdit.roles || []) : []);
+    const usrSel = new Set(_grupoEdit ? (_grupoEdit.usuarios || []) : []);
+    document.getElementById('grupo-roles').innerHTML = _rolesDisp.map(r =>
+        `<label class="check-row"><input type="checkbox" value="${esc(r.nombre)}" ${rolesSel.has(r.nombre) ? 'checked' : ''}> ${esc(r.nombre)}</label>`).join('') || '<span style="font-size:12px;color:#9ca3af">Sin roles</span>';
+    document.getElementById('grupo-usuarios').innerHTML = _usuariosDisp.map(u =>
+        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(u.username)} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
+    document.getElementById('grupo-del').style.display = _grupoEdit ? '' : 'none';
+    document.getElementById('modal-grupo').classList.add('open');
+}
+async function guardarGrupo() {
+    const nombre = document.getElementById('grupo-nombre').value.trim();
+    if (!nombre) { alert('Poné un nombre.'); return; }
+    const roles = [...document.querySelectorAll('#grupo-roles input:checked')].map(c => c.value);
+    const usuarios = [...document.querySelectorAll('#grupo-usuarios input:checked')].map(c => Number(c.value));
+    const body = { nombre, roles, usuarios };
+    try {
+        if (_grupoEdit) await apiFetch(`/documentos/grupos/${_grupoEdit.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+        else await apiFetch('/documentos/grupos', { method: 'POST', body: JSON.stringify(body) });
+        cerrarModal('modal-grupo');
+        await cargarGrupos();
+    } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
+}
+async function eliminarGrupo() {
+    if (!_grupoEdit) return;
+    if (!confirm(`¿Eliminar el grupo "${_grupoEdit.nombre}" y todos sus documentos?`)) return;
+    try {
+        await apiFetch(`/documentos/grupos/${_grupoEdit.id}`, { method: 'DELETE' });
+        cerrarModal('modal-grupo');
+        await cargarGrupos();
+    } catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── Init ─────────────────────────────────────────────────────
+renderTabs();
+seleccionarCat('general');
+</script>
+</body>
+</html>

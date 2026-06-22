@@ -50,6 +50,7 @@
         },
         { href: "social.html", icon: "📣", label: "Social" },
         { href: "mensajes.html", icon: "💬", label: "Mensajes" },
+        { href: "documentos.html", icon: "📁", label: "Documentos" },
         { href: "configuracion-usuario.html", icon: "🙍", label: "Configuración de usuario" },
         { href: "configuracion.html", icon: "⚙️", label: "Configuración de sistema", perm: "acceso_configuracion" },
     ];
