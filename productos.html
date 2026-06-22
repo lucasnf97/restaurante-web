@@ -1155,20 +1155,29 @@ function _stageProducto(body, items) {
 // Alerta de cambios sin guardar al navegar por un link, cerrar o recargar.
 let _navOk = false;   // true cuando el usuario ya confirmó salir desde un link
 document.addEventListener('click', (e) => {
-    if (!(modoEdicion && _hayPendientes())) return;
-    const a = e.target.closest && e.target.closest('a[href]');
-    if (!a) return;
-    const href = a.getAttribute('href') || '';
-    if (!href || href.startsWith('#') || href.startsWith('javascript')) return;
-    if (confirm('Tenés cambios sin guardar.\n¿Salir sin guardar? Se perderán los cambios.')) {
-        _navOk = true;   // evita que beforeunload pregunte de nuevo
-    } else {
-        e.preventDefault(); e.stopPropagation();
+    if (!_hayPendientes()) return;   // avisar siempre que haya cambios sin guardar
+    // Links de navegación (sidebar, home) o botón "Cerrar sesión" (sale de la página)
+    const a   = e.target.closest && e.target.closest('a[href]');
+    const btn = e.target.closest && e.target.closest('[onclick*="logout"], .btn-logout');
+    if (!a && !btn) return;
+    if (a && !btn) {
+        const href = a.getAttribute('href') || '';
+        if (!href || href.startsWith('#') || href.startsWith('javascript')) return;
     }
+    if (!confirm('Tenés cambios sin guardar.\n¿Salir sin guardar? Se perderán los cambios.')) {
+        e.preventDefault(); e.stopPropagation();   // queda en la página
+        return;
+    }
+    _navOk = true;   // evita que beforeunload vuelva a preguntar
+    if (btn) {        // logout: cancelar el onclick nativo y disparar una sola vez
+        e.preventDefault(); e.stopPropagation();
+        logout();
+    }
+    // si es link, se deja navegar normalmente
 }, true);
 window.addEventListener('beforeunload', (e) => {
     if (_navOk) return;
-    if (modoEdicion && _hayPendientes()) { e.preventDefault(); e.returnValue = ''; }
+    if (_hayPendientes()) { e.preventDefault(); e.returnValue = ''; }
 });
 
 function toggleIngredientes(prodId) {
