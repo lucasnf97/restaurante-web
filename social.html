@@ -48,7 +48,8 @@
         .adj-chip .x { cursor: pointer; font-weight: 800; color: #6366f1; }
 
         /* Post card */
-        .post { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 18px; overflow: hidden; }
+        .post { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 18px; overflow: hidden; transition: box-shadow .3s; }
+        .post.post-highlight { box-shadow: 0 0 0 3px #4f46e5, 0 2px 10px rgba(0,0,0,.06); }
         .post-head { display: flex; align-items: center; gap: 10px; padding: 13px 16px; }
         .post-avatar { width: 38px; height: 38px; border-radius: 50%; background: #4f46e5; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
         .post-meta { flex: 1; min-width: 0; }
@@ -97,7 +98,7 @@
 
     <div class="composer" style="position:relative;">
         <textarea id="comp-texto" placeholder="Escribí una publicación… (escribí @ para etiquetar a alguien)"
-                  oninput="onComposerInput()"></textarea>
+                  oninput="mentionOnInput(this, document.getElementById('mention-box'), _mencionSel)"></textarea>
         <div class="mention-box" id="mention-box" style="display:none"></div>
         <div class="adj-preview" id="comp-adj"></div>
         <div class="composer-row">
@@ -134,7 +135,9 @@
 <div class="modal-ov" id="modal-editar">
     <div class="modal">
         <h3>Editar publicación</h3>
-        <textarea class="txt" id="edit-texto" style="min-height:90px;resize:vertical"></textarea>
+        <textarea class="txt" id="edit-texto" style="min-height:90px;resize:vertical"
+                  oninput="mentionOnInput(this, document.getElementById('edit-mention-box'), _editMenciones)"></textarea>
+        <div class="mention-box" id="edit-mention-box" style="display:none"></div>
         <label class="lbl">Enlace</label>
         <input type="text" class="txt" id="edit-link" placeholder="https://…">
         <label class="lbl">Adjuntos actuales</label>
@@ -163,12 +166,12 @@ let _composerFiles = [];
 let _lastId = null;         // para paginar
 let _editId = null;
 const _postsCache = {};     // id → post (para el editor)
-// Menciones (@): catálogos + selección + token activo
+// Menciones (@): catálogos + selección (composer y editor) + contexto activo
 let _menUsuarios = [];      // {id, username}
 let _menRoles = [];         // {nombre}
-let _mencionSel = [];       // [{tipo:'u'|'r', id, nombre, display:'@…'}]
-let _mencionCandidatos = [];
-let _mencionTok = null;     // {start, end} del "@…" en edición
+let _mencionSel = [];       // composer: [{tipo:'u'|'r', id, nombre, display:'@…'}]
+let _editMenciones = [];    // editor: idem
+let _mCtx = null;           // {ta, box, sel, tok:{start,end}, cands:[]}
 
 const esc = s => (s == null ? '' : String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
 const iniciales = n => (n || '?').substring(0, 2).toUpperCase();
@@ -190,40 +193,49 @@ async function cargarMenciones() {
     try { _menRoles = (await api.get('/roles')).map(r => ({ nombre: r.nombre })); } catch (e) { _menRoles = []; }
 }
 
-function onComposerInput() {
-    const el = document.getElementById('comp-texto');
-    const box = document.getElementById('mention-box');
-    const caret = el.selectionStart;
-    const before = el.value.slice(0, caret);
+// Genérico: se conecta a un textarea + su dropdown + su array de selección
+function mentionOnInput(ta, box, sel) {
+    _mCtx = { ta, box, sel, tok: null, cands: [] };
+    const caret = ta.selectionStart;
+    const before = ta.value.slice(0, caret);
     const m = before.match(/(^|\s)@([^\s@]*)$/);
-    if (!m) { box.style.display = 'none'; _mencionTok = null; return; }
+    if (!m) { box.style.display = 'none'; return; }
     const q = m[2].toLowerCase();
-    _mencionTok = { start: m.index + m[1].length, end: caret };
+    _mCtx.tok = { start: m.index + m[1].length, end: caret };
     const us = _menUsuarios.filter(u => (u.username || '').toLowerCase().includes(q)).slice(0, 6);
     const rs = _menRoles.filter(r => (r.nombre || '').toLowerCase().includes(q)).slice(0, 4);
-    _mencionCandidatos = us.map(u => ({ tipo: 'u', id: u.id, nombre: u.username }))
+    _mCtx.cands = us.map(u => ({ tipo: 'u', id: u.id, nombre: u.username }))
         .concat(rs.map(r => ({ tipo: 'r', id: null, nombre: r.nombre })));
-    if (!_mencionCandidatos.length) { box.style.display = 'none'; return; }
-    box.innerHTML = _mencionCandidatos.map((c, i) =>
-        `<div class="mention-item" onmousedown="elegirMencion(event, ${i})">
+    if (!_mCtx.cands.length) { box.style.display = 'none'; return; }
+    box.innerHTML = _mCtx.cands.map((c, i) =>
+        `<div class="mention-item" onmousedown="mentionPick(event, ${i})">
             <span>${c.tipo === 'u' ? '👤' : '🏷️'}</span> ${esc(c.nombre)}
             <span class="mi-tag">${c.tipo === 'u' ? 'usuario' : 'rol'}</span>
         </div>`).join('');
     box.style.display = 'block';
 }
 
-function elegirMencion(ev, i) {
+function mentionPick(ev, i) {
     ev.preventDefault();
-    const c = _mencionCandidatos[i];
-    if (!c || !_mencionTok) return;
-    const el = document.getElementById('comp-texto');
-    const val = el.value;
-    el.value = val.slice(0, _mencionTok.start) + '@' + c.nombre + ' ' + val.slice(_mencionTok.end);
-    const pos = _mencionTok.start + c.nombre.length + 2;
-    el.focus(); el.setSelectionRange(pos, pos);
-    _mencionSel.push({ tipo: c.tipo, id: c.id, nombre: c.nombre, display: '@' + c.nombre });
-    document.getElementById('mention-box').style.display = 'none';
-    _mencionTok = null;
+    if (!_mCtx || !_mCtx.tok) return;
+    const c = _mCtx.cands[i];
+    if (!c) return;
+    const ta = _mCtx.ta, val = ta.value;
+    ta.value = val.slice(0, _mCtx.tok.start) + '@' + c.nombre + ' ' + val.slice(_mCtx.tok.end);
+    const pos = _mCtx.tok.start + c.nombre.length + 2;
+    ta.focus(); ta.setSelectionRange(pos, pos);
+    _mCtx.sel.push({ tipo: c.tipo, id: c.id, nombre: c.nombre, display: '@' + c.nombre });
+    _mCtx.box.style.display = 'none';
+    _mCtx.tok = null;
+}
+
+// Devuelve {usuarios, roles} efectivos: menciones cuyo @display sigue en el texto
+function _mencionesEfectivas(sel, texto) {
+    const usados = sel.filter(m => texto.includes(m.display));
+    return {
+        usuarios: [...new Set(usados.filter(m => m.tipo === 'u').map(m => m.id))],
+        roles:    [...new Set(usados.filter(m => m.tipo === 'r').map(m => m.nombre))],
+    };
 }
 
 // ── Feeds (general + grupos) ─────────────────────────────────
@@ -321,10 +333,9 @@ async function publicar() {
         fd.append('contenido', texto);
         fd.append('enlace', link);
         fd.append('grupo_id', _feedGrupoId ? String(_feedGrupoId) : '');
-        // Menciones efectivas: solo las que siguen apareciendo en el texto
-        const usados = _mencionSel.filter(m => texto.includes(m.display));
-        fd.append('menciones_usuarios', JSON.stringify([...new Set(usados.filter(m => m.tipo === 'u').map(m => m.id))]));
-        fd.append('menciones_roles', JSON.stringify([...new Set(usados.filter(m => m.tipo === 'r').map(m => m.nombre))]));
+        const men = _mencionesEfectivas(_mencionSel, texto);
+        fd.append('menciones_usuarios', JSON.stringify(men.usuarios));
+        fd.append('menciones_roles', JSON.stringify(men.roles));
         _composerFiles.forEach(f => fd.append('files', f));
         const p = await apiFetch('/social/posts', { method: 'POST', body: fd });
         // limpiar y mostrar arriba
@@ -364,15 +375,21 @@ async function abrirEditar(id) {
     document.getElementById('edit-adjuntos').innerHTML = _editAdjuntos.length
         ? _editAdjuntos.map(a => `<label class="check-row"><input type="checkbox" value="${esc(a.public_id)}"> Quitar: ${esc(a.nombre)} (${a.tipo})</label>`).join('')
         : '<span style="font-size:12px;color:#9ca3af">Sin adjuntos</span>';
+    _editMenciones = [];   // solo se notifican las menciones agregadas en esta edición
+    document.getElementById('edit-mention-box').style.display = 'none';
     document.getElementById('modal-editar').classList.add('open');
 }
 async function guardarEdicion() {
     if (_editId == null) return;
+    const texto = document.getElementById('edit-texto').value.trim();
     const quitar = [...document.querySelectorAll('#edit-adjuntos input:checked')].map(c => c.value);
     const fd = new FormData();
-    fd.append('contenido', document.getElementById('edit-texto').value.trim());
+    fd.append('contenido', texto);
     fd.append('enlace', document.getElementById('edit-link').value.trim());
     fd.append('quitar', quitar.join(','));
+    const men = _mencionesEfectivas(_editMenciones, texto);
+    fd.append('menciones_usuarios', JSON.stringify(men.usuarios));
+    fd.append('menciones_roles', JSON.stringify(men.roles));
     const nuevos = document.getElementById('edit-files').files;
     Array.from(nuevos).forEach(f => fd.append('files', f));
     try {
@@ -437,16 +454,35 @@ async function eliminarGrupo() {
 
 function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
 
-// Ocultar el dropdown de menciones al salir del textarea (con leve delay para el click)
+// Ocultar los dropdowns de menciones al salir del textarea (leve delay para el click)
 document.getElementById('comp-texto').addEventListener('blur', () => {
     setTimeout(() => { document.getElementById('mention-box').style.display = 'none'; }, 150);
+});
+document.getElementById('edit-texto').addEventListener('blur', () => {
+    setTimeout(() => { document.getElementById('edit-mention-box').style.display = 'none'; }, 150);
 });
 
 // ── Init ─────────────────────────────────────────────────────
 (async function () {
     await cargarMenciones();
     await cargarGrupos();
+    // Link directo a una publicación (desde una notificación): ?post=<id>&grupo=<id>
+    const params = new URLSearchParams(location.search);
+    const postParam = params.get('post');
+    const grupoParam = params.get('grupo');
+    if (grupoParam && _grupos.some(g => g.id === Number(grupoParam))) {
+        _feedGrupoId = Number(grupoParam);
+        renderFeedsBar();
+    }
     await cargarFeed(true);
+    if (postParam) {
+        const el = document.getElementById('post-' + postParam);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('post-highlight');
+            setTimeout(() => el.classList.remove('post-highlight'), 2800);
+        }
+    }
 })();
 </script>
 </body>
