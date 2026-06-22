@@ -1284,7 +1284,25 @@ const CFG_REST_KEY  = 'restaurante_cfg';
 const CFG_LEGAL_KEY = 'legal_cfg';
 const EDIT_MODE_KEY = 'edit_mode';
 
+// Coalescing de /config/sistema: las cargas concurrentes al abrir la página
+// comparten UNA sola request (luego se libera, así los GET de guardado son frescos).
+let _cfgInFlight = null;
+function getCfg() {
+    if (!_cfgInFlight) _cfgInFlight = api.get('/config/sistema').finally(() => { _cfgInFlight = null; });
+    return _cfgInFlight;
+}
+
 // ── Accordion ───────────────────────────────────────────────
+// Lazy-load: la data pesada de cada sección (roles/permisos, dashboard, descuento
+// personal) se carga la PRIMERA vez que se abre, no al cargar la página.
+const _seccionCargada = {};
+function _cargarSeccionLazy(id) {
+    if (_seccionCargada[id]) return;
+    _seccionCargada[id] = true;
+    if (id === 'roles')            cargarPermisosDef().then(cargarRoles);
+    else if (id === 'dashboard')   cargarDashboardCfg();
+    else if (id === 'descpersonal') cargarSeccionDescuentoPersonal();
+}
 function toggleSection(id) {
     const sec = document.getElementById('sec-' + id);
     if (!sec) return;
@@ -1292,13 +1310,16 @@ function toggleSection(id) {
     // Single-open: cerrar las demás (master-detail, una sola a la vez)
     document.querySelectorAll('#cfg-acordeon .cfg-section.open')
             .forEach(s => s.classList.remove('open'));
-    if (!yaAbierta) sec.classList.add('open');
+    if (!yaAbierta) {
+        sec.classList.add('open');
+        _cargarSeccionLazy(id);
+    }
 }
 
 // ── Período de facturación (carga desde API) ─────────────────
 async function cargarPeriodoFacturacion() {
     try {
-        const cfg = await api.get('/config/sistema');
+        const cfg = await getCfg();
         const dia = cfg.dia_inicio_periodo || 1;
         document.getElementById('fact-dia').value = dia;
         const badge = document.getElementById('badge-facturacion');
@@ -1352,7 +1373,7 @@ async function guardarPeriodoFacturacion() {
 // ── Horario de cierre de turno ──────────────────────────────
 async function cargarCorteHorario() {
     try {
-        const cfg  = await api.get('/config/sistema');
+        const cfg  = await getCfg();
         const hora = cfg.hora_corte_turno ?? 6;
         document.getElementById('corte-hora').value            = hora;
         document.getElementById('corte-cierra-fichajes').checked = !!cfg.corte_cierra_fichajes;
@@ -1840,13 +1861,11 @@ async function eliminarPlantilla(tplId) {
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    cargarDatos();
-    cargarSeccionMoneda();
-    cargarSeccionImpuestos();
-    cargarSeccionDescuentoPersonal();
-    cargarPermisosDef().then(cargarRoles);
-    cargarDashboardCfg();
-    // Al volver del editor de dashboard se vuelve con #dashboard
+    cargarDatos();              // restaurante/legal (localStorage) + período + corte (config coalescido)
+    cargarSeccionMoneda();      // badge + form de moneda (config coalescido)
+    cargarSeccionImpuestos();   // badge + form de impuestos (config coalescido)
+    cargarBadgeDescPersonal();  // solo el badge; la sección se carga al abrirla (lazy)
+    // Roles, Dashboard y Descuento personal se cargan al abrir su sección (lazy, ver toggleSection)
     const _initSection = (location.hash === '#dashboard') ? 'dashboard' : 'restaurante';
     toggleSection(_initSection);
 });
@@ -1869,7 +1888,7 @@ function onModoImpositivo() {
 
 async function cargarSeccionImpuestos() {
     try {
-        const cfg = await apiFetch('/config/sistema');
+        const cfg = await getCfg();
         const pct  = parseFloat(cfg.impuesto_pct || 0);
         const modo = cfg.modo_impositivo || 'predeterminado';
 
@@ -2011,6 +2030,17 @@ async function guardarImpuesto() {
 let _dpUsuarios = [], _dpRoles = [], _dpReglas = [];
 function _dpEsc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+// En carga solo el badge (config liviano, coalescido). La data pesada del editor
+// (usuarios + roles para las reglas) se trae al abrir la sección (lazy).
+async function cargarBadgeDescPersonal() {
+    try {
+        const cfg = await getCfg();
+        const chk = document.getElementById('dp-activo');
+        if (chk) chk.checked = !!cfg.desc_personal_activo;
+        actualizarBadgeDescPersonal();
+    } catch (e) {}
+}
+
 async function cargarSeccionDescuentoPersonal() {
     try {
         const [cfg, usuarios, roles] = await Promise.all([
@@ -2117,7 +2147,7 @@ let _tasas = [];   // array de { codigo, nombre, tasa }
 
 async function cargarSeccionMoneda() {
     try {
-        const cfg = await apiFetch('/config/sistema');
+        const cfg = await getCfg();
         _tasas = cfg.tasas_cambio || [];
         _aplicarConfigMoneda(cfg.moneda_codigo, cfg.moneda_simbolo, cfg.moneda_nombre);
         renderTasas();
