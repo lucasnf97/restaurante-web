@@ -31,6 +31,38 @@ function _doLogout() {
     window.location.href = "index.html";
 }
 
+// ── EVENTOS EN TIEMPO REAL (SSE) ──────────────────────────────
+// Abre /eventos/stream y llama onTipo(tipo) cuando el server publica una señal
+// ("pos" / "reservas"). EventSource reconecta solo si se cae. `tipos` filtra
+// (string, array, o null = todos). Devuelve { cerrar() } para limpiar al salir.
+function suscribirEventos(tipos, onTipo) {
+    if (!window.EventSource || !getToken()) return { cerrar() {} };
+    const filtro = Array.isArray(tipos) ? tipos : (tipos ? [tipos] : null);
+    let es = null, cerrado = false;
+
+    function conectar() {
+        if (cerrado) return;
+        const tok = getToken();
+        if (!tok) return;
+        es = new EventSource(`${API_URL}/eventos/stream?token=${encodeURIComponent(tok)}`);
+        es.onmessage = (ev) => {
+            let tipo;
+            try { tipo = JSON.parse(ev.data).tipo; } catch { return; }
+            if (!filtro || filtro.includes(tipo)) {
+                try { onTipo(tipo); } catch (e) { console.error(e); }
+            }
+        };
+        // EventSource reintenta solo ante error/caída; no hace falta lógica extra.
+        es.onerror = () => {};
+    }
+    conectar();
+
+    const cerrar = () => { cerrado = true; if (es) { es.close(); es = null; } };
+    window.addEventListener('pagehide', cerrar);
+    window.addEventListener('beforeunload', cerrar);
+    return { cerrar };
+}
+
 function requireAuth() {
     if (!getToken()) {
         window.location.href = "index.html";

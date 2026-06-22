@@ -876,7 +876,10 @@ async function _autoSync(){
     }catch(e){ /* silencioso: reintenta en el próximo ciclo */ }
     _syncBusy=false;
 }
-setInterval(_autoSync, 15000);   // antes 4s: bajado para reducir carga (redibuja solo si cambió)
+// Tiempo real vía SSE: el server avisa "reservas" cuando otra terminal cambia algo.
+suscribirEventos('reservas', () => _autoSync());
+// Fallback lento por si se cae el stream (cubre además bloqueos de horarios).
+setInterval(_autoSync, 90000);   // antes 4s/15s: con SSE alcanza un poll de respaldo
 
 let isDragging=false, dragStartX=0, scrollStartX=0, dragMoved=false;
 let dragReserva=null, dragStartCX=0, dragStartCY=0, dropCol=-1, dropRow=-1;

@@ -239,8 +239,10 @@ async function init() {
     renderTabs();
     await cargarOrdenes();
 
-    // Auto-refresh cada 30 s
-    _intervalo = setInterval(cargarOrdenes, 30000);
+    // Tiempo real vía SSE: el server avisa "pos" cuando cambia algo de cocina.
+    suscribirEventos('pos', () => cargarOrdenes());
+    // Fallback lento por si se cae el stream (red/proxy); 90 s es suficiente.
+    _intervalo = setInterval(cargarOrdenes, 90000);
 }
 
 // ── Tabs ───────────────────────────────────────────────────────────────────
