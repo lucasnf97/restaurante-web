@@ -47,11 +47,13 @@
         .modal { background: white; border-radius: 16px; padding: 28px 32px; width: 100%; max-width: 520px; max-height: 85vh; overflow-y: auto; }
         .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-        /* Barra de acciones de la confirmación: siempre visible (la lista de ítems puede ser larga). */
+        /* Confirmación: modal en columna → el cuerpo scrollea y el footer queda SIEMPRE
+           pegado al fondo del modal (sin nada visible por debajo). */
+        #modal-confirmacion .modal-conf { display: flex; flex-direction: column; padding: 0; max-height: 88vh; overflow: hidden; }
+        #modal-confirmacion .modal-conf-body { overflow-y: auto; padding: 26px 30px 8px; }
         #modal-confirmacion .modal-footer {
-            position: sticky; bottom: 0; background: #fff; z-index: 5;
-            margin: 16px -32px 0; padding: 14px 32px 4px;
-            border-top: 1px solid #e5e7eb;
+            flex-shrink: 0; margin: 0; padding: 14px 30px;
+            border-top: 1px solid #e5e7eb; background: #fff; border-radius: 0 0 16px 16px;
         }
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 5px; }
@@ -227,7 +229,8 @@
 
 <!-- Modal confirmación factura -->
 <div class="modal-overlay" id="modal-confirmacion">
-    <div class="modal" style="max-width:1080px;">
+    <div class="modal modal-conf" style="max-width:1080px;">
+        <div class="modal-conf-body">
         <h3 id="modal-conf-titulo">✅ Confirmar datos de la factura</h3>
         <p style="font-size:13px;color:#888;margin-bottom:16px;">Revisá y corregí los datos. Cada ítem puede ser un insumo de stock, un servicio o puede omitirse.</p>
 
@@ -310,6 +313,7 @@
                 ✕ Quitar archivo seleccionado
             </button>
         </div>
+        </div><!-- /modal-conf-body -->
 
         <div class="modal-footer">
             <button class="btn btn-secondary" id="btn-ver-factura" onclick="previsualizarFactura()">👁 Ver factura</button>
@@ -809,22 +813,25 @@ function abrirModalConfirmacion(datos) {
         _proveedores.map(p => `<option value="${p.id}" data-nombre="${p.nombre}" data-cuit="${p.cuit || ''}">${p.nombre}${p.cuit ? ' ('+p.cuit+')' : ''}</option>`).join("");
 
     const items = datos.items || [];
-    // Impuesto: % por defecto = config del sistema; modo inicial (sin/con) = lo que
-    // indique la mayoría de los ítems de la IA (incluye_impuesto).
+    // Impuesto: % por defecto = el que la IA detectó en la factura; si no lo detectó,
+    // el % del sistema. Modo inicial (sin/con) = mayoría de los ítems (incluye_impuesto).
     const impGlobalCfg = window.SISTEMA_MONEDA?.impuesto_pct || 0;
+    const impFactura   = (typeof datos.impuesto_pct === 'number') ? datos.impuesto_pct : null;
+    const impDefault   = (impFactura !== null) ? impFactura : impGlobalCfg;
     const conImp = items.filter(it => it.incluye_impuesto === true).length;
     const sinImp = items.filter(it => it.incluye_impuesto === false).length;
     _confModoImp = conImp > sinImp ? 'con' : (sinImp > conImp ? 'sin' : 'con');
     const modoSel = document.getElementById("conf-imp-modo");
     if (modoSel) modoSel.value = _confModoImp;
     const impGlobalInput = document.getElementById("conf-imp-global");
-    if (impGlobalInput) impGlobalInput.value = impGlobalCfg;
+    if (impGlobalInput) impGlobalInput.value = impDefault;
 
     document.getElementById("conf-items").innerHTML = items.map((item, idx) => {
         const tipo = item.tipo === "servicio" ? "servicio" : "insumo";
         // precio_total = total de la línea tal como figura en la factura (fallback al viejo precio_unitario)
         const precioRaw  = item.precio_total ?? item.precio_unitario ?? null;
-        const pct        = (typeof item.impuesto_pct === 'number') ? item.impuesto_pct : impGlobalCfg;
+        // % por ítem: el de la línea si la IA lo dio; si no, el general de la factura; si no, config.
+        const pct        = (typeof item.impuesto_pct === 'number') ? item.impuesto_pct : impDefault;
         // Interpretación uniforme según el modo global (el toggle la cambia para todas las filas).
         const incluyeImp = (_confModoImp === 'con');
         return itemRow(idx, tipo, item.descripcion_factura, item.insumo_id, item.servicio_id || null,
