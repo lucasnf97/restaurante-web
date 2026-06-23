@@ -89,7 +89,8 @@
         .item-desc-original { font-size: 12px; color: #888; font-style: italic; }
         /* Insumo · Cantidad · Marca · Precio s/imp · % imp · Precio c/imp · Precio unitario */
         .item-fields { display: grid; grid-template-columns: 1.7fr 0.65fr 0.7fr 0.85fr 0.5fr 0.85fr 0.8fr; gap: 7px; align-items: end; }
-        .item-fields-servicio { display: grid; grid-template-columns: 2fr 1fr; gap: 7px; }
+        /* Servicio · Monto s/imp · % imp · Monto c/imp */
+        .item-fields-servicio { display: grid; grid-template-columns: 2fr 0.85fr 0.5fr 0.85fr; gap: 7px; align-items: end; }
         .item-field label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; display: block; margin-bottom: 3px; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .item-field input, .item-field select { width: 100%; padding: 5px 8px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 12px; outline: none; }
         .item-field input:focus, .item-field select:focus { border-color: #4f46e5; }
@@ -695,7 +696,24 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
                     <button type="button" onclick="abrirServicioRapido('${idx}')" title="Agregar nuevo servicio" style="flex-shrink:0;padding:7px 10px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;">+ Nuevo</button>
                 </div>
             </div>
-            <div class="item-field"><label>Monto *</label><input type="number" id="ci-monto-${idx}" value="${montoStr}" step="0.01"></div>
+            <div class="item-field">
+                <label>Monto s/imp</label>
+                <input type="number" id="cs-precio-neto-${idx}" value="${netoStr}"
+                       step="0.01" placeholder="Neto" style="border-color:#86efac;"
+                       oninput="onEditSrvNeto('${idx}')">
+            </div>
+            <div class="item-field">
+                <label>% imp</label>
+                <input type="number" id="cs-imp-${idx}" value="${tasa}"
+                       step="0.1" min="0" placeholder="%"
+                       oninput="onEditSrvImp('${idx}')">
+            </div>
+            <div class="item-field">
+                <label>Monto c/imp</label>
+                <input type="number" id="cs-precio-${idx}" value="${brutoStr}"
+                       step="0.01" placeholder="Total c/imp"
+                       oninput="onEditSrvBruto('${idx}')">
+            </div>
         </div>`;
 
     return `
@@ -937,11 +955,13 @@ async function confirmarFactura() {
             if (!cant || cant === 0 || isNaN(cant)) { alert("Cantidad inválida en un ítem de insumo (puede ser negativa para reintegros)."); return; }
             itemsInsumo.push({ insId, cant, precio: precioUnit, precioPagado: precioBruto, marca });
         } else if (tipo === "servicio") {
-            const srvId = parseInt(document.getElementById(`ci-servicio-${idx}`)?.value);
-            const monto = parseFloat(document.getElementById(`ci-monto-${idx}`)?.value);
+            const srvId      = parseInt(document.getElementById(`ci-servicio-${idx}`)?.value);
+            const montoNeto  = parseFloat(document.getElementById(`cs-precio-neto-${idx}`)?.value);
+            const montoBruto = parseFloat(document.getElementById(`cs-precio-${idx}`)?.value) || null;  // total c/imp (para el total de la factura)
             if (!srvId)  { alert("Todos los ítems de servicio deben tener un servicio asignado."); return; }
-            if (!monto || monto === 0 || isNaN(monto)) { alert("Monto inválido en un ítem de servicio (puede ser negativo para reintegros)."); return; }
-            itemsServicio.push({ srvId, monto });
+            if (!montoNeto || montoNeto === 0 || isNaN(montoNeto)) { alert("Monto inválido en un ítem de servicio (puede ser negativo para reintegros)."); return; }
+            // Se guarda el gasto SIN impuesto (neto), coherente con el costo de los insumos.
+            itemsServicio.push({ srvId, monto: montoNeto, montoBruto });
         }
     }
     if (!itemsInsumo.length && !itemsServicio.length) { alert("No hay ítems para registrar (todos omitidos)."); return; }
@@ -1018,8 +1038,8 @@ async function confirmarFactura() {
         }
 
         // Registrar factura
-        // Total de la factura = lo efectivamente pagado (con impuesto) por línea + servicios.
-        const totalDetectado = [...itemsInsumo.map(i => (i.precioPagado || 0)), ...itemsServicio.map(s => s.monto)].reduce((a, b) => a + b, 0);
+        // Total de la factura = lo efectivamente pagado (con impuesto): líneas + servicios.
+        const totalDetectado = [...itemsInsumo.map(i => (i.precioPagado || 0)), ...itemsServicio.map(s => (s.montoBruto || s.monto))].reduce((a, b) => a + b, 0);
         const facturaReg = await api.post("/stock/facturas/registrar", {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
             archivo_nombre: archivoNom,
@@ -1285,14 +1305,13 @@ function cerrarModal(id) {
 // Los modales NO se cierran al hacer clic en el overlay (solo con el botón o la cruz)
 
 // ── Recálculo de precios (fuente = NETO; impuesto por ítem) ────
-// ci-precio-neto = NETO (sin impuesto, fuente de verdad y base del costo).
-// ci-imp        = % de impuesto de esa fila.
-// ci-precio     = TOTAL c/imp (= neto × (1+%)).
-// ci-precio-unit= costo unitario SIN impuesto (= neto / cantidad), solo lectura.
+// Insumos:   ci-precio-neto / ci-imp / ci-precio  (+ ci-precio-unit = neto/cant, ci-cant).
+// Servicios: cs-precio-neto / cs-imp / cs-precio  (sin unitario).
+// En ambos el NETO es la fuente: total c/imp = neto × (1+%). Lo que se guarda
+// (costo del insumo / gasto del servicio) es el NETO; el total c/imp es referencia.
 let _confModoImp = 'sin';   // cómo se interpreta el precio leído de la factura
 
 function _pf(id) { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; }
-function _rowTasa(idx) { const v = parseFloat(document.getElementById(`ci-imp-${idx}`)?.value); return isNaN(v) ? 0 : v; }
 function _setVal(id, v) { const el = document.getElementById(id); if (el) el.value = (v === null ? '' : Math.round(v * 10000) / 10000); }
 
 function _recalcUnit(idx) {
@@ -1306,35 +1325,37 @@ function _recalcUnit(idx) {
     } else el.value = '';
 }
 
-// Editó el NETO → recalcula total c/imp y unitario.
-function onEditNeto(idx) {
-    const neto = _pf(`ci-precio-neto-${idx}`), t = _rowTasa(idx);
-    _setVal(`ci-precio-${idx}`, neto === null ? null : neto * (1 + t / 100));
-    _recalcUnit(idx);
+// Núcleo genérico — pfx 'ci' (insumo) o 'cs' (servicio); fuente 'neto' | 'bruto'.
+function _recalcFila(pfx, idx, fuente) {
+    const t = _pf(`${pfx}-imp-${idx}`) ?? 0;
+    if (fuente === 'bruto') {
+        const bruto = _pf(`${pfx}-precio-${idx}`);
+        _setVal(`${pfx}-precio-neto-${idx}`, bruto === null ? null : bruto / (1 + t / 100));
+    } else {
+        const neto = _pf(`${pfx}-precio-neto-${idx}`);
+        _setVal(`${pfx}-precio-${idx}`, neto === null ? null : neto * (1 + t / 100));
+    }
+    if (pfx === 'ci') _recalcUnit(idx);
 }
-// Editó el TOTAL c/imp → deriva neto (= total / (1+%)) y recalcula unitario.
-function onEditBruto(idx) {
-    const bruto = _pf(`ci-precio-${idx}`), t = _rowTasa(idx);
-    _setVal(`ci-precio-neto-${idx}`, bruto === null ? null : bruto / (1 + t / 100));
-    _recalcUnit(idx);
-}
-// Editó el % → mantiene el neto como fuente y recalcula el total c/imp (unitario no cambia).
-function onEditImp(idx) {
-    const neto = _pf(`ci-precio-neto-${idx}`), t = _rowTasa(idx);
-    _setVal(`ci-precio-${idx}`, neto === null ? null : neto * (1 + t / 100));
-    _recalcUnit(idx);
-}
-// Editó la cantidad → recalcula solo el unitario.
-function onEditCant(idx) { _recalcUnit(idx); }
 
-// Header: aplica un % a TODAS las filas (recalcula el total c/imp de cada una desde su neto).
+// Insumos
+function onEditNeto(idx)  { _recalcFila('ci', idx, 'neto'); }
+function onEditBruto(idx) { _recalcFila('ci', idx, 'bruto'); }
+function onEditImp(idx)   { _recalcFila('ci', idx, 'neto'); }   // % cambia → neto sigue siendo la fuente
+function onEditCant(idx)  { _recalcUnit(idx); }
+// Servicios
+function onEditSrvNeto(idx)  { _recalcFila('cs', idx, 'neto'); }
+function onEditSrvBruto(idx) { _recalcFila('cs', idx, 'bruto'); }
+function onEditSrvImp(idx)   { _recalcFila('cs', idx, 'neto'); }
+
+// Header: aplica un % a TODAS las filas (insumos y servicios) y recalcula c/imp desde el neto.
 function aplicarImpGlobal() {
     const g = parseFloat(document.getElementById('conf-imp-global')?.value);
     if (isNaN(g)) return;
-    document.querySelectorAll("[id^='ci-imp-']").forEach(inp => {
-        const idx = inp.id.replace('ci-imp-', '');
+    document.querySelectorAll("[id^='ci-imp-'],[id^='cs-imp-']").forEach(inp => {
         inp.value = g;
-        onEditImp(idx);
+        if (inp.id.startsWith('cs-imp-')) _recalcFila('cs', inp.id.replace('cs-imp-', ''), 'neto');
+        else                              _recalcFila('ci', inp.id.replace('ci-imp-', ''), 'neto');
     });
 }
 
@@ -1342,21 +1363,22 @@ function aplicarImpGlobal() {
 function aplicarModoImp() {
     const nuevo = document.getElementById('conf-imp-modo')?.value || 'sin';
     if (nuevo === _confModoImp) return;
-    document.querySelectorAll("[id^='ci-precio-neto-']").forEach(netoEl => {
-        const idx = netoEl.id.replace('ci-precio-neto-', '');
-        const t = _rowTasa(idx);
+    document.querySelectorAll("[id^='ci-precio-neto-'],[id^='cs-precio-neto-']").forEach(netoEl => {
+        const pfx = netoEl.id.startsWith('cs-') ? 'cs' : 'ci';
+        const idx = netoEl.id.replace(`${pfx}-precio-neto-`, '');
+        const t = _pf(`${pfx}-imp-${idx}`) ?? 0;
         if (nuevo === 'con') {
             // El número que se veía como neto es en realidad el total c/imp.
-            const v = _pf(`ci-precio-neto-${idx}`);
-            _setVal(`ci-precio-${idx}`, v);
-            _setVal(`ci-precio-neto-${idx}`, v === null ? null : v / (1 + t / 100));
+            const v = _pf(`${pfx}-precio-neto-${idx}`);
+            _setVal(`${pfx}-precio-${idx}`, v);
+            _setVal(`${pfx}-precio-neto-${idx}`, v === null ? null : v / (1 + t / 100));
         } else {
             // El número que se veía como total c/imp es en realidad el neto.
-            const v = _pf(`ci-precio-${idx}`);
-            _setVal(`ci-precio-neto-${idx}`, v);
-            _setVal(`ci-precio-${idx}`, v === null ? null : v * (1 + t / 100));
+            const v = _pf(`${pfx}-precio-${idx}`);
+            _setVal(`${pfx}-precio-neto-${idx}`, v);
+            _setVal(`${pfx}-precio-${idx}`, v === null ? null : v * (1 + t / 100));
         }
-        _recalcUnit(idx);
+        if (pfx === 'ci') _recalcUnit(idx);
     });
     _confModoImp = nuevo;
 }
