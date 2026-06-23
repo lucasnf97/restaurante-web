@@ -464,6 +464,10 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .perm-seg label:first-of-type { border-left:none; }
 .perm-seg input:checked + label { background:#4f46e5; color:#fff; }
 .perm-seg input:disabled + label { cursor:not-allowed; opacity:.55; }
+/* Estado SIN GUARDAR: la opción nueva queda verde y la anterior gris, hasta guardar
+   (al guardar vuelven a azul = seleccionada / blanco = no seleccionada). */
+.perm-seg label.pend-new { background:#16a34a !important; color:#fff !important; }
+.perm-seg label.pend-old { background:#e5e7eb !important; color:#6b7280 !important; }
 
 .editor-actions {
     display:flex; align-items:center; gap:10px;
@@ -1300,7 +1304,33 @@ function _cargarSeccionLazy(id) {
     else if (id === 'dashboard')   cargarDashboardCfg();
     else if (id === 'descpersonal') cargarSeccionDescuentoPersonal();
 }
+// ── Advertencia al navegar con cambios de rol sin guardar ─────
+let _navOkCfg = false;
+document.addEventListener('click', (e) => {
+    if (_navOkCfg) return;
+    if (!_rolTieneCambios()) return;
+    const a   = e.target.closest && e.target.closest('a[href]');
+    const btn = e.target.closest && e.target.closest('[onclick*="logout"], .btn-logout');
+    if (!a && !btn) return;
+    if (a && !btn) {
+        const href = a.getAttribute('href') || '';
+        if (!href || href.startsWith('#') || href.startsWith('javascript')) return;
+    }
+    if (!confirm('Tenés cambios sin guardar en este rol.\n¿Salir sin guardar? Se perderán los cambios.')) {
+        e.preventDefault(); e.stopPropagation();
+        return;
+    }
+    _navOkCfg = true;
+    if (btn) { e.preventDefault(); e.stopPropagation(); logout(); }
+}, true);
+window.addEventListener('beforeunload', (e) => {
+    if (_navOkCfg) return;
+    if (_rolTieneCambios()) { e.preventDefault(); e.returnValue = ''; }
+});
+
 function toggleSection(id) {
+    // No dejar cambiar de sección con cambios de rol sin guardar (sin confirmar antes).
+    if (!_descartarCambiosRol()) return;
     const sec = document.getElementById('sec-' + id);
     if (!sec) return;
     const yaAbierta = sec.classList.contains('open');
@@ -2395,7 +2425,8 @@ async function cargarPermisosDef() {
 }
 
 let _roles    = [];
-let _rolSel   = null;   // objeto rol seleccionado
+let _rolSel   = null;   // objeto rol seleccionado (COPIA editable)
+let _rolOriginal = null; // snapshot del rol como está guardado (para detectar cambios sin guardar)
 let _permTab  = null;   // solapa de permisos activa: null | 'web' | 'programa'
 
 // ═══ ROLES ══════════════════════════════════════════════════
@@ -2422,15 +2453,21 @@ function renderListaRoles() {
 }
 
 function seleccionarRol(id) {
-    _rolSel = _roles.find(r => r.id === id) || null;
+    if (!_descartarCambiosRol()) return;   // hay cambios sin guardar → pedir confirmación
+    const found = _roles.find(r => r.id === id) || null;
+    // Copia editable (no mutar el array _roles directamente) + snapshot del original.
+    _rolSel = found ? JSON.parse(JSON.stringify(found)) : null;
     if (_rolSel && !_rolSel.permisos) _rolSel.permisos = {};
+    _rolOriginal = _rolSel ? JSON.parse(JSON.stringify(_rolSel)) : null;
     _permTab = null;   // por defecto ninguna solapa seleccionada
     renderListaRoles();
     renderEditorRol();
 }
 
 function nuevoRol() {
+    if (!_descartarCambiosRol()) return;
     _rolSel = { id: null, nombre: '', descripcion: '', permisos: {}, es_sistema: false, pantalla_default: 'dashboard' };
+    _rolOriginal = JSON.parse(JSON.stringify(_rolSel));
     _permTab = null;
     renderListaRoles();
     renderEditorRol();
@@ -2518,7 +2555,7 @@ function _permPanelHtml(esSistema) {
         const name = `nv-${_permTab}-${pag}`;
         const opt = (val, txt) =>
             `<input type="radio" id="${name}-${val}" name="${name}" ${cur===val?'checked':''} ${dis}`
-          + ` onchange="_permNivel('${verKey}','${editarKey}','${val}')"><label for="${name}-${val}">${txt}</label>`;
+          + ` onchange="_permNivel('${verKey}','${editarKey}','${val}','${pag}')"><label class="${_clsSegNivel(verKey,editarKey,val,cur)}" for="${name}-${val}">${txt}</label>`;
         return `<div class="perm-seg">${opt('none','Sin acceso')}${opt('ver','Ver')}${opt('editar','Editar')}</div>`;
     };
     // Control de 2 estados (No / Sí) — mismo ancho que el de 3 estados
@@ -2526,7 +2563,7 @@ function _permPanelHtml(esSistema) {
         const name = `sw-${_permTab}-${key}`;
         const opt = (val, txt, checked) =>
             `<input type="radio" id="${name}-${val}" name="${name}" ${checked?'checked':''} ${dis}`
-          + ` onchange="_permSimple('${key}', ${val==='on'})"><label for="${name}-${val}">${txt}</label>`;
+          + ` onchange="_permSimple('${key}', ${val==='on'})"><label class="${_clsSeg2(key, val==='on')}" for="${name}-${val}">${txt}</label>`;
         return `<div class="perm-seg">${opt('off','No',!on)}${opt('on','Sí',on)}</div>`;
     };
     // Control Ver/Editar (acceso libre: todos entran; solo se elige el nivel)
@@ -2534,7 +2571,7 @@ function _permPanelHtml(esSistema) {
         const name = `nv-${_permTab}-${pag}`;
         const opt = (val, txt) =>
             `<input type="radio" id="${name}-${val}" name="${name}" ${cur===val?'checked':''} ${dis}`
-          + ` onchange="_permNivel('${verKey}','${editarKey}','${val}')"><label for="${name}-${val}">${txt}</label>`;
+          + ` onchange="_permNivel('${verKey}','${editarKey}','${val}','${pag}')"><label class="${_clsSegNivel(verKey,editarKey,val,cur)}" for="${name}-${val}">${txt}</label>`;
         return `<div class="perm-seg">${opt('ver','Ver')}${opt('editar','Editar')}</div>`;
     };
 
@@ -2620,18 +2657,91 @@ function setPermTab(t) {
     renderEditorRol();
 }
 
+// ── Estado "sin guardar" de los permisos ──────────────────────
+// Verde = opción nueva pendiente; gris = opción anterior; hasta guardar.
+function _permOrigOn(key) {
+    return !!(_rolOriginal && _rolOriginal.permisos && _rolOriginal.permisos[key]);
+}
+function _permOrigNivel(verKey, editarKey) {
+    const o = (_rolOriginal && _rolOriginal.permisos) || {};
+    return o[editarKey] ? 'editar' : (o[verKey] ? 'ver' : 'none');
+}
+function _marcarSeg2(key) {
+    const name = `sw-${_permTab}-${key}`;
+    const on = !!(_rolSel && _rolSel.permisos && _rolSel.permisos[key]);
+    const changed = on !== _permOrigOn(key);
+    const offLbl = document.querySelector(`label[for="${name}-off"]`);
+    const onLbl  = document.querySelector(`label[for="${name}-on"]`);
+    [offLbl, onLbl].forEach(l => { if (l) l.classList.remove('pend-new', 'pend-old'); });
+    if (changed) {
+        if (on) { onLbl && onLbl.classList.add('pend-new');  offLbl && offLbl.classList.add('pend-old'); }
+        else    { offLbl && offLbl.classList.add('pend-new'); onLbl  && onLbl.classList.add('pend-old'); }
+    }
+}
+function _marcarSegNivel(verKey, editarKey, pag) {
+    const name = `nv-${_permTab}-${pag}`;
+    const p = (_rolSel && _rolSel.permisos) || {};
+    const cur = p[editarKey] ? 'editar' : (p[verKey] ? 'ver' : 'none');
+    const orig = _permOrigNivel(verKey, editarKey);
+    const changed = cur !== orig;
+    ['none', 'ver', 'editar'].forEach(val => {
+        const l = document.querySelector(`label[for="${name}-${val}"]`);
+        if (!l) return;
+        l.classList.remove('pend-new', 'pend-old');
+        if (changed) {
+            if (val === cur) l.classList.add('pend-new');
+            else if (val === orig) l.classList.add('pend-old');
+        }
+    });
+}
+// Clase inicial de una opción al renderizar (refleja el estado pendiente tras un re-render).
+function _clsSeg2(key, valOn) {
+    const on = !!(_rolSel && _rolSel.permisos && _rolSel.permisos[key]);
+    if (on === _permOrigOn(key)) return '';
+    const esSeleccion = (valOn === on);
+    return esSeleccion ? 'pend-new' : 'pend-old';
+}
+function _clsSegNivel(verKey, editarKey, val, cur) {
+    const orig = _permOrigNivel(verKey, editarKey);
+    if (cur === orig) return '';
+    if (val === cur) return 'pend-new';
+    if (val === orig) return 'pend-old';
+    return '';
+}
+
 // Control de 3 estados: editar implica ver.
-function _permNivel(verKey, editarKey, nivel) {
+function _permNivel(verKey, editarKey, nivel, pag) {
     if (!_rolSel) return;
     if (!_rolSel.permisos) _rolSel.permisos = {};
     _rolSel.permisos[verKey]    = (nivel === 'ver' || nivel === 'editar');
     _rolSel.permisos[editarKey] = (nivel === 'editar');
+    if (pag) _marcarSegNivel(verKey, editarKey, pag);
 }
 
 function _permSimple(key, checked) {
     if (!_rolSel) return;
     if (!_rolSel.permisos) _rolSel.permisos = {};
     _rolSel.permisos[key] = !!checked;
+    _marcarSeg2(key);
+}
+
+// ¿Hay cambios sin guardar en el rol en edición?
+function _rolTieneCambios() {
+    if (!_rolSel || !_rolOriginal) return false;
+    if (_rolSel.es_sistema) return false;
+    _capturarCamposRol();
+    if ((_rolSel.nombre || '') !== (_rolOriginal.nombre || '')) return true;
+    if ((_rolSel.descripcion || '') !== (_rolOriginal.descripcion || '')) return true;
+    if ((_rolSel.pantalla_default || '') !== (_rolOriginal.pantalla_default || '')) return true;
+    const a = _rolSel.permisos || {}, b = _rolOriginal.permisos || {};
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const k of keys) { if (!!a[k] !== !!b[k]) return true; }
+    return false;
+}
+// Confirmar descartar cambios antes de una acción que perdería el estado.
+function _descartarCambiosRol() {
+    if (!_rolTieneCambios()) return true;
+    return confirm('Tenés cambios sin guardar en este rol.\n¿Descartarlos y continuar?');
 }
 
 function _leerPermisosRol() {
@@ -2661,9 +2771,11 @@ async function guardarRol() {
             const res = await apiFetch('/roles', { method:'POST', body: JSON.stringify(payload) });
         }
         await cargarRoles();
-        // reseleccionar el rol por nombre
+        // Guardado OK → ya no hay cambios pendientes (los toggles vuelven a azul/blanco).
+        _rolSel = null; _rolOriginal = null;
         const encontrado = _roles.find(r => r.nombre === nombre);
         if (encontrado) seleccionarRol(encontrado.id);
+        if (window.UI) UI.toast('Cambios guardados', 'success');
     } catch(e) {
         alert('Error al guardar rol: ' + (e.message || e));
     }
@@ -2675,7 +2787,7 @@ async function eliminarRol(id) {
     if (!confirm(`¿Eliminar el rol "${r.nombre}"? Esta acción no se puede deshacer.`)) return;
     try {
         await apiFetch(`/roles/${id}`, { method:'DELETE' });
-        _rolSel = null;
+        _rolSel = null; _rolOriginal = null;
         await cargarRoles();
         renderEditorRol();
     } catch(e) {
