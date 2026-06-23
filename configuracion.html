@@ -2376,6 +2376,7 @@ function confirmarAddTasa() {
 // que es la ÚNICA fuente de verdad (mismas claves que las columnas de `usuarios`). Así
 // la UI nunca se desincroniza de lo que realmente se propaga a los usuarios.
 let PERMISOS_DEF = [];
+let _areasCfg = [];   // áreas del restaurante → opciones de "pantalla de inicio" del ejecutable
 
 async function cargarPermisosDef() {
     try {
@@ -2385,6 +2386,11 @@ async function cargarPermisosDef() {
         }
     } catch (e) {
         console.warn('No se pudieron cargar los permisos:', e);
+    }
+    try {
+        _areasCfg = await apiFetch('/productos/areas') || [];
+    } catch (e) {
+        _areasCfg = [];
     }
 }
 
@@ -2576,16 +2582,23 @@ function _permPanelHtml(esSistema) {
     // efecto ahí). Se muestra arriba de los permisos.
     let extra = '';
     if (!esWeb) {
+        const pd    = (r.pantalla_default || 'dashboard');
+        const pdLow = pd.toLowerCase();
+        // Una opción por área (pantalla de recepción de órdenes) + Mesas + Panel.
+        const areaOpts = _areasCfg.map(a => {
+            const val = `cocina_${a.nombre}`;
+            const sel = pdLow === val.toLowerCase() ? 'selected' : '';   // compat con valores viejos (cocina_cocina/cocina_bar)
+            return `<option value="${val}" ${sel}>Recepción — ${a.nombre}</option>`;
+        }).join('');
         extra = `
             <div class="cfg-field" style="margin-bottom:14px;">
                 <label class="cfg-label">Pantalla de inicio (ejecutable)</label>
                 <select class="cfg-input" id="re-pantalla" ${dis} style="cursor:pointer;">
-                    <option value="dashboard"     ${(r.pantalla_default||'dashboard')==='dashboard'     ? 'selected' : ''}>Panel principal</option>
-                    <option value="mesas"         ${(r.pantalla_default||'')==='mesas'                  ? 'selected' : ''}>Selección de mesa</option>
-                    <option value="cocina_cocina" ${(r.pantalla_default||'')==='cocina_cocina'           ? 'selected' : ''}>Cocina (preselec. Cocina)</option>
-                    <option value="cocina_bar"    ${(r.pantalla_default||'')==='cocina_bar'              ? 'selected' : ''}>Cocina (preselec. Bar)</option>
+                    <option value="dashboard" ${pd==='dashboard' ? 'selected' : ''}>Panel principal</option>
+                    <option value="mesas"     ${pd==='mesas'     ? 'selected' : ''}>Selección de mesa</option>
+                    ${areaOpts}
                 </select>
-                <span class="cfg-hint">Pantalla a la que accede este rol al iniciar sesión en el ejecutable.</span>
+                <span class="cfg-hint">Pantalla a la que accede este rol al iniciar sesión en el ejecutable. Cada área es una pantalla de recepción de órdenes.</span>
             </div>`;
     }
 

@@ -300,7 +300,11 @@
                                   style="display:none;cursor:pointer;font-size:13px;margin-left:6px;opacity:.7;"
                                   title="Gestionar categorías">✏️</span>
                         </th>
-                        <th>Área</th>
+                        <th>Área
+                            <span id="btn-gestionar-areas" onclick="abrirGestionAreas()"
+                                  style="display:none;cursor:pointer;font-size:13px;margin-left:6px;opacity:.7;"
+                                  title="Gestionar áreas">✏️</span>
+                        </th>
                         <th>Precio
                             <span id="btn-precios-masivo" onclick="abrirModalPrecios()"
                                   style="display:none;cursor:pointer;font-size:13px;margin-left:5px;opacity:.7;"
@@ -643,6 +647,41 @@
     </div>
 </div>
 
+<!-- ── MODAL GESTIÓN ÁREAS ── -->
+<div class="modal-overlay" id="modal-gestion-areas">
+    <div class="modal" style="max-width:480px">
+        <h3>Gestionar áreas</h3>
+        <p style="font-size:12px;color:#888;margin:-6px 0 12px;">Cada área es una pantalla de recepción de órdenes en el ejecutable.</p>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <input type="text" id="ga-nuevo-nombre" placeholder="Nombre de nueva área..."
+                   style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;"
+                   onkeydown="if(event.key==='Enter')gaAgregarArea()">
+            <button class="btn btn-primary btn-sm" onclick="gaAgregarArea()">+ Agregar</button>
+        </div>
+        <div id="ga-lista" style="max-height:380px;overflow-y:auto;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-gestion-areas')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── MODAL MOVER PRODUCTOS (al eliminar un área en uso) ── -->
+<div class="modal-overlay" id="modal-mover-area">
+    <div class="modal" style="max-width:520px">
+        <h3>⚠️ El área está en uso</h3>
+        <p id="ma-msg" style="font-size:13px;color:#555;margin-bottom:10px;"></p>
+        <div id="ma-lista" style="max-height:200px;overflow-y:auto;background:#f9fafb;border:1px solid #eee;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:13px;line-height:1.7;"></div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:13px;font-weight:600;color:#374151;">Mover todos los productos a:</label>
+            <select id="ma-destino" style="width:100%;padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;margin-top:4px;"></select>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-mover-area')">Cancelar</button>
+            <button class="btn btn-danger" onclick="gaConfirmarMoverEliminar()">Mover y eliminar área</button>
+        </div>
+    </div>
+</div>
+
 <!-- ── MODAL VER RECETA ── -->
 <div class="modal-overlay" id="modal-ver-receta">
     <div class="modal" style="max-width:880px;width:96vw;max-height:93vh;padding:20px;display:flex;flex-direction:column;gap:12px;">
@@ -780,15 +819,14 @@
 <script src="js/moneda.js"></script>
 <script>
 requireAuth();
-requirePermiso('edicion_carta', 'ver_carta');
-if (!hasPermiso('edicion_carta')) document.body.classList.add('solo-vista');
+requirePermiso('edicion_carta');   // único permiso de la carta: quien entra, edita
 
 let productos = [], combos = [], categorias = [], areas = [];
 let prodSel = null, comboSel = null;
 let editandoProdId = null, editandoComboId = null, editandoCatId = null;
 let promoActual = null;
 let tabActual = 'productos';
-let modoEdicion = false;
+let modoEdicion = true;   // la carta siempre se ve en modo edición (lápices visibles)
 let _expandedProdId = null;
 let _productosFiltrados = null;
 
@@ -812,6 +850,8 @@ async function init() {
         api.get('/stock/recetas').catch(() => []),
     ]);
     poblarSelects();
+    _toolsEdicion(true);     // herramientas de edición siempre visibles
+    _actualizarBtnModo();
     await cargarProductos();
 }
 
@@ -1054,31 +1094,25 @@ function _hayPendientes() { return Object.keys(_pendientes).length > 0; }
 
 function _actualizarBtnModo() {
     const btn = document.getElementById('btn-modo-edicion');
-    if (modoEdicion) {
-        const n = Object.keys(_pendientes).length;
-        btn.textContent = n ? `💾 Guardar y salir (${n})` : '💾 Guardar y salir';
-        btn.classList.add('active');
-    } else {
-        btn.textContent = '✏️ Edición';
-        btn.classList.remove('active');
-    }
+    if (!btn) return;
+    // La carta siempre está en edición; el botón solo GUARDA y se activa al haber cambios.
+    const n = Object.keys(_pendientes).length;
+    btn.textContent = n ? `💾 Guardar (${n})` : '✓ Sin cambios';
+    btn.disabled = (n === 0);
+    btn.classList.toggle('active', n > 0);
 }
 
 function _toolsEdicion(show) {
     document.getElementById('bar-exportar').style.display = show ? '' : 'none';
     document.getElementById('bar-importar').style.display = show ? '' : 'none';
     document.getElementById('btn-gestionar-cats').style.display = show ? '' : 'none';
+    const ga = document.getElementById('btn-gestionar-areas'); if (ga) ga.style.display = show ? '' : 'none';
     document.getElementById('btn-precios-masivo').style.display = show ? '' : 'none';
 }
 
 function toggleModoEdicion() {
-    if (modoEdicion) { guardarYSalir(); return; }   // en edición, el botón guarda y sale
-    modoEdicion = true;
-    _pendientes = {};
-    _navOk = false;   // reset del guard de "salir sin guardar"
-    _toolsEdicion(true);
-    _actualizarBtnModo();
-    renderProductos(_productosFiltrados || productos);
+    // La carta siempre está en modo edición → el botón solo guarda los cambios pendientes.
+    guardarYSalir();
 }
 
 function _salirModoEdicion() {
@@ -1099,7 +1133,7 @@ async function _guardarRecetaApi(pid, items) {
 }
 
 async function guardarYSalir() {
-    if (!_hayPendientes()) { _salirModoEdicion(); return; }
+    if (!_hayPendientes()) return;   // nada que guardar
     const btn = document.getElementById('btn-modo-edicion');
     btn.disabled = true; btn.textContent = 'Guardando…';
     const total = Object.keys(_pendientes).length;
@@ -1129,8 +1163,10 @@ async function guardarYSalir() {
             window.UI && UI.overlayText(`Guardando cambios… (${n}/${total})`);
         }
         _pendientes = {};
-        await cargarProductos();
-        _salirModoEdicion();
+        await cargarProductos();   // re-render (sigue en modo edición, lápices visibles)
+        const btnOk = document.getElementById('btn-modo-edicion');
+        if (btnOk) btnOk.disabled = false;
+        _actualizarBtnModo();
         // Notificación de los cambios efectivamente guardados.
         const partes = [];
         if (resumen.editados)   partes.push(`${resumen.editados} editado${resumen.editados > 1 ? 's' : ''}`);
@@ -2144,6 +2180,118 @@ async function guardarCombosHab() {
         document.getElementById('fc-categoria').innerHTML  = `<option value="">Sin categoría</option>${opts}`;
         const rf = document.getElementById('rec-filtro-cat');
         if (rf) rf.innerHTML = `<option value="">Todas las categorías</option>${opts}`;
+    }
+
+    // ── GESTIÓN DE ÁREAS (espeja la de categorías; el borrado ofrece mover productos) ──
+    let _gaEliminandoId = null;
+
+    function abrirGestionAreas() {
+        document.getElementById('ga-nuevo-nombre').value = '';
+        _gaRenderLista();
+        document.getElementById('modal-gestion-areas').classList.add('active');
+    }
+
+    function _gaRenderLista() {
+        const cont = document.getElementById('ga-lista');
+        if (!areas.length) {
+            cont.innerHTML = '<p style="color:#888;text-align:center;padding:16px;">Sin áreas</p>';
+            return;
+        }
+        cont.innerHTML = areas.map(a => `
+            <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;
+                        background:#f9fafb;border-radius:8px;margin-bottom:6px;border:1px solid #f0f0f0;">
+                <span id="ga-sp-${a.id}" style="flex:1;font-size:14px;font-weight:600;">${a.nombre}</span>
+                <input type="text" id="ga-in-${a.id}" value="${a.nombre}"
+                       style="flex:1;display:none;padding:5px 8px;border:1.5px solid #4f46e5;border-radius:6px;font-size:13px;outline:none;"
+                       onkeydown="if(event.key==='Enter')gaGuardarEdicion(${a.id})">
+                <button class="btn btn-secondary btn-sm" id="ga-eb-${a.id}" onclick="gaIniciarEdicion(${a.id})">✏️</button>
+                <button class="btn btn-success btn-sm"   id="ga-sb-${a.id}" style="display:none" onclick="gaGuardarEdicion(${a.id})">✓</button>
+                <button class="btn btn-danger btn-sm"    onclick="gaEliminarArea(${a.id})">✕</button>
+            </div>`).join('');
+    }
+
+    function gaIniciarEdicion(id) {
+        document.getElementById(`ga-sp-${id}`).style.display = 'none';
+        document.getElementById(`ga-in-${id}`).style.display = '';
+        document.getElementById(`ga-eb-${id}`).style.display = 'none';
+        document.getElementById(`ga-sb-${id}`).style.display = '';
+        document.getElementById(`ga-in-${id}`).focus();
+    }
+
+    async function gaGuardarEdicion(id) {
+        const nombre = document.getElementById(`ga-in-${id}`).value.trim();
+        if (!nombre) return;
+        try {
+            await api.patch(`/productos/areas/${id}`, { nombre });
+            const a = areas.find(x => x.id === id);
+            if (a) a.nombre = nombre;
+            _gaRenderLista();
+            _actualizarSelectsAreas();
+            await cargarProductos();   // la columna Área de los productos refleja el nuevo nombre
+        } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    async function gaAgregarArea() {
+        const nombre = document.getElementById('ga-nuevo-nombre').value.trim();
+        if (!nombre) { alert('Escribí un nombre.'); return; }
+        try {
+            await api.post('/productos/areas', { nombre });
+            document.getElementById('ga-nuevo-nombre').value = '';
+            areas = await api.get('/productos/areas');
+            _gaRenderLista();
+            _actualizarSelectsAreas();
+        } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    async function gaEliminarArea(id) {
+        const enUso = productos.filter(p => p.area_id === id);
+        if (!enUso.length) {
+            if (!confirm('¿Eliminar esta área?')) return;
+            try {
+                await api.delete(`/productos/areas/${id}`);
+                areas = areas.filter(a => a.id !== id);
+                _gaRenderLista();
+                _actualizarSelectsAreas();
+            } catch(e) { alert('Error: ' + e.message); }
+            return;
+        }
+        // Hay productos usando el área → ventana para moverlos a otra.
+        const otras = areas.filter(a => a.id !== id);
+        if (!otras.length) {
+            alert('No hay otra área a la cual mover los productos. Creá otra área primero.');
+            return;
+        }
+        _gaEliminandoId = id;
+        const areaNom = (areas.find(a => a.id === id) || {}).nombre || '';
+        document.getElementById('ma-msg').textContent =
+            `El área "${areaNom}" tiene ${enUso.length} producto(s) asignado(s). Para eliminarla, movelos a otra área:`;
+        document.getElementById('ma-lista').innerHTML = enUso.map(p => `<div>• ${p.nombre}</div>`).join('');
+        document.getElementById('ma-destino').innerHTML =
+            otras.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
+        document.getElementById('modal-mover-area').classList.add('active');
+    }
+
+    async function gaConfirmarMoverEliminar() {
+        const id = _gaEliminandoId;
+        const destino = parseInt(document.getElementById('ma-destino').value);
+        if (!id || !destino) return;
+        try {
+            await api.delete(`/productos/areas/${id}?mover_a=${destino}`);
+            cerrarModal('modal-mover-area');
+            _gaEliminandoId = null;
+            areas = await api.get('/productos/areas');
+            _gaRenderLista();
+            _actualizarSelectsAreas();
+            await cargarProductos();   // varios productos cambiaron de área
+            if (window.UI) UI.toast('Productos movidos y área eliminada', 'success');
+        } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    function _actualizarSelectsAreas() {
+        const opts = areas.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
+        const fa = document.getElementById('filtro-area'); if (fa) fa.innerHTML = `<option value="">Todas las áreas</option>${opts}`;
+        const fp = document.getElementById('fp-area');     if (fp) fp.innerHTML = `<option value="">Sin área</option>${opts}`;
+        const fc = document.getElementById('fc-area');     if (fc) fc.innerHTML = `<option value="">Sin área</option>${opts}`;
     }
 
     // (Legacy helpers preserved — used by abrirModalRecetaNueva flow)
