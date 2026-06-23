@@ -338,6 +338,10 @@
                                 onchange="renderMenuSidebar()">
                             <option value="">Todas las categorías</option>
                         </select>
+                        <button class="btn btn-secondary" onclick="agregarAgrupacion()"
+                                style="font-size:12px;padding:7px 10px;border:1.5px dashed #c4b5fd;color:#7c3aed;background:#faf5ff;font-weight:700;">
+                            🗂️ ＋ Agrupación
+                        </button>
                         <div id="menu-prod-lista" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
                     </div>
                 </div>
@@ -397,6 +401,26 @@
 </div>
 
 <!-- Modal página de menú -->
+<!-- ── SUB-EDITOR DE AGRUPACIÓN (reordenar / renombrar / color / quitar) ── -->
+<div class="modal-overlay" id="modal-grupo" onclick="if(event.target===this){cerrarModal('modal-grupo');renderMenuGrid();}">
+    <div class="modal" style="max-width:620px;">
+        <h3 style="display:flex;align-items:center;gap:8px;">🗂️
+            <input type="text" id="grupo-nombre" oninput="onGrupoNombre()" placeholder="Nombre de la agrupación"
+                   style="flex:1;font-size:16px;font-weight:700;border:1.5px solid #e0e0e0;border-radius:8px;padding:6px 10px;outline:none;">
+        </h3>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="font-size:12px;color:#666;font-weight:600;">Color de la etiqueta:</span>
+            <div id="grupo-colores" style="display:flex;gap:6px;"></div>
+        </div>
+        <div style="font-size:12px;color:#888;margin-bottom:8px;">Arrastrá los ítems para reordenarlos (se acomodan en cuadrado).</div>
+        <div id="grupo-miembros" style="display:grid;gap:8px;margin-bottom:8px;"></div>
+        <div style="font-size:11px;color:#9ca3af;">Para sumar productos: cerrá esta ventana y arrastralos a la celda de la agrupación, o seleccioná la celda y hacé clic en el producto.</div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="cerrarModal('modal-grupo');renderMenuGrid();">Listo</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="modal-pagina">
     <div class="modal">
         <h3 id="modal-pagina-titulo">Nueva página de menú</h3>
@@ -837,6 +861,8 @@ let _menuPagId = null;
 let _menuLayout = null;
 let _menuLocalItems  = {};   // "f,c" → valor: >0 prodId, <0 -comboId
 let _menuLocalColors = {};   // "f,c" → color key
+let _menuGrupos      = {};   // "f,c" → { nombre, miembros:[{val,color}] }  (celda = agrupación)
+let _grupoAbierto    = null; // "f,c" de la agrupación abierta en el sub-editor
 let _menuProdColors  = {};   // prodId/comboKey → color key seleccionado en sidebar
 let _menuCeldaSel = null;
 let _menuDragProdId = null;   // >0 producto, <0 combo (-comboId)
@@ -929,10 +955,16 @@ async function seleccionarPagina(id) {
     _menuEsFavoritos = !!_menuLayout.es_fijo;
     _menuLocalItems  = {};
     _menuLocalColors = {};
+    _menuGrupos      = {};
     (_menuLayout.items || []).forEach(it => {
         const key = `${it.fila},${it.columna}`;
-        // Valor positivo = producto, negativo = combo (-combo_id)
-        if (it.producto_id) {
+        if (it.nombre) {
+            // Agrupación: sus miembros ordenados por sub-posición (fila,columna).
+            const miembros = (it.miembros || [])
+                .slice().sort((a, b) => (a.fila - b.fila) || (a.columna - b.columna))
+                .map(m => ({ val: m.producto_id ? m.producto_id : -m.combo_id, color: m.color || 'green' }));
+            _menuGrupos[key] = { nombre: it.nombre, miembros };
+        } else if (it.producto_id) {
             _menuLocalItems[key] = it.producto_id;
         } else if (it.combo_id) {
             _menuLocalItems[key] = -it.combo_id;
@@ -1017,7 +1049,28 @@ function renderMenuGrid() {
             const prodId = _menuLocalItems[key];
             const esSel = _menuCeldaSel && _menuCeldaSel.fila === f && _menuCeldaSel.col === c;
             const borde = esSel ? '2px solid #4f46e5' : '2px solid #e0e0e0';
-            if (prodId) {
+            if (_menuGrupos[key]) {
+                // Celda-AGRUPACIÓN: botón con nombre + cant. de ítems. Doble click = editar.
+                const g = _menuGrupos[key];
+                const colorKey = _menuLocalColors[key] || 'blue';
+                const cl = MENU_COLORS[colorKey] || MENU_COLORS.blue;
+                const borderColor = esSel ? '#4f46e5' : cl.border;
+                html += `<div class="menu-cell" data-fila="${f}" data-col="${c}"
+                    draggable="true"
+                    style="background:${cl.bg};border:2px solid ${borderColor};border-radius:8px;padding:6px;min-height:70px;cursor:grab;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:700;color:${cl.text};"
+                    ondragstart="onDragStartCell(event,${f},${c})"
+                    ondragover="event.preventDefault()"
+                    ondrop="onDropCell(event,${f},${c})"
+                    onclick="onClickCell(${f},${c})"
+                    ondblclick="abrirGrupo(${f},${c})"
+                    title="Doble click para editar los productos del grupo. Arrastrá productos acá para sumarlos.">
+                    <div style="font-size:17px;line-height:1;">🗂️</div>
+                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${g.nombre}</div>
+                    <div style="font-size:10px;font-weight:600;opacity:.75;">${g.miembros.length} ítem(s)</div>
+                    <button onclick="event.stopPropagation();quitarDeCelda(${f},${c})"
+                        style="position:absolute;top:3px;right:3px;background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;line-height:1;">✕</button>
+                </div>`;
+            } else if (prodId) {
                 const esCombo = prodId < 0;
                 const obj = esCombo
                     ? _menuCombos.find(c => c.id === -prodId)
@@ -1141,20 +1194,29 @@ function onDropCell(e, fila, col) {
     const destKey = `${fila},${col}`;
 
     if (_menuDragFromCell !== null) {
-        // Drag celda → celda: intercambiar contenido y colores
+        // Drag celda → celda: intercambiar contenido, color Y agrupaciones.
         const srcKey = `${_menuDragFromCell.fila},${_menuDragFromCell.col}`;
         if (srcKey === destKey) { _menuDragFromCell = null; return; }
-        const srcProd  = _menuLocalItems[srcKey]  ?? null;
-        const dstProd  = _menuLocalItems[destKey] ?? null;
-        const srcColor = _menuLocalColors[srcKey]  || 'green';
-        const dstColor = _menuLocalColors[destKey] || 'green';
-        if (srcProd) { _menuLocalItems[destKey] = srcProd; _menuLocalColors[destKey] = srcColor; }
-        else         { delete _menuLocalItems[destKey]; delete _menuLocalColors[destKey]; }
-        if (dstProd) { _menuLocalItems[srcKey]  = dstProd; _menuLocalColors[srcKey]  = dstColor; }
-        else         { delete _menuLocalItems[srcKey];  delete _menuLocalColors[srcKey]; }
+        const sP = _menuLocalItems[srcKey], dP = _menuLocalItems[destKey];
+        const sG = _menuGrupos[srcKey],     dG = _menuGrupos[destKey];
+        const sCol = _menuLocalColors[srcKey], dCol = _menuLocalColors[destKey];
+        [srcKey, destKey].forEach(k => { delete _menuLocalItems[k]; delete _menuGrupos[k]; delete _menuLocalColors[k]; });
+        // contenido de src → dest
+        if (sG) _menuGrupos[destKey] = sG; else if (sP) _menuLocalItems[destKey] = sP;
+        if (sCol) _menuLocalColors[destKey] = sCol;
+        // contenido de dest → src
+        if (dG) _menuGrupos[srcKey] = dG; else if (dP) _menuLocalItems[srcKey] = dP;
+        if (dCol) _menuLocalColors[srcKey] = dCol;
         _menuDragFromCell = null;
     } else if (_menuDragProdId !== null) {
         // Drag desde sidebar → celda
+        if (_menuGrupos[destKey]) {
+            // Soltar un producto/combo DENTRO de la agrupación → agregar como miembro.
+            _agregarMiembroGrupo(destKey, _menuDragProdId);
+            _menuDragProdId = null;
+            renderMenuGrid();
+            return;
+        }
         if (_menuLocalItems[destKey] && _menuLocalItems[destKey] !== _menuDragProdId) {
             const actual = _menuLocalItems[destKey] < 0
                 ? _menuCombos.find(c => c.id === -_menuLocalItems[destKey])
@@ -1186,6 +1248,13 @@ function onClickProd(id) {
     if (!_menuCeldaSel) return;
     const { fila, col } = _menuCeldaSel;
     const key = `${fila},${col}`;
+    if (_menuGrupos[key]) {
+        // Celda-agrupación seleccionada → el click suma el producto/combo como miembro.
+        _agregarMiembroGrupo(key, id);
+        _menuCeldaSel = null;
+        renderMenuGrid();
+        return;
+    }
     if (_menuLocalItems[key] && _menuLocalItems[key] !== id) {
         const cur = _menuLocalItems[key];
         const actual = cur < 0
@@ -1200,14 +1269,120 @@ function onClickProd(id) {
 }
 
 function quitarDeCelda(fila, col) {
-    delete _menuLocalItems[`${fila},${col}`];
+    const key = `${fila},${col}`;
+    if (_menuGrupos[key] && _menuGrupos[key].miembros.length &&
+        !confirm(`¿Eliminar la agrupación "${_menuGrupos[key].nombre}" y sus ${_menuGrupos[key].miembros.length} ítem(s)?`)) return;
+    delete _menuLocalItems[key];
+    delete _menuGrupos[key];
     renderMenuGrid();
+}
+
+// ── AGRUPACIONES ──────────────────────────────────────────────
+function _primeraCeldaLibre() {
+    for (let f = 0; f < _menuLayout.filas; f++)
+        for (let c = 0; c < _menuLayout.columnas; c++) {
+            const k = `${f},${c}`;
+            if (!_menuLocalItems[k] && !_menuGrupos[k]) return k;
+        }
+    return null;
+}
+function agregarAgrupacion() {
+    if (!_menuPagId || !_menuLayout) { alert('Seleccioná una página de menú primero.'); return; }
+    const nombre = (prompt('Nombre de la agrupación (ej: Tés):') || '').trim();
+    if (!nombre) return;
+    // Si hay una celda vacía seleccionada, usarla; si no, la primera libre.
+    let key = null;
+    if (_menuCeldaSel) {
+        const k = `${_menuCeldaSel.fila},${_menuCeldaSel.col}`;
+        if (!_menuLocalItems[k] && !_menuGrupos[k]) key = k;
+    }
+    if (!key) key = _primeraCeldaLibre();
+    if (!key) { alert('No hay celdas libres. Agrandá la grilla o liberá una celda.'); return; }
+    _menuGrupos[key] = { nombre, miembros: [] };
+    _menuLocalColors[key] = _menuLocalColors[key] || 'blue';
+    _menuCeldaSel = { fila: Number(key.split(',')[0]), col: Number(key.split(',')[1]) };  // queda seleccionada para cargarle productos con un clic
+    renderMenuGrid();
+}
+function _agregarMiembroGrupo(key, val) {
+    const g = _menuGrupos[key];
+    if (!g) return;
+    if (g.miembros.some(m => m.val === val)) return;   // ya está
+    g.miembros.push({ val, color: _menuProdColors[val] || 'green' });
+}
+function _nombreDe(val) {
+    const obj = val < 0 ? _menuCombos.find(c => c.id === -val) : _menuProds.find(p => p.id === val);
+    return obj ? obj.nombre : (val < 0 ? `🍱#${-val}` : `#${val}`);
+}
+
+// ── Sub-editor de agrupación ──────────────────────────────────
+let _grupoDragIdx = null;
+function abrirGrupo(fila, col) {
+    const key = `${fila},${col}`;
+    if (!_menuGrupos[key]) return;
+    _grupoAbierto = key;
+    document.getElementById('grupo-nombre').value = _menuGrupos[key].nombre;
+    _renderGrupoColores();
+    _renderGrupoMiembros();
+    document.getElementById('modal-grupo').classList.add('active');
+}
+function onGrupoNombre() {
+    const g = _menuGrupos[_grupoAbierto];
+    if (g) g.nombre = document.getElementById('grupo-nombre').value;
+}
+function _renderGrupoColores() {
+    const cur = _menuLocalColors[_grupoAbierto] || 'blue';
+    document.getElementById('grupo-colores').innerHTML = ['green', 'red', 'blue', 'yellow'].map(ck => {
+        const sc = MENU_COLORS[ck];
+        const ring = cur === ck ? `box-shadow:0 0 0 2px white,0 0 0 3.5px ${sc.swatch};` : '';
+        return `<div onclick="_grupoSetColor('${ck}')" style="width:22px;height:22px;background:${sc.swatch};border-radius:5px;cursor:pointer;${ring}"></div>`;
+    }).join('');
+}
+function _grupoSetColor(ck) {
+    _menuLocalColors[_grupoAbierto] = ck;
+    _renderGrupoColores();
+    renderMenuGrid();
+}
+function _renderGrupoMiembros() {
+    const g = _menuGrupos[_grupoAbierto];
+    const cont = document.getElementById('grupo-miembros');
+    if (!g || !g.miembros.length) {
+        cont.style.gridTemplateColumns = '1fr';
+        cont.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:16px;font-size:13px;">Sin productos todavía. Cerrá y arrastrá productos a la celda.</div>';
+        return;
+    }
+    const cols = Math.max(1, Math.ceil(Math.sqrt(g.miembros.length)));
+    cont.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+    cont.innerHTML = g.miembros.map((m, i) => {
+        const cl = m.val < 0 ? { bg:'#ede9fe', border:'#c4b5fd', text:'#5b21b6' } : (MENU_COLORS[m.color] || MENU_COLORS.green);
+        return `<div draggable="true" ondragstart="_grupoOnDragStart(event,${i})" ondragover="event.preventDefault()" ondrop="_grupoOnDrop(event,${i})"
+            style="background:${cl.bg};border:1.5px solid ${cl.border};color:${cl.text};border-radius:8px;padding:8px;min-height:54px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:600;cursor:grab;position:relative;">
+            ${_nombreDe(m.val)}
+            <button onclick="_grupoQuitarMiembro(${i})" style="position:absolute;top:2px;right:2px;background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px;line-height:1;">✕</button>
+        </div>`;
+    }).join('');
+}
+function _grupoOnDragStart(e, idx) { _grupoDragIdx = idx; e.dataTransfer.effectAllowed = 'move'; }
+function _grupoOnDrop(e, idx) {
+    e.preventDefault();
+    const g = _menuGrupos[_grupoAbierto];
+    if (!g || _grupoDragIdx === null || _grupoDragIdx === idx) { _grupoDragIdx = null; return; }
+    const [moved] = g.miembros.splice(_grupoDragIdx, 1);
+    g.miembros.splice(idx, 0, moved);
+    _grupoDragIdx = null;
+    _renderGrupoMiembros();
+}
+function _grupoQuitarMiembro(i) {
+    const g = _menuGrupos[_grupoAbierto];
+    if (!g) return;
+    g.miembros.splice(i, 1);
+    _renderGrupoMiembros();
+    renderMenuGrid();   // refrescar el contador de la celda
 }
 
 async function guardarMenuDiseno() {
     if (!_menuPagId || !_menuLayout) { alert('Seleccioná una página de menú primero.'); return; }
     const items = Object.entries(_menuLocalItems)
-        .filter(([, val]) => val)
+        .filter(([key, val]) => val && !_menuGrupos[key])
         .map(([key, val]) => {
             const [f, c] = key.split(',').map(Number);
             const color = _menuLocalColors[key] || 'green';
@@ -1218,6 +1393,19 @@ async function guardarMenuDiseno() {
                 return { fila: f, columna: c, producto_id: val, combo_id: null, color };
             }
         });
+    // Agrupaciones: miembros acomodados en cuadrado (lado = ceil(√n), por filas).
+    Object.entries(_menuGrupos).forEach(([key, g]) => {
+        const [f, c] = key.split(',').map(Number);
+        const color = _menuLocalColors[key] || 'blue';
+        const cols = Math.max(1, Math.ceil(Math.sqrt(g.miembros.length || 1)));
+        const miembros = g.miembros.map((m, i) => {
+            const mf = Math.floor(i / cols), mc = i % cols;
+            return m.val < 0
+                ? { fila: mf, columna: mc, producto_id: null, combo_id: -m.val, color: m.color || 'green' }
+                : { fila: mf, columna: mc, producto_id: m.val, combo_id: null, color: m.color || 'green' };
+        });
+        items.push({ fila: f, columna: c, nombre: g.nombre, color, miembros });
+    });
     try {
         await api.put(`/menu/paginas/${_menuPagId}/layout`, {
             filas: _menuLayout.filas,
