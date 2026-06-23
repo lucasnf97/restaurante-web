@@ -1133,22 +1133,35 @@ function cerrarConfig() {
 }
 
 function renderConfigPanel() {
-    // Oculta del panel los widgets de módulos no habilitados (conserva el índice original)
+    // La lista del panel va en orden ESTABLE (catálogo), independiente del orden de
+    // las widgets en pantalla. Los controles operan por id (no por índice), así que
+    // reordenar las widgets no descoloca el activar/desactivar.
     document.getElementById("cfg-blocks-list").innerHTML =
-        config.blocks.map((b,i) => (b.type === "accesos" || _bloqueHabilitado(b)) ? buildCblock(b,i) : "").join("");
+        _ordenSidebar().map(b => (b.type === "accesos" || _bloqueHabilitado(b)) ? buildCblock(b) : "").join("");
+}
+
+// Orden fijo del panel lateral: el del catálogo (DEFAULT_CONFIG); los bloques que no
+// estén en el catálogo (p.ej. accesos rápidos personalizados) van al final.
+function _ordenSidebar() {
+    const porId = new Map(config.blocks.map(b => [b.id, b]));
+    const out = [];
+    DEFAULT_CONFIG.blocks.forEach(d => { const b = porId.get(d.id); if (b) { out.push(b); porId.delete(d.id); } });
+    porId.forEach(b => out.push(b));
+    return out;
 }
 
 const TIPOS_FIJOS = new Set(["stats"]);          // sin selector de columnas
 const TIPOS_NUEVOS = new Set(["caja-estado","personal-turno","mesas-estado","ordenes-cocina","ventas-7dias","horarios-semana","mensajes","social"]);
 
-function buildCblock(b, i) {
+function buildCblock(b) {
+    const id = b.id;
     const spanLabel = `${b.span} col${b.span===1?"":"s"}`;
     let opts = "";
 
     // Span selector (oculto para stats que siempre es span-3)
     if (!TIPOS_FIJOS.has(b.type)) {
         const spanOpts = [1,2,3,6].map(s =>
-            `<button class="span-btn ${b.span===s?"active":""}" onclick="setSpan(${i},${s})">${s}</button>`
+            `<button class="span-btn ${b.span===s?"active":""}" onclick="setSpan('${id}',${s})">${s}</button>`
         ).join("");
         opts += `<div class="opt-row"><span>Columnas</span><div class="span-btns">${spanOpts}</div></div>`;
     }
@@ -1159,7 +1172,7 @@ function buildCblock(b, i) {
             `<option value="${m.id}" ${b.moduleId===m.id?"selected":""}>${m.icon} ${m.title}</option>`
         ).join("");
         opts += `<div class="opt-row"><span>Módulo</span>
-            <select onchange="setQuickModule(${i},this.value)" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+            <select onchange="setQuickModule('${id}',this.value)" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
                 ${modOptions}
             </select></div>`;
     }
@@ -1170,7 +1183,7 @@ function buildCblock(b, i) {
             const on = (b.modules||[]).includes(m.id);
             return `<div class="mi-item">
                 <span>${m.icon}</span><span class="mi-name">${m.title}</span>
-                <label class="tsw"><input type="checkbox" ${on?"checked":""} onchange="toggleModAcceso(${i},'${m.id}',this.checked)"><span class="tsl"></span></label>
+                <label class="tsw"><input type="checkbox" ${on?"checked":""} onchange="toggleModAcceso('${id}','${m.id}',this.checked)"><span class="tsl"></span></label>
             </div>`;
         }).join("");
         opts += `<div class="sub-lbl">Módulos visibles</div><div>${items}</div>`;
@@ -1184,57 +1197,71 @@ function buildCblock(b, i) {
         : "";
 
     return `<div class="cblock">
-        <div class="cblock-head" onclick="toggleOpts(${i})">
+        <div class="cblock-head" onclick="toggleOpts('${id}')">
             <span class="cblock-drag">⠿</span>
             <span class="cblock-name">${b.label} ${nuevoBadge}</span>
             <span class="span-badge">${spanLabel}</span>
-            ${canDelete ? `<button class="mi-del" onclick="event.stopPropagation();eliminarBloque(${i})">✕</button>` : ""}
+            ${canDelete ? `<button class="mi-del" onclick="event.stopPropagation();eliminarBloque('${id}')">✕</button>` : ""}
             <label class="tsw" onclick="event.stopPropagation()">
-                <input type="checkbox" ${b.visible?"checked":""} onchange="toggleVisible(${i},this.checked)">
+                <input type="checkbox" ${b.visible?"checked":""} onchange="toggleVisible('${id}',this.checked)">
                 <span class="tsl"></span>
             </label>
         </div>
-        <div id="cblock-opts-${i}" class="cblock-opts" style="display:none">${opts}</div>
+        <div id="cblock-opts-${id}" class="cblock-opts" style="display:none">${opts}</div>
     </div>`;
 }
 
-function toggleOpts(i) {
-    const el = document.getElementById(`cblock-opts-${i}`);
+// Los controles del panel operan por ID (no por índice), así reordenar las widgets
+// en pantalla nunca descoloca activar/desactivar/columnas del bloque correcto.
+function _bloquePorId(id) { return config.blocks.find(b => b.id === id); }
+
+function toggleOpts(id) {
+    const el = document.getElementById(`cblock-opts-${id}`);
     if (el) el.style.display = el.style.display === "none" ? "block" : "none";
 }
-function toggleVisible(i, val) {
-    config.blocks[i].visible = val;
+function toggleVisible(id, val) {
+    const b = _bloquePorId(id);
+    if (!b) return;
+    b.visible = val;
     renderDash();
 }
-function setSpan(i, span) {
-    config.blocks[i].span = span;
-    if (config.blocks[i].type === "reservas") calcPaginaActual();
+function setSpan(id, span) {
+    const b = _bloquePorId(id);
+    if (!b) return;
+    b.span = span;
+    if (b.type === "reservas") calcPaginaActual();
     renderDash();
     renderConfigPanel();
     setTimeout(() => {
-        const el = document.getElementById(`cblock-opts-${i}`);
+        const el = document.getElementById(`cblock-opts-${id}`);
         if (el) el.style.display = "block";
     }, 10);
 }
-function toggleModAcceso(i, moduleId, val) {
-    let mods = [...(config.blocks[i].modules || [])];
+function toggleModAcceso(id, moduleId, val) {
+    const b = _bloquePorId(id);
+    if (!b) return;
+    let mods = [...(b.modules || [])];
     if (val && !mods.includes(moduleId)) mods.push(moduleId);
     else if (!val) mods = mods.filter(m => m !== moduleId);
-    config.blocks[i].modules = mods;
+    b.modules = mods;
     renderDash();
 }
-function setQuickModule(i, moduleId) {
-    config.blocks[i].moduleId = moduleId;
+function setQuickModule(id, moduleId) {
+    const b = _bloquePorId(id);
+    if (!b) return;
+    b.moduleId = moduleId;
     const m = getMod(moduleId);
-    if (m) config.blocks[i].label = m.title;
+    if (m) b.label = m.title;
     renderDash();
     renderConfigPanel();
     setTimeout(() => {
-        const el = document.getElementById(`cblock-opts-${i}`);
+        const el = document.getElementById(`cblock-opts-${id}`);
         if (el) el.style.display = "block";
     }, 10);
 }
-function eliminarBloque(i) {
+function eliminarBloque(id) {
+    const i = config.blocks.findIndex(b => b.id === id);
+    if (i < 0) return;
     config.blocks.splice(i, 1);
     renderDash();
     renderConfigPanel();
