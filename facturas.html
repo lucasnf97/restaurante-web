@@ -162,21 +162,26 @@
                     style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:12px;font-weight:600;color:#6b7280;">Desde</label>
+                <label style="font-size:12px;font-weight:600;color:#6b7280;">Carga desde</label>
                 <input type="date" id="filtro-desde" oninput="filtrarHistorial()"
                     style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:12px;font-weight:600;color:#6b7280;">Hasta</label>
+                <label style="font-size:12px;font-weight:600;color:#6b7280;">Carga hasta</label>
                 <input type="date" id="filtro-hasta" oninput="filtrarHistorial()"
+                    style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:12px;font-weight:600;color:#6b7280;">Período de facturación</label>
+                <input type="month" id="filtro-periodo" oninput="filtrarHistorial()"
                     style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
             </div>
             <button onclick="limpiarFiltrosHistorial()" style="padding:7px 14px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;font-size:13px;cursor:pointer;color:#374151;">✕ Limpiar</button>
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Fecha</th><th>Proveedor</th><th>Archivo</th><th>Moneda</th><th>Total detectado</th><th>Usuario</th><th>Documento</th></tr></thead>
-                <tbody id="tbody-facturas"><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
+                <thead><tr><th>Fecha carga</th><th>Fecha factura</th><th>Período</th><th>Proveedor</th><th>Moneda</th><th>Total</th><th>Usuario</th><th>Doc.</th><th>Acciones</th></tr></thead>
+                <tbody id="tbody-facturas"><tr><td colspan="9" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -263,6 +268,22 @@
 
         <!-- Banner de conversión de divisa (visible solo cuando moneda ≠ sistema) -->
         <div id="conf-conversion-banner" style="display:none;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#9a3412;line-height:1.6;">
+        </div>
+
+        <!-- Fecha de la factura y período de facturación asignado -->
+        <div style="background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div style="font-size:13px;font-weight:700;color:#3730a3;">📅 Fecha y período</div>
+            <label style="font-size:12px;color:#3730a3;display:flex;align-items:center;gap:6px;">
+                Fecha de la factura
+                <input type="date" id="conf-fecha" onchange="onFechaFacturaChange()"
+                       style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;">
+            </label>
+            <label style="font-size:12px;color:#3730a3;display:flex;align-items:center;gap:6px;">
+                Período
+                <input type="month" id="conf-periodo" onchange="onPeriodoChange()"
+                       style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;">
+            </label>
+            <span id="conf-periodo-label" style="font-size:12px;font-weight:700;color:#4338ca;"></span>
         </div>
 
         <!-- Impuesto de la factura (global): % por defecto + cómo interpretar el precio leído -->
@@ -721,7 +742,7 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
         </div>`;
 
     return `
-    <div class="item-confirm-row ${claseRow}" id="conf-item-${idx}">
+    <div class="item-confirm-row ${claseRow}" id="conf-item-${idx}" data-desc="${(descripcion || '').replace(/"/g, '&quot;')}">
         <div class="item-confirm-header">
             <span style="font-size:18px;" id="icono-${idx}">${icono}</span>
             <div style="flex:1;">
@@ -795,8 +816,64 @@ function _iniciarSelectorMoneda(monedaCodigo) {
     _setMonedaCodigo(monedaCodigo);
 }
 
+// ── Período de facturación (según dia_inicio_periodo del sistema) ──
+const _MESES_PER = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function _diaInicioPeriodo() { return Math.max(1, Math.min(28, parseInt(window.SISTEMA_MONEDA?.dia_inicio_periodo || 1))); }
+function _fmtYMD(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
+// fecha 'YYYY-MM-DD' → período 'YYYY-MM' (mes de cierre)
+function _periodoMesDeFecha(fechaStr) {
+    const d = fechaStr ? new Date(fechaStr + 'T00:00:00') : new Date();
+    if (isNaN(d)) return _periodoMesDeFecha(null);
+    const D = _diaInicioPeriodo();
+    let y = d.getFullYear(), m = d.getMonth();   // 0-based
+    if (d.getDate() >= D) m += 1;                // desde el día de inicio → el mes de cierre es el siguiente
+    if (m > 11) { m = 0; y += 1; }
+    return `${y}-${String(m+1).padStart(2,'0')}`;
+}
+// período 'YYYY-MM' (mes de cierre) → { desde, hasta } 'YYYY-MM-DD'
+function _periodoRango(periodoMes) {
+    const D = _diaInicioPeriodo();
+    const [y, m] = (periodoMes || '').split('-').map(Number);   // m 1-based = mes de cierre
+    if (!y || !m) return { desde: null, hasta: null };
+    const hasta = new Date(y, m - 1, D - 1);   // mes de cierre, día (D-1)
+    const desde = new Date(y, m - 2, D);       // mes anterior, día D
+    return { desde: _fmtYMD(desde), hasta: _fmtYMD(hasta) };
+}
+function _periodoLabel(periodoMes) {
+    const [y, m] = (periodoMes || '').split('-').map(Number);
+    if (!y || !m) return '';
+    const { desde, hasta } = _periodoRango(periodoMes);
+    return `${_MESES_PER[m-1]} ${y}  (${desde} → ${hasta})`;
+}
+function onFechaFacturaChange() {
+    const f = document.getElementById('conf-fecha')?.value;
+    const pEl = document.getElementById('conf-periodo');
+    if (pEl) pEl.value = _periodoMesDeFecha(f);
+    onPeriodoChange();
+}
+function onPeriodoChange() {
+    const per = document.getElementById('conf-periodo')?.value;
+    const lbl = document.getElementById('conf-periodo-label');
+    if (lbl) lbl.textContent = per ? ('→ ' + _periodoLabel(per)) : '';
+}
+function _setFechaPeriodoConf(fechaStr, periodoMes) {
+    const fechaEl = document.getElementById('conf-fecha');
+    const okFecha = (typeof fechaStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(fechaStr));
+    if (fechaEl) fechaEl.value = okFecha ? fechaStr.slice(0, 10) : _fmtYMD(new Date());
+    // Si nos pasan un período explícito (edición), respetarlo; si no, calcularlo de la fecha.
+    if (periodoMes) {
+        const pEl = document.getElementById('conf-periodo');
+        if (pEl) pEl.value = periodoMes;
+        onPeriodoChange();
+    } else {
+        onFechaFacturaChange();
+    }
+}
+
 function abrirModalConfirmacion(datos) {
     _confItemCounter = 0;
+    // Por defecto NO estamos editando (editarFactura setea estas vars DESPUÉS de llamar acá).
+    _editandoFacturaId = null; _editArchivoUrl = null; _editArchivoNombre = null;
     document.getElementById("conf-prov-nombre").value = datos.proveedor_nombre || "";
     document.getElementById("conf-prov-cuit").value   = datos.proveedor_cuit   || "";
 
@@ -837,6 +914,10 @@ function abrirModalConfirmacion(datos) {
         return itemRow(idx, tipo, item.descripcion_factura, item.insumo_id, item.servicio_id || null,
                        item.cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, item.marca || '');
     }).join("");
+
+    // Fecha de la factura + período (de la IA o del snapshot); el período se autocalcula
+    // de la fecha salvo que la edición lo provea explícito (datos._periodo).
+    _setFechaPeriodoConf(datos.fecha, datos._periodo || null);
 
     document.getElementById("modal-confirmacion").classList.add("active");
 }
@@ -946,32 +1027,49 @@ async function confirmarFactura() {
     const moneda   = document.getElementById("conf-moneda-codigo").value.trim() || entradaActiva?.datos?.moneda || null;
     const rows = document.querySelectorAll("[id^='conf-item-']");
     const itemsInsumo = [], itemsServicio = [];
+    const snapItems = [];   // snapshot (forma IA) para poder reabrir/editar la factura
     for (const row of rows) {
         const idx  = row.id.replace("conf-item-", "");
         const tipo = document.getElementById(`ci-tipo-${idx}`)?.value;
         if (tipo === "omitir") continue;
+        const desc = row.dataset.desc || '';
         if (tipo === "insumo") {
             const insId       = parseInt(document.getElementById(`ci-insumo-${idx}`)?.value);
             const cant        = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
             const precioBruto = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value) || null;       // total línea c/imp
             const precioNeto  = parseFloat(document.getElementById(`ci-precio-neto-${idx}`)?.value) || null;  // total línea s/imp (base del costo)
+            const pctIns      = parseFloat(document.getElementById(`ci-imp-${idx}`)?.value) || 0;
             const marca       = document.getElementById(`ci-marca-${idx}`)?.value?.trim() || null;
             // Costo unitario SIN impuesto = neto / cantidad (lo que se guarda como costo del insumo).
             const precioUnit  = (precioNeto && cant && cant !== 0) ? precioNeto / cant : null;
             if (!insId)  { alert("Todos los ítems de insumo deben tener un insumo asignado."); return; }
             if (!cant || cant === 0 || isNaN(cant)) { alert("Cantidad inválida en un ítem de insumo (puede ser negativa para reintegros)."); return; }
             itemsInsumo.push({ insId, cant, precio: precioUnit, precioPagado: precioBruto, marca });
+            snapItems.push({ tipo: "insumo", descripcion_factura: desc, insumo_id: insId, cantidad: cant,
+                             precio_total: precioNeto, incluye_impuesto: false, impuesto_pct: pctIns, marca });
         } else if (tipo === "servicio") {
             const srvId      = parseInt(document.getElementById(`ci-servicio-${idx}`)?.value);
             const montoNeto  = parseFloat(document.getElementById(`cs-precio-neto-${idx}`)?.value);
             const montoBruto = parseFloat(document.getElementById(`cs-precio-${idx}`)?.value) || null;  // total c/imp (para el total de la factura)
+            const pctSrv     = parseFloat(document.getElementById(`cs-imp-${idx}`)?.value) || 0;
             if (!srvId)  { alert("Todos los ítems de servicio deben tener un servicio asignado."); return; }
             if (!montoNeto || montoNeto === 0 || isNaN(montoNeto)) { alert("Monto inválido en un ítem de servicio (puede ser negativo para reintegros)."); return; }
             // Se guarda el gasto SIN impuesto (neto), coherente con el costo de los insumos.
             itemsServicio.push({ srvId, monto: montoNeto, montoBruto });
+            snapItems.push({ tipo: "servicio", descripcion_factura: desc, servicio_id: srvId,
+                             precio_total: montoNeto, incluye_impuesto: false, impuesto_pct: pctSrv });
         }
     }
     if (!itemsInsumo.length && !itemsServicio.length) { alert("No hay ítems para registrar (todos omitidos)."); return; }
+
+    // Edición: si venimos del histórico, guardamos el id viejo para borrarlo (revertir
+    // stock + datos) antes de re-crear la factura con los datos corregidos.
+    const editId = _editandoFacturaId;
+    _editandoFacturaId = null;
+    // Fecha + período de facturación elegidos en la confirmación.
+    const fechaFactura = document.getElementById("conf-fecha")?.value || null;
+    const periodoMes   = document.getElementById("conf-periodo")?.value || null;
+    const rango        = periodoMes ? _periodoRango(periodoMes) : { desde: null, hasta: null };
 
     try {
         // Resolver proveedor
@@ -991,7 +1089,11 @@ async function confirmarFactura() {
         let archivoNom  = entradaActiva?.datos?.archivo || entradaActiva?.file?.name || null;
         const fileASubir = entradaActiva?.file || _manualFile || null;
 
-        if (fileASubir) {
+        if (editId && _editArchivoUrl && !fileASubir) {
+            // Edición sin archivo nuevo → conservar el comprobante original.
+            facturaUrl = _editArchivoUrl;
+            archivoNom = _editArchivoNombre;
+        } else if (fileASubir) {
             // Subir archivo real adjunto
             try {
                 const fd    = new FormData();
@@ -1044,13 +1146,29 @@ async function confirmarFactura() {
             }
         }
 
+        // Edición: borrar la factura vieja (revierte stock + datos) antes de re-crear.
+        if (editId) {
+            try { await api.delete(`/stock/facturas/${editId}`); }
+            catch(e) { alert("No se pudo actualizar (al revertir la factura anterior): " + (e.message || e)); return; }
+        }
+
+        // Snapshot de la confirmación (forma IA) → permite reabrir/editar esta factura.
+        const impGlobalVal = parseFloat(document.getElementById('conf-imp-global')?.value);
+        const datosSnapshot = {
+            proveedor_nombre: provNombre, proveedor_cuit: provCuit || null,
+            moneda, impuesto_pct: isNaN(impGlobalVal) ? null : impGlobalVal,
+            fecha: fechaFactura, _periodo: periodoMes, items: snapItems,
+        };
+
         // Registrar factura
         // Total de la factura = lo efectivamente pagado (con impuesto): líneas + servicios.
         const totalDetectado = [...itemsInsumo.map(i => (i.precioPagado || 0)), ...itemsServicio.map(s => (s.montoBruto || s.monto))].reduce((a, b) => a + b, 0);
         const facturaReg = await api.post("/stock/facturas/registrar", {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
             archivo_nombre: archivoNom,
-            archivo_url: facturaUrl, moneda, total_detectado: totalDetectado || null
+            archivo_url: facturaUrl, moneda, total_detectado: totalDetectado || null,
+            fecha_factura: fechaFactura, periodo_desde: rango.desde, periodo_hasta: rango.hasta,
+            datos_json: JSON.stringify(datosSnapshot),
         });
         const facturaId = facturaReg.id;
         const referencia = entradaActiva
@@ -1077,21 +1195,26 @@ async function confirmarFactura() {
 
         cerrarModal("modal-confirmacion");
         _manualFile = null;
+        _editArchivoUrl = null; _editArchivoNombre = null;
         if (_archivoActivo !== null) {
             const ea = getEntrada(_archivoActivo);
             if (ea) ea.estado = 'confirmado';
             _archivoActivo = null;
         }
         renderArchivos();
+        cargarHistorialFacturas();   // refresca el histórico (aparece la nueva; si era edición, la vieja ya no está)
         const msg = [];
         if (itemsInsumo.length)   msg.push(`${itemsInsumo.length} recarga(s) de stock`);
         if (itemsServicio.length) msg.push(`${itemsServicio.length} gasto(s) de servicio`);
-        alert(`✅ Registrado: ${msg.join(" y ")}.`);
+        alert(`✅ ${editId ? 'Factura actualizada' : 'Registrado'}: ${msg.join(" y ")}.`);
     } catch(e) { alert("Error: " + e.message); }
 }
 
 // ── HISTORIAL FACTURAS ────────────────────────────────────────
 let _historialFacturas = [];
+let _editandoFacturaId = null;     // si != null, confirmar = editar esa factura (borra la vieja y re-crea)
+let _editArchivoUrl    = null;     // archivo original a reutilizar al editar (no se re-sube)
+let _editArchivoNombre = null;
 
 function parseFechaUTC(str) {
     // Fuerza interpretación UTC agregando Z si no tiene info de timezone
@@ -1118,27 +1241,39 @@ async function cargarHistorialFacturas() {
     } catch(e) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Error cargando historial</td></tr>`; }
 }
 
+function _periodoDeFactura(f) {
+    // 'YYYY-MM' del período (mes de cierre = mes del periodo_hasta).
+    return f.periodo_hasta ? String(f.periodo_hasta).slice(0, 7) : null;
+}
+function _periodoTextoFactura(f) {
+    const p = _periodoDeFactura(f);
+    if (!p) return '—';
+    const [y, m] = p.split('-').map(Number);
+    return `${_MESES_PER[m - 1]} ${y}`;
+}
+
 function filtrarHistorial() {
     const tbody = document.getElementById("tbody-facturas");
     const busq = (document.getElementById("filtro-proveedor")?.value || "").toLowerCase().trim();
-    const desde = document.getElementById("filtro-desde")?.value;  // "YYYY-MM-DD"
+    const desde = document.getElementById("filtro-desde")?.value;  // "YYYY-MM-DD" (fecha de carga)
     const hasta = document.getElementById("filtro-hasta")?.value;
+    const periodo = document.getElementById("filtro-periodo")?.value;  // "YYYY-MM" (período de facturación)
 
     const filtradas = _historialFacturas.filter(f => {
         const prov = (f.proveedor_nombre_reg || f.proveedor_nombre || "").toLowerCase();
         if (busq && !prov.includes(busq)) return false;
         const fecha = parseFechaUTC(f.creado_en);
         if (fecha) {
-            // Comparar solo fecha local (sin hora)
             const ymd = fecha.toLocaleDateString("sv-SE"); // "YYYY-MM-DD"
             if (desde && ymd < desde) return false;
             if (hasta && ymd > hasta) return false;
         }
+        if (periodo && _periodoDeFactura(f) !== periodo) return false;
         return true;
     });
 
     if (!filtradas.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin facturas para los filtros aplicados</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin facturas para los filtros aplicados</td></tr>`;
         return;
     }
 
@@ -1148,16 +1283,22 @@ function filtrarHistorial() {
             ? (f.archivo_url.startsWith('http') ? f.archivo_url : `${API_URL}${f.archivo_url}`)
             : null;
         const docLink = docUrl
-            ? `<a href="javascript:void(0)" onclick="abrirDocumento('${docUrl.replace(/'/g,'%27')}')" style="color:#4f46e5;font-weight:600;text-decoration:none;cursor:pointer;">📄 Ver</a>`
+            ? `<a href="javascript:void(0)" onclick="abrirDocumento('${docUrl.replace(/'/g,'%27')}')" style="color:#4f46e5;font-weight:600;text-decoration:none;cursor:pointer;">📄</a>`
             : "—";
+        const fFactura = f.fecha_factura ? String(f.fecha_factura).slice(0, 10) : '—';
         return `<tr>
             <td style="font-size:12px;color:#555;">${formatFecha(f.creado_en)}</td>
+            <td style="font-size:12px;color:#555;">${fFactura}</td>
+            <td style="font-size:12px;color:#4338ca;font-weight:600;">${_periodoTextoFactura(f)}</td>
             <td><strong>${prov}</strong></td>
-            <td style="font-size:12px;color:#666;">${f.archivo_nombre || '—'}</td>
             <td>${f.moneda ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;">${f.moneda}</span>` : '—'}</td>
             <td>${f.total_detectado ? `${f.moneda || ''} ${parseFloat(f.total_detectado).toFixed(2)}` : '—'}</td>
             <td style="font-size:12px;color:#888;">${f.usuario || '—'}</td>
             <td>${docLink}</td>
+            <td><div style="display:flex;gap:6px;">
+                <button class="btn btn-secondary btn-sm" title="Editar" onclick="editarFactura(${f.id})">✏️</button>
+                <button class="btn btn-danger btn-sm" title="Eliminar" onclick="eliminarFactura(${f.id})">🗑</button>
+            </div></td>
         </tr>`;
     }).join("");
 }
@@ -1166,7 +1307,41 @@ function limpiarFiltrosHistorial() {
     document.getElementById("filtro-proveedor").value = "";
     document.getElementById("filtro-desde").value = "";
     document.getElementById("filtro-hasta").value = "";
+    const per = document.getElementById("filtro-periodo"); if (per) per.value = "";
     filtrarHistorial();
+}
+
+// Reabre la pantalla de confirmación precargada con los datos de la factura (para corregir).
+async function editarFactura(id) {
+    try {
+        const f = await api.get(`/stock/facturas/${id}`);
+        if (!f.datos) {
+            alert("Esta factura se cargó antes de esta función y no tiene datos editables. Eliminala y volvé a cargarla si necesitás corregirla.");
+            return;
+        }
+        abrirModalConfirmacion(f.datos);              // resetea las vars de edición…
+        _editandoFacturaId = id;                       // …y acá marcamos que es una edición
+        _editArchivoUrl    = f.archivo_url || null;
+        _editArchivoNombre = f.archivo_nombre || null;
+        document.getElementById("modal-conf-titulo").textContent = "✏️ Editar factura";
+        // Restaurar fecha + período guardados (el período guardado prevalece sobre el calculado).
+        const periodoMes = f.periodo_hasta ? String(f.periodo_hasta).slice(0, 7) : null;
+        const fechaStr   = f.fecha_factura ? String(f.fecha_factura).slice(0, 10) : (f.datos.fecha || null);
+        _setFechaPeriodoConf(fechaStr, periodoMes);
+    } catch(e) { alert("Error al abrir la factura: " + (e.message || e)); }
+}
+
+// Borra la factura del histórico y revierte sus datos (stock + estadísticas).
+async function eliminarFactura(id) {
+    const f = _historialFacturas.find(x => x.id === id);
+    const nombre = f ? (f.proveedor_nombre_reg || f.proveedor_nombre || "") : "";
+    if (!confirm(`¿Eliminar la factura${nombre ? ' de "' + nombre + '"' : ''}?\n\nSe revertirá el stock que sumó y se borrarán sus datos. No quedará nada en estadísticas ni en stock.`)) return;
+    try {
+        await api.delete(`/stock/facturas/${id}`);
+        await cargarHistorialFacturas();
+        if (window.UI) UI.toast("Factura eliminada y datos revertidos", "success");
+        else alert("Factura eliminada y datos revertidos.");
+    } catch(e) { alert("Error al eliminar: " + (e.message || e)); }
 }
 
 // ── SERVICIOS ─────────────────────────────────────────────────

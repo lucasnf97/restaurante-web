@@ -21,6 +21,7 @@ window.SISTEMA_MONEDA = {
     nombre:       'Euro',
     tasas:        [],   // [{ codigo:'GBP', nombre:'Libra esterlina', tasa:0.87 }, …]
     impuesto_pct: 0,    // % IVA/VAT local (ej: 25 para Dinamarca)
+    dia_inicio_periodo: 1,   // día del mes en que arranca el período de facturación
 };
 
 // ── Carga desde API ───────────────────────────────────────────────
@@ -39,6 +40,7 @@ async function cargarMonedaSistema() {
             nombre:       cfg.moneda_nombre  || 'Euro',
             tasas:        cfg.tasas_cambio   || [],
             impuesto_pct: parseFloat(cfg.impuesto_pct || 0),
+            dia_inicio_periodo: parseInt(cfg.dia_inicio_periodo || 1),
         };
         localStorage.setItem('sistema_moneda', JSON.stringify(window.SISTEMA_MONEDA));
     } catch (e) {
