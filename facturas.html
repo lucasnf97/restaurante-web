@@ -47,6 +47,12 @@
         .modal { background: white; border-radius: 16px; padding: 28px 32px; width: 100%; max-width: 520px; max-height: 85vh; overflow-y: auto; }
         .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        /* Barra de acciones de la confirmación: siempre visible (la lista de ítems puede ser larga). */
+        #modal-confirmacion .modal-footer {
+            position: sticky; bottom: 0; background: #fff; z-index: 5;
+            margin: 16px -32px 0; padding: 14px 32px 4px;
+            border-top: 1px solid #e5e7eb;
+        }
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 5px; }
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
@@ -81,8 +87,8 @@
         .item-confirm-row.omitido { border-left: 4px solid #d1d5db; opacity: 0.5; }
         .item-confirm-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
         .item-desc-original { font-size: 12px; color: #888; font-style: italic; }
-        .item-fields { display: grid; grid-template-columns: 2fr 0.7fr 0.75fr 0.8fr 0.8fr 0.75fr; gap: 7px; align-items: end; }
-        .item-fields.sin-iva { grid-template-columns: 2fr 0.7fr 0.75fr 1fr 0.75fr; }
+        /* Insumo · Cantidad · Marca · Precio s/imp · % imp · Precio c/imp · Precio unitario */
+        .item-fields { display: grid; grid-template-columns: 1.7fr 0.65fr 0.7fr 0.85fr 0.5fr 0.85fr 0.8fr; gap: 7px; align-items: end; }
         .item-fields-servicio { display: grid; grid-template-columns: 2fr 1fr; gap: 7px; }
         .item-field label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; display: block; margin-bottom: 3px; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .item-field input, .item-field select { width: 100%; padding: 5px 8px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 12px; outline: none; }
@@ -253,6 +259,25 @@
 
         <!-- Banner de conversión de divisa (visible solo cuando moneda ≠ sistema) -->
         <div id="conf-conversion-banner" style="display:none;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#9a3412;line-height:1.6;">
+        </div>
+
+        <!-- Impuesto de la factura (global): % por defecto + cómo interpretar el precio leído -->
+        <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div style="font-size:13px;font-weight:700;color:#854d0e;">🧾 Impuesto</div>
+            <label style="font-size:12px;color:#854d0e;display:flex;align-items:center;gap:6px;">
+                % a toda la factura
+                <input type="number" id="conf-imp-global" step="0.1" min="0"
+                       style="width:74px;padding:5px 8px;border:1.5px solid #fcd34d;border-radius:7px;font-size:13px;outline:none;"
+                       oninput="aplicarImpGlobal()"> %
+            </label>
+            <label style="font-size:12px;color:#854d0e;display:flex;align-items:center;gap:6px;">
+                El precio de la factura es
+                <select id="conf-imp-modo" onchange="aplicarModoImp()"
+                        style="padding:5px 8px;border:1.5px solid #fcd34d;border-radius:7px;font-size:13px;outline:none;cursor:pointer;">
+                    <option value="sin">Sin impuesto</option>
+                    <option value="con">Con impuesto</option>
+                </select>
+            </label>
         </div>
 
         <div id="conf-items"></div>
@@ -582,57 +607,48 @@ function optsServicios(selId) {
     return _servicios.map(s => `<option value="${s.id}" ${s.id === selId ? 'selected' : ''}>${s.nombre}${s.categoria ? ' — '+s.categoria : ''}</option>`).join("");
 }
 
-function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioPagado, _obsoleto, monedaSimbolo, marca) {
+function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, marca) {
     const esInsumo   = tipo === "insumo";
     const esServicio = tipo === "servicio";
     const esOmitido  = tipo === "omitir";
     const claseRow   = esInsumo ? (insumoId ? 'ok' : 'pendiente') : esServicio ? 'servicio' : 'omitido';
     const icono      = esInsumo ? (insumoId ? '✅' : '⚠️') : esServicio ? '🔧' : '—';
 
-    const impPct   = window.SISTEMA_MONEDA?.impuesto_pct || 0;
-    const tieneImp = impPct > 0;
-    // Precio pagado = total de la línea (bruto, con impuestos si los hay).
-    // Discriminar IVA = dividir por (1 + tasa/100), no multiplicar por (1 - tasa/100).
-    const precioNeto = (precioPagado !== null && precioPagado !== undefined && tieneImp)
-        ? Math.round(precioPagado / (1 + impPct / 100) * 10000) / 10000
-        : null;
+    // Modelo de precios: la FUENTE es el NETO (sin impuesto). De ahí salen el total
+    // c/imp (= neto × (1+%)) y el COSTO UNITARIO (= neto / cantidad, SIN impuesto).
+    const tasa = (pct !== null && pct !== undefined && pct !== '' && !isNaN(pct)) ? Number(pct) : 0;
+    const p    = (precioRaw !== null && precioRaw !== undefined && precioRaw !== '' && !isNaN(precioRaw)) ? Number(precioRaw) : null;
+    let neto = null, bruto = null;
+    if (p !== null) {
+        if (incluyeImp) { bruto = p; neto = p / (1 + tasa / 100); }
+        else            { neto = p; bruto = p * (1 + tasa / 100); }
+    }
+    const _r4 = v => (v === null ? '' : Math.round(v * 10000) / 10000);
+    const netoStr = _r4(neto), brutoStr = _r4(bruto);
+    const montoStr = (p !== null ? p : '');
+    const unitCalc = (neto !== null && cantidad && Number(cantidad) !== 0) ? neto / Number(cantidad) : null;
+    const precioUnitStr = unitCalc === null ? '' : (Math.abs(unitCalc) < 0.01 ? unitCalc.toFixed(6) : unitCalc.toFixed(4));
 
-    // Precio unitario calculado = precio_pagado / cantidad
-    const precioUnitCalc = (precioPagado && cantidad && cantidad !== 0)
-        ? precioPagado / cantidad
-        : null;
-    const precioUnitStr = precioUnitCalc !== null
-        ? (Math.abs(precioUnitCalc) < 0.01 ? precioUnitCalc.toFixed(6) : precioUnitCalc.toFixed(4))
-        : '';
+    const gridClass = 'item-fields';
 
-    const gridClass = tieneImp ? 'item-fields' : 'item-fields sin-iva';
-
-    const campoPrecio = tieneImp ? `
+    const campoPrecio = `
         <div class="item-field">
-            <label>Precio pagado c/imp
-                <span style="font-size:9px;font-weight:600;background:#fef9c3;color:#854d0e;
-                             padding:1px 5px;border-radius:3px;margin-left:3px;">${impPct}%</span>
-            </label>
-            <input type="number" id="ci-precio-${idx}"
-                   value="${precioPagado !== null && precioPagado !== undefined ? precioPagado : ''}"
+            <label>Precio s/imp</label>
+            <input type="number" id="ci-precio-neto-${idx}" value="${netoStr}"
+                   step="0.01" placeholder="Neto" style="border-color:#86efac;"
+                   oninput="onEditNeto('${idx}')">
+        </div>
+        <div class="item-field">
+            <label>% imp</label>
+            <input type="number" id="ci-imp-${idx}" value="${tasa}"
+                   step="0.1" min="0" placeholder="%"
+                   oninput="onEditImp('${idx}')">
+        </div>
+        <div class="item-field">
+            <label>Precio c/imp</label>
+            <input type="number" id="ci-precio-${idx}" value="${brutoStr}"
                    step="0.01" placeholder="Total c/imp"
-                   oninput="sincPrecioConIVA('${idx}');recalcPrecioUnit('${idx}')">
-        </div>
-        <div class="item-field">
-            <label>Precio pagado s/imp</label>
-            <input type="number" id="ci-precio-neto-${idx}"
-                   value="${precioNeto !== null ? precioNeto : ''}"
-                   step="0.01" placeholder="Total s/imp"
-                   oninput="sincPrecioSinIVA('${idx}');recalcPrecioUnit('${idx}')"
-                   style="border-color:#86efac;">
-        </div>
-    ` : `
-        <div class="item-field">
-            <label>Precio pagado *</label>
-            <input type="number" id="ci-precio-${idx}"
-                   value="${precioPagado !== null && precioPagado !== undefined ? precioPagado : ''}"
-                   step="0.01" placeholder="Total línea"
-                   oninput="recalcPrecioUnit('${idx}')">
+                   oninput="onEditBruto('${idx}')">
         </div>
     `;
 
@@ -653,7 +669,7 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioP
                 <input type="number" id="ci-cant-${idx}"
                        value="${cantidad !== null && cantidad !== undefined ? cantidad : ''}"
                        step="0.001" placeholder="En unidad base"
-                       oninput="recalcPrecioUnit('${idx}')">
+                       oninput="onEditCant('${idx}')">
             </div>
             <div class="item-field">
                 <label>Marca</label>
@@ -661,9 +677,10 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioP
             </div>
             ${campoPrecio}
             <div class="item-field">
-                <label>Precio/unidad</label>
+                <label>Precio/u s/imp</label>
                 <input type="text" id="ci-precio-unit-${idx}" class="precio-unit-calc"
-                       value="${precioUnitStr}" disabled placeholder="Calculado">
+                       value="${precioUnitStr}" disabled placeholder="Calculado"
+                       title="Costo unitario sin impuesto (= precio s/imp ÷ cantidad)">
             </div>
         </div>`;
 
@@ -678,7 +695,7 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioP
                     <button type="button" onclick="abrirServicioRapido('${idx}')" title="Agregar nuevo servicio" style="flex-shrink:0;padding:7px 10px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;">+ Nuevo</button>
                 </div>
             </div>
-            <div class="item-field"><label>Monto *</label><input type="number" id="ci-monto-${idx}" value="${precioPagado !== null && precioPagado !== undefined ? precioPagado : ''}" step="0.01"></div>
+            <div class="item-field"><label>Monto *</label><input type="number" id="ci-monto-${idx}" value="${montoStr}" step="0.01"></div>
         </div>`;
 
     return `
@@ -773,13 +790,27 @@ function abrirModalConfirmacion(datos) {
     selProv.innerHTML = `<option value="">— O seleccioná uno ya registrado —</option>` +
         _proveedores.map(p => `<option value="${p.id}" data-nombre="${p.nombre}" data-cuit="${p.cuit || ''}">${p.nombre}${p.cuit ? ' ('+p.cuit+')' : ''}</option>`).join("");
 
-    document.getElementById("conf-items").innerHTML = (datos.items || []).map((item, idx) => {
+    const items = datos.items || [];
+    // Impuesto: % por defecto = config del sistema; modo inicial (sin/con) = lo que
+    // indique la mayoría de los ítems de la IA (incluye_impuesto).
+    const impGlobalCfg = window.SISTEMA_MONEDA?.impuesto_pct || 0;
+    const conImp = items.filter(it => it.incluye_impuesto === true).length;
+    const sinImp = items.filter(it => it.incluye_impuesto === false).length;
+    _confModoImp = conImp > sinImp ? 'con' : (sinImp > conImp ? 'sin' : 'con');
+    const modoSel = document.getElementById("conf-imp-modo");
+    if (modoSel) modoSel.value = _confModoImp;
+    const impGlobalInput = document.getElementById("conf-imp-global");
+    if (impGlobalInput) impGlobalInput.value = impGlobalCfg;
+
+    document.getElementById("conf-items").innerHTML = items.map((item, idx) => {
         const tipo = item.tipo === "servicio" ? "servicio" : "insumo";
-        // precio_total = total pagado por la línea (nuevo campo de la IA)
-        // Si la IA devuelve el campo viejo precio_unitario, usarlo como fallback
-        const precioPagado = item.precio_total ?? item.precio_unitario ?? null;
+        // precio_total = total de la línea tal como figura en la factura (fallback al viejo precio_unitario)
+        const precioRaw  = item.precio_total ?? item.precio_unitario ?? null;
+        const pct        = (typeof item.impuesto_pct === 'number') ? item.impuesto_pct : impGlobalCfg;
+        // Interpretación uniforme según el modo global (el toggle la cambia para todas las filas).
+        const incluyeImp = (_confModoImp === 'con');
         return itemRow(idx, tipo, item.descripcion_factura, item.insumo_id, item.servicio_id || null,
-                       item.cantidad, precioPagado, null, monedaSimbolo, item.marca || '');
+                       item.cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, item.marca || '');
     }).join("");
 
     document.getElementById("modal-confirmacion").classList.add("active");
@@ -820,8 +851,10 @@ function agregarItemConf() {
     const idx = `m${_confItemCounter++}`;
     const monedaSimbolo = document.getElementById("conf-moneda-codigo").value || "$";
     const container = document.getElementById("conf-items");
+    const pctG = parseFloat(document.getElementById('conf-imp-global')?.value);
+    const pct  = isNaN(pctG) ? (window.SISTEMA_MONEDA?.impuesto_pct || 0) : pctG;
     const div = document.createElement("div");
-    div.innerHTML = itemRow(idx, "insumo", "Ítem manual", null, null, null, null, null, monedaSimbolo, '');
+    div.innerHTML = itemRow(idx, "insumo", "Ítem manual", null, null, null, null, pct, _confModoImp === 'con', monedaSimbolo, '');
     container.appendChild(div.firstElementChild);
 }
 
@@ -895,12 +928,14 @@ async function confirmarFactura() {
         if (tipo === "insumo") {
             const insId       = parseInt(document.getElementById(`ci-insumo-${idx}`)?.value);
             const cant        = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
-            const precioPagado= parseFloat(document.getElementById(`ci-precio-${idx}`)?.value) || null;
+            const precioBruto = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value) || null;       // total línea c/imp
+            const precioNeto  = parseFloat(document.getElementById(`ci-precio-neto-${idx}`)?.value) || null;  // total línea s/imp (base del costo)
             const marca       = document.getElementById(`ci-marca-${idx}`)?.value?.trim() || null;
-            const precioUnit  = (precioPagado && cant && cant !== 0) ? precioPagado / cant : null;
+            // Costo unitario SIN impuesto = neto / cantidad (lo que se guarda como costo del insumo).
+            const precioUnit  = (precioNeto && cant && cant !== 0) ? precioNeto / cant : null;
             if (!insId)  { alert("Todos los ítems de insumo deben tener un insumo asignado."); return; }
             if (!cant || cant === 0 || isNaN(cant)) { alert("Cantidad inválida en un ítem de insumo (puede ser negativa para reintegros)."); return; }
-            itemsInsumo.push({ insId, cant, precio: precioUnit, precioPagado, marca });
+            itemsInsumo.push({ insId, cant, precio: precioUnit, precioPagado: precioBruto, marca });
         } else if (tipo === "servicio") {
             const srvId = parseInt(document.getElementById(`ci-servicio-${idx}`)?.value);
             const monto = parseFloat(document.getElementById(`ci-monto-${idx}`)?.value);
@@ -983,7 +1018,8 @@ async function confirmarFactura() {
         }
 
         // Registrar factura
-        const totalDetectado = [...itemsInsumo.map(i => (i.precio || 0) * i.cant), ...itemsServicio.map(s => s.monto)].reduce((a, b) => a + b, 0);
+        // Total de la factura = lo efectivamente pagado (con impuesto) por línea + servicios.
+        const totalDetectado = [...itemsInsumo.map(i => (i.precioPagado || 0)), ...itemsServicio.map(s => s.monto)].reduce((a, b) => a + b, 0);
         const facturaReg = await api.post("/stock/facturas/registrar", {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
             archivo_nombre: archivoNom,
@@ -1248,48 +1284,81 @@ function cerrarModal(id) {
 }
 // Los modales NO se cierran al hacer clic en el overlay (solo con el botón o la cruz)
 
-// ── Sincronización de precios con/sin impuesto ────────────────
-// El campo ci-precio es el precio BRUTO (con impuestos, lo que muestra la factura).
-// El campo ci-precio-neto es el precio NETO (sin impuestos).
-// Al editar uno, el otro se recalcula automáticamente.
+// ── Recálculo de precios (fuente = NETO; impuesto por ítem) ────
+// ci-precio-neto = NETO (sin impuesto, fuente de verdad y base del costo).
+// ci-imp        = % de impuesto de esa fila.
+// ci-precio     = TOTAL c/imp (= neto × (1+%)).
+// ci-precio-unit= costo unitario SIN impuesto (= neto / cantidad), solo lectura.
+let _confModoImp = 'sin';   // cómo se interpreta el precio leído de la factura
 
-function recalcPrecioUnit(idx) {
-    const precio = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value);
-    const cant   = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
-    const el     = document.getElementById(`ci-precio-unit-${idx}`);
+function _pf(id) { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; }
+function _rowTasa(idx) { const v = parseFloat(document.getElementById(`ci-imp-${idx}`)?.value); return isNaN(v) ? 0 : v; }
+function _setVal(id, v) { const el = document.getElementById(id); if (el) el.value = (v === null ? '' : Math.round(v * 10000) / 10000); }
+
+function _recalcUnit(idx) {
+    const neto = _pf(`ci-precio-neto-${idx}`);
+    const cant = _pf(`ci-cant-${idx}`);
+    const el   = document.getElementById(`ci-precio-unit-${idx}`);
     if (!el) return;
-    if (!isNaN(precio) && !isNaN(cant) && cant !== 0) {
-        const pu = precio / cant;
-        el.value = Math.abs(pu) < 0.01 ? pu.toFixed(6) : pu.toFixed(4);
-    } else {
-        el.value = '';
-    }
+    if (neto !== null && cant && cant !== 0) {
+        const u = neto / cant;
+        el.value = Math.abs(u) < 0.01 ? u.toFixed(6) : u.toFixed(4);
+    } else el.value = '';
 }
 
-function sincPrecioConIVA(idx) {
-    const impPct = window.SISTEMA_MONEDA?.impuesto_pct || 0;
-    if (!impPct) return;
-    const bruto  = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value);
-    const netoEl = document.getElementById(`ci-precio-neto-${idx}`);
-    if (!netoEl) return;
-    if (!isNaN(bruto) && bruto !== 0) {
-        netoEl.value = Math.round(bruto / (1 + impPct / 100) * 10000) / 10000;
-    } else {
-        netoEl.value = '';
-    }
+// Editó el NETO → recalcula total c/imp y unitario.
+function onEditNeto(idx) {
+    const neto = _pf(`ci-precio-neto-${idx}`), t = _rowTasa(idx);
+    _setVal(`ci-precio-${idx}`, neto === null ? null : neto * (1 + t / 100));
+    _recalcUnit(idx);
+}
+// Editó el TOTAL c/imp → deriva neto (= total / (1+%)) y recalcula unitario.
+function onEditBruto(idx) {
+    const bruto = _pf(`ci-precio-${idx}`), t = _rowTasa(idx);
+    _setVal(`ci-precio-neto-${idx}`, bruto === null ? null : bruto / (1 + t / 100));
+    _recalcUnit(idx);
+}
+// Editó el % → mantiene el neto como fuente y recalcula el total c/imp (unitario no cambia).
+function onEditImp(idx) {
+    const neto = _pf(`ci-precio-neto-${idx}`), t = _rowTasa(idx);
+    _setVal(`ci-precio-${idx}`, neto === null ? null : neto * (1 + t / 100));
+    _recalcUnit(idx);
+}
+// Editó la cantidad → recalcula solo el unitario.
+function onEditCant(idx) { _recalcUnit(idx); }
+
+// Header: aplica un % a TODAS las filas (recalcula el total c/imp de cada una desde su neto).
+function aplicarImpGlobal() {
+    const g = parseFloat(document.getElementById('conf-imp-global')?.value);
+    if (isNaN(g)) return;
+    document.querySelectorAll("[id^='ci-imp-']").forEach(inp => {
+        const idx = inp.id.replace('ci-imp-', '');
+        inp.value = g;
+        onEditImp(idx);
+    });
 }
 
-function sincPrecioSinIVA(idx) {
-    const impPct = window.SISTEMA_MONEDA?.impuesto_pct || 0;
-    if (!impPct) return;
-    const neto    = parseFloat(document.getElementById(`ci-precio-neto-${idx}`)?.value);
-    const brutoEl = document.getElementById(`ci-precio-${idx}`);
-    if (!brutoEl) return;
-    if (!isNaN(neto) && neto !== 0) {
-        brutoEl.value = Math.round(neto * (1 + impPct / 100) * 10000) / 10000;
-    } else {
-        brutoEl.value = '';
-    }
+// Header: reinterpreta el precio leído (sin/con impuesto) en TODAS las filas.
+function aplicarModoImp() {
+    const nuevo = document.getElementById('conf-imp-modo')?.value || 'sin';
+    if (nuevo === _confModoImp) return;
+    document.querySelectorAll("[id^='ci-precio-neto-']").forEach(netoEl => {
+        const idx = netoEl.id.replace('ci-precio-neto-', '');
+        const t = _rowTasa(idx);
+        if (nuevo === 'con') {
+            // El número que se veía como neto es en realidad el total c/imp.
+            const v = _pf(`ci-precio-neto-${idx}`);
+            _setVal(`ci-precio-${idx}`, v);
+            _setVal(`ci-precio-neto-${idx}`, v === null ? null : v / (1 + t / 100));
+        } else {
+            // El número que se veía como total c/imp es en realidad el neto.
+            const v = _pf(`ci-precio-${idx}`);
+            _setVal(`ci-precio-neto-${idx}`, v);
+            _setVal(`ci-precio-${idx}`, v === null ? null : v * (1 + t / 100));
+        }
+        _recalcUnit(idx);
+    });
+    _confModoImp = nuevo;
 }
 
 // ── Banner de conversión de divisa ───────────────────────────
