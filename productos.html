@@ -1075,6 +1075,7 @@ function toggleModoEdicion() {
     if (modoEdicion) { guardarYSalir(); return; }   // en edición, el botón guarda y sale
     modoEdicion = true;
     _pendientes = {};
+    _navOk = false;   // reset del guard de "salir sin guardar"
     _toolsEdicion(true);
     _actualizarBtnModo();
     renderProductos(_productosFiltrados || productos);
@@ -1083,6 +1084,10 @@ function toggleModoEdicion() {
 function _salirModoEdicion() {
     modoEdicion = false;
     _pendientes = {};
+    // Re-habilitar el botón (guardarYSalir lo deshabilita mientras guarda); sin esto
+    // no se podía volver a entrar al modo edición sin refrescar la página.
+    const btn = document.getElementById('btn-modo-edicion');
+    if (btn) btn.disabled = false;
     _toolsEdicion(false);
     _actualizarBtnModo();
     renderProductos(_productosFiltrados || productos);
@@ -1098,6 +1103,14 @@ async function guardarYSalir() {
     const btn = document.getElementById('btn-modo-edicion');
     btn.disabled = true; btn.textContent = 'Guardando…';
     const total = Object.keys(_pendientes).length;
+    // Resumen para la notificación final (se calcula antes de vaciar _pendientes).
+    const resumen = { editados: 0, nuevos: 0, eliminados: 0 };
+    for (const key of Object.keys(_pendientes)) {
+        const e = _pendientes[key];
+        if (e._del) { if (!e._new) resumen.eliminados++; }
+        else if (e._new) resumen.nuevos++;
+        else resumen.editados++;
+    }
     window.UI && UI.overlay(true, `Guardando cambios… (0/${total})`);
     try {
         let n = 0;
@@ -1118,6 +1131,12 @@ async function guardarYSalir() {
         _pendientes = {};
         await cargarProductos();
         _salirModoEdicion();
+        // Notificación de los cambios efectivamente guardados.
+        const partes = [];
+        if (resumen.editados)   partes.push(`${resumen.editados} editado${resumen.editados > 1 ? 's' : ''}`);
+        if (resumen.nuevos)     partes.push(`${resumen.nuevos} nuevo${resumen.nuevos > 1 ? 's' : ''}`);
+        if (resumen.eliminados) partes.push(`${resumen.eliminados} eliminado${resumen.eliminados > 1 ? 's' : ''}`);
+        window.UI && UI.toast(partes.length ? `Cambios guardados: ${partes.join(', ')}` : 'Cambios guardados', 'success');
     } catch(err) {
         btn.disabled = false; _actualizarBtnModo();
         alert('Error al guardar: ' + err.message + '\nQuedan cambios pendientes.');
@@ -1146,10 +1165,30 @@ function _stageProducto(body, items) {
     let id = editandoProdId;
     if (id == null) id = --_tmpSeq;   // producto nuevo → id temporal negativo
     const isNew = id < 0;
-    _pendientes[id] = { body, recipe: items, _new: isNew, _del: false };
+    // recipeItems = receta en formato visual (con nombre/unidad) para reabrir el modal
+    // con los cambios sin confirmar; recipe = formato API para el guardado final.
+    const recipeItems = _rnItems.map(it => ({ ...it }));
+    _pendientes[id] = { body, recipe: items, recipeItems, _new: isNew, _del: false };
     _aplicarLocalProducto(id, body, catNombre, areaNombre);
+    _aplicarLocalReceta(id, recipeItems);   // refleja la receta en pantalla ya (sin guardar)
+    _expandedProdId = id;                    // expandir el producto editado → se ve el cambio
     _actualizarBtnModo();
     renderProductos(_productosFiltrados || productos);
+}
+
+// Refleja la receta editada en _recetas (fila expandible de ingredientes) al instante,
+// sin esperar a "Guardar y salir".
+function _aplicarLocalReceta(id, rnItems) {
+    const recetaDisp = {
+        producto_id: id,
+        tiene_receta: rnItems.length > 0,
+        ingredientes: rnItems.map(it => ({
+            insumo_nombre: it.nombre, cantidad: it.cantidad, unidad: it.unidad,
+            es_produccion: it.tipo === 'prod', agotado: false
+        }))
+    };
+    const i = _recetas.findIndex(r => r.producto_id === id);
+    if (i >= 0) _recetas[i] = recetaDisp; else _recetas.push(recetaDisp);
 }
 
 // Alerta de cambios sin guardar al navegar por un link, cerrar o recargar.
@@ -1277,7 +1316,11 @@ async function abrirModalProducto(id = null) {
 async function _cargarRecetaTab(prodId) {
     _rnProdId = prodId;
     _rnItems  = [];
-    if (prodId) {
+    const pend = (prodId != null) ? _pendientes[prodId] : null;
+    if (pend && pend.recipeItems !== undefined) {
+        // Hay cambios de receta sin guardar → mostrar la versión staged, no la de la BD.
+        _rnItems = pend.recipeItems.map(it => ({ ...it }));
+    } else if (prodId) {
         try {
             const ings = await api.get(`/stock/receta/${prodId}`);
             _rnItems = (ings || []).map(i => ({

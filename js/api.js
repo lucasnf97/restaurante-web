@@ -327,6 +327,21 @@ async function abrirDocumento(url) {
         background-size: 800px 100%; animation: ui-shimmer 1.2s infinite linear;
     }
     button[data-ui-busy] { pointer-events: none; opacity: .7; }
+    .ui-toast-wrap {
+        position: fixed; top: 14px; right: 14px; z-index: 100000;
+        display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .ui-toast {
+        font-family: 'Segoe UI', sans-serif; font-size: 14px; color: #fff;
+        background: #374151; padding: 12px 16px; border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.22); max-width: 360px;
+        white-space: pre-line; line-height: 1.35;
+        opacity: 0; transform: translateX(20px); transition: opacity .25s ease, transform .25s ease;
+    }
+    .ui-toast.show { opacity: 1; transform: translateX(0); }
+    .ui-toast-success { background: #16a34a; }
+    .ui-toast-error   { background: #dc2626; }
+    .ui-toast-info    { background: #4f46e5; }
     `;
     const st = document.createElement("style");
     st.textContent = css;
@@ -418,6 +433,24 @@ async function abrirDocumento(url) {
                 delete btn.dataset.uiBusy;
                 delete btn.dataset.uiHtml;
             }
+        },
+        // Notificación transitoria arriba a la derecha (auto-cierra). tipo: info|success|error
+        toast(msg, tipo = "info", ms = 3500) {
+            let wrap = document.getElementById("ui-toast-wrap");
+            if (!wrap) {
+                wrap = document.createElement("div");
+                wrap.id = "ui-toast-wrap"; wrap.className = "ui-toast-wrap";
+                document.body.appendChild(wrap);
+            }
+            const t = document.createElement("div");
+            t.className = "ui-toast ui-toast-" + tipo;
+            t.textContent = msg;
+            wrap.appendChild(t);
+            requestAnimationFrame(() => t.classList.add("show"));
+            setTimeout(() => {
+                t.classList.remove("show");
+                setTimeout(() => t.remove(), 300);
+            }, ms);
         },
     };
 
