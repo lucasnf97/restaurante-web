@@ -7,59 +7,94 @@
 <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI', sans-serif; background:#f0f2f5; color:#1e293b; }
-    .navbar { background:#1a1a2e; color:#fff; height:60px; display:flex; align-items:center; padding:0 20px; gap:12px; position:sticky; top:0; z-index:20; }
+    .navbar { background:#1a1a2e; color:#fff; height:60px; display:flex; align-items:center; padding:0 20px; gap:12px; position:sticky; top:0; z-index:30; }
     .navbar h1 { font-size:17px; font-weight:700; flex:1; }
     .navbar .who { font-size:13px; color:#a5b4fc; }
     .navbar button { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:7px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
     .navbar button:hover { background:#4f46e5; color:#fff; }
-    .wrap { max-width:1280px; margin:0 auto; padding:18px 16px 60px; }
+    .wrap { max-width:1320px; margin:0 auto; padding:16px; }
 
+    /* ── Toolbar ─────────────────────────────────────────────── */
     .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
     .weeknav { display:flex; align-items:center; gap:8px; }
     .weeknav button { background:#fff; border:1px solid #e5e7eb; color:#1a1a2e; width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:16px; }
     .weeknav button:hover { background:#eef2ff; border-color:#c7d2fe; }
-    .weeknav .wlabel { font-size:14px; font-weight:700; color:#1a1a2e; min-width:210px; text-align:center; }
+    .weeknav .wlabel { font-size:14px; font-weight:700; color:#1a1a2e; min-width:230px; text-align:center; }
     .toolbar .spacer { flex:1; }
     .search { padding:8px 12px; border:1px solid #e5e7eb; border-radius:9px; font-size:14px; outline:none; min-width:200px; }
     .search:focus { border-color:#4f46e5; }
     .btn-pub { background:#16a34a; color:#fff; border:none; border-radius:9px; padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; }
     .btn-pub:hover { background:#15803d; }
 
-    .filtros { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px 14px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,.04); }
-    .filtros .flabel { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.4px; margin:0 0 7px; }
-    .filtros .frow + .frow { margin-top:12px; }
-    .chips { display:flex; flex-wrap:wrap; gap:8px; }
-    .chip { background:#f8fafc; border:1px solid #e5e7eb; color:#475569; padding:6px 12px; border-radius:999px; font-size:13px; cursor:pointer; user-select:none; }
-    .chip:hover { border-color:#c7d2fe; }
-    .chip.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
-    .chip.rol.active { background:#0ea5e9; border-color:#0ea5e9; }
+    /* ── Filtros ─────────────────────────────────────────────── */
+    .filtros { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; margin-bottom:12px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+    .filtros .frow { display:flex; align-items:center; gap:10px; }
+    .filtros .frow + .frow { margin-top:9px; }
+    .filtros .flabel { font-size:10px; font-weight:800; color:#6366f1; text-transform:uppercase; letter-spacing:.7px; min-width:92px; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    /* chips de rol (color por rol, como el cuadrante) */
+    .area-chip { padding:3px 12px; border-radius:20px; border:1.5px dashed #d1d5db; background:white; font-size:11px; font-weight:600; color:#6b7280; cursor:pointer; white-space:nowrap; transition:all .15s; user-select:none; }
+    .area-chip:hover { opacity:.85; }
+    .area-chip.active { border-style:solid; color:white; }
+    /* chips de restaurante */
+    .rchip { padding:4px 12px; border-radius:20px; border:1.5px solid #e5e7eb; background:#f8fafc; font-size:12px; font-weight:600; color:#475569; cursor:pointer; white-space:nowrap; user-select:none; }
+    .rchip:hover { border-color:#c7d2fe; }
+    .rchip.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
 
-    .grid-wrap { background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.05); overflow:auto; max-height:calc(100vh - 230px); }
-    table.grid { border-collapse:separate; border-spacing:0; width:100%; }
-    table.grid th, table.grid td { border-bottom:1px solid #eef2f7; border-right:1px solid #f1f5f9; padding:0; }
-    table.grid thead th { position:sticky; top:0; z-index:10; background:#f8fafc; color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; padding:9px 8px; text-align:center; }
-    table.grid thead th.hoy { background:#f1ecff; color:#4f46e5; }
-    table.grid th.col-emp, table.grid td.col-emp { position:sticky; left:0; z-index:5; background:#fff; text-align:left; min-width:190px; max-width:230px; padding:8px 12px; }
-    table.grid thead th.col-emp { z-index:15; background:#f8fafc; }
-    table.grid tbody tr:hover td { background:#fcfbff; }
-    table.grid tbody tr:hover td.col-emp { background:#f7f5ff; }
-    .emp-n { font-weight:600; color:#1a1a2e; font-size:13px; }
-    .emp-meta { font-size:11px; color:#94a3b8; margin-top:2px; }
-    .emp-rest { display:inline-block; background:#eef2ff; color:#4338ca; border-radius:5px; padding:0 5px; font-size:10px; font-weight:600; }
-    td.celda { vertical-align:top; min-width:118px; cursor:pointer; padding:5px; }
-    td.celda.hoy { background:#faf7ff; }
-    td.celda:hover { background:#eef2ff !important; }
-    .turno { background:#4f46e5; color:#fff; border-radius:6px; padding:2px 7px; font-size:12px; font-weight:600; display:block; margin-bottom:3px; }
-    .turno.borrador { background:#c7d2fe; color:#3730a3; }
-    .turno-meta { font-size:10px; color:#64748b; }
-    .celda-vacia { color:#cbd5e1; font-size:18px; text-align:center; padding:6px 0; }
-    .grid-empty, .grid-loading { text-align:center; color:#94a3b8; padding:36px; }
+    /* ── Grilla (estética del cuadrante) ─────────────────────── */
+    .grid-area { overflow:auto; max-height:calc(100vh - 250px); border-radius:10px; }
+    .cq-table { border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.07); width:100%; }
+    .cq-table thead th { position:sticky; top:0; z-index:3; background:#fff; border:1px solid #e5e7eb; padding:0; }
+    .th-user { position:sticky; left:0; z-index:5 !important; background:#fff; width:210px; min-width:210px; }
+    .th-user-inner { padding:10px 12px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; color:#6366f1; }
+    .td-user { position:sticky; left:0; z-index:2; background:#fff; width:210px; min-width:210px; border-right:2px solid #e5e7eb; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+    .td-user-inner { padding:8px 12px; display:flex; align-items:center; gap:8px; }
+    .u-avatar-sm { width:30px; height:30px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.3); }
+    .u-info-col { display:flex; flex-direction:column; min-width:0; }
+    .u-name-sm { font-size:12px; font-weight:600; color:#1a1a2e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .u-area-tag { font-size:9px; color:#9ca3af; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .u-rest-tag { font-size:9px; font-weight:700; color:#4338ca; background:#eef2ff; border-radius:4px; padding:0 4px; margin-top:2px; align-self:flex-start; max-width:170px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .u-period-h { font-size:11px; color:#6366f1; font-weight:700; margin-top:2px; white-space:nowrap; }
 
-    /* Modal */
+    .th-day { min-width:96px; }
+    .day-head-inner { padding:6px 4px; display:flex; flex-direction:column; align-items:center; gap:1px; }
+    .dh-dn { font-size:9px; font-weight:700; text-transform:uppercase; color:#9ca3af; letter-spacing:.4px; }
+    .dh-dd { font-size:15px; font-weight:800; color:#1a1a2e; line-height:1.2; }
+    .dh-dm { font-size:9px; color:#9ca3af; }
+    .th-day.col-hoy { background:#fafafe !important; }
+    .th-day.col-hoy .dh-dn { color:#6366f1; }
+    .th-day.col-hoy .dh-dd { color:#4f46e5; }
+    .th-day.col-wknd .dh-dd { color:#9ca3af; }
+
+    .td-day { border:1px solid #f3f4f6; vertical-align:top; min-height:52px; padding:4px; position:relative; }
+    .td-day.col-hoy { background:#fafafe; }
+    .td-day.col-wknd { background:#fafafa; }
+
+    .cell-content { width:100%; min-height:44px; border-radius:6px; padding:4px 6px; display:flex; flex-direction:column; gap:2px; cursor:pointer; transition:filter .15s; }
+    .cell-content:hover { filter:brightness(.96); }
+    .cell-content.draft { border-style:dashed !important; border-width:2px !important; }
+    .cell-content.published { border-style:solid !important; border-width:2px !important; }
+    .franja-tag { font-size:10px; font-weight:700; color:inherit; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.4; }
+    .cell-total-h { font-size:10px; font-weight:600; opacity:.75; margin-top:2px; }
+    .cell-rol-badge { font-size:9px; font-weight:700; opacity:.85; border-radius:3px; padding:0 3px; background:rgba(0,0,0,.08); display:inline-block; margin-bottom:1px; }
+    .cell-break { font-size:9px; opacity:.7; margin-top:1px; }
+    .cell-add { width:100%; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:6px; border:1.5px dashed #e0e0e0; color:#d1d5db; font-size:18px; cursor:pointer; transition:all .15s; }
+    .cell-add:hover { border-color:#a5b4fc; color:#a5b4fc; background:#f5f3ff; }
+
+    .tr-summary td { background:#f8f9fa !important; border-top:2px solid #dde1e8; }
+    .td-sum-label { position:sticky; left:0; z-index:2; width:210px; min-width:210px; border-right:2px solid #e5e7eb; }
+    .sum-rol-row { padding:1px 5px 1px 6px; margin-bottom:2px; border-radius:0 3px 3px 0; }
+    .sum-hours { font-size:11px; font-weight:800; color:#1a1a2e; display:block; }
+    .sum-info { font-size:9px; color:#6b7280; display:block; }
+
+    .grid-empty, .grid-loading { text-align:center; padding:60px; color:#9ca3af; font-size:14px; background:#fff; border-radius:10px; box-shadow:0 1px 6px rgba(0,0,0,.07); }
+
+    /* ── Modal ───────────────────────────────────────────────── */
     .overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:50; }
     .overlay.open { display:flex; }
-    .modal { background:#fff; border-radius:16px; width:100%; max-width:420px; box-shadow:0 20px 50px rgba(0,0,0,.25); overflow:hidden; }
-    .modal-head { padding:16px 18px; border-bottom:1px solid #eef2f7; }
+    .modal { background:#fff; border-radius:16px; width:100%; max-width:430px; box-shadow:0 20px 50px rgba(0,0,0,.25); overflow:hidden; }
+    .modal-head { padding:16px 18px; border-bottom:1px solid #eef2f7; display:flex; align-items:center; gap:10px; }
+    .modal-head .mav { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; text-shadow:0 1px 2px rgba(0,0,0,.3); }
     .modal-head .mt { font-size:16px; font-weight:700; color:#1a1a2e; }
     .modal-head .ms { font-size:12.5px; color:#94a3b8; margin-top:2px; }
     .modal-body { padding:16px 18px; }
@@ -72,7 +107,7 @@
     .mfield select, .mfield input { width:100%; padding:8px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; }
     .mtotal { font-size:13px; color:#475569; margin-top:14px; }
     .mtotal b { color:#1a1a2e; }
-    .modal-foot { padding:14px 18px; border-top:1px solid #eef2f7; display:flex; gap:10px; }
+    .modal-foot { padding:14px 18px; border-top:1px solid #eef2f7; display:flex; gap:10px; align-items:center; }
     .modal-foot .sp { flex:1; }
     .btn-del { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:9px; padding:9px 14px; font-weight:600; cursor:pointer; }
     .btn-save { background:#4f46e5; color:#fff; border:none; border-radius:9px; padding:9px 18px; font-weight:600; cursor:pointer; }
@@ -102,24 +137,27 @@
 
         <div class="filtros">
             <div class="frow">
-                <p class="flabel">Restaurante <span style="text-transform:none;font-weight:400;">(los seleccionados van arriba; sin selección = todos)</span></p>
+                <span class="flabel">Restaurante</span>
                 <div class="chips" id="chips-rest"></div>
             </div>
             <div class="frow">
-                <p class="flabel">Rol</p>
+                <span class="flabel">Rol</span>
                 <div class="chips" id="chips-rol"></div>
             </div>
         </div>
 
-        <div class="grid-wrap" id="grid-wrap"><div class="grid-loading">Cargando…</div></div>
+        <div class="grid-area" id="grid-area"><div class="grid-loading">Cargando…</div></div>
     </div>
 
     <!-- Modal edición de turno -->
     <div class="overlay" id="overlay" onclick="if(event.target===this) cerrarModal()">
         <div class="modal">
             <div class="modal-head">
-                <div class="mt" id="m-emp">—</div>
-                <div class="ms" id="m-sub">—</div>
+                <div class="mav" id="m-av">--</div>
+                <div>
+                    <div class="mt" id="m-emp">—</div>
+                    <div class="ms" id="m-sub">—</div>
+                </div>
             </div>
             <div class="modal-body">
                 <div id="m-franjas"></div>
@@ -132,7 +170,7 @@
                     <label>Descanso (minutos a descontar)</label>
                     <input type="number" id="m-break" min="0" step="5" value="0">
                 </div>
-                <div class="mtotal" id="m-total">Total: <b>0 h</b></div>
+                <div class="mtotal" id="m-total">Total: <b>0h</b></div>
             </div>
             <div class="modal-foot">
                 <button class="btn-del" id="m-del" style="display:none" onclick="eliminarTurno()">🗑 Eliminar</button>
@@ -150,39 +188,52 @@
     if (_user.rol !== 'gerente_cadena') { window.location.href = 'dashboard.html'; }
     document.getElementById('who').textContent = _user.nombre || _user.username || '';
 
-    // ── Estado ──────────────────────────────────────────────────
-    let _rests   = [];          // [{id, nombre, codigo}]
-    let _data    = [];          // GET /cadena/horarios (por restaurante)
-    let _rows    = [];          // empleados aplanados
-    let _offset  = 0;           // semana relativa
-    let _selRest = new Set();   // restaurantes "fijados arriba"; vacío = ninguno
-    let _selRol  = new Set();   // roles a mostrar; vacío = todos
-    let _buscar  = '';
-    let _modal   = null;        // {key, restaurante_id, usuario_id, fecha, entryId}
-
-    const DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-
-    function _fmtD(d) {
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    // ── Constantes / colores por rol (igual que el cuadrante) ──
+    const DIAS_CORTO = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    const MESES_C    = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const COLOR_PALETTE = ['#10b981','#3b82f6','#f59e0b','#ec4899','#14b8a6','#f97316','#8b5cf6','#84cc16','#ef4444','#06b6d4','#a78bfa','#fb923c'];
+    const ROL_LABELS = { gerente:'Gerencia', empleado:'Personal', bartender:'Bartender', cocinero:'Cocina', camarero:'Sala' };
+    let rolColorMap = {};
+    let rolesDisponibles = [];
+    function getRolColor(rol){ return rolColorMap[rol] || '#9ca3af'; }
+    function getRolLabel(rol){ return ROL_LABELS[rol] || (rol ? rol.charAt(0).toUpperCase()+rol.slice(1) : 'Sin rol'); }
+    function hexToRgba(hex, a){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
+    function buildRolColors(){
+        const set = new Set(_rows.map(r=>r.rol).filter(Boolean));
+        const orden = ['gerente','empleado','bartender','cocinero','camarero'];
+        rolesDisponibles = [...orden.filter(r=>set.has(r)), ...[...set].filter(r=>!orden.includes(r)).sort()];
+        rolColorMap = {};
+        rolesDisponibles.forEach((rol,i)=>{ rolColorMap[rol] = COLOR_PALETTE[i % COLOR_PALETTE.length]; });
     }
-    function _semana(offset) {
-        const hoy = new Date();
+
+    // ── Estado ──────────────────────────────────────────────────
+    let _rests   = [];
+    let _data    = [];
+    let _rows    = [];
+    let _offset  = 0;
+    let _selRest = new Set();
+    let _selRol  = new Set();
+    let _buscar  = '';
+    let _modal   = null;
+
+    function _fmtD(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function _semana(offset){
+        const hoy = new Date(); hoy.setHours(0,0,0,0);
         const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;
         const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem + offset*7);
         const hoyKey = _fmtD(new Date());
         const dias = [];
-        for (let i=0;i<7;i++){ const d=new Date(lunes); d.setDate(lunes.getDate()+i);
-            dias.push({ key:_fmtD(d), label:`${DIAS[i]} ${d.getDate()}`, esHoy:_fmtD(d)===hoyKey }); }
+        for(let i=0;i<7;i++){ const d=new Date(lunes); d.setDate(lunes.getDate()+i);
+            dias.push({ key:_fmtD(d), dn:DIAS_CORTO[i], dd:d.getDate(), dm:MESES_C[d.getMonth()], esHoy:_fmtD(d)===hoyKey, wknd:(i>=5) }); }
         const domingo = new Date(lunes); domingo.setDate(lunes.getDate()+6);
         return { lunes, domingo, dias };
     }
     function _esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-    function _t2m(t){ if(!t) return 0; const [h,m]=String(t).split(':'); return (parseInt(h,10)||0)*60+(parseInt(m,10)||0); }
-    function _totMin(franjas, brk){
-        let s=0; (franjas||[]).forEach(f=>{ let a=_t2m(f.inicio), b=_t2m(f.fin); if(b<a) b+=1440; s+=Math.max(b-a,0); });
-        return Math.max(s-(brk||0),0);
-    }
-    function _fmtH(m){ const h=Math.floor(m/60), mm=m%60; return mm? `${h}h ${mm}m` : `${h} h`; }
+    function _t2m(t){ if(!t) return 0; const [h,m]=String(t).slice(0,5).split(':').map(Number); return (h||0)*60+(m||0); }
+    function _totMin(franjas){ let s=0; (franjas||[]).forEach(f=>{ let a=_t2m(f.inicio), b=_t2m(f.fin); if(b<=a) b+=1440; if(b>a) s+=b-a; }); return s; }
+    function _netMin(e){ return Math.max(0, _totMin(e.franjas||[]) - (e.break_mins||0)); }
+    function _fmtH(m){ if(!m||m<=0) return ''; const h=Math.floor(m/60), mm=m%60; return mm? `${h}h ${mm}m` : `${h}h`; }
+    function _ini(row){ return (row.iniciales || (row.nombre||'?').slice(0,2)).toUpperCase(); }
 
     // ── Carga ───────────────────────────────────────────────────
     async function init(){
@@ -190,186 +241,183 @@
         renderRestChips();
         await cargarSemana();
     }
-
     function cambiarSemana(d){ _offset += d; cargarSemana(); }
 
     async function cargarSemana(){
         const wk = _semana(_offset);
         document.getElementById('wlabel').textContent =
-            `${wk.lunes.getDate()}/${wk.lunes.getMonth()+1} – ${wk.domingo.getDate()}/${wk.domingo.getMonth()+1}/${wk.domingo.getFullYear()}`;
-        const wrap = document.getElementById('grid-wrap');
-        wrap.innerHTML = '<div class="grid-loading">Cargando…</div>';
-        const desde=_fmtD(wk.lunes), hasta=_fmtD(wk.domingo);
-        try { _data = await api.get(`/cadena/horarios?desde=${desde}&hasta=${hasta}`); }
-        catch(e){ wrap.innerHTML = '<div class="grid-empty">Error cargando horarios.</div>'; return; }
+            `${wk.lunes.getDate()} ${MESES_C[wk.lunes.getMonth()]} — ${wk.domingo.getDate()} ${MESES_C[wk.domingo.getMonth()]} ${wk.domingo.getFullYear()}`;
+        const area = document.getElementById('grid-area');
+        area.innerHTML = '<div class="grid-loading">Cargando…</div>';
+        try { _data = await api.get(`/cadena/horarios?desde=${_fmtD(wk.lunes)}&hasta=${_fmtD(wk.domingo)}`); }
+        catch(e){ area.innerHTML = '<div class="grid-empty">Error cargando horarios.</div>'; return; }
         _rows = [];
         _data.forEach(r => (r.empleados||[]).forEach(e => _rows.push({
-            key: `${r.restaurante_id}:${e.usuario_id}`,
-            restaurante_id: r.restaurante_id, restaurante: r.restaurante,
-            usuario_id: e.usuario_id, nombre: e.nombre || '', rol: e.rol || '', dias: e.dias || {},
+            key:`${r.restaurante_id}:${e.usuario_id}`, restaurante_id:r.restaurante_id, restaurante:r.restaurante,
+            usuario_id:e.usuario_id, nombre:e.nombre||'', iniciales:e.iniciales||'', rol:e.rol||'', dias:e.dias||{},
         })));
+        buildRolColors();
         renderRolChips();
         renderGrid(wk.dias);
     }
 
     // ── Filtros ─────────────────────────────────────────────────
     function renderRestChips(){
-        const cont = document.getElementById('chips-rest');
-        cont.innerHTML = _rests.map(r =>
-            `<span class="chip ${_selRest.has(r.id)?'active':''}" onclick="toggleRest(${r.id})">${_esc(r.nombre||'—')}</span>`).join('')
-            || '<span style="color:#94a3b8;font-size:13px;">Sin restaurantes.</span>';
+        const c = document.getElementById('chips-rest');
+        c.innerHTML = _rests.map(r =>
+            `<span class="rchip ${_selRest.has(r.id)?'active':''}" onclick="toggleRest(${r.id})">${_esc(r.nombre||'—')}</span>`).join('')
+            || '<span style="color:#9ca3af;font-size:12px;">Sin restaurantes.</span>';
     }
-    function toggleRest(id){
-        if(_selRest.has(id)) _selRest.delete(id); else _selRest.add(id);
-        renderRestChips(); renderGrid(_semana(_offset).dias);
-    }
+    function toggleRest(id){ if(_selRest.has(id)) _selRest.delete(id); else _selRest.add(id); renderRestChips(); renderGrid(_semana(_offset).dias); }
     function renderRolChips(){
-        const cont = document.getElementById('chips-rol');
-        const roles = [...new Set(_rows.map(r=>r.rol).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-        const all = `<span class="chip rol ${_selRol.size===0?'active':''}" onclick="toggleRol('__all__')">Todos</span>`;
-        cont.innerHTML = all + roles.map(rol =>
-            `<span class="chip rol ${_selRol.has(rol)?'active':''}" onclick="toggleRol('${_esc(rol)}')">${_esc(rol)}</span>`).join('');
+        const c = document.getElementById('chips-rol');
+        c.innerHTML = rolesDisponibles.map(rol=>{
+            const active=_selRol.has(rol), col=getRolColor(rol);
+            const style = active ? `background:${col};border-color:${col};color:white;` : `border-color:${col};color:${col};`;
+            return `<span class="area-chip${active?' active':''}" onclick="toggleRol('${_esc(rol)}')" style="${style}">${_esc(getRolLabel(rol))}</span>`;
+        }).join('') || '<span style="color:#9ca3af;font-size:11px;">Sin roles</span>';
     }
-    function toggleRol(rol){
-        if(rol==='__all__') _selRol.clear();
-        else if(_selRol.has(rol)) _selRol.delete(rol); else _selRol.add(rol);
-        renderRolChips(); renderGrid(_semana(_offset).dias);
-    }
-    function onBuscar(v){ _buscar = (v||'').trim().toLowerCase(); renderGrid(_semana(_offset).dias); }
+    function toggleRol(rol){ if(_selRol.has(rol)) _selRol.delete(rol); else _selRol.add(rol); renderRolChips(); renderGrid(_semana(_offset).dias); }
+    function onBuscar(v){ _buscar=(v||'').trim().toLowerCase(); renderGrid(_semana(_offset).dias); }
 
     function filasVisibles(){
         let rows = _rows.slice();
         if(_buscar) rows = rows.filter(r => r.nombre.toLowerCase().includes(_buscar));
         if(_selRol.size) rows = rows.filter(r => _selRol.has(r.rol));
         rows.sort((a,b)=>{
-            const pa = (_selRest.size && _selRest.has(a.restaurante_id)) ? 0 : 1;
-            const pb = (_selRest.size && _selRest.has(b.restaurante_id)) ? 0 : 1;
+            const pa=(_selRest.size && _selRest.has(a.restaurante_id))?0:1;
+            const pb=(_selRest.size && _selRest.has(b.restaurante_id))?0:1;
             if(pa!==pb) return pa-pb;
-            return a.nombre.localeCompare(b.nombre, 'es', {sensitivity:'base'});
+            return a.nombre.localeCompare(b.nombre,'es',{sensitivity:'base'});
         });
         return rows;
     }
 
-    // ── Grilla ──────────────────────────────────────────────────
+    // ── Grilla (estética cuadrante) ─────────────────────────────
+    function periodMins(row, dias){ let t=0; dias.forEach(d=>{ const e=row.dias[d.key]; if(e) t+=_netMin(e); }); return t; }
+
     function renderGrid(dias){
-        const wrap = document.getElementById('grid-wrap');
+        const area = document.getElementById('grid-area');
+        if(!_rows.length){ area.innerHTML = '<div class="grid-empty">No hay personal en tus restaurantes para esta semana.</div>'; return; }
         const rows = filasVisibles();
-        if(!_rows.length){ wrap.innerHTML = '<div class="grid-empty">No hay personal en tus restaurantes para esta semana.</div>'; return; }
-        if(!rows.length){ wrap.innerHTML = '<div class="grid-empty">Ningún empleado coincide con los filtros.</div>'; return; }
-        const ths = dias.map(d=>`<th class="${d.esHoy?'hoy':''}">${d.label}</th>`).join('');
-        const body = rows.map(row=>{
-            const celdas = dias.map(d=>{
-                const e = row.dias[d.key];
-                let inner;
+        if(!rows.length){ area.innerHTML = '<div class="grid-empty">Ningún empleado coincide con los filtros.<br><small>Ajustá rol, restaurante o búsqueda.</small></div>'; return; }
+
+        let html = `<table class="cq-table"><thead><tr><th class="th-user"><div class="th-user-inner">👥 Personal</div></th>`;
+        dias.forEach(d=>{
+            const cls=['th-day', d.esHoy?'col-hoy':'', d.wknd?'col-wknd':''].filter(Boolean).join(' ');
+            html += `<th class="${cls}"><div class="day-head-inner"><span class="dh-dn">${d.dn}</span><span class="dh-dd">${d.dd}</span><span class="dh-dm">${d.dm}</span></div></th>`;
+        });
+        html += `</tr></thead><tbody>`;
+
+        const summary = {}; dias.forEach(d=>{ summary[d.key]={}; });
+
+        rows.forEach(row=>{
+            const color=getRolColor(row.rol), pm=periodMins(row,dias), ph=_fmtH(pm);
+            html += `<tr><td class="td-user"><div class="td-user-inner">
+                <div class="u-avatar-sm" style="background:${color}">${_esc(_ini(row))}</div>
+                <div class="u-info-col">
+                    <span class="u-name-sm">${_esc(row.nombre)}</span>
+                    <span class="u-area-tag">${_esc(getRolLabel(row.rol))}</span>
+                    <span class="u-rest-tag">${_esc(row.restaurante)}</span>
+                    ${ph ? `<span class="u-period-h">⏱ ${ph}</span>` : '<span class="u-period-h" style="color:#d1d5db">Sin horas</span>'}
+                </div></div></td>`;
+            dias.forEach(d=>{
+                const e=row.dias[d.key];
+                const cls=['td-day', d.esHoy?'col-hoy':'', d.wknd?'col-wknd':''].filter(Boolean).join(' ');
+                html += `<td class="${cls}" onclick="abrirModal('${row.key}','${d.key}')">`;
                 if(e && e.franjas && e.franjas.length){
-                    const chips = e.franjas.map(f=>`<span class="turno ${e.publicado?'':'borrador'}">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</span>`).join('');
-                    const extra = (e.rol_turno? _esc(e.rol_turno):'') + (e.break_mins? ` · -${e.break_mins}m`:'');
-                    inner = chips + (extra? `<div class="turno-meta">${extra}</div>`:'') + (e.publicado? '' : '<div class="turno-meta">borrador</div>');
+                    const rolCelda = e.rol_turno || row.rol;
+                    const cc=getRolColor(rolCelda);
+                    const franjas=e.franjas.map(f=>`<div class="franja-tag">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</div>`).join('');
+                    const rolBadge = e.rol_turno ? `<div class="cell-rol-badge">${_esc(getRolLabel(e.rol_turno))}</div>` : '';
+                    const brk = e.break_mins>0 ? `<div class="cell-break">☕ ${e.break_mins}m</div>` : '';
+                    const net=_netMin(e);
+                    html += `<div class="cell-content ${e.publicado?'published':'draft'}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};">
+                        ${rolBadge}${franjas}<div class="cell-total-h">${_fmtH(net)}</div>${brk}</div>`;
+                    const rE = e.rol_turno || row.rol;
+                    if(!summary[d.key][rE]) summary[d.key][rE]={mins:0,count:0};
+                    summary[d.key][rE].mins += net; summary[d.key][rE].count += 1;
                 } else {
-                    inner = '<div class="celda-vacia">+</div>';
+                    html += `<div class="cell-add">+</div>`;
                 }
-                return `<td class="celda ${d.esHoy?'hoy':''}" onclick="abrirModal('${row.key}','${d.key}')">${inner}</td>`;
-            }).join('');
-            return `<tr>
-                <td class="col-emp">
-                    <div class="emp-n">${_esc(row.nombre)}</div>
-                    <div class="emp-meta"><span class="emp-rest">${_esc(row.restaurante)}</span> ${_esc(row.rol||'')}</div>
-                </td>${celdas}</tr>`;
-        }).join('');
-        wrap.innerHTML = `<table class="grid">
-            <thead><tr><th class="col-emp">Empleado</th>${ths}</tr></thead>
-            <tbody>${body}</tbody>
-        </table>`;
+                html += `</td>`;
+            });
+            html += `</tr>`;
+        });
+
+        // Fila resumen "Total día"
+        html += `<tr class="tr-summary"><td class="td-user td-sum-label"><div class="td-user-inner" style="justify-content:center;"><span style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:.7px;">📊 Total día</span></div></td>`;
+        dias.forEach(d=>{
+            const cls=['td-day', d.esHoy?'col-hoy':'', d.wknd?'col-wknd':''].filter(Boolean).join(' ');
+            const byRol=summary[d.key]||{};
+            const entries=Object.entries(byRol).filter(([,v])=>v.count>0).sort(([a],[b])=>a.localeCompare(b));
+            html += `<td class="${cls}" style="vertical-align:top;padding:4px;">`;
+            entries.forEach(([rol,data])=>{
+                const col=getRolColor(rol);
+                html += `<div class="sum-rol-row" style="border-left:3px solid ${col};background:${hexToRgba(col,.06)}"><span class="sum-hours">${_fmtH(data.mins)}</span><span class="sum-info">${data.count} ${_esc(getRolLabel(rol).toLowerCase())}</span></div>`;
+            });
+            html += `</td>`;
+        });
+        html += `</tr></tbody></table>`;
+        area.innerHTML = html;
     }
 
     // ── Modal ───────────────────────────────────────────────────
     function abrirModal(key, fecha){
-        const row = _rows.find(r=>r.key===key);
-        if(!row) return;
-        const e = row.dias[fecha] || null;
-        _modal = { key, restaurante_id: row.restaurante_id, usuario_id: row.usuario_id, fecha, entryId: e? e.id : null };
-        document.getElementById('m-emp').textContent = row.nombre;
-        document.getElementById('m-sub').textContent = `${row.restaurante} · ${fecha}`;
-        // franjas
-        const franjas = (e && e.franjas && e.franjas.length) ? e.franjas : [{inicio:'09:00', fin:'17:00'}];
-        document.getElementById('m-franjas').innerHTML = franjas.map(f=>franjaRow(f.inicio, f.fin)).join('');
-        // rol del turno
-        const roles = [...new Set(_rows.map(r=>r.rol).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-        const sel = (e && e.rol_turno) || '';
+        const row=_rows.find(r=>r.key===key); if(!row) return;
+        const e=row.dias[fecha]||null;
+        _modal={ key, restaurante_id:row.restaurante_id, usuario_id:row.usuario_id, fecha, entryId:e?e.id:null };
+        const av=document.getElementById('m-av'); av.textContent=_ini(row); av.style.background=getRolColor(row.rol);
+        document.getElementById('m-emp').textContent=row.nombre;
+        document.getElementById('m-sub').textContent=`${row.restaurante} · ${getRolLabel(row.rol)} · ${fecha}`;
+        const franjas=(e && e.franjas && e.franjas.length)?e.franjas:[{inicio:'09:00',fin:'17:00'}];
+        document.getElementById('m-franjas').innerHTML=franjas.map(f=>franjaRow(f.inicio,f.fin)).join('');
+        const sel=(e && e.rol_turno)||'';
         document.getElementById('m-rol').innerHTML =
-            `<option value="">(rol del empleado: ${_esc(row.rol||'—')})</option>` +
-            roles.map(r=>`<option value="${_esc(r)}" ${r===sel?'selected':''}>${_esc(r)}</option>`).join('');
-        document.getElementById('m-break').value = (e && e.break_mins) || 0;
-        document.getElementById('m-del').style.display = _modal.entryId ? '' : 'none';
+            `<option value="">(rol del empleado: ${_esc(getRolLabel(row.rol))})</option>` +
+            rolesDisponibles.map(r=>`<option value="${_esc(r)}" ${r===sel?'selected':''}>${_esc(getRolLabel(r))}</option>`).join('');
+        document.getElementById('m-break').value=(e && e.break_mins)||0;
+        document.getElementById('m-del').style.display=_modal.entryId?'':'none';
         recalcTotal();
         document.getElementById('overlay').classList.add('open');
     }
-    function franjaRow(ini, fin){
-        return `<div class="fr-row">
-            <input type="time" value="${(ini||'').slice(0,5)}" oninput="recalcTotal()">
-            <span style="color:#94a3b8;">a</span>
-            <input type="time" value="${(fin||'').slice(0,5)}" oninput="recalcTotal()">
-            <button class="fr-del" onclick="this.closest('.fr-row').remove();recalcTotal()">✕</button>
-        </div>`;
+    function franjaRow(ini,fin){
+        return `<div class="fr-row"><input type="time" value="${(ini||'').slice(0,5)}" oninput="recalcTotal()"><span style="color:#94a3b8;">a</span><input type="time" value="${(fin||'').slice(0,5)}" oninput="recalcTotal()"><button class="fr-del" onclick="this.closest('.fr-row').remove();recalcTotal()">✕</button></div>`;
     }
-    function addFranja(){
-        document.getElementById('m-franjas').insertAdjacentHTML('beforeend', franjaRow('', ''));
-    }
-    function _leerFranjas(){
-        const out = [];
-        document.querySelectorAll('#m-franjas .fr-row').forEach(r=>{
-            const t = r.querySelectorAll('input[type=time]');
-            const a = t[0].value, b = t[1].value;
-            if(a && b) out.push({inicio:a, fin:b});
-        });
-        return out;
-    }
-    function recalcTotal(){
-        const brk = parseInt(document.getElementById('m-break').value,10)||0;
-        document.getElementById('m-total').innerHTML = `Total: <b>${_fmtH(_totMin(_leerFranjas(), brk))}</b>`;
-    }
+    function addFranja(){ document.getElementById('m-franjas').insertAdjacentHTML('beforeend', franjaRow('','')); }
+    function _leerFranjas(){ const out=[]; document.querySelectorAll('#m-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[type=time]'); if(t[0].value && t[1].value) out.push({inicio:t[0].value, fin:t[1].value}); }); return out; }
+    function recalcTotal(){ const brk=parseInt(document.getElementById('m-break').value,10)||0; document.getElementById('m-total').innerHTML=`Total: <b>${_fmtH(Math.max(0,_totMin(_leerFranjas())-brk))||'0h'}</b>`; }
     function cerrarModal(){ document.getElementById('overlay').classList.remove('open'); _modal=null; }
 
     async function guardarTurno(){
         if(!_modal) return;
-        const franjas = _leerFranjas();
-        const body = {
-            restaurante_id: _modal.restaurante_id,
-            usuario_id: _modal.usuario_id,
-            fecha: _modal.fecha,
-            franjas,
-            rol_turno: document.getElementById('m-rol').value || null,
-            break_mins: parseInt(document.getElementById('m-break').value,10)||0,
-        };
+        const franjas=_leerFranjas();
         try {
-            if(!franjas.length && _modal.entryId){
-                await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`);
+            if(!franjas.length){
+                if(_modal.entryId) await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`);
             } else {
-                await api.post('/cadena/horarios/guardar', body);
+                await api.post('/cadena/horarios/guardar', {
+                    restaurante_id:_modal.restaurante_id, usuario_id:_modal.usuario_id, fecha:_modal.fecha,
+                    franjas, rol_turno:document.getElementById('m-rol').value||null,
+                    break_mins:parseInt(document.getElementById('m-break').value,10)||0,
+                });
             }
-            cerrarModal();
-            await cargarSemana();
-        } catch(e){ alert('No se pudo guardar: ' + (e.message || e)); }
+            cerrarModal(); await cargarSemana();
+        } catch(e){ alert('No se pudo guardar: '+(e.message||e)); }
     }
     async function eliminarTurno(){
-        if(!_modal || !_modal.entryId) { cerrarModal(); return; }
-        try {
-            await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`);
-            cerrarModal();
-            await cargarSemana();
-        } catch(e){ alert('No se pudo eliminar: ' + (e.message || e)); }
+        if(!_modal || !_modal.entryId){ cerrarModal(); return; }
+        try { await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); cerrarModal(); await cargarSemana(); }
+        catch(e){ alert('No se pudo eliminar: '+(e.message||e)); }
     }
-
     async function publicar(){
-        const wk = _semana(_offset);
-        const ids = _selRest.size ? [..._selRest] : null;
-        const quien = ids ? `${ids.length} restaurante(s) seleccionado(s)` : 'TODOS tus restaurantes';
-        if(!confirm(`Publicar los horarios en borrador de la semana ${_fmtD(wk.lunes)} a ${_fmtD(wk.domingo)} para ${quien}?`)) return;
-        try {
-            const r = await api.post('/cadena/horarios/publicar', { desde:_fmtD(wk.lunes), hasta:_fmtD(wk.domingo), restaurante_ids: ids });
-            alert(`Publicados: ${r.publicados||0} horario(s).`);
-            await cargarSemana();
-        } catch(e){ alert('No se pudo publicar: ' + (e.message || e)); }
+        const wk=_semana(_offset);
+        const ids=_selRest.size?[..._selRest]:null;
+        const quien=ids?`${ids.length} restaurante(s) seleccionado(s)`:'TODOS tus restaurantes';
+        if(!confirm(`¿Publicar los horarios en borrador de la semana ${_fmtD(wk.lunes)} a ${_fmtD(wk.domingo)} para ${quien}?`)) return;
+        try { const r=await api.post('/cadena/horarios/publicar',{ desde:_fmtD(wk.lunes), hasta:_fmtD(wk.domingo), restaurante_ids:ids });
+            alert(`Publicados: ${r.publicados||0} horario(s).`); await cargarSemana();
+        } catch(e){ alert('No se pudo publicar: '+(e.message||e)); }
     }
 
     init();
