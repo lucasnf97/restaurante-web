@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Gerente — Cadena</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI', sans-serif; background:#f0f2f5; color:#1e293b; }
+    .navbar { background:#1a1a2e; color:#fff; height:60px; display:flex; align-items:center; padding:0 28px; gap:14px; }
+    .navbar h1 { font-size:18px; font-weight:700; flex:1; }
+    .navbar .who { font-size:13px; color:#a5b4fc; }
+    .btn-logout { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:7px 14px; border-radius:8px; cursor:pointer; font-size:13px; }
+    .btn-logout:hover { background:#4f46e5; color:#fff; }
+    .wrap { max-width:1100px; margin:0 auto; padding:24px 20px 60px; }
+    .sec-title { font-size:15px; font-weight:700; color:#1a1a2e; margin:24px 0 12px; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px; }
+    .rcard { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.05); display:flex; flex-direction:column; gap:10px; }
+    .rcard .rn { font-size:16px; font-weight:700; color:#1a1a2e; }
+    .rcard .rc { font-size:12px; color:#94a3b8; }
+    .rcard button { margin-top:auto; background:#4f46e5; color:#fff; border:none; border-radius:9px; padding:10px; font-size:14px; font-weight:600; cursor:pointer; }
+    .rcard button:hover { background:#4338ca; }
+    .tabla-wrapper { background:#fff; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,.05); overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:12px 14px; text-align:right; font-size:14px; border-bottom:1px solid #f1f5f9; }
+    th { background:#f8fafc; color:#64748b; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+    th:first-child, td:first-child { text-align:left; }
+    td:first-child { font-weight:600; color:#1a1a2e; }
+    tbody tr:hover { background:#faf5ff; }
+    tfoot td { font-weight:700; background:#f8fafc; border-top:2px solid #e5e7eb; }
+    .empty { text-align:center; color:#94a3b8; padding:30px; }
+</style>
+</head>
+<body>
+    <div class="navbar">
+        <span style="font-size:20px;">🏢</span>
+        <h1>Panel de Gerente — Cadena</h1>
+        <span class="who" id="who"></span>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+
+    <div class="wrap">
+        <div class="sec-title">Tus restaurantes</div>
+        <div class="cards" id="cards"><div class="empty">Cargando…</div></div>
+
+        <div class="sec-title">Comparativa de facturación</div>
+        <div class="tabla-wrapper">
+            <table>
+                <thead>
+                    <tr><th>Restaurante</th><th>Hoy</th><th>Esta semana</th><th>Este mes</th><th>Este año</th></tr>
+                </thead>
+                <tbody id="fact-body"><tr><td colspan="5" class="empty">Cargando…</td></tr></tbody>
+                <tfoot id="fact-foot"></tfoot>
+            </table>
+        </div>
+        <p style="font-size:12px;color:#94a3b8;margin-top:8px;">Facturación POS (a valor de carta) por período calendario. Los montos están en la moneda de cada restaurante.</p>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+    requireAuth();
+    const _user = getUser() || {};
+    if (_user.rol !== 'gerente_cadena') { window.location.href = 'dashboard.html'; }
+    document.getElementById('who').textContent = _user.nombre || _user.username || '';
+
+    function fmt(n) {
+        return (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    let _restaurantes = [];
+
+    async function cargar() {
+        try {
+            _restaurantes = await api.get('/cadena/restaurantes');
+        } catch (e) { _restaurantes = []; }
+        renderCards();
+        cargarFacturacion();
+    }
+
+    function renderCards() {
+        const cont = document.getElementById('cards');
+        if (!_restaurantes.length) {
+            cont.innerHTML = '<div class="empty">No tenés restaurantes asignados.</div>';
+            return;
+        }
+        cont.innerHTML = _restaurantes.map(r => `
+            <div class="rcard">
+                <div class="rn">${r.nombre || '—'}</div>
+                <div class="rc">Código: ${r.codigo || '—'}</div>
+                <button onclick="entrar(${r.id}, this)">Entrar →</button>
+            </div>`).join('');
+    }
+
+    async function cargarFacturacion() {
+        const body = document.getElementById('fact-body');
+        const foot = document.getElementById('fact-foot');
+        let datos = [];
+        try { datos = await api.get('/cadena/facturacion'); } catch (e) { datos = []; }
+        if (!datos.length) {
+            body.innerHTML = '<tr><td colspan="5" class="empty">Sin datos.</td></tr>';
+            foot.innerHTML = '';
+            return;
+        }
+        body.innerHTML = datos.map(d => `
+            <tr>
+                <td>${d.restaurante || '—'}</td>
+                <td>${fmt(d.dia)}</td>
+                <td>${fmt(d.semana)}</td>
+                <td>${fmt(d.mes)}</td>
+                <td>${fmt(d.anio)}</td>
+            </tr>`).join('');
+        const tot = datos.reduce((a, d) => ({
+            dia: a.dia + (d.dia || 0), semana: a.semana + (d.semana || 0),
+            mes: a.mes + (d.mes || 0), anio: a.anio + (d.anio || 0)
+        }), { dia: 0, semana: 0, mes: 0, anio: 0 });
+        foot.innerHTML = `<tr><td>Total cadena</td><td>${fmt(tot.dia)}</td><td>${fmt(tot.semana)}</td><td>${fmt(tot.mes)}</td><td>${fmt(tot.anio)}</td></tr>`;
+    }
+
+    async function entrar(id, btn) {
+        if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
+        try {
+            const resp = await api.post(`/cadena/entrar/${id}`, {});
+            setToken(resp.access_token);
+            setUser(resp);
+            window.location.href = 'dashboard.html';
+        } catch (e) {
+            alert('No se pudo entrar al restaurante: ' + (e.message || e));
+            if (btn) { btn.disabled = false; btn.textContent = 'Entrar →'; }
+        }
+    }
+
+    cargar();
+    </script>
+</body>
+</html>

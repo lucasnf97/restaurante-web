@@ -117,6 +117,15 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
     <!-- ════════ GERENTES ════════ -->
     <div id="view-ger" style="display:none;">
         <div class="card">
+            <h3>🔑 Código del panel de gerente</h3>
+            <div class="hint" style="margin-bottom:8px;">Código que el gerente usa (como "código de restaurante") para entrar al panel multi-restaurante con su usuario y contraseña.</div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <input type="text" id="gerente-code" placeholder="Ej: 12345" style="max-width:200px;">
+                <button class="btn btn-primary" onclick="guardarCodigoGerente()">Guardar código</button>
+                <span class="msg" id="msg-code"></span>
+            </div>
+        </div>
+        <div class="card">
             <h3>➕ Nuevo gerente</h3>
             <div class="grid">
                 <div class="field"><label>Nombre</label><input type="text" id="g-nombre"></div>
@@ -313,6 +322,7 @@ function verTab(t){
     document.getElementById('tab-ger').classList.toggle('active', t==='ger');
     document.getElementById('tab-cod').classList.toggle('active', t==='cod');
     if(t==='cod'){ cargarCodigos(); cargarPaisesCiudades(); }
+    if(t==='ger'){ cargarCodigoGerente(); }
 }
 
 // ── Gerentes ──────────────────────────────────────────────────
@@ -330,6 +340,21 @@ async function cargarGerentes(){
             <button class="btn-x" onclick="borrarGerente(${g.id}, '${esc(g.username).replace(/'/g,"\\'")}')">🗑 Eliminar</button>
         </td></tr>`).join('') : '<tr><td colspan="5" class="empty">Todavía no hay gerentes.</td></tr>';
     actualizarResumenGerentes();   // el form de nuevo restaurante usa un modal de selección
+}
+
+async function cargarCodigoGerente(){
+    try{ const r = await api.get('/gerentes/codigo'); document.getElementById('gerente-code').value = r.gerente_code || ''; }
+    catch(e){}
+}
+async function guardarCodigoGerente(){
+    const code = document.getElementById('gerente-code').value.trim();
+    const msg  = document.getElementById('msg-code');
+    if(!code){ msg.textContent='Escribí un código.'; msg.style.color='#dc2626'; return; }
+    try{
+        await api.put('/gerentes/codigo', { gerente_code: code });
+        msg.textContent='✓ Guardado'; msg.style.color='#16a34a';
+        setTimeout(()=>{ msg.textContent=''; }, 2500);
+    }catch(e){ msg.textContent='Error: '+(e.message||e); msg.style.color='#dc2626'; }
 }
 
 // ── Selección de gerentes para un restaurante nuevo (modal) ───

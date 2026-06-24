@@ -137,7 +137,8 @@
         // todos los usuarios entran al dashboard y ven lo que sus permisos habilitan.
         if (getToken()) {
             const _u = JSON.parse(localStorage.getItem('user') || '{}');
-            window.location.href = (_u.rol === 'superadmin') ? 'restaurantes.html' : 'dashboard.html';
+            window.location.href = _u.rol === 'superadmin' ? 'restaurantes.html'
+                                 : _u.rol === 'gerente_cadena' ? 'cadena.html' : 'dashboard.html';
         }
 
         // Permitir login con Enter
@@ -164,7 +165,8 @@
             try {
                 await login(username, password, codigo);
                 const _u2 = JSON.parse(localStorage.getItem('user') || '{}');
-                window.location.href = (_u2.rol === 'superadmin') ? 'restaurantes.html' : 'dashboard.html';
+                window.location.href = _u2.rol === 'superadmin' ? 'restaurantes.html'
+                                     : _u2.rol === 'gerente_cadena' ? 'cadena.html' : 'dashboard.html';
             } catch (err) {
                 mostrarError(err.message);
             } finally {
