@@ -7,43 +7,62 @@
 <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI', sans-serif; background:#f0f2f5; color:#1e293b; }
-    .navbar { background:#1a1a2e; color:#fff; height:60px; display:flex; align-items:center; padding:0 20px; gap:12px; position:sticky; top:0; z-index:30; }
+    .navbar { background:#1a1a2e; color:#fff; height:60px; display:flex; align-items:center; padding:0 20px; gap:12px; position:sticky; top:0; z-index:40; }
     .navbar h1 { font-size:17px; font-weight:700; flex:1; }
     .navbar .who { font-size:13px; color:#a5b4fc; }
     .navbar button { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:7px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
     .navbar button:hover { background:#4f46e5; color:#fff; }
-    .wrap { max-width:1320px; margin:0 auto; padding:16px; }
+    .wrap { padding:14px 16px 10px; }
 
-    /* ── Toolbar ─────────────────────────────────────────────── */
-    .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
-    .weeknav { display:flex; align-items:center; gap:8px; }
-    .weeknav button { background:#fff; border:1px solid #e5e7eb; color:#1a1a2e; width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:16px; }
-    .weeknav button:hover { background:#eef2ff; border-color:#c7d2fe; }
-    .weeknav .wlabel { font-size:14px; font-weight:700; color:#1a1a2e; min-width:230px; text-align:center; }
-    .toolbar .spacer { flex:1; }
-    .search { padding:8px 12px; border:1px solid #e5e7eb; border-radius:9px; font-size:14px; outline:none; min-width:200px; }
+    /* ── View tabs ───────────────────────────────────────────── */
+    .view-tabs { display:flex; justify-content:center; gap:8px; margin-bottom:10px; }
+    .view-tab { background:#fff; border:1px solid #e5e7eb; color:#475569; padding:8px 18px; border-radius:9px; font-size:14px; font-weight:600; cursor:pointer; }
+    .view-tab:hover { background:#eef2ff; border-color:#c7d2fe; }
+    .view-tab.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
+
+    /* ── Nav + búsqueda + publicar ───────────────────────────── */
+    .nav-bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:10px; }
+    .nav-bar .nav-btn { background:#fff; border:1px solid #e5e7eb; color:#1a1a2e; width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:16px; }
+    .nav-bar .nav-btn:hover { background:#eef2ff; border-color:#c7d2fe; }
+    .nav-label { font-size:15px; font-weight:700; color:#1a1a2e; min-width:250px; text-align:center; cursor:pointer; }
+    .nav-bar .spacer { flex:1; }
+    .search { padding:8px 12px; border:1px solid #e5e7eb; border-radius:9px; font-size:14px; outline:none; min-width:210px; }
     .search:focus { border-color:#4f46e5; }
     .btn-pub { background:#16a34a; color:#fff; border:none; border-radius:9px; padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; }
     .btn-pub:hover { background:#15803d; }
 
     /* ── Filtros ─────────────────────────────────────────────── */
-    .filtros { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; margin-bottom:12px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+    .filtros { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:9px 12px; margin-bottom:10px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
     .filtros .frow { display:flex; align-items:center; gap:10px; }
-    .filtros .frow + .frow { margin-top:9px; }
+    .filtros .frow + .frow { margin-top:8px; }
     .filtros .flabel { font-size:10px; font-weight:800; color:#6366f1; text-transform:uppercase; letter-spacing:.7px; min-width:92px; }
     .chips { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-    /* chips de rol (color por rol, como el cuadrante) */
     .area-chip { padding:3px 12px; border-radius:20px; border:1.5px dashed #d1d5db; background:white; font-size:11px; font-weight:600; color:#6b7280; cursor:pointer; white-space:nowrap; transition:all .15s; user-select:none; }
     .area-chip:hover { opacity:.85; }
     .area-chip.active { border-style:solid; color:white; }
-    /* chips de restaurante */
     .rchip { padding:4px 12px; border-radius:20px; border:1.5px solid #e5e7eb; background:#f8fafc; font-size:12px; font-weight:600; color:#475569; cursor:pointer; white-space:nowrap; user-select:none; }
     .rchip:hover { border-color:#c7d2fe; }
     .rchip.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
 
-    /* ── Grilla (estética del cuadrante) ─────────────────────── */
-    .grid-area { overflow:auto; max-height:calc(100vh - 250px); border-radius:10px; }
-    .cq-table { border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.07); width:100%; }
+    /* ── Barra de plantillas ─────────────────────────────────── */
+    .templates-bar { display:flex; align-items:center; gap:8px; height:48px; padding:0 12px; margin-bottom:10px; background:#faf5ff; border:1.5px solid #e9d5ff; border-radius:10px; overflow-x:auto; scrollbar-width:none; }
+    .templates-bar::-webkit-scrollbar { display:none; }
+    .tpl-bar-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:#7c3aed; flex-shrink:0; }
+    .tpl-chips { display:flex; gap:6px; align-items:center; flex:1; overflow-x:auto; scrollbar-width:none; }
+    .tpl-chips::-webkit-scrollbar { display:none; }
+    .tpl-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; background:#fff; color:#6d28d9; border:1.5px solid #c4b5fd; font-size:12px; font-weight:600; cursor:grab; white-space:nowrap; user-select:none; transition:all .15s; flex-shrink:0; }
+    .tpl-chip:hover { background:#ede9fe; }
+    .tpl-chip.dragging { opacity:.45; cursor:grabbing; }
+    .tpl-chip-times { font-size:10px; font-weight:500; color:#a78bfa; }
+    .tpl-chip-del { background:none; border:none; color:#c4b5fd; cursor:pointer; font-size:12px; padding:0; line-height:1; margin-left:2px; }
+    .tpl-chip-del:hover { color:#7c3aed; }
+    .tpl-add-btn { background:none; border:1.5px dashed #c4b5fd; border-radius:20px; color:#7c3aed; font-size:12px; font-weight:600; padding:4px 12px; cursor:pointer; flex-shrink:0; }
+    .tpl-add-btn:hover { background:#ede9fe; border-color:#7c3aed; }
+
+    /* ── Grilla (estética cuadrante) ─────────────────────────── */
+    .grid-area { overflow:auto; max-height:calc(100vh - 300px); border-radius:10px; }
+    .cq-table { border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.07); min-width:100%; }
+    body.view-semana .cq-table { width:100%; table-layout:fixed; }
     .cq-table thead th { position:sticky; top:0; z-index:3; background:#fff; border:1px solid #e5e7eb; padding:0; }
     .th-user { position:sticky; left:0; z-index:5 !important; background:#fff; width:210px; min-width:210px; }
     .th-user-inner { padding:10px 12px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; color:#6366f1; }
@@ -56,7 +75,9 @@
     .u-rest-tag { font-size:9px; font-weight:700; color:#4338ca; background:#eef2ff; border-radius:4px; padding:0 4px; margin-top:2px; align-self:flex-start; max-width:170px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .u-period-h { font-size:11px; color:#6366f1; font-weight:700; margin-top:2px; white-space:nowrap; }
 
-    .th-day { min-width:96px; }
+    .th-day { min-width:90px; }
+    body.view-dos_semanas .th-day { min-width:70px; }
+    body.view-mes .th-day { min-width:58px; }
     .day-head-inner { padding:6px 4px; display:flex; flex-direction:column; align-items:center; gap:1px; }
     .dh-dn { font-size:9px; font-weight:700; text-transform:uppercase; color:#9ca3af; letter-spacing:.4px; }
     .dh-dd { font-size:15px; font-weight:800; color:#1a1a2e; line-height:1.2; }
@@ -69,6 +90,7 @@
     .td-day { border:1px solid #f3f4f6; vertical-align:top; min-height:52px; padding:4px; position:relative; }
     .td-day.col-hoy { background:#fafafe; }
     .td-day.col-wknd { background:#fafafa; }
+    .td-day.drop-over { background:#ede9fe !important; outline:2px dashed #7c3aed; outline-offset:-2px; }
 
     .cell-content { width:100%; min-height:44px; border-radius:6px; padding:4px 6px; display:flex; flex-direction:column; gap:2px; cursor:pointer; transition:filter .15s; }
     .cell-content:hover { filter:brightness(.96); }
@@ -86,11 +108,10 @@
     .sum-rol-row { padding:1px 5px 1px 6px; margin-bottom:2px; border-radius:0 3px 3px 0; }
     .sum-hours { font-size:11px; font-weight:800; color:#1a1a2e; display:block; }
     .sum-info { font-size:9px; color:#6b7280; display:block; }
-
     .grid-empty, .grid-loading { text-align:center; padding:60px; color:#9ca3af; font-size:14px; background:#fff; border-radius:10px; box-shadow:0 1px 6px rgba(0,0,0,.07); }
 
-    /* ── Modal ───────────────────────────────────────────────── */
-    .overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:50; }
+    /* ── Modales ─────────────────────────────────────────────── */
+    .overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:60; }
     .overlay.open { display:flex; }
     .modal { background:#fff; border-radius:16px; width:100%; max-width:430px; box-shadow:0 20px 50px rgba(0,0,0,.25); overflow:hidden; }
     .modal-head { padding:16px 18px; border-bottom:1px solid #eef2f7; display:flex; align-items:center; gap:10px; }
@@ -99,7 +120,7 @@
     .modal-head .ms { font-size:12.5px; color:#94a3b8; margin-top:2px; }
     .modal-body { padding:16px 18px; }
     .fr-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-    .fr-row input[type=time] { flex:1; padding:8px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; }
+    .fr-row input[type=time], .fr-row input[type=text] { flex:1; padding:8px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; }
     .fr-del { background:#fef2f2; color:#dc2626; border:none; border-radius:7px; width:30px; height:34px; cursor:pointer; font-size:14px; }
     .add-fr { background:transparent; border:1px dashed #c7d2fe; color:#4f46e5; border-radius:8px; padding:7px; width:100%; cursor:pointer; font-size:13px; margin-top:2px; }
     .mfield { margin-top:14px; }
@@ -114,7 +135,7 @@
     .btn-cancel { background:#f1f5f9; color:#475569; border:none; border-radius:9px; padding:9px 14px; font-weight:600; cursor:pointer; }
 </style>
 </head>
-<body>
+<body class="view-semana">
     <div class="navbar">
         <span style="font-size:20px;">🕐</span>
         <h1>Horarios de la cadena</h1>
@@ -124,26 +145,30 @@
     </div>
 
     <div class="wrap">
-        <div class="toolbar">
-            <div class="weeknav">
-                <button onclick="cambiarSemana(-1)" title="Semana anterior">‹</button>
-                <span class="wlabel" id="wlabel">—</span>
-                <button onclick="cambiarSemana(1)" title="Semana siguiente">›</button>
-            </div>
-            <input class="search" id="buscar" placeholder="🔍 Buscar empleado…" oninput="onBuscar(this.value)">
+        <div class="view-tabs">
+            <button class="view-tab active" id="tab-semana" onclick="setView('semana')">📅 Semana</button>
+            <button class="view-tab" id="tab-dos_semanas" onclick="setView('dos_semanas')">📅 2 Semanas</button>
+            <button class="view-tab" id="tab-mes" onclick="setView('mes')">🗓️ Mes</button>
+        </div>
+
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="navDate(-1)">◀</button>
+            <span class="nav-label" id="nav-label">—</span>
+            <button class="nav-btn" onclick="navDate(1)">▶</button>
+            <input class="search" id="buscar" placeholder="🔍 Buscar empleado…" oninput="onFiltroNombre(this.value)">
             <div class="spacer"></div>
-            <button class="btn-pub" onclick="publicar()">📤 Publicar</button>
+            <button class="btn-pub" onclick="publicarHorarios()">📤 Publicar</button>
         </div>
 
         <div class="filtros">
-            <div class="frow">
-                <span class="flabel">Restaurante</span>
-                <div class="chips" id="chips-rest"></div>
-            </div>
-            <div class="frow">
-                <span class="flabel">Rol</span>
-                <div class="chips" id="chips-rol"></div>
-            </div>
+            <div class="frow"><span class="flabel">Restaurante</span><div class="chips" id="chips-rest"></div></div>
+            <div class="frow"><span class="flabel">Rol</span><div class="chips" id="chips-rol"></div></div>
+        </div>
+
+        <div class="templates-bar" id="templates-bar">
+            <span class="tpl-bar-label">📋 Plantillas</span>
+            <div class="tpl-chips" id="tpl-chips"></div>
+            <button class="tpl-add-btn" onclick="abrirTplModal()">+ Nueva</button>
         </div>
 
         <div class="grid-area" id="grid-area"><div class="grid-loading">Cargando…</div></div>
@@ -154,22 +179,13 @@
         <div class="modal">
             <div class="modal-head">
                 <div class="mav" id="m-av">--</div>
-                <div>
-                    <div class="mt" id="m-emp">—</div>
-                    <div class="ms" id="m-sub">—</div>
-                </div>
+                <div><div class="mt" id="m-emp">—</div><div class="ms" id="m-sub">—</div></div>
             </div>
             <div class="modal-body">
                 <div id="m-franjas"></div>
                 <button class="add-fr" onclick="addFranja()">+ Agregar franja</button>
-                <div class="mfield">
-                    <label>Rol del turno (opcional)</label>
-                    <select id="m-rol"></select>
-                </div>
-                <div class="mfield">
-                    <label>Descanso (minutos a descontar)</label>
-                    <input type="number" id="m-break" min="0" step="5" value="0">
-                </div>
+                <div class="mfield"><label>Rol del turno (opcional)</label><select id="m-rol"></select></div>
+                <div class="mfield"><label>Descanso (minutos a descontar)</label><input type="number" id="m-break" min="0" step="5" value="0" oninput="recalcTotal()"></div>
                 <div class="mtotal" id="m-total">Total: <b>0h</b></div>
             </div>
             <div class="modal-foot">
@@ -177,6 +193,25 @@
                 <div class="sp"></div>
                 <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
                 <button class="btn-save" onclick="guardarTurno()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal plantilla -->
+    <div class="overlay" id="tpl-overlay" onclick="if(event.target===this) cerrarTplModal()">
+        <div class="modal">
+            <div class="modal-head"><div><div class="mt" id="t-title">Nueva plantilla</div><div class="ms">Arrastrá la plantilla a una celda para aplicarla.</div></div></div>
+            <div class="modal-body">
+                <div class="mfield" style="margin-top:0"><label>Nombre</label><input type="text" id="t-nombre" placeholder="Ej: Apertura"></div>
+                <div style="margin-top:12px" id="t-franjas"></div>
+                <button class="add-fr" onclick="tplAddFranja()">+ Franja</button>
+                <div class="mfield"><label>Descanso (min)</label><input type="number" id="t-break" min="0" step="5" value="0"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-del" id="t-del" style="display:none" onclick="eliminarTemplate()">🗑 Eliminar</button>
+                <div class="sp"></div>
+                <button class="btn-cancel" onclick="cerrarTplModal()">Cancelar</button>
+                <button class="btn-save" onclick="guardarTemplate()">Guardar</button>
             </div>
         </div>
     </div>
@@ -190,100 +225,117 @@
 
     // ── Constantes / colores por rol (igual que el cuadrante) ──
     const DIAS_CORTO = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-    const MESES_C    = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const DIAS_LARGO = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+    const MESES   = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const MESES_C = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
     const COLOR_PALETTE = ['#10b981','#3b82f6','#f59e0b','#ec4899','#14b8a6','#f97316','#8b5cf6','#84cc16','#ef4444','#06b6d4','#a78bfa','#fb923c'];
     const ROL_LABELS = { gerente:'Gerencia', empleado:'Personal', bartender:'Bartender', cocinero:'Cocina', camarero:'Sala' };
-    let rolColorMap = {};
-    let rolesDisponibles = [];
+    let rolColorMap = {}, rolesDisponibles = [];
     function getRolColor(rol){ return rolColorMap[rol] || '#9ca3af'; }
     function getRolLabel(rol){ return ROL_LABELS[rol] || (rol ? rol.charAt(0).toUpperCase()+rol.slice(1) : 'Sin rol'); }
-    function hexToRgba(hex, a){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
+    function hexToRgba(hex,a){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
     function buildRolColors(){
         const set = new Set(_rows.map(r=>r.rol).filter(Boolean));
         const orden = ['gerente','empleado','bartender','cocinero','camarero'];
         rolesDisponibles = [...orden.filter(r=>set.has(r)), ...[...set].filter(r=>!orden.includes(r)).sort()];
         rolColorMap = {};
-        rolesDisponibles.forEach((rol,i)=>{ rolColorMap[rol] = COLOR_PALETTE[i % COLOR_PALETTE.length]; });
+        rolesDisponibles.forEach((rol,i)=>{ rolColorMap[rol]=COLOR_PALETTE[i%COLOR_PALETTE.length]; });
     }
 
     // ── Estado ──────────────────────────────────────────────────
-    let _rests   = [];
-    let _data    = [];
-    let _rows    = [];
-    let _offset  = 0;
-    let _selRest = new Set();
-    let _selRol  = new Set();
-    let _buscar  = '';
-    let _modal   = null;
+    let viewMode = 'semana';
+    let anchorDate = (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d; })();
+    let _rests=[], _data=[], _rows=[];
+    let _selRest=new Set(), rolesActivos=new Set(), filtroNombre='';
+    let _modal=null;
 
-    function _fmtD(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-    function _semana(offset){
-        const hoy = new Date(); hoy.setHours(0,0,0,0);
-        const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;
-        const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem + offset*7);
-        const hoyKey = _fmtD(new Date());
-        const dias = [];
-        for(let i=0;i<7;i++){ const d=new Date(lunes); d.setDate(lunes.getDate()+i);
-            dias.push({ key:_fmtD(d), dn:DIAS_CORTO[i], dd:d.getDate(), dm:MESES_C[d.getMonth()], esHoy:_fmtD(d)===hoyKey, wknd:(i>=5) }); }
-        const domingo = new Date(lunes); domingo.setDate(lunes.getDate()+6);
-        return { lunes, domingo, dias };
-    }
+    // ── Fechas ──────────────────────────────────────────────────
+    const addDays=(d,n)=>{ const r=new Date(d); r.setDate(r.getDate()+n); return r; };
+    function getMondayOf(d){ const r=new Date(d); const j=r.getDay(); r.setDate(r.getDate()-(j===0?6:j-1)); return r; }
+    function formatDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function isToday(d){ const t=new Date(); t.setHours(0,0,0,0); return d.getTime()===t.getTime(); }
+    function jsDay2Api(d){ const j=d.getDay(); return j===0?6:j-1; }
     function _esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
     function _t2m(t){ if(!t) return 0; const [h,m]=String(t).slice(0,5).split(':').map(Number); return (h||0)*60+(m||0); }
     function _totMin(franjas){ let s=0; (franjas||[]).forEach(f=>{ let a=_t2m(f.inicio), b=_t2m(f.fin); if(b<=a) b+=1440; if(b>a) s+=b-a; }); return s; }
-    function _netMin(e){ return Math.max(0, _totMin(e.franjas||[]) - (e.break_mins||0)); }
-    function _fmtH(m){ if(!m||m<=0) return ''; const h=Math.floor(m/60), mm=m%60; return mm? `${h}h ${mm}m` : `${h}h`; }
+    function _netMin(e){ return Math.max(0,_totMin(e.franjas||[])-(e.break_mins||0)); }
+    function _fmtH(m){ if(!m||m<=0) return ''; const h=Math.floor(m/60), mm=m%60; return mm?`${h}h ${mm}m`:`${h}h`; }
     function _ini(row){ return (row.iniciales || (row.nombre||'?').slice(0,2)).toUpperCase(); }
+
+    // ── Vista ───────────────────────────────────────────────────
+    function setView(mode){
+        viewMode=mode;
+        document.querySelectorAll('.view-tab').forEach(t=>t.classList.remove('active'));
+        document.getElementById(`tab-${mode}`).classList.add('active');
+        document.body.className = document.body.className.replace(/\bview-\S+/g,'').trim();
+        document.body.classList.add(`view-${mode}`);
+        cargarYRenderizar();
+    }
+    function navDate(dir){
+        if(viewMode==='mes') anchorDate=new Date(anchorDate.getFullYear(), anchorDate.getMonth()+dir, 1);
+        else anchorDate=addDays(anchorDate, dir*7);
+        cargarYRenderizar();
+    }
+    function getDays(){
+        if(viewMode==='semana'){ const mon=getMondayOf(anchorDate); return Array.from({length:7},(_,i)=>addDays(mon,i)); }
+        if(viewMode==='dos_semanas'){ const mon=getMondayOf(anchorDate); return Array.from({length:14},(_,i)=>addDays(mon,i)); }
+        const first=new Date(anchorDate.getFullYear(),anchorDate.getMonth(),1), last=new Date(anchorDate.getFullYear(),anchorDate.getMonth()+1,0), days=[];
+        for(let d=new Date(first); d<=last; d=addDays(d,1)) days.push(new Date(d));
+        return days;
+    }
+    function updateNavLabel(){
+        const days=getDays(), a=days[0], z=days[days.length-1]; let lbl;
+        if(viewMode==='semana') lbl=`Semana del ${a.getDate()} al ${z.getDate()} de ${MESES[z.getMonth()]} ${z.getFullYear()}`;
+        else if(viewMode==='dos_semanas') lbl=a.getMonth()===z.getMonth()?`${a.getDate()} — ${z.getDate()} de ${MESES[z.getMonth()]} ${z.getFullYear()}`:`${a.getDate()} ${MESES_C[a.getMonth()]} — ${z.getDate()} ${MESES_C[z.getMonth()]} ${z.getFullYear()}`;
+        else { const m=MESES[anchorDate.getMonth()]; lbl=m.charAt(0).toUpperCase()+m.slice(1)+' '+anchorDate.getFullYear(); }
+        document.getElementById('nav-label').textContent=lbl;
+    }
 
     // ── Carga ───────────────────────────────────────────────────
     async function init(){
-        try { _rests = await api.get('/cadena/restaurantes'); } catch(e){ _rests = []; }
+        try { _rests = await api.get('/cadena/restaurantes'); } catch(e){ _rests=[]; }
         renderRestChips();
-        await cargarSemana();
+        renderTemplatesBar();
+        await cargarYRenderizar();
     }
-    function cambiarSemana(d){ _offset += d; cargarSemana(); }
-
-    async function cargarSemana(){
-        const wk = _semana(_offset);
-        document.getElementById('wlabel').textContent =
-            `${wk.lunes.getDate()} ${MESES_C[wk.lunes.getMonth()]} — ${wk.domingo.getDate()} ${MESES_C[wk.domingo.getMonth()]} ${wk.domingo.getFullYear()}`;
-        const area = document.getElementById('grid-area');
-        area.innerHTML = '<div class="grid-loading">Cargando…</div>';
-        try { _data = await api.get(`/cadena/horarios?desde=${_fmtD(wk.lunes)}&hasta=${_fmtD(wk.domingo)}`); }
-        catch(e){ area.innerHTML = '<div class="grid-empty">Error cargando horarios.</div>'; return; }
-        _rows = [];
-        _data.forEach(r => (r.empleados||[]).forEach(e => _rows.push({
+    async function cargarYRenderizar(){
+        updateNavLabel();
+        const days=getDays(), desde=formatDate(days[0]), hasta=formatDate(days[days.length-1]);
+        const area=document.getElementById('grid-area');
+        area.innerHTML='<div class="grid-loading">Cargando…</div>';
+        try { _data = await api.get(`/cadena/horarios?desde=${desde}&hasta=${hasta}`); }
+        catch(e){ area.innerHTML='<div class="grid-empty">Error cargando horarios.</div>'; return; }
+        _rows=[];
+        _data.forEach(r=>(r.empleados||[]).forEach(e=>_rows.push({
             key:`${r.restaurante_id}:${e.usuario_id}`, restaurante_id:r.restaurante_id, restaurante:r.restaurante,
             usuario_id:e.usuario_id, nombre:e.nombre||'', iniciales:e.iniciales||'', rol:e.rol||'', dias:e.dias||{},
         })));
         buildRolColors();
         renderRolChips();
-        renderGrid(wk.dias);
+        renderGrid();
     }
 
     // ── Filtros ─────────────────────────────────────────────────
     function renderRestChips(){
-        const c = document.getElementById('chips-rest');
-        c.innerHTML = _rests.map(r =>
+        document.getElementById('chips-rest').innerHTML = _rests.map(r=>
             `<span class="rchip ${_selRest.has(r.id)?'active':''}" onclick="toggleRest(${r.id})">${_esc(r.nombre||'—')}</span>`).join('')
             || '<span style="color:#9ca3af;font-size:12px;">Sin restaurantes.</span>';
     }
-    function toggleRest(id){ if(_selRest.has(id)) _selRest.delete(id); else _selRest.add(id); renderRestChips(); renderGrid(_semana(_offset).dias); }
+    function toggleRest(id){ if(_selRest.has(id)) _selRest.delete(id); else _selRest.add(id); renderRestChips(); renderGrid(); }
     function renderRolChips(){
-        const c = document.getElementById('chips-rol');
-        c.innerHTML = rolesDisponibles.map(rol=>{
-            const active=_selRol.has(rol), col=getRolColor(rol);
-            const style = active ? `background:${col};border-color:${col};color:white;` : `border-color:${col};color:${col};`;
+        document.getElementById('chips-rol').innerHTML = rolesDisponibles.map(rol=>{
+            const active=rolesActivos.has(rol), col=getRolColor(rol);
+            const style=active?`background:${col};border-color:${col};color:white;`:`border-color:${col};color:${col};`;
             return `<span class="area-chip${active?' active':''}" onclick="toggleRol('${_esc(rol)}')" style="${style}">${_esc(getRolLabel(rol))}</span>`;
         }).join('') || '<span style="color:#9ca3af;font-size:11px;">Sin roles</span>';
     }
-    function toggleRol(rol){ if(_selRol.has(rol)) _selRol.delete(rol); else _selRol.add(rol); renderRolChips(); renderGrid(_semana(_offset).dias); }
-    function onBuscar(v){ _buscar=(v||'').trim().toLowerCase(); renderGrid(_semana(_offset).dias); }
+    function toggleRol(rol){ if(rolesActivos.has(rol)) rolesActivos.delete(rol); else rolesActivos.add(rol); renderRolChips(); renderGrid(); }
+    function onFiltroNombre(v){ filtroNombre=(v||'').trim().toLowerCase(); renderGrid(); }
 
-    function filasVisibles(){
-        let rows = _rows.slice();
-        if(_buscar) rows = rows.filter(r => r.nombre.toLowerCase().includes(_buscar));
-        if(_selRol.size) rows = rows.filter(r => _selRol.has(r.rol));
+    function getVisibleUsers(){
+        let rows=_rows.slice();
+        if(filtroNombre) rows=rows.filter(r=>r.nombre.toLowerCase().includes(filtroNombre));
+        if(rolesActivos.size) rows=rows.filter(r=>rolesActivos.has(r.rol));
         rows.sort((a,b)=>{
             const pa=(_selRest.size && _selRest.has(a.restaurante_id))?0:1;
             const pb=(_selRest.size && _selRest.has(b.restaurante_id))?0:1;
@@ -293,132 +345,171 @@
         return rows;
     }
 
-    // ── Grilla (estética cuadrante) ─────────────────────────────
-    function periodMins(row, dias){ let t=0; dias.forEach(d=>{ const e=row.dias[d.key]; if(e) t+=_netMin(e); }); return t; }
+    // ── Grilla ──────────────────────────────────────────────────
+    function periodMins(row, days){ let t=0; days.forEach(d=>{ const e=row.dias[formatDate(d)]; if(e) t+=_netMin(e); }); return t; }
 
-    function renderGrid(dias){
-        const area = document.getElementById('grid-area');
-        if(!_rows.length){ area.innerHTML = '<div class="grid-empty">No hay personal en tus restaurantes para esta semana.</div>'; return; }
-        const rows = filasVisibles();
-        if(!rows.length){ area.innerHTML = '<div class="grid-empty">Ningún empleado coincide con los filtros.<br><small>Ajustá rol, restaurante o búsqueda.</small></div>'; return; }
+    function renderGrid(){
+        const area=document.getElementById('grid-area');
+        if(!_rows.length){ area.innerHTML='<div class="grid-empty">No hay personal en tus restaurantes para este período.</div>'; return; }
+        const rows=getVisibleUsers();
+        if(!rows.length){ area.innerHTML='<div class="grid-empty">Ningún empleado coincide con los filtros.<br><small>Ajustá rol, restaurante o búsqueda.</small></div>'; return; }
+        const days=getDays();
 
-        let html = `<table class="cq-table"><thead><tr><th class="th-user"><div class="th-user-inner">👥 Personal</div></th>`;
-        dias.forEach(d=>{
-            const cls=['th-day', d.esHoy?'col-hoy':'', d.wknd?'col-wknd':''].filter(Boolean).join(' ');
-            html += `<th class="${cls}"><div class="day-head-inner"><span class="dh-dn">${d.dn}</span><span class="dh-dd">${d.dd}</span><span class="dh-dm">${d.dm}</span></div></th>`;
+        let html=`<table class="cq-table"><thead><tr><th class="th-user"><div class="th-user-inner">👥 Personal</div></th>`;
+        days.forEach(d=>{
+            const cls=['th-day', isToday(d)?'col-hoy':'', (d.getDay()===0||d.getDay()===6)?'col-wknd':''].filter(Boolean).join(' ');
+            html+=`<th class="${cls}"><div class="day-head-inner"><span class="dh-dn">${DIAS_CORTO[jsDay2Api(d)]}</span><span class="dh-dd">${d.getDate()}</span><span class="dh-dm">${MESES_C[d.getMonth()]}</span></div></th>`;
         });
-        html += `</tr></thead><tbody>`;
+        html+=`</tr></thead><tbody>`;
 
-        const summary = {}; dias.forEach(d=>{ summary[d.key]={}; });
+        const summary={}; days.forEach(d=>{ summary[formatDate(d)]={}; });
 
         rows.forEach(row=>{
-            const color=getRolColor(row.rol), pm=periodMins(row,dias), ph=_fmtH(pm);
-            html += `<tr><td class="td-user"><div class="td-user-inner">
-                <div class="u-avatar-sm" style="background:${color}">${_esc(_ini(row))}</div>
-                <div class="u-info-col">
-                    <span class="u-name-sm">${_esc(row.nombre)}</span>
-                    <span class="u-area-tag">${_esc(getRolLabel(row.rol))}</span>
-                    <span class="u-rest-tag">${_esc(row.restaurante)}</span>
-                    ${ph ? `<span class="u-period-h">⏱ ${ph}</span>` : '<span class="u-period-h" style="color:#d1d5db">Sin horas</span>'}
-                </div></div></td>`;
-            dias.forEach(d=>{
-                const e=row.dias[d.key];
-                const cls=['td-day', d.esHoy?'col-hoy':'', d.wknd?'col-wknd':''].filter(Boolean).join(' ');
-                html += `<td class="${cls}" onclick="abrirModal('${row.key}','${d.key}')">`;
+            const color=getRolColor(row.rol), ph=_fmtH(periodMins(row,days));
+            html+=`<tr><td class="td-user"><div class="td-user-inner"><div class="u-avatar-sm" style="background:${color}">${_esc(_ini(row))}</div><div class="u-info-col"><span class="u-name-sm">${_esc(row.nombre)}</span><span class="u-area-tag">${_esc(getRolLabel(row.rol))}</span><span class="u-rest-tag">${_esc(row.restaurante)}</span>${ph?`<span class="u-period-h">⏱ ${ph}</span>`:'<span class="u-period-h" style="color:#d1d5db">Sin horas</span>'}</div></div></td>`;
+            days.forEach(d=>{
+                const key=formatDate(d), e=row.dias[key];
+                const cls=['td-day', isToday(d)?'col-hoy':'', (d.getDay()===0||d.getDay()===6)?'col-wknd':''].filter(Boolean).join(' ');
+                const drop=`ondragover="event.preventDefault();this.classList.add('drop-over')" ondragleave="this.classList.remove('drop-over')" ondrop="handleTemplateDrop(event,'${row.key}','${key}')"`;
+                html+=`<td class="${cls}" ${drop} onclick="abrirModal('${row.key}','${key}')">`;
                 if(e && e.franjas && e.franjas.length){
-                    const rolCelda = e.rol_turno || row.rol;
-                    const cc=getRolColor(rolCelda);
-                    const franjas=e.franjas.map(f=>`<div class="franja-tag">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</div>`).join('');
-                    const rolBadge = e.rol_turno ? `<div class="cell-rol-badge">${_esc(getRolLabel(e.rol_turno))}</div>` : '';
-                    const brk = e.break_mins>0 ? `<div class="cell-break">☕ ${e.break_mins}m</div>` : '';
+                    const cc=getRolColor(e.rol_turno||row.rol);
+                    const fr=e.franjas.map(f=>`<div class="franja-tag">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</div>`).join('');
+                    const rolB=e.rol_turno?`<div class="cell-rol-badge">${_esc(getRolLabel(e.rol_turno))}</div>`:'';
+                    const brk=e.break_mins>0?`<div class="cell-break">☕ ${e.break_mins}m</div>`:'';
                     const net=_netMin(e);
-                    html += `<div class="cell-content ${e.publicado?'published':'draft'}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};">
-                        ${rolBadge}${franjas}<div class="cell-total-h">${_fmtH(net)}</div>${brk}</div>`;
-                    const rE = e.rol_turno || row.rol;
-                    if(!summary[d.key][rE]) summary[d.key][rE]={mins:0,count:0};
-                    summary[d.key][rE].mins += net; summary[d.key][rE].count += 1;
-                } else {
-                    html += `<div class="cell-add">+</div>`;
-                }
-                html += `</td>`;
+                    html+=`<div class="cell-content ${e.publicado?'published':'draft'}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};">${rolB}${fr}<div class="cell-total-h">${_fmtH(net)}</div>${brk}</div>`;
+                    const rE=e.rol_turno||row.rol;
+                    if(!summary[key][rE]) summary[key][rE]={mins:0,count:0};
+                    summary[key][rE].mins+=net; summary[key][rE].count+=1;
+                } else { html+=`<div class="cell-add">+</div>`; }
+                html+=`</td>`;
             });
-            html += `</tr>`;
+            html+=`</tr>`;
         });
 
-        // Fila resumen "Total día"
-        html += `<tr class="tr-summary"><td class="td-user td-sum-label"><div class="td-user-inner" style="justify-content:center;"><span style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:.7px;">📊 Total día</span></div></td>`;
-        dias.forEach(d=>{
-            const cls=['td-day', d.esHoy?'col-hoy':'', d.wknd?'col-wknd':''].filter(Boolean).join(' ');
-            const byRol=summary[d.key]||{};
-            const entries=Object.entries(byRol).filter(([,v])=>v.count>0).sort(([a],[b])=>a.localeCompare(b));
-            html += `<td class="${cls}" style="vertical-align:top;padding:4px;">`;
-            entries.forEach(([rol,data])=>{
-                const col=getRolColor(rol);
-                html += `<div class="sum-rol-row" style="border-left:3px solid ${col};background:${hexToRgba(col,.06)}"><span class="sum-hours">${_fmtH(data.mins)}</span><span class="sum-info">${data.count} ${_esc(getRolLabel(rol).toLowerCase())}</span></div>`;
-            });
-            html += `</td>`;
+        html+=`<tr class="tr-summary"><td class="td-user td-sum-label"><div class="td-user-inner" style="justify-content:center;"><span style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:.7px;">📊 Total día</span></div></td>`;
+        days.forEach(d=>{
+            const key=formatDate(d);
+            const cls=['td-day', isToday(d)?'col-hoy':'', (d.getDay()===0||d.getDay()===6)?'col-wknd':''].filter(Boolean).join(' ');
+            const entries=Object.entries(summary[key]||{}).filter(([,v])=>v.count>0).sort(([a],[b])=>a.localeCompare(b));
+            html+=`<td class="${cls}" style="vertical-align:top;padding:4px;">`;
+            entries.forEach(([rol,data])=>{ const col=getRolColor(rol); html+=`<div class="sum-rol-row" style="border-left:3px solid ${col};background:${hexToRgba(col,.06)}"><span class="sum-hours">${_fmtH(data.mins)}</span><span class="sum-info">${data.count} ${_esc(getRolLabel(rol).toLowerCase())}</span></div>`; });
+            html+=`</td>`;
         });
-        html += `</tr></tbody></table>`;
-        area.innerHTML = html;
+        html+=`</tr></tbody></table>`;
+        area.innerHTML=html;
     }
 
-    // ── Modal ───────────────────────────────────────────────────
+    // ── Modal turno ─────────────────────────────────────────────
     function abrirModal(key, fecha){
         const row=_rows.find(r=>r.key===key); if(!row) return;
         const e=row.dias[fecha]||null;
         _modal={ key, restaurante_id:row.restaurante_id, usuario_id:row.usuario_id, fecha, entryId:e?e.id:null };
         const av=document.getElementById('m-av'); av.textContent=_ini(row); av.style.background=getRolColor(row.rol);
+        const d=new Date(fecha+'T00:00:00');
         document.getElementById('m-emp').textContent=row.nombre;
-        document.getElementById('m-sub').textContent=`${row.restaurante} · ${getRolLabel(row.rol)} · ${fecha}`;
+        document.getElementById('m-sub').textContent=`${row.restaurante} · ${getRolLabel(row.rol)} · ${DIAS_LARGO[jsDay2Api(d)]} ${d.getDate()} ${MESES_C[d.getMonth()]}`;
         const franjas=(e && e.franjas && e.franjas.length)?e.franjas:[{inicio:'09:00',fin:'17:00'}];
         document.getElementById('m-franjas').innerHTML=franjas.map(f=>franjaRow(f.inicio,f.fin)).join('');
         const sel=(e && e.rol_turno)||'';
-        document.getElementById('m-rol').innerHTML =
-            `<option value="">(rol del empleado: ${_esc(getRolLabel(row.rol))})</option>` +
-            rolesDisponibles.map(r=>`<option value="${_esc(r)}" ${r===sel?'selected':''}>${_esc(getRolLabel(r))}</option>`).join('');
+        document.getElementById('m-rol').innerHTML=`<option value="">(rol del empleado: ${_esc(getRolLabel(row.rol))})</option>`+rolesDisponibles.map(r=>`<option value="${_esc(r)}" ${r===sel?'selected':''}>${_esc(getRolLabel(r))}</option>`).join('');
         document.getElementById('m-break').value=(e && e.break_mins)||0;
         document.getElementById('m-del').style.display=_modal.entryId?'':'none';
         recalcTotal();
         document.getElementById('overlay').classList.add('open');
     }
-    function franjaRow(ini,fin){
-        return `<div class="fr-row"><input type="time" value="${(ini||'').slice(0,5)}" oninput="recalcTotal()"><span style="color:#94a3b8;">a</span><input type="time" value="${(fin||'').slice(0,5)}" oninput="recalcTotal()"><button class="fr-del" onclick="this.closest('.fr-row').remove();recalcTotal()">✕</button></div>`;
-    }
+    function franjaRow(ini,fin){ return `<div class="fr-row"><input type="time" value="${(ini||'').slice(0,5)}" oninput="recalcTotal()"><span style="color:#94a3b8;">a</span><input type="time" value="${(fin||'').slice(0,5)}" oninput="recalcTotal()"><button class="fr-del" onclick="this.closest('.fr-row').remove();recalcTotal()">✕</button></div>`; }
     function addFranja(){ document.getElementById('m-franjas').insertAdjacentHTML('beforeend', franjaRow('','')); }
-    function _leerFranjas(){ const out=[]; document.querySelectorAll('#m-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[type=time]'); if(t[0].value && t[1].value) out.push({inicio:t[0].value, fin:t[1].value}); }); return out; }
+    function _leerFranjas(){ const out=[]; document.querySelectorAll('#m-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[type=time]'); if(t[0].value && t[1].value) out.push({inicio:t[0].value,fin:t[1].value}); }); return out; }
     function recalcTotal(){ const brk=parseInt(document.getElementById('m-break').value,10)||0; document.getElementById('m-total').innerHTML=`Total: <b>${_fmtH(Math.max(0,_totMin(_leerFranjas())-brk))||'0h'}</b>`; }
     function cerrarModal(){ document.getElementById('overlay').classList.remove('open'); _modal=null; }
-
     async function guardarTurno(){
         if(!_modal) return;
         const franjas=_leerFranjas();
-        try {
-            if(!franjas.length){
-                if(_modal.entryId) await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`);
-            } else {
-                await api.post('/cadena/horarios/guardar', {
-                    restaurante_id:_modal.restaurante_id, usuario_id:_modal.usuario_id, fecha:_modal.fecha,
-                    franjas, rol_turno:document.getElementById('m-rol').value||null,
-                    break_mins:parseInt(document.getElementById('m-break').value,10)||0,
-                });
-            }
-            cerrarModal(); await cargarSemana();
-        } catch(e){ alert('No se pudo guardar: '+(e.message||e)); }
+        try{
+            if(!franjas.length){ if(_modal.entryId) await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); }
+            else await api.post('/cadena/horarios/guardar', { restaurante_id:_modal.restaurante_id, usuario_id:_modal.usuario_id, fecha:_modal.fecha, franjas, rol_turno:document.getElementById('m-rol').value||null, break_mins:parseInt(document.getElementById('m-break').value,10)||0 });
+            cerrarModal(); await cargarYRenderizar();
+        }catch(e){ alert('No se pudo guardar: '+(e.message||e)); }
     }
     async function eliminarTurno(){
         if(!_modal || !_modal.entryId){ cerrarModal(); return; }
-        try { await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); cerrarModal(); await cargarSemana(); }
+        try{ await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); cerrarModal(); await cargarYRenderizar(); }
         catch(e){ alert('No se pudo eliminar: '+(e.message||e)); }
     }
-    async function publicar(){
-        const wk=_semana(_offset);
+
+    // ── Publicar ────────────────────────────────────────────────
+    async function publicarHorarios(){
+        const days=getDays(), desde=formatDate(days[0]), hasta=formatDate(days[days.length-1]);
         const ids=_selRest.size?[..._selRest]:null;
         const quien=ids?`${ids.length} restaurante(s) seleccionado(s)`:'TODOS tus restaurantes';
-        if(!confirm(`¿Publicar los horarios en borrador de la semana ${_fmtD(wk.lunes)} a ${_fmtD(wk.domingo)} para ${quien}?`)) return;
-        try { const r=await api.post('/cadena/horarios/publicar',{ desde:_fmtD(wk.lunes), hasta:_fmtD(wk.domingo), restaurante_ids:ids });
-            alert(`Publicados: ${r.publicados||0} horario(s).`); await cargarSemana();
-        } catch(e){ alert('No se pudo publicar: '+(e.message||e)); }
+        if(!confirm(`¿Publicar los horarios en borrador del período ${desde} a ${hasta} para ${quien}?`)) return;
+        try{ const r=await api.post('/cadena/horarios/publicar',{ desde, hasta, restaurante_ids:ids }); alert(`Publicados: ${r.publicados||0} horario(s).`); await cargarYRenderizar(); }
+        catch(e){ alert('No se pudo publicar: '+(e.message||e)); }
     }
+
+    // ── Plantillas (localStorage, drag&drop) ────────────────────
+    const TPL_KEY='horarios_templates_v1';
+    function loadTemplates(){
+        try{ const raw=localStorage.getItem(TPL_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+        return [
+            { id:'tpl_apertura', nombre:'Apertura', franjas:[{inicio:'08:00',fin:'16:00'}], break_mins:30 },
+            { id:'tpl_tarde', nombre:'Tarde', franjas:[{inicio:'14:00',fin:'22:00'}], break_mins:30 },
+            { id:'tpl_cierre', nombre:'Cierre', franjas:[{inicio:'16:00',fin:'00:00'}], break_mins:30 },
+        ];
+    }
+    function saveTemplates(){ localStorage.setItem(TPL_KEY, JSON.stringify(_templates)); }
+    let _templates=loadTemplates();
+    function renderTemplatesBar(){
+        const c=document.getElementById('tpl-chips');
+        if(!_templates.length){ c.innerHTML='<span style="font-size:11px;color:#a78bfa;">Sin plantillas — creá la primera</span>'; return; }
+        c.innerHTML=_templates.map(t=>{
+            const tiempos=t.franjas.map(f=>`${f.inicio}–${f.fin}`).join(', ');
+            const brk=t.break_mins>0?` ☕${t.break_mins}m`:'';
+            return `<span class="tpl-chip" draggable="true" ondragstart="tplDragStart(event,'${t.id}')" ondragend="tplDragEnd(event)" onclick="abrirTplModal('${t.id}')">${_esc(t.nombre)}<span class="tpl-chip-times">${_esc(tiempos)}${brk}</span><button class="tpl-chip-del" onclick="event.stopPropagation();confirmarEliminarTpl('${t.id}')">✕</button></span>`;
+        }).join('');
+    }
+    let _dragTplId=null;
+    function tplDragStart(e,id){ _dragTplId=id; e.dataTransfer.setData('text/plain',id); e.dataTransfer.effectAllowed='copy'; e.currentTarget.classList.add('dragging'); }
+    function tplDragEnd(e){ e.currentTarget.classList.remove('dragging'); _dragTplId=null; }
+    async function handleTemplateDrop(e, key, fecha){
+        e.preventDefault(); e.currentTarget.classList.remove('drop-over');
+        if(!_dragTplId) return;
+        const tpl=_templates.find(t=>t.id===_dragTplId); _dragTplId=null; if(!tpl) return;
+        const row=_rows.find(r=>r.key===key); if(!row) return;
+        try{ await api.post('/cadena/horarios/guardar',{ restaurante_id:row.restaurante_id, usuario_id:row.usuario_id, fecha, franjas:tpl.franjas, rol_turno:null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
+        catch(err){ alert('Error al aplicar plantilla: '+(err.message||err)); }
+    }
+    // CRUD de plantillas
+    let _editingTplId=null;
+    function abrirTplModal(id){
+        _editingTplId=id||null;
+        const tpl=id?_templates.find(t=>t.id===id):null;
+        document.getElementById('t-title').textContent=tpl?'Editar plantilla':'Nueva plantilla';
+        document.getElementById('t-nombre').value=tpl?tpl.nombre:'';
+        document.getElementById('t-break').value=tpl?(tpl.break_mins||0):0;
+        const franjas=tpl?tpl.franjas:[{inicio:'09:00',fin:'17:00'}];
+        document.getElementById('t-franjas').innerHTML=franjas.map(f=>tplFranjaRow(f.inicio,f.fin)).join('');
+        document.getElementById('t-del').style.display=tpl?'':'none';
+        document.getElementById('tpl-overlay').classList.add('open');
+    }
+    function cerrarTplModal(){ document.getElementById('tpl-overlay').classList.remove('open'); _editingTplId=null; }
+    function tplFranjaRow(ini,fin){ return `<div class="fr-row"><input type="time" value="${(ini||'').slice(0,5)}"><span style="color:#94a3b8;">a</span><input type="time" value="${(fin||'').slice(0,5)}"><button class="fr-del" onclick="this.closest('.fr-row').remove()">✕</button></div>`; }
+    function tplAddFranja(){ document.getElementById('t-franjas').insertAdjacentHTML('beforeend', tplFranjaRow('','')); }
+    function guardarTemplate(){
+        const nombre=document.getElementById('t-nombre').value.trim();
+        if(!nombre){ alert('Poné un nombre a la plantilla.'); return; }
+        const franjas=[];
+        document.querySelectorAll('#t-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[type=time]'); if(t[0].value && t[1].value) franjas.push({inicio:t[0].value,fin:t[1].value}); });
+        if(!franjas.length){ alert('Agregá al menos una franja.'); return; }
+        const brk=parseInt(document.getElementById('t-break').value,10)||0;
+        if(_editingTplId){ const t=_templates.find(x=>x.id===_editingTplId); if(t){ t.nombre=nombre; t.franjas=franjas; t.break_mins=brk; } }
+        else _templates.push({ id:'tpl_'+Date.now(), nombre, franjas, break_mins:brk });
+        saveTemplates(); renderTemplatesBar(); cerrarTplModal();
+    }
+    function confirmarEliminarTpl(id){ if(confirm('¿Eliminar esta plantilla?')){ _templates=_templates.filter(t=>t.id!==id); saveTemplates(); renderTemplatesBar(); } }
+    function eliminarTemplate(){ if(_editingTplId){ confirmarEliminarTpl(_editingTplId); cerrarTplModal(); } }
 
     init();
     </script>
