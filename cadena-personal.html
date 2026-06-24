@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de personal — Cadena</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI', sans-serif; background:#f0f2f5; color:#1e293b; }
+    .navbar { background:#1a1a2e; color:#fff; height:60px; display:flex; align-items:center; padding:0 20px; gap:12px; position:sticky; top:0; z-index:30; }
+    .navbar h1 { font-size:17px; font-weight:700; flex:1; }
+    .navbar .who { font-size:13px; color:#a5b4fc; }
+    .navbar button { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:7px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
+    .navbar button:hover { background:#4f46e5; color:#fff; }
+    .wrap { max-width:1080px; margin:0 auto; padding:20px 16px 60px; }
+
+    .sec { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px 14px; margin-bottom:14px; box-shadow:0 1px 6px rgba(0,0,0,.05); }
+    .flabel { font-size:10px; font-weight:800; color:#6366f1; text-transform:uppercase; letter-spacing:.7px; margin-bottom:8px; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .rchip { padding:7px 14px; border-radius:20px; border:1.5px solid #e5e7eb; background:#f8fafc; font-size:13px; font-weight:600; color:#475569; cursor:pointer; user-select:none; }
+    .rchip:hover { border-color:#c7d2fe; }
+    .rchip.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
+
+    .tabla-wrap { background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.05); overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:11px 14px; font-size:13.5px; border-bottom:1px solid #f1f5f9; text-align:left; vertical-align:middle; }
+    th { background:#f8fafc; color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+    tbody tr:hover { background:#faf7ff; }
+    .emp { display:flex; align-items:center; gap:10px; }
+    .av { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; text-shadow:0 1px 2px rgba(0,0,0,.3); }
+    .emp-n { font-weight:600; color:#1a1a2e; }
+    .emp-r { font-size:11px; color:#94a3b8; }
+    .mini-chip { display:inline-block; background:#eef2ff; color:#4338ca; border-radius:5px; padding:1px 7px; font-size:11px; font-weight:600; margin:2px 3px 2px 0; }
+    .mini-none { color:#cbd5e1; font-size:12px; }
+    .acc { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .acc select { padding:7px 10px; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; min-width:180px; }
+    .acc button { background:#4f46e5; color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+    .acc button:hover { background:#4338ca; }
+    .acc button:disabled { background:#c7d2fe; cursor:not-allowed; }
+    .acc .full { color:#94a3b8; font-size:12px; }
+    .empty { text-align:center; color:#94a3b8; padding:36px; }
+    .hint { font-size:12px; color:#94a3b8; margin-top:8px; }
+</style>
+</head>
+<body>
+    <div class="navbar">
+        <span style="font-size:20px;">👥</span>
+        <h1>Gestión de personal — Cadena</h1>
+        <span class="who" id="who"></span>
+        <button onclick="window.location.href='cadena.html'">← Volver</button>
+        <button onclick="logout()">Salir</button>
+    </div>
+
+    <div class="wrap">
+        <div class="sec">
+            <div class="flabel">Personal de</div>
+            <div class="chips" id="chips-src"></div>
+        </div>
+
+        <div class="tabla-wrap">
+            <table>
+                <thead><tr><th>Empleado</th><th>También en</th><th>Copiar a otro local</th></tr></thead>
+                <tbody id="tbody"><tr><td colspan="3" class="empty">Cargando…</td></tr></tbody>
+            </table>
+        </div>
+        <p class="hint">Copiar lleva el <b>login</b> (usuario y contraseña), los <b>datos</b>, el <b>rol</b> y los <b>permisos</b> al local destino. No copia historial (turnos, salarios) ni el área. Si el empleado ya existe en ese local, no se duplica.</p>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+    requireAuth();
+    const _user = getUser() || {};
+    if (_user.rol !== 'gerente_cadena') { window.location.href = 'dashboard.html'; }
+    document.getElementById('who').textContent = _user.nombre || _user.username || '';
+
+    const COLOR_PALETTE = ['#10b981','#3b82f6','#f59e0b','#ec4899','#14b8a6','#f97316','#8b5cf6','#84cc16','#ef4444','#06b6d4','#a78bfa','#fb923c'];
+    const ROL_LABELS = { gerente:'Gerencia', empleado:'Personal', bartender:'Bartender', cocinero:'Cocina', camarero:'Sala' };
+    let rolColorMap = {};
+    function getRolColor(rol){ return rolColorMap[rol] || '#9ca3af'; }
+    function getRolLabel(rol){ return ROL_LABELS[rol] || (rol ? rol.charAt(0).toUpperCase()+rol.slice(1) : 'Sin rol'); }
+    function _esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function _ini(e){ return ((e.iniciales || (e.username||'?').slice(0,2))).toUpperCase(); }
+
+    let _data=[];               // [{restaurante_id, restaurante, codigo, personal:[...]}]
+    let _byRest={};             // id -> {restaurante, personal}
+    let _restName={};           // id -> nombre
+    let _membership={};         // username(lower) -> Set(restaurante_id)
+    let _srcId=null;
+
+    async function cargar(){
+        try { _data = await api.get('/cadena/personal'); } catch(e){ _data=[]; }
+        _byRest={}; _restName={}; _membership={};
+        const roles=new Set();
+        _data.forEach(r=>{
+            _byRest[r.restaurante_id]={ restaurante:r.restaurante, personal:r.personal||[] };
+            _restName[r.restaurante_id]=r.restaurante;
+            (r.personal||[]).forEach(e=>{
+                const k=(e.username||'').toLowerCase();
+                (_membership[k]=_membership[k]||new Set()).add(r.restaurante_id);
+                if(e.rol) roles.add(e.rol);
+            });
+        });
+        // colores por rol
+        const orden=['gerente','empleado','bartender','cocinero','camarero'];
+        const ordered=[...orden.filter(r=>roles.has(r)), ...[...roles].filter(r=>!orden.includes(r)).sort()];
+        rolColorMap={}; ordered.forEach((rol,i)=>{ rolColorMap[rol]=COLOR_PALETTE[i%COLOR_PALETTE.length]; });
+
+        if(_srcId==null || !_byRest[_srcId]) _srcId = _data.length ? _data[0].restaurante_id : null;
+        renderChips(); renderTabla();
+    }
+
+    function renderChips(){
+        const c=document.getElementById('chips-src');
+        if(!_data.length){ c.innerHTML='<span class="mini-none">No tenés restaurantes asignados.</span>'; return; }
+        c.innerHTML=_data.map(r=>`<span class="rchip ${r.restaurante_id===_srcId?'active':''}" onclick="setSrc(${r.restaurante_id})">${_esc(r.restaurante)}</span>`).join('');
+    }
+    function setSrc(id){ _srcId=id; renderChips(); renderTabla(); }
+
+    function renderTabla(){
+        const tb=document.getElementById('tbody');
+        if(_srcId==null){ tb.innerHTML='<tr><td colspan="3" class="empty">Sin restaurantes.</td></tr>'; return; }
+        const personal=(_byRest[_srcId]?_byRest[_srcId].personal:[]).slice().sort((a,b)=>(a.username||'').localeCompare(b.username||'','es',{sensitivity:'base'}));
+        if(!personal.length){ tb.innerHTML='<tr><td colspan="3" class="empty">Este restaurante no tiene personal cargado.</td></tr>'; return; }
+        tb.innerHTML=personal.map(e=>{
+            const mset=_membership[(e.username||'').toLowerCase()]||new Set();
+            const otros=[..._data].filter(r=>r.restaurante_id!==_srcId && mset.has(r.restaurante_id));
+            const tambien=otros.length ? otros.map(r=>`<span class="mini-chip">${_esc(r.restaurante)}</span>`).join('') : '<span class="mini-none">—</span>';
+            const targets=_data.filter(r=>r.restaurante_id!==_srcId && !mset.has(r.restaurante_id));
+            let acc;
+            if(!targets.length){ acc='<span class="full">Ya está en todos tus locales</span>'; }
+            else {
+                acc=`<div class="acc">
+                    <select id="tg-${e.id}">${targets.map(r=>`<option value="${r.restaurante_id}">${_esc(r.restaurante)}</option>`).join('')}</select>
+                    <button onclick="copiar(${e.id}, this)">Copiar →</button>
+                </div>`;
+            }
+            return `<tr>
+                <td><div class="emp"><div class="av" style="background:${getRolColor(e.rol)}">${_esc(_ini(e))}</div>
+                    <div><div class="emp-n">${_esc(e.username)}${e.activo===false?' <span class="emp-r">(inactivo)</span>':''}</div>
+                    <div class="emp-r">${_esc(getRolLabel(e.rol))}</div></div></div></td>
+                <td>${tambien}</td>
+                <td>${acc}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function copiar(empId, btn){
+        const sel=document.getElementById('tg-'+empId); if(!sel) return;
+        const destId=parseInt(sel.value,10);
+        const emp=(_byRest[_srcId].personal||[]).find(x=>x.id===empId);
+        if(!emp) return;
+        if(!confirm(`¿Copiar a "${emp.username}" desde ${_restName[_srcId]} a ${_restName[destId]}?`)) return;
+        btn.disabled=true; btn.textContent='Copiando…';
+        try {
+            const r=await api.post('/cadena/personal/copiar', { origen_restaurante_id:_srcId, usuario_id:empId, destino_restaurante_ids:[destId] });
+            const ok=(r.resultados||[]).find(x=>x.restaurante_id===destId);
+            if(ok && ok.copiado) alert(`✅ "${emp.username}" copiado a ${_restName[destId]}.`);
+            else alert(`No se copió: ${(ok&&ok.motivo)||'desconocido'}.`);
+            await cargar();
+        } catch(e){ alert('Error al copiar: '+(e.message||e)); btn.disabled=false; btn.textContent='Copiar →'; }
+    }
+
+    cargar();
+    </script>
+</body>
+</html>
