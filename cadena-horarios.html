@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horarios de la cadena</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI', sans-serif; background:#f0f2f5; color:#1e293b; }
+    .navbar { background:#1a1a2e; color:#fff; height:60px; display:flex; align-items:center; padding:0 20px; gap:12px; position:sticky; top:0; z-index:20; }
+    .navbar h1 { font-size:17px; font-weight:700; flex:1; }
+    .navbar .who { font-size:13px; color:#a5b4fc; }
+    .navbar button { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:7px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
+    .navbar button:hover { background:#4f46e5; color:#fff; }
+    .wrap { max-width:1280px; margin:0 auto; padding:18px 16px 60px; }
+
+    .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
+    .weeknav { display:flex; align-items:center; gap:8px; }
+    .weeknav button { background:#fff; border:1px solid #e5e7eb; color:#1a1a2e; width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:16px; }
+    .weeknav button:hover { background:#eef2ff; border-color:#c7d2fe; }
+    .weeknav .wlabel { font-size:14px; font-weight:700; color:#1a1a2e; min-width:210px; text-align:center; }
+    .toolbar .spacer { flex:1; }
+    .search { padding:8px 12px; border:1px solid #e5e7eb; border-radius:9px; font-size:14px; outline:none; min-width:200px; }
+    .search:focus { border-color:#4f46e5; }
+    .btn-pub { background:#16a34a; color:#fff; border:none; border-radius:9px; padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+    .btn-pub:hover { background:#15803d; }
+
+    .filtros { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px 14px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,.04); }
+    .filtros .flabel { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.4px; margin:0 0 7px; }
+    .filtros .frow + .frow { margin-top:12px; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { background:#f8fafc; border:1px solid #e5e7eb; color:#475569; padding:6px 12px; border-radius:999px; font-size:13px; cursor:pointer; user-select:none; }
+    .chip:hover { border-color:#c7d2fe; }
+    .chip.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
+    .chip.rol.active { background:#0ea5e9; border-color:#0ea5e9; }
+
+    .grid-wrap { background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.05); overflow:auto; max-height:calc(100vh - 230px); }
+    table.grid { border-collapse:separate; border-spacing:0; width:100%; }
+    table.grid th, table.grid td { border-bottom:1px solid #eef2f7; border-right:1px solid #f1f5f9; padding:0; }
+    table.grid thead th { position:sticky; top:0; z-index:10; background:#f8fafc; color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; padding:9px 8px; text-align:center; }
+    table.grid thead th.hoy { background:#f1ecff; color:#4f46e5; }
+    table.grid th.col-emp, table.grid td.col-emp { position:sticky; left:0; z-index:5; background:#fff; text-align:left; min-width:190px; max-width:230px; padding:8px 12px; }
+    table.grid thead th.col-emp { z-index:15; background:#f8fafc; }
+    table.grid tbody tr:hover td { background:#fcfbff; }
+    table.grid tbody tr:hover td.col-emp { background:#f7f5ff; }
+    .emp-n { font-weight:600; color:#1a1a2e; font-size:13px; }
+    .emp-meta { font-size:11px; color:#94a3b8; margin-top:2px; }
+    .emp-rest { display:inline-block; background:#eef2ff; color:#4338ca; border-radius:5px; padding:0 5px; font-size:10px; font-weight:600; }
+    td.celda { vertical-align:top; min-width:118px; cursor:pointer; padding:5px; }
+    td.celda.hoy { background:#faf7ff; }
+    td.celda:hover { background:#eef2ff !important; }
+    .turno { background:#4f46e5; color:#fff; border-radius:6px; padding:2px 7px; font-size:12px; font-weight:600; display:block; margin-bottom:3px; }
+    .turno.borrador { background:#c7d2fe; color:#3730a3; }
+    .turno-meta { font-size:10px; color:#64748b; }
+    .celda-vacia { color:#cbd5e1; font-size:18px; text-align:center; padding:6px 0; }
+    .grid-empty, .grid-loading { text-align:center; color:#94a3b8; padding:36px; }
+
+    /* Modal */
+    .overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:50; }
+    .overlay.open { display:flex; }
+    .modal { background:#fff; border-radius:16px; width:100%; max-width:420px; box-shadow:0 20px 50px rgba(0,0,0,.25); overflow:hidden; }
+    .modal-head { padding:16px 18px; border-bottom:1px solid #eef2f7; }
+    .modal-head .mt { font-size:16px; font-weight:700; color:#1a1a2e; }
+    .modal-head .ms { font-size:12.5px; color:#94a3b8; margin-top:2px; }
+    .modal-body { padding:16px 18px; }
+    .fr-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .fr-row input[type=time] { flex:1; padding:8px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; }
+    .fr-del { background:#fef2f2; color:#dc2626; border:none; border-radius:7px; width:30px; height:34px; cursor:pointer; font-size:14px; }
+    .add-fr { background:transparent; border:1px dashed #c7d2fe; color:#4f46e5; border-radius:8px; padding:7px; width:100%; cursor:pointer; font-size:13px; margin-top:2px; }
+    .mfield { margin-top:14px; }
+    .mfield label { display:block; font-size:12px; font-weight:600; color:#475569; margin-bottom:5px; }
+    .mfield select, .mfield input { width:100%; padding:8px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; }
+    .mtotal { font-size:13px; color:#475569; margin-top:14px; }
+    .mtotal b { color:#1a1a2e; }
+    .modal-foot { padding:14px 18px; border-top:1px solid #eef2f7; display:flex; gap:10px; }
+    .modal-foot .sp { flex:1; }
+    .btn-del { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:9px; padding:9px 14px; font-weight:600; cursor:pointer; }
+    .btn-save { background:#4f46e5; color:#fff; border:none; border-radius:9px; padding:9px 18px; font-weight:600; cursor:pointer; }
+    .btn-cancel { background:#f1f5f9; color:#475569; border:none; border-radius:9px; padding:9px 14px; font-weight:600; cursor:pointer; }
+</style>
+</head>
+<body>
+    <div class="navbar">
+        <span style="font-size:20px;">🕐</span>
+        <h1>Horarios de la cadena</h1>
+        <span class="who" id="who"></span>
+        <button onclick="window.location.href='cadena.html'">← Volver</button>
+        <button onclick="logout()">Salir</button>
+    </div>
+
+    <div class="wrap">
+        <div class="toolbar">
+            <div class="weeknav">
+                <button onclick="cambiarSemana(-1)" title="Semana anterior">‹</button>
+                <span class="wlabel" id="wlabel">—</span>
+                <button onclick="cambiarSemana(1)" title="Semana siguiente">›</button>
+            </div>
+            <input class="search" id="buscar" placeholder="🔍 Buscar empleado…" oninput="onBuscar(this.value)">
+            <div class="spacer"></div>
+            <button class="btn-pub" onclick="publicar()">📤 Publicar</button>
+        </div>
+
+        <div class="filtros">
+            <div class="frow">
+                <p class="flabel">Restaurante <span style="text-transform:none;font-weight:400;">(los seleccionados van arriba; sin selección = todos)</span></p>
+                <div class="chips" id="chips-rest"></div>
+            </div>
+            <div class="frow">
+                <p class="flabel">Rol</p>
+                <div class="chips" id="chips-rol"></div>
+            </div>
+        </div>
+
+        <div class="grid-wrap" id="grid-wrap"><div class="grid-loading">Cargando…</div></div>
+    </div>
+
+    <!-- Modal edición de turno -->
+    <div class="overlay" id="overlay" onclick="if(event.target===this) cerrarModal()">
+        <div class="modal">
+            <div class="modal-head">
+                <div class="mt" id="m-emp">—</div>
+                <div class="ms" id="m-sub">—</div>
+            </div>
+            <div class="modal-body">
+                <div id="m-franjas"></div>
+                <button class="add-fr" onclick="addFranja()">+ Agregar franja</button>
+                <div class="mfield">
+                    <label>Rol del turno (opcional)</label>
+                    <select id="m-rol"></select>
+                </div>
+                <div class="mfield">
+                    <label>Descanso (minutos a descontar)</label>
+                    <input type="number" id="m-break" min="0" step="5" value="0">
+                </div>
+                <div class="mtotal" id="m-total">Total: <b>0 h</b></div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-del" id="m-del" style="display:none" onclick="eliminarTurno()">🗑 Eliminar</button>
+                <div class="sp"></div>
+                <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+                <button class="btn-save" onclick="guardarTurno()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+    requireAuth();
+    const _user = getUser() || {};
+    if (_user.rol !== 'gerente_cadena') { window.location.href = 'dashboard.html'; }
+    document.getElementById('who').textContent = _user.nombre || _user.username || '';
+
+    // ── Estado ──────────────────────────────────────────────────
+    let _rests   = [];          // [{id, nombre, codigo}]
+    let _data    = [];          // GET /cadena/horarios (por restaurante)
+    let _rows    = [];          // empleados aplanados
+    let _offset  = 0;           // semana relativa
+    let _selRest = new Set();   // restaurantes "fijados arriba"; vacío = ninguno
+    let _selRol  = new Set();   // roles a mostrar; vacío = todos
+    let _buscar  = '';
+    let _modal   = null;        // {key, restaurante_id, usuario_id, fecha, entryId}
+
+    const DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+    function _fmtD(d) {
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    function _semana(offset) {
+        const hoy = new Date();
+        const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;
+        const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem + offset*7);
+        const hoyKey = _fmtD(new Date());
+        const dias = [];
+        for (let i=0;i<7;i++){ const d=new Date(lunes); d.setDate(lunes.getDate()+i);
+            dias.push({ key:_fmtD(d), label:`${DIAS[i]} ${d.getDate()}`, esHoy:_fmtD(d)===hoyKey }); }
+        const domingo = new Date(lunes); domingo.setDate(lunes.getDate()+6);
+        return { lunes, domingo, dias };
+    }
+    function _esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function _t2m(t){ if(!t) return 0; const [h,m]=String(t).split(':'); return (parseInt(h,10)||0)*60+(parseInt(m,10)||0); }
+    function _totMin(franjas, brk){
+        let s=0; (franjas||[]).forEach(f=>{ let a=_t2m(f.inicio), b=_t2m(f.fin); if(b<a) b+=1440; s+=Math.max(b-a,0); });
+        return Math.max(s-(brk||0),0);
+    }
+    function _fmtH(m){ const h=Math.floor(m/60), mm=m%60; return mm? `${h}h ${mm}m` : `${h} h`; }
+
+    // ── Carga ───────────────────────────────────────────────────
+    async function init(){
+        try { _rests = await api.get('/cadena/restaurantes'); } catch(e){ _rests = []; }
+        renderRestChips();
+        await cargarSemana();
+    }
+
+    function cambiarSemana(d){ _offset += d; cargarSemana(); }
+
+    async function cargarSemana(){
+        const wk = _semana(_offset);
+        document.getElementById('wlabel').textContent =
+            `${wk.lunes.getDate()}/${wk.lunes.getMonth()+1} – ${wk.domingo.getDate()}/${wk.domingo.getMonth()+1}/${wk.domingo.getFullYear()}`;
+        const wrap = document.getElementById('grid-wrap');
+        wrap.innerHTML = '<div class="grid-loading">Cargando…</div>';
+        const desde=_fmtD(wk.lunes), hasta=_fmtD(wk.domingo);
+        try { _data = await api.get(`/cadena/horarios?desde=${desde}&hasta=${hasta}`); }
+        catch(e){ wrap.innerHTML = '<div class="grid-empty">Error cargando horarios.</div>'; return; }
+        _rows = [];
+        _data.forEach(r => (r.empleados||[]).forEach(e => _rows.push({
+            key: `${r.restaurante_id}:${e.usuario_id}`,
+            restaurante_id: r.restaurante_id, restaurante: r.restaurante,
+            usuario_id: e.usuario_id, nombre: e.nombre || '', rol: e.rol || '', dias: e.dias || {},
+        })));
+        renderRolChips();
+        renderGrid(wk.dias);
+    }
+
+    // ── Filtros ─────────────────────────────────────────────────
+    function renderRestChips(){
+        const cont = document.getElementById('chips-rest');
+        cont.innerHTML = _rests.map(r =>
+            `<span class="chip ${_selRest.has(r.id)?'active':''}" onclick="toggleRest(${r.id})">${_esc(r.nombre||'—')}</span>`).join('')
+            || '<span style="color:#94a3b8;font-size:13px;">Sin restaurantes.</span>';
+    }
+    function toggleRest(id){
+        if(_selRest.has(id)) _selRest.delete(id); else _selRest.add(id);
+        renderRestChips(); renderGrid(_semana(_offset).dias);
+    }
+    function renderRolChips(){
+        const cont = document.getElementById('chips-rol');
+        const roles = [...new Set(_rows.map(r=>r.rol).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+        const all = `<span class="chip rol ${_selRol.size===0?'active':''}" onclick="toggleRol('__all__')">Todos</span>`;
+        cont.innerHTML = all + roles.map(rol =>
+            `<span class="chip rol ${_selRol.has(rol)?'active':''}" onclick="toggleRol('${_esc(rol)}')">${_esc(rol)}</span>`).join('');
+    }
+    function toggleRol(rol){
+        if(rol==='__all__') _selRol.clear();
+        else if(_selRol.has(rol)) _selRol.delete(rol); else _selRol.add(rol);
+        renderRolChips(); renderGrid(_semana(_offset).dias);
+    }
+    function onBuscar(v){ _buscar = (v||'').trim().toLowerCase(); renderGrid(_semana(_offset).dias); }
+
+    function filasVisibles(){
+        let rows = _rows.slice();
+        if(_buscar) rows = rows.filter(r => r.nombre.toLowerCase().includes(_buscar));
+        if(_selRol.size) rows = rows.filter(r => _selRol.has(r.rol));
+        rows.sort((a,b)=>{
+            const pa = (_selRest.size && _selRest.has(a.restaurante_id)) ? 0 : 1;
+            const pb = (_selRest.size && _selRest.has(b.restaurante_id)) ? 0 : 1;
+            if(pa!==pb) return pa-pb;
+            return a.nombre.localeCompare(b.nombre, 'es', {sensitivity:'base'});
+        });
+        return rows;
+    }
+
+    // ── Grilla ──────────────────────────────────────────────────
+    function renderGrid(dias){
+        const wrap = document.getElementById('grid-wrap');
+        const rows = filasVisibles();
+        if(!_rows.length){ wrap.innerHTML = '<div class="grid-empty">No hay personal en tus restaurantes para esta semana.</div>'; return; }
+        if(!rows.length){ wrap.innerHTML = '<div class="grid-empty">Ningún empleado coincide con los filtros.</div>'; return; }
+        const ths = dias.map(d=>`<th class="${d.esHoy?'hoy':''}">${d.label}</th>`).join('');
+        const body = rows.map(row=>{
+            const celdas = dias.map(d=>{
+                const e = row.dias[d.key];
+                let inner;
+                if(e && e.franjas && e.franjas.length){
+                    const chips = e.franjas.map(f=>`<span class="turno ${e.publicado?'':'borrador'}">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</span>`).join('');
+                    const extra = (e.rol_turno? _esc(e.rol_turno):'') + (e.break_mins? ` · -${e.break_mins}m`:'');
+                    inner = chips + (extra? `<div class="turno-meta">${extra}</div>`:'') + (e.publicado? '' : '<div class="turno-meta">borrador</div>');
+                } else {
+                    inner = '<div class="celda-vacia">+</div>';
+                }
+                return `<td class="celda ${d.esHoy?'hoy':''}" onclick="abrirModal('${row.key}','${d.key}')">${inner}</td>`;
+            }).join('');
+            return `<tr>
+                <td class="col-emp">
+                    <div class="emp-n">${_esc(row.nombre)}</div>
+                    <div class="emp-meta"><span class="emp-rest">${_esc(row.restaurante)}</span> ${_esc(row.rol||'')}</div>
+                </td>${celdas}</tr>`;
+        }).join('');
+        wrap.innerHTML = `<table class="grid">
+            <thead><tr><th class="col-emp">Empleado</th>${ths}</tr></thead>
+            <tbody>${body}</tbody>
+        </table>`;
+    }
+
+    // ── Modal ───────────────────────────────────────────────────
+    function abrirModal(key, fecha){
+        const row = _rows.find(r=>r.key===key);
+        if(!row) return;
+        const e = row.dias[fecha] || null;
+        _modal = { key, restaurante_id: row.restaurante_id, usuario_id: row.usuario_id, fecha, entryId: e? e.id : null };
+        document.getElementById('m-emp').textContent = row.nombre;
+        document.getElementById('m-sub').textContent = `${row.restaurante} · ${fecha}`;
+        // franjas
+        const franjas = (e && e.franjas && e.franjas.length) ? e.franjas : [{inicio:'09:00', fin:'17:00'}];
+        document.getElementById('m-franjas').innerHTML = franjas.map(f=>franjaRow(f.inicio, f.fin)).join('');
+        // rol del turno
+        const roles = [...new Set(_rows.map(r=>r.rol).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+        const sel = (e && e.rol_turno) || '';
+        document.getElementById('m-rol').innerHTML =
+            `<option value="">(rol del empleado: ${_esc(row.rol||'—')})</option>` +
+            roles.map(r=>`<option value="${_esc(r)}" ${r===sel?'selected':''}>${_esc(r)}</option>`).join('');
+        document.getElementById('m-break').value = (e && e.break_mins) || 0;
+        document.getElementById('m-del').style.display = _modal.entryId ? '' : 'none';
+        recalcTotal();
+        document.getElementById('overlay').classList.add('open');
+    }
+    function franjaRow(ini, fin){
+        return `<div class="fr-row">
+            <input type="time" value="${(ini||'').slice(0,5)}" oninput="recalcTotal()">
+            <span style="color:#94a3b8;">a</span>
+            <input type="time" value="${(fin||'').slice(0,5)}" oninput="recalcTotal()">
+            <button class="fr-del" onclick="this.closest('.fr-row').remove();recalcTotal()">✕</button>
+        </div>`;
+    }
+    function addFranja(){
+        document.getElementById('m-franjas').insertAdjacentHTML('beforeend', franjaRow('', ''));
+    }
+    function _leerFranjas(){
+        const out = [];
+        document.querySelectorAll('#m-franjas .fr-row').forEach(r=>{
+            const t = r.querySelectorAll('input[type=time]');
+            const a = t[0].value, b = t[1].value;
+            if(a && b) out.push({inicio:a, fin:b});
+        });
+        return out;
+    }
+    function recalcTotal(){
+        const brk = parseInt(document.getElementById('m-break').value,10)||0;
+        document.getElementById('m-total').innerHTML = `Total: <b>${_fmtH(_totMin(_leerFranjas(), brk))}</b>`;
+    }
+    function cerrarModal(){ document.getElementById('overlay').classList.remove('open'); _modal=null; }
+
+    async function guardarTurno(){
+        if(!_modal) return;
+        const franjas = _leerFranjas();
+        const body = {
+            restaurante_id: _modal.restaurante_id,
+            usuario_id: _modal.usuario_id,
+            fecha: _modal.fecha,
+            franjas,
+            rol_turno: document.getElementById('m-rol').value || null,
+            break_mins: parseInt(document.getElementById('m-break').value,10)||0,
+        };
+        try {
+            if(!franjas.length && _modal.entryId){
+                await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`);
+            } else {
+                await api.post('/cadena/horarios/guardar', body);
+            }
+            cerrarModal();
+            await cargarSemana();
+        } catch(e){ alert('No se pudo guardar: ' + (e.message || e)); }
+    }
+    async function eliminarTurno(){
+        if(!_modal || !_modal.entryId) { cerrarModal(); return; }
+        try {
+            await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`);
+            cerrarModal();
+            await cargarSemana();
+        } catch(e){ alert('No se pudo eliminar: ' + (e.message || e)); }
+    }
+
+    async function publicar(){
+        const wk = _semana(_offset);
+        const ids = _selRest.size ? [..._selRest] : null;
+        const quien = ids ? `${ids.length} restaurante(s) seleccionado(s)` : 'TODOS tus restaurantes';
+        if(!confirm(`Publicar los horarios en borrador de la semana ${_fmtD(wk.lunes)} a ${_fmtD(wk.domingo)} para ${quien}?`)) return;
+        try {
+            const r = await api.post('/cadena/horarios/publicar', { desde:_fmtD(wk.lunes), hasta:_fmtD(wk.domingo), restaurante_ids: ids });
+            alert(`Publicados: ${r.publicados||0} horario(s).`);
+            await cargarSemana();
+        } catch(e){ alert('No se pudo publicar: ' + (e.message || e)); }
+    }
+
+    init();
+    </script>
+</body>
+</html>

@@ -29,29 +29,6 @@
     tbody tr:hover { background:#faf5ff; }
     tfoot td { font-weight:700; background:#f8fafc; border-top:2px solid #e5e7eb; }
     .empty { text-align:center; color:#94a3b8; padding:30px; }
-    /* Horarios */
-    .hor-controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:14px; }
-    .chips { display:flex; flex-wrap:wrap; gap:8px; flex:1; }
-    .chip { background:#fff; border:1px solid #e5e7eb; color:#475569; padding:6px 12px; border-radius:999px; font-size:13px; cursor:pointer; user-select:none; }
-    .chip:hover { border-color:#c7d2fe; }
-    .chip.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
-    .weeknav { display:flex; align-items:center; gap:8px; }
-    .weeknav button { background:#fff; border:1px solid #e5e7eb; color:#1a1a2e; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:16px; }
-    .weeknav button:hover { background:#eef2ff; border-color:#c7d2fe; }
-    .weeknav .wlabel { font-size:13px; font-weight:600; color:#1a1a2e; min-width:200px; text-align:center; }
-    .hcard { background:#fff; border:1px solid #e5e7eb; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,.05); overflow:hidden; margin-bottom:16px; }
-    .hcard-title { font-size:14px; font-weight:700; color:#1a1a2e; padding:12px 14px; background:#f8fafc; border-bottom:1px solid #eef2f7; }
-    .hcard-scroll { overflow-x:auto; }
-    .htabla { width:100%; border-collapse:collapse; }
-    .htabla th, .htabla td { padding:8px 10px; font-size:12.5px; border-bottom:1px solid #f1f5f9; text-align:center; white-space:nowrap; }
-    .htabla th { background:#fcfcfd; color:#64748b; font-weight:700; text-transform:uppercase; font-size:11px; letter-spacing:.3px; }
-    .htabla th:first-child, .htabla td:first-child { text-align:left; position:sticky; left:0; background:#fff; }
-    .htabla th:first-child { background:#fcfcfd; }
-    .htabla th.hoy, .htabla td.hoy { background:#faf5ff; }
-    .htabla .emp { font-weight:600; color:#1a1a2e; }
-    .htabla .emp .rol { display:block; font-weight:400; color:#94a3b8; font-size:11px; text-transform:capitalize; }
-    .htabla .turno { background:#eef2ff; color:#4338ca; border-radius:6px; padding:2px 6px; display:inline-block; margin:1px 0; font-weight:600; }
-    .htabla .libre { color:#cbd5e1; }
 </style>
 </head>
 <body>
@@ -79,15 +56,11 @@
         <p style="font-size:12px;color:#94a3b8;margin-top:8px;">Facturación POS (a valor de carta) por período calendario. Los montos están en la moneda de cada restaurante.</p>
 
         <div class="sec-title">Horarios del personal</div>
-        <div class="hor-controls">
-            <div class="chips" id="hor-chips"></div>
-            <div class="weeknav">
-                <button onclick="cambiarSemana(-1)" title="Semana anterior">‹</button>
-                <span class="wlabel" id="hor-wlabel">—</span>
-                <button onclick="cambiarSemana(1)" title="Semana siguiente">›</button>
-            </div>
+        <div class="rcard" style="max-width:440px;">
+            <div class="rn">🕐 Editar horarios de la cadena</div>
+            <div class="rc">Planificá y publicá los turnos de todo tu personal en una grilla, con filtro por restaurante y por rol.</div>
+            <button onclick="window.location.href='cadena-horarios.html'">Abrir →</button>
         </div>
-        <div id="hor-cont"><div class="empty">Cargando…</div></div>
     </div>
 
     <script src="js/api.js"></script>
@@ -109,8 +82,6 @@
         } catch (e) { _restaurantes = []; }
         renderCards();
         cargarFacturacion();
-        renderHorChips();
-        cargarHorarios();
     }
 
     function renderCards() {
@@ -163,94 +134,6 @@
             alert('No se pudo entrar al restaurante: ' + (e.message || e));
             if (btn) { btn.disabled = false; btn.textContent = 'Entrar →'; }
         }
-    }
-
-    // ── Horarios del personal ──────────────────────────────────
-    let _horOffset = 0;
-    let _horFiltro = new Set();   // ids de restaurantes seleccionados; vacío = todos
-
-    function _fmtD(d) {
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    }
-    function _semana(offset) {
-        const hoy = new Date();
-        const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;   // 0 = lunes
-        const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem + offset * 7);
-        const nom = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-        const hoyKey = _fmtD(new Date());
-        const dias = [];
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(lunes); d.setDate(lunes.getDate() + i);
-            dias.push({ key: _fmtD(d), label: `${nom[i]} ${d.getDate()}`, esHoy: _fmtD(d) === hoyKey });
-        }
-        const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
-        return { lunes, domingo, dias };
-    }
-    function _esc(s) {
-        return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-    }
-
-    function cambiarSemana(delta) { _horOffset += delta; cargarHorarios(); }
-
-    function toggleChip(id) {
-        if (id === 'all') _horFiltro.clear();
-        else if (_horFiltro.has(id)) _horFiltro.delete(id);
-        else _horFiltro.add(id);
-        renderHorChips();
-        cargarHorarios();
-    }
-
-    function renderHorChips() {
-        const cont = document.getElementById('hor-chips');
-        const all = `<span class="chip ${_horFiltro.size === 0 ? 'active' : ''}" onclick="toggleChip('all')">Todos</span>`;
-        const rest = _restaurantes.map(r =>
-            `<span class="chip ${_horFiltro.has(r.id) ? 'active' : ''}" onclick="toggleChip(${r.id})">${_esc(r.nombre || '—')}</span>`).join('');
-        cont.innerHTML = all + rest;
-    }
-
-    async function cargarHorarios() {
-        const cont = document.getElementById('hor-cont');
-        const wk = _semana(_horOffset);
-        document.getElementById('hor-wlabel').textContent =
-            `${wk.lunes.getDate()}/${wk.lunes.getMonth() + 1} – ${wk.domingo.getDate()}/${wk.domingo.getMonth() + 1}/${wk.domingo.getFullYear()}`;
-        const desde = _fmtD(wk.lunes), hasta = _fmtD(wk.domingo);
-        let q = `/cadena/horarios?desde=${desde}&hasta=${hasta}`;
-        if (_horFiltro.size) q += `&restaurante_ids=${[..._horFiltro].join(',')}`;
-        cont.innerHTML = '<div class="empty">Cargando…</div>';
-        let data = [];
-        try { data = await api.get(q); }
-        catch (e) { cont.innerHTML = '<div class="empty">Error cargando horarios.</div>'; return; }
-        renderHorarios(data, wk.dias);
-    }
-
-    function renderHorarios(data, dias) {
-        const cont = document.getElementById('hor-cont');
-        if (!data.length) { cont.innerHTML = '<div class="empty">No hay restaurantes para mostrar.</div>'; return; }
-        cont.innerHTML = data.map(r => {
-            const ths = dias.map(d => `<th class="${d.esHoy ? 'hoy' : ''}">${d.label}</th>`).join('');
-            let body;
-            if (!r.empleados || !r.empleados.length) {
-                body = `<tr><td colspan="8" class="empty">Sin personal cargado.</td></tr>`;
-            } else {
-                body = r.empleados.map(e => {
-                    const celdas = dias.map(d => {
-                        const fr = (e.dias && e.dias[d.key]) || [];
-                        const inner = fr.length
-                            ? fr.map(f => `<span class="turno">${(f.inicio || '').slice(0,5)}–${(f.fin || '').slice(0,5)}</span>`).join('<br>')
-                            : '<span class="libre">—</span>';
-                        return `<td class="${d.esHoy ? 'hoy' : ''}">${inner}</td>`;
-                    }).join('');
-                    return `<tr><td class="emp">${_esc(e.nombre)}<span class="rol">${_esc(e.rol || '')}</span></td>${celdas}</tr>`;
-                }).join('');
-            }
-            return `<div class="hcard">
-                <div class="hcard-title">${_esc(r.restaurante)} <span style="font-weight:400;color:#94a3b8;font-size:12px;">· cód ${_esc(r.codigo)}</span></div>
-                <div class="hcard-scroll"><table class="htabla">
-                    <thead><tr><th>Empleado</th>${ths}</tr></thead>
-                    <tbody>${body}</tbody>
-                </table></div>
-            </div>`;
-        }).join('');
     }
 
     cargar();
