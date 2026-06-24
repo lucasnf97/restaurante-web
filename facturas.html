@@ -1053,7 +1053,9 @@ async function confirmarFactura() {
             const montoBruto = parseFloat(document.getElementById(`cs-precio-${idx}`)?.value) || null;  // total c/imp (para el total de la factura)
             const pctSrv     = parseFloat(document.getElementById(`cs-imp-${idx}`)?.value) || 0;
             if (!srvId)  { alert("Todos los ítems de servicio deben tener un servicio asignado."); return; }
-            if (!montoNeto || montoNeto === 0 || isNaN(montoNeto)) { alert("Monto inválido en un ítem de servicio (puede ser negativo para reintegros)."); return; }
+            // Se permite 0 (servicios subsidiados/sin costo) y negativos (reintegros);
+            // solo se bloquea el campo vacío/inválido.
+            if (montoNeto === null || isNaN(montoNeto)) { alert("Completá el monto del ítem de servicio (puede ser 0 o negativo)."); return; }
             // Se guarda el gasto SIN impuesto (neto), coherente con el costo de los insumos.
             itemsServicio.push({ srvId, monto: montoNeto, montoBruto });
             snapItems.push({ tipo: "servicio", descripcion_factura: desc, servicio_id: srvId,
