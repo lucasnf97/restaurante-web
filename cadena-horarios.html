@@ -56,8 +56,8 @@
     .tpl-add-btn:hover { background:#ede9fe; border-color:#7c3aed; }
 
     .grid-area { overflow:auto; max-height:calc(100vh - 300px); border-radius:10px; }
-    .cq-table { border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.07); min-width:100%; }
-    body.view-semana .cq-table { width:100%; table-layout:fixed; }
+    .cq-table { border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.07); min-width:100%; table-layout:fixed; }
+    body.view-semana .cq-table { width:100%; }
     .cq-table thead th { position:sticky; top:0; z-index:3; background:#fff; border:1px solid #e5e7eb; padding:0; }
     .th-user { position:sticky; left:0; z-index:5 !important; background:#fff; width:210px; min-width:210px; }
     .th-user-inner { padding:10px 12px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; color:#6366f1; }
@@ -376,7 +376,9 @@
         if(!users.length){ area.innerHTML='<div class="grid-empty">Ningún empleado coincide con los filtros.<br><small>Ajustá rol, restaurante o búsqueda.</small></div>'; return; }
         const days=getDays();
 
-        let html=`<table class="cq-table"><thead><tr><th class="th-user"><div class="th-user-inner">👥 Personal</div></th>`;
+        const COLW = viewMode==='mes' ? 58 : (viewMode==='dos_semanas' ? 70 : 0);
+        const tw = COLW ? ` style="width:${210 + days.length*COLW}px"` : '';
+        let html=`<table class="cq-table"${tw}><thead><tr><th class="th-user"><div class="th-user-inner">👥 Personal</div></th>`;
         days.forEach(d=>{
             const cls=['th-day', isToday(d)?'col-hoy':'', (d.getDay()===0||d.getDay()===6)?'col-wknd':''].filter(Boolean).join(' ');
             html+=`<th class="${cls}"><div class="day-head-inner"><span class="dh-dn">${DIAS_CORTO[jsDay2Api(d)]}</span><span class="dh-dd">${d.getDate()}</span><span class="dh-dm">${MESES_C[d.getMonth()]}</span></div></th>`;
