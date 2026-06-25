@@ -467,6 +467,7 @@ async function cargarRestaurantes(){
                     <button class="btn btn-secondary btn-sm" onclick="editarNombre(${r.id}, '${esc(r.nombre||'').replace(/'/g,"\\'")}')">✏️</button>
                     <button class="btn btn-secondary btn-sm" onclick="editarCodigo(${r.id}, '${esc(r.codigo)}')">🔑</button>
                     <button class="btn btn-secondary btn-sm" onclick="toggleActivo(${r.id}, ${r.activo})">${r.activo?'⏸':'▶'}</button>
+                    ${r.cadena_id?`<button class="btn btn-secondary btn-sm" onclick="agregarLocal(${r.cadena_id})" title="Agregar otro local a esta cadena">➕ Local</button>`:''}
                 </td></tr>`;
         }).join('');
     }catch(err){ tb.innerHTML='<tr><td colspan="6" class="empty">Error: '+esc(err.message)+'</td></tr>'; }
@@ -482,8 +483,8 @@ async function crearRestaurante(){
     if(!codigo){ msg.className='msg err'; msg.textContent='Indicá el código.'; return; }
     const btn=document.getElementById('btn-crear-rest'); btn.disabled=true; msg.className='msg'; msg.textContent='Creando…';
     try{
-        await api.post('/restaurantes/', { codigo, nombre, gerente_ids, modulos });
-        msg.className='msg ok'; msg.textContent='Restaurante '+codigo+' creado.';
+        const resp = await api.post('/restaurantes/', { codigo, nombre, gerente_ids, modulos });
+        msg.className='msg ok'; msg.textContent='Cadena '+codigo+' creada (primer local '+(resp.codigo||codigo+'A')+'). Agregá más locales con “➕ Local”.';
         document.getElementById('n-codigo').value=''; document.getElementById('n-nombre').value=''; document.getElementById('n-tipo').value='completo';
         _newGerSel = new Set(); actualizarResumenGerentes();
         await cargarRestaurantes(); await cargarGerentes(); await cargarReservados();
@@ -503,6 +504,16 @@ async function editarCodigo(id, actual){
 async function toggleActivo(id, actual){
     if(!confirm(actual?'¿Desactivar este restaurante?':'¿Reactivar este restaurante?')) return;
     try{ await api.patch('/restaurantes/'+id, { activo:!actual }); cargarRestaurantes(); }catch(err){ alert('Error: '+err.message); }
+}
+async function agregarLocal(cadenaId){
+    if(!cadenaId) return;
+    const nombre = prompt('Nombre del nuevo local de la cadena (opcional):', '');
+    if(nombre === null) return;
+    try{
+        const r = await api.post('/restaurantes/cadenas/'+cadenaId+'/locales', { nombre: nombre.trim() || null });
+        alert('Local '+(r.codigo||'')+' agregado. Por defecto con todos los módulos — ajustá con 🧩 Módulos si querés (ej. solo gestión).');
+        await cargarRestaurantes();
+    }catch(err){ alert('Error: '+err.message); }
 }
 
 // ── Gestionar gerentes de un restaurante ──────────────────────
