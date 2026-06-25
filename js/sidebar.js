@@ -381,7 +381,9 @@
     // Comunes del empleado (sin restaurante). Se irán sumando al adaptar cada pantalla.
     // 'ready:true' = ya funciona en modo empleado.
     const COMMON_EMP = [
-        { href:"dashboard.html", icon:"🏠", label:"Panel principal", ready:true },
+        { href:"dashboard.html",    icon:"🏠", label:"Panel principal", ready:true },
+        { href:"mis-horarios.html", icon:"📋", label:"Horarios",        ready:true },
+        { href:"mis-fichajes.html", icon:"🕐", label:"Fichajes",        ready:true },
     ];
 
     function renderNavEmpleado() {
