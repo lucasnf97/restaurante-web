@@ -66,6 +66,7 @@
     <div class="wrap">
         <div class="topbar">
             <div class="sec-title">Empleados</div>
+            <button class="btn-sm" onclick="vincularExistentes()" title="Crear fichas maestras para los empleados que ya existen en tus locales">🔗 Vincular existentes</button>
             <button class="btn-primary" onclick="abrirModal(null)">＋ Nuevo empleado</button>
         </div>
         <p class="hint">Cada empleado es una <b>ficha única</b> de la cadena (identidad, datos). Lo <b>asignás a uno o más locales</b> con un rol; su acceso (login + rol) se crea en cada local sin duplicar la persona.</p>
@@ -163,6 +164,14 @@
         if (!confirm('¿Quitar al empleado de este local? Pierde el acceso ahí (su historial se conserva).')) return;
         try { await api.delete('/cadena/empleados/'+empId+'/asignar/'+restId); await cargar(); }
         catch(e){ alert('No se pudo quitar: '+(e.message||e)); }
+    }
+    async function vincularExistentes(){
+        if (!confirm('¿Crear fichas maestras para los empleados que YA existen en tus locales (agrupados por usuario)? Es seguro e idempotente — podés repetirlo.')) return;
+        try {
+            const r = await api.post('/cadena/empleados/vincular-existentes', {});
+            alert('Vinculación lista.\nFichas nuevas: '+(r.empleados_creados||0)+'\nAsignaciones vinculadas: '+(r.asignaciones_vinculadas||0));
+            await cargar();
+        } catch(e){ alert('No se pudo vincular: '+(e.message||e)); }
     }
     async function borrar(empId, username){
         if (!confirm('¿Eliminar al empleado "'+username+'" de la cadena? Se quita su acceso de todos los locales.')) return;
