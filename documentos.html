@@ -119,6 +119,8 @@ let _cat = 'general';            // general | grupos | personal
 let _grupos = [], _grupoSel = null, _puedeGestionar = false;
 let _usuariosPersonal = [], _usuarioSel = null;   // editor: usuario cuyos personales mira
 let _personalDesbloqueado = false;                // no-editor: abrió su personal con contraseña
+let _misLocales = [];                             // restaurantes del empleado (para vista unificada)
+let _docCadena = false;                           // viendo personal de todos los locales
 let _carpetaId = null;
 let _contenido = null;
 
@@ -230,6 +232,7 @@ function _ctxParams() {
     return q;
 }
 async function cargarContenido(carpetaId) {
+    _docCadena = false;
     _carpetaId = carpetaId;
     let q = _ctxParams();
     if (carpetaId) q += `&carpeta_id=${carpetaId}`;
@@ -261,7 +264,8 @@ function renderContenido() {
                         <button class="btn-primary btn" onclick="document.getElementById('file-input').click()">⬆ Subir archivo</button>` : '') +
         `</div>`;
 
-    let html = toolbar;
+    const cadenaToggle = (_cat === 'personal' && !canEdit && _misLocales.length > 1) ? _cadenaToggleHtml() : '';
+    let html = cadenaToggle + toolbar;
     // Carpetas
     if (c.carpetas.length) {
         html += '<div class="doc-grid">' + c.carpetas.map(f => `
@@ -293,6 +297,46 @@ function renderContenido() {
     }
     html += '</div>';
 
+    body.innerHTML = html;
+}
+
+// ── Personal de TODOS mis locales (solo lectura) ─────────────
+function _cadenaToggleHtml() {
+    return `<div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn ${_docCadena ? '' : 'btn-primary'}" onclick="verPersonalLocal()">📍 Este local</button>
+        <button class="btn ${_docCadena ? 'btn-primary' : ''}" onclick="verPersonalCadena()">🌐 Todos mis locales</button>
+    </div>`;
+}
+function verPersonalLocal() { cargarContenido(null); }
+function verPersonalCadena() { cargarPersonalCadena(); }
+
+async function cargarPersonalCadena() {
+    _docCadena = true;
+    const body = document.getElementById('doc-body');
+    body.innerHTML = _cadenaToggleHtml() + '<div class="doc-empty">Cargando…</div>';
+    let files = [];
+    try { files = await api.get('/documentos/personal-cadena'); }
+    catch (e) { body.innerHTML = _cadenaToggleHtml() + '<div class="doc-empty">No se pudo cargar.</div>'; return; }
+    renderPersonalCadena(files);
+}
+function renderPersonalCadena(files) {
+    const body = document.getElementById('doc-body');
+    let html = _cadenaToggleHtml();
+    if (!files.length) { body.innerHTML = html + '<div class="doc-empty">No tenés documentos personales en tus locales.</div>'; return; }
+    const groups = {}, order = [];
+    files.forEach(a => { const k = a.restaurante_id; if (!groups[k]) { groups[k] = { nombre: a.restaurante, files: [] }; order.push(k); } groups[k].files.push(a); });
+    order.forEach(k => {
+        const g = groups[k];
+        html += `<div class="doc-sec-title">🏠 ${esc(g.nombre)}</div><div class="doc-files">`;
+        html += g.files.map(a => {
+            const thumb = a.resource_type === 'image' ? `<img class="thumb" src="${esc(a.url)}" alt="">` : `<span class="fic">${_icono(a)}</span>`;
+            return `<div class="doc-file">${thumb}
+                <div class="fnm">${esc(a.nombre)}<div class="fdt">${fmtFecha(a.creado_en)}</div></div>
+                <a class="dl" href="${esc(a.url)}" target="_blank" rel="noopener">${a.resource_type === 'image' ? 'Ver' : 'Descargar'}</a>
+            </div>`;
+        }).join('');
+        html += '</div>';
+    });
     body.innerHTML = html;
 }
 
@@ -381,6 +425,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('open');
 
 // ── Init ─────────────────────────────────────────────────────
 renderTabs();
+(async () => { try { _misLocales = await api.get('/auth/mis-locales'); } catch (e) {} })();
 seleccionarCat('general');
 </script>
 </body>

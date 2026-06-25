@@ -148,6 +148,10 @@
         <button class="tab-btn" id="tab-enviados" onclick="setTab('enviados')">
             📤 Enviados
         </button>
+        <button class="tab-btn" id="tab-cadena" onclick="toggleCadena()" style="display:none; margin-left:auto;"
+                title="Ver tus mensajes recibidos de todos tus restaurantes">
+            🌐 Todos mis locales
+        </button>
     </div>
 
     <!-- Lista -->
@@ -228,6 +232,8 @@
 requireAuth();
 
 let _tabActual   = "recibidos";
+let _cadena      = false;   // ver recibidos de todos mis locales
+let _misLocales  = [];
 let _mensajes    = [];
 let _usuariosMap = {};   // id → {id, username, rol}
 let _msgActual   = null; // mensaje abierto actualmente en el modal-ver
@@ -239,6 +245,10 @@ let _ccDests   = [];
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
     await cargarUsuarios();
+    try {
+        _misLocales = await apiFetch('/auth/mis-locales');
+        if (_misLocales && _misLocales.length > 1) document.getElementById('tab-cadena').style.display = '';
+    } catch (e) {}
     await cargarMensajes();
 }
 
@@ -276,10 +286,11 @@ async function cargarMensajes() {
     const lista = document.getElementById("mensajes-lista");
     lista.innerHTML = '<div class="loading">Cargando...</div>';
     try {
-        const endpoint = _tabActual === "recibidos" ? "/mensajes/recibidos" : "/mensajes/enviados";
+        const endpoint = _cadena ? "/mensajes/recibidos-cadena"
+                       : (_tabActual === "recibidos" ? "/mensajes/recibidos" : "/mensajes/enviados");
         _mensajes = await apiFetch(endpoint);
         renderLista();
-        if (_tabActual === "recibidos") actualizarBadge();
+        if (!_cadena && _tabActual === "recibidos") actualizarBadge();
     } catch(e) {
         lista.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>Error al cargar mensajes</div>`;
     }
@@ -308,7 +319,7 @@ function renderLista() {
 
         return `<div class="msg-card ${noLeido ? "no-leido" : ""} ${esCC ? "es-cc" : ""}" onclick="verMensaje(${i})">
             <div style="min-width:0;">
-                <div class="msg-from">${prefijo}: <strong>${_esc(nombre)}</strong>${esCC ? ' <span class="badge-cc">CC</span>' : ""}</div>
+                <div class="msg-from">${prefijo}: <strong>${_esc(nombre)}</strong>${esCC ? ' <span class="badge-cc">CC</span>' : ""}${_cadena && m.restaurante ? ` <span style="background:#eef2ff;color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${_esc(m.restaurante)}</span>` : ""}</div>
                 <div class="msg-asunto">${_esc(asuntoMostrar)}</div>
                 <div class="msg-preview">${_esc(preview)}</div>
             </div>
@@ -362,12 +373,12 @@ async function verMensaje(idx) {
 
     // Mostrar botón Responder solo en mensajes recibidos (no en propios enviados)
     const foot = document.getElementById("modal-ver-foot");
-    foot.style.display = _tabActual === "recibidos" ? "" : "none";
+    foot.style.display = (!_cadena && _tabActual === "recibidos") ? "" : "none";
 
     document.getElementById("modal-ver").classList.add("open");
 
-    // Marcar como leído
-    if (_tabActual === "recibidos" && !m.leido) {
+    // Marcar como leído (solo en el local actual; en la vista de cadena es solo lectura)
+    if (!_cadena && _tabActual === "recibidos" && !m.leido) {
         try {
             await apiFetch(`/mensajes/${m.id}/leer`, { method: "PATCH" });
             m.leido = true;
@@ -402,9 +413,20 @@ function responderMensaje() {
 
 // ── Tabs ──────────────────────────────────────────────────────
 function setTab(tab) {
+    _cadena = false;
     _tabActual = tab;
+    const tc = document.getElementById("tab-cadena"); if (tc) tc.classList.remove("active");
     document.getElementById("tab-recibidos").classList.toggle("active", tab === "recibidos");
     document.getElementById("tab-enviados").classList.toggle("active",  tab === "enviados");
+    cargarMensajes();
+}
+
+function toggleCadena() {
+    _cadena = !_cadena;
+    if (_cadena) _tabActual = "recibidos";
+    document.getElementById("tab-cadena").classList.toggle("active", _cadena);
+    document.getElementById("tab-recibidos").classList.toggle("active", !_cadena && _tabActual === "recibidos");
+    document.getElementById("tab-enviados").classList.toggle("active", !_cadena && _tabActual === "enviados");
     cargarMensajes();
 }
 
