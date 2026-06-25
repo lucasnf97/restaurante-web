@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestión de personal — Cadena</title>
+<title>Empleados de la cadena</title>
 <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI', sans-serif; background:#f0f2f5; color:#1e293b; }
@@ -12,58 +12,89 @@
     .navbar .who { font-size:13px; color:#a5b4fc; }
     .navbar button { background:transparent; border:1px solid #4f46e5; color:#a5b4fc; padding:7px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
     .navbar button:hover { background:#4f46e5; color:#fff; }
-    .wrap { max-width:1080px; margin:0 auto; padding:20px 16px 60px; }
+    .wrap { max-width:1040px; margin:0 auto; padding:20px 16px 60px; }
+    .topbar { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+    .topbar .sec-title { font-size:16px; font-weight:700; color:#1a1a2e; flex:1; }
+    .btn-primary { background:#4f46e5; color:#fff; border:none; border-radius:9px; padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+    .btn-primary:hover { background:#4338ca; }
+    .hint { font-size:12px; color:#94a3b8; margin-bottom:14px; }
 
-    .sec { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px 14px; margin-bottom:14px; box-shadow:0 1px 6px rgba(0,0,0,.05); }
-    .flabel { font-size:10px; font-weight:800; color:#6366f1; text-transform:uppercase; letter-spacing:.7px; margin-bottom:8px; }
-    .chips { display:flex; flex-wrap:wrap; gap:8px; }
-    .rchip { padding:7px 14px; border-radius:20px; border:1.5px solid #e5e7eb; background:#f8fafc; font-size:13px; font-weight:600; color:#475569; cursor:pointer; user-select:none; }
-    .rchip:hover { border-color:#c7d2fe; }
-    .rchip.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
-
-    .tabla-wrap { background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.05); overflow:hidden; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:11px 14px; font-size:13.5px; border-bottom:1px solid #f1f5f9; text-align:left; vertical-align:middle; }
-    th { background:#f8fafc; color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
-    tbody tr:hover { background:#faf7ff; }
-    .emp { display:flex; align-items:center; gap:10px; }
-    .av { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; text-shadow:0 1px 2px rgba(0,0,0,.3); }
-    .emp-n { font-weight:600; color:#1a1a2e; }
-    .emp-r { font-size:11px; color:#94a3b8; }
-    .mini-chip { display:inline-block; background:#eef2ff; color:#4338ca; border-radius:5px; padding:1px 7px; font-size:11px; font-weight:600; margin:2px 3px 2px 0; }
-    .mini-none { color:#cbd5e1; font-size:12px; }
-    .acc { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .acc select { padding:7px 10px; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; min-width:180px; }
-    .acc button { background:#4f46e5; color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; }
-    .acc button:hover { background:#4338ca; }
-    .acc button:disabled { background:#c7d2fe; cursor:not-allowed; }
-    .acc .full { color:#94a3b8; font-size:12px; }
+    .emp-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; box-shadow:0 1px 6px rgba(0,0,0,.05); padding:14px 16px; margin-bottom:12px; }
+    .emp-head { display:flex; align-items:center; gap:12px; }
+    .av { width:40px; height:40px; border-radius:50%; background:#4f46e5; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; flex-shrink:0; }
+    .emp-n { font-size:15px; font-weight:700; color:#1a1a2e; }
+    .emp-m { font-size:12px; color:#94a3b8; }
+    .emp-head .acc { margin-left:auto; display:flex; gap:6px; }
+    .btn-sm { background:#f1f5f9; color:#475569; border:none; border-radius:8px; padding:7px 11px; font-size:13px; cursor:pointer; }
+    .btn-sm:hover { background:#e2e8f0; }
+    .btn-sm.danger { background:#fef2f2; color:#dc2626; }
+    .asigs { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .asig-chip { display:inline-flex; align-items:center; gap:6px; background:#eef2ff; color:#3730a3; border-radius:999px; padding:5px 6px 5px 12px; font-size:12.5px; font-weight:600; }
+    .asig-chip .rol { background:#c7d2fe; color:#312e81; border-radius:999px; padding:1px 8px; font-size:11px; }
+    .asig-chip button { background:none; border:none; color:#6366f1; cursor:pointer; font-size:13px; line-height:1; padding:0 2px; }
+    .asig-chip button:hover { color:#dc2626; }
+    .asig-none { color:#cbd5e1; font-size:12.5px; }
+    .asig-add { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding-top:12px; border-top:1px dashed #eef2f7; }
+    .asig-add select { padding:7px 10px; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; }
+    .asig-add .lbl { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.4px; }
     .empty { text-align:center; color:#94a3b8; padding:36px; }
-    .hint { font-size:12px; color:#94a3b8; margin-top:8px; }
+
+    .overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:60; }
+    .overlay.open { display:flex; }
+    .modal { background:#fff; border-radius:16px; width:100%; max-width:440px; box-shadow:0 20px 50px rgba(0,0,0,.25); overflow:hidden; }
+    .modal-head { padding:16px 18px; border-bottom:1px solid #eef2f7; font-size:16px; font-weight:700; color:#1a1a2e; }
+    .modal-body { padding:16px 18px; max-height:70vh; overflow:auto; }
+    .fld { margin-bottom:12px; }
+    .fld label { display:block; font-size:12px; font-weight:600; color:#475569; margin-bottom:5px; }
+    .fld input, .fld select { width:100%; padding:9px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; }
+    .fld .row2 { display:flex; gap:10px; }
+    .modal-foot { padding:14px 18px; border-top:1px solid #eef2f7; display:flex; gap:10px; justify-content:flex-end; }
+    .btn-cancel { background:#f1f5f9; color:#475569; border:none; border-radius:9px; padding:9px 14px; font-weight:600; cursor:pointer; }
+    .msg { font-size:13px; margin-top:6px; }
+    .msg.err { color:#dc2626; } .msg.ok { color:#16a34a; }
 </style>
 </head>
 <body>
     <div class="navbar">
         <span style="font-size:20px;">👥</span>
-        <h1>Gestión de personal — Cadena</h1>
+        <h1>Empleados de la cadena</h1>
         <span class="who" id="who"></span>
         <button onclick="window.location.href='cadena.html'">← Volver</button>
         <button onclick="logout()">Salir</button>
     </div>
 
     <div class="wrap">
-        <div class="sec">
-            <div class="flabel">Personal de</div>
-            <div class="chips" id="chips-src"></div>
+        <div class="topbar">
+            <div class="sec-title">Empleados</div>
+            <button class="btn-primary" onclick="abrirModal(null)">＋ Nuevo empleado</button>
         </div>
+        <p class="hint">Cada empleado es una <b>ficha única</b> de la cadena (identidad, datos). Lo <b>asignás a uno o más locales</b> con un rol; su acceso (login + rol) se crea en cada local sin duplicar la persona.</p>
+        <div id="lista"><div class="empty">Cargando…</div></div>
+    </div>
 
-        <div class="tabla-wrap">
-            <table>
-                <thead><tr><th>Empleado</th><th>También en</th><th>Asignación</th></tr></thead>
-                <tbody id="tbody"><tr><td colspan="3" class="empty">Cargando…</td></tr></tbody>
-            </table>
+    <!-- Modal crear/editar empleado -->
+    <div class="overlay" id="overlay" onclick="if(event.target===this) cerrarModal()">
+        <div class="modal">
+            <div class="modal-head" id="m-title">Nuevo empleado</div>
+            <div class="modal-body">
+                <div class="fld"><label>Usuario (para login)</label><input id="m-username" autocomplete="off"></div>
+                <div class="fld"><label id="m-pass-lbl">Contraseña</label><input id="m-password" type="password" autocomplete="new-password"></div>
+                <div class="fld"><div class="row2">
+                    <div style="flex:1"><label>Nombre</label><input id="m-nombre"></div>
+                    <div style="flex:1"><label>Apellido</label><input id="m-apellido"></div>
+                </div></div>
+                <div class="fld"><label>Email</label><input id="m-email" type="email"></div>
+                <div class="fld"><div class="row2">
+                    <div style="flex:1"><label>Teléfono</label><input id="m-telefono"></div>
+                    <div style="flex:1"><label>DNI</label><input id="m-dni"></div>
+                </div></div>
+                <div class="msg" id="m-msg"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+                <button class="btn-primary" onclick="guardar()">Guardar</button>
+            </div>
         </div>
-        <p class="hint">⚠️ La <b>copia de empleados está pausada</b>: copiar duplicaba a la persona (legajo y nómina). Se va a reemplazar por un modelo de <b>empleado de cadena con ficha maestra única</b> (identidad, nómina y documentos una sola vez) asignable a varios locales. Por ahora esta pantalla es solo lectura del personal por restaurante.</p>
     </div>
 
     <script src="js/api.js"></script>
@@ -73,85 +104,113 @@
     if (_user.rol !== 'gerente_cadena') { window.location.href = 'dashboard.html'; }
     document.getElementById('who').textContent = _user.nombre || _user.username || '';
 
-    const COLOR_PALETTE = ['#10b981','#3b82f6','#f59e0b','#ec4899','#14b8a6','#f97316','#8b5cf6','#84cc16','#ef4444','#06b6d4','#a78bfa','#fb923c'];
-    const ROL_LABELS = { gerente:'Gerencia', empleado:'Personal', bartender:'Bartender', cocinero:'Cocina', camarero:'Sala' };
-    let rolColorMap = {};
-    function getRolColor(rol){ return rolColorMap[rol] || '#9ca3af'; }
-    function getRolLabel(rol){ return ROL_LABELS[rol] || (rol ? rol.charAt(0).toUpperCase()+rol.slice(1) : 'Sin rol'); }
-    function _esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-    function _ini(e){ return ((e.iniciales || (e.username||'?').slice(0,2))).toUpperCase(); }
+    const ROLES = ['empleado','camarero','cocinero','bartender','sub-gerente'];
+    let _rests = [];
+    let _emps = [];
+    let _editId = null;
 
-    let _data=[];               // [{restaurante_id, restaurante, codigo, personal:[...]}]
-    let _byRest={};             // id -> {restaurante, personal}
-    let _restName={};           // id -> nombre
-    let _membership={};         // username(lower) -> Set(restaurante_id)
-    let _srcId=null;
+    function _esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function _ini(e){ return ((e.iniciales || ((e.nombre||'')[0]||'')+((e.apellido||'')[0]||'') || (e.username||'?').slice(0,2))).toUpperCase(); }
 
     async function cargar(){
-        try { _data = await api.get('/cadena/personal'); } catch(e){ _data=[]; }
-        _byRest={}; _restName={}; _membership={};
-        const roles=new Set();
-        _data.forEach(r=>{
-            _byRest[r.restaurante_id]={ restaurante:r.restaurante, personal:r.personal||[] };
-            _restName[r.restaurante_id]=r.restaurante;
-            (r.personal||[]).forEach(e=>{
-                const k=(e.username||'').toLowerCase();
-                (_membership[k]=_membership[k]||new Set()).add(r.restaurante_id);
-                if(e.rol) roles.add(e.rol);
-            });
-        });
-        // colores por rol
-        const orden=['gerente','empleado','bartender','cocinero','camarero'];
-        const ordered=[...orden.filter(r=>roles.has(r)), ...[...roles].filter(r=>!orden.includes(r)).sort()];
-        rolColorMap={}; ordered.forEach((rol,i)=>{ rolColorMap[rol]=COLOR_PALETTE[i%COLOR_PALETTE.length]; });
-
-        if(_srcId==null || !_byRest[_srcId]) _srcId = _data.length ? _data[0].restaurante_id : null;
-        renderChips(); renderTabla();
+        try { _rests = await api.get('/cadena/restaurantes'); } catch(e){ _rests = []; }
+        try { _emps = await api.get('/cadena/empleados'); } catch(e){ _emps = []; }
+        render();
     }
 
-    function renderChips(){
-        const c=document.getElementById('chips-src');
-        if(!_data.length){ c.innerHTML='<span class="mini-none">No tenés restaurantes asignados.</span>'; return; }
-        c.innerHTML=_data.map(r=>`<span class="rchip ${r.restaurante_id===_srcId?'active':''}" onclick="setSrc(${r.restaurante_id})">${_esc(r.restaurante)}</span>`).join('');
-    }
-    function setSrc(id){ _srcId=id; renderChips(); renderTabla(); }
-
-    function renderTabla(){
-        const tb=document.getElementById('tbody');
-        if(_srcId==null){ tb.innerHTML='<tr><td colspan="3" class="empty">Sin restaurantes.</td></tr>'; return; }
-        const personal=(_byRest[_srcId]?_byRest[_srcId].personal:[]).slice().sort((a,b)=>(a.username||'').localeCompare(b.username||'','es',{sensitivity:'base'}));
-        if(!personal.length){ tb.innerHTML='<tr><td colspan="3" class="empty">Este restaurante no tiene personal cargado.</td></tr>'; return; }
-        tb.innerHTML=personal.map(e=>{
-            const mset=_membership[(e.username||'').toLowerCase()]||new Set();
-            const otros=[..._data].filter(r=>r.restaurante_id!==_srcId && mset.has(r.restaurante_id));
-            const tambien=otros.length ? otros.map(r=>`<span class="mini-chip">${_esc(r.restaurante)}</span>`).join('') : '<span class="mini-none">—</span>';
-            // Copia pausada: se reemplazará por el modelo de "empleado de cadena" (ficha
-            // maestra única). Copiar duplicaba la persona (legajo + nómina).
-            const acc = '<span class="full">En rediseño</span>';
-            return `<tr>
-                <td><div class="emp"><div class="av" style="background:${getRolColor(e.rol)}">${_esc(_ini(e))}</div>
-                    <div><div class="emp-n">${_esc(e.username)}${e.activo===false?' <span class="emp-r">(inactivo)</span>':''}</div>
-                    <div class="emp-r">${_esc(getRolLabel(e.rol))}</div></div></div></td>
-                <td>${tambien}</td>
-                <td>${acc}</td>
-            </tr>`;
+    function render(){
+        const cont = document.getElementById('lista');
+        if (!_emps.length) { cont.innerHTML = '<div class="empty">No hay empleados todavía. Creá el primero con “＋ Nuevo empleado”.</div>'; return; }
+        cont.innerHTML = _emps.map(e => {
+            const nombre = [e.nombre, e.apellido].filter(Boolean).join(' ');
+            const asigs = (e.asignaciones||[]);
+            const chips = asigs.length
+                ? asigs.map(a => `<span class="asig-chip">${_esc(a.restaurante||a.codigo)} <span class="rol">${_esc(a.rol)}</span><button title="Quitar de este local" onclick="desasignar(${e.id}, ${a.restaurante_id})">✕</button></span>`).join('')
+                : '<span class="asig-none">Sin asignar a ningún local.</span>';
+            const asignados = new Set(asigs.map(a=>a.restaurante_id));
+            const disp = _rests.filter(r => !asignados.has(r.id));
+            const addRow = disp.length ? `
+                <div class="asig-add">
+                    <span class="lbl">Asignar a</span>
+                    <select id="r-${e.id}">${disp.map(r=>`<option value="${r.id}">${_esc(r.nombre||r.codigo)} (${_esc(r.codigo)})</option>`).join('')}</select>
+                    <select id="rol-${e.id}">${ROLES.map(r=>`<option value="${r}">${r}</option>`).join('')}</select>
+                    <button class="btn-sm" onclick="asignar(${e.id})">Asignar →</button>
+                </div>` : '<div class="asig-add"><span class="asig-none">Ya está en todos los locales de la cadena.</span></div>';
+            return `<div class="emp-card">
+                <div class="emp-head">
+                    <div class="av">${_esc(_ini(e))}</div>
+                    <div><div class="emp-n">${_esc(nombre||e.username)}</div>
+                        <div class="emp-m">@${_esc(e.username)}${e.email?' · '+_esc(e.email):''}${e.telefono?' · '+_esc(e.telefono):''}</div></div>
+                    <div class="acc">
+                        <button class="btn-sm" onclick="abrirModal(${e.id})">✏️ Editar</button>
+                        <button class="btn-sm danger" onclick="borrar(${e.id}, '${_esc(e.username)}')">🗑</button>
+                    </div>
+                </div>
+                <div class="asigs">${chips}</div>
+                ${addRow}
+            </div>`;
         }).join('');
     }
 
-    async function copiar(empId, btn){
-        const sel=document.getElementById('tg-'+empId); if(!sel) return;
-        const destId=parseInt(sel.value,10);
-        const emp=(_byRest[_srcId].personal||[]).find(x=>x.id===empId);
-        if(!emp) return;
-        if(!confirm(`¿Copiar a "${emp.username}" desde ${_restName[_srcId]} a ${_restName[destId]}?`)) return;
-        btn.disabled=true; btn.textContent='Copiando…';
+    async function asignar(empId){
+        const restaurante_id = parseInt(document.getElementById('r-'+empId).value, 10);
+        const rol = document.getElementById('rol-'+empId).value;
+        if (!restaurante_id) return;
+        try { await api.post('/cadena/empleados/'+empId+'/asignar', { restaurante_id, rol }); await cargar(); }
+        catch(e){ alert('No se pudo asignar: '+(e.message||e)); }
+    }
+    async function desasignar(empId, restId){
+        if (!confirm('¿Quitar al empleado de este local? Pierde el acceso ahí (su historial se conserva).')) return;
+        try { await api.delete('/cadena/empleados/'+empId+'/asignar/'+restId); await cargar(); }
+        catch(e){ alert('No se pudo quitar: '+(e.message||e)); }
+    }
+    async function borrar(empId, username){
+        if (!confirm('¿Eliminar al empleado "'+username+'" de la cadena? Se quita su acceso de todos los locales.')) return;
+        try { await api.delete('/cadena/empleados/'+empId); await cargar(); }
+        catch(e){ alert('No se pudo eliminar: '+(e.message||e)); }
+    }
+
+    // ── Modal crear/editar ──
+    function abrirModal(id){
+        _editId = id;
+        const e = id ? _emps.find(x=>x.id===id) : null;
+        document.getElementById('m-title').textContent = e ? 'Editar empleado' : 'Nuevo empleado';
+        document.getElementById('m-username').value = e ? e.username : '';
+        document.getElementById('m-username').disabled = !!e;
+        document.getElementById('m-pass-lbl').textContent = e ? 'Contraseña (dejar vacío = no cambiar)' : 'Contraseña';
+        document.getElementById('m-password').value = '';
+        document.getElementById('m-nombre').value = e ? (e.nombre||'') : '';
+        document.getElementById('m-apellido').value = e ? (e.apellido||'') : '';
+        document.getElementById('m-email').value = e ? (e.email||'') : '';
+        document.getElementById('m-telefono').value = e ? (e.telefono||'') : '';
+        document.getElementById('m-dni').value = e ? (e.dni||'') : '';
+        document.getElementById('m-msg').textContent = '';
+        document.getElementById('overlay').classList.add('open');
+    }
+    function cerrarModal(){ document.getElementById('overlay').classList.remove('open'); _editId = null; }
+
+    async function guardar(){
+        const msg = document.getElementById('m-msg');
+        const body = {
+            username: document.getElementById('m-username').value.trim(),
+            password: document.getElementById('m-password').value,
+            nombre: document.getElementById('m-nombre').value.trim(),
+            apellido: document.getElementById('m-apellido').value.trim(),
+            email: document.getElementById('m-email').value.trim(),
+            telefono: document.getElementById('m-telefono').value.trim(),
+            dni: document.getElementById('m-dni').value.trim(),
+        };
         try {
-            const r=await api.post('/cadena/personal/copiar', { origen_restaurante_id:_srcId, usuario_id:empId, destino_restaurante_ids:[destId] });
-            const ok=(r.resultados||[]).find(x=>x.restaurante_id===destId);
-            if(ok && ok.copiado) alert(`✅ "${emp.username}" copiado a ${_restName[destId]}.`);
-            else alert(`No se copió: ${(ok&&ok.motivo)||'desconocido'}.`);
-            await cargar();
-        } catch(e){ alert('Error al copiar: '+(e.message||e)); btn.disabled=false; btn.textContent='Copiar →'; }
+            if (_editId) {
+                const patch = { nombre:body.nombre, apellido:body.apellido, email:body.email, telefono:body.telefono, dni:body.dni };
+                if (body.password) patch.password = body.password;
+                await api.patch('/cadena/empleados/'+_editId, patch);
+            } else {
+                if (!body.username || !body.password) { msg.className='msg err'; msg.textContent='Usuario y contraseña son obligatorios.'; return; }
+                await api.post('/cadena/empleados', body);
+            }
+            cerrarModal(); await cargar();
+        } catch(e){ msg.className='msg err'; msg.textContent='Error: '+(e.message||e); }
     }
 
     cargar();
