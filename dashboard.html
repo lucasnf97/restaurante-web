@@ -1317,7 +1317,27 @@ function resetConfig() {
 }
 
 // ── INIT ─────────────────────────────────────────────────────
+async function initDashboardEmpleado() {
+    // Empleado de cadena sin restaurante: solo widgets comunes (horarios + mensajes)
+    // vía /empleado/*; sin llamadas por-esquema (evita 401/500 y el logout).
+    _canEditDash = false;
+    const btnCfg = document.querySelector('.btn-config'); if (btnCfg) btnCfg.style.display = 'none';
+    config = _mergeConfig({ blocks: [ { id:'horarios-semana', visible:true }, { id:'mensajes', visible:true } ] });
+    try {
+        const wk = _semanaActual();
+        const dDom = new Date(wk.lunesDate); dDom.setDate(wk.lunesDate.getDate() + 6);
+        horariosSemanaData = await api.get(`/empleado/horarios?desde=${wk.fmt(wk.lunesDate)}&hasta=${wk.fmt(dDom)}`) || [];
+    } catch (e) { horariosSemanaData = []; }
+    try { mensajesData = await api.get('/empleado/mensajes') || []; } catch (e) { mensajesData = []; }
+    renderDash();
+}
+
 async function initDashboard() {
+    // Modo empleado de cadena (sin restaurante seleccionado) → dashboard común.
+    if (typeof esEmpleadoCadena === 'function' && esEmpleadoCadena() && (typeof enCuenta !== 'function' || enCuenta())) {
+        await initDashboardEmpleado();
+        return;
+    }
     const params = new URLSearchParams(window.location.search);
     const editar = params.get('editar');   // 'user:<uid>' (personalizar usuario) | '<tplId>' (plantilla)
 

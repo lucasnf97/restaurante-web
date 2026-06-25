@@ -28,7 +28,34 @@ function _doLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("edit_mode");
+    localStorage.removeItem("emp_token");
+    localStorage.removeItem("emp_user");
     window.location.href = "index.html";
+}
+
+// ── Contexto de empleado de cadena ────────────────────────────
+// Sesión base = token de empleado (emp_token/emp_user). El "token activo" (token/user)
+// puede ser el de empleado (cuenta) o el de un restaurante donde entró.
+function getEmpToken() { return localStorage.getItem("emp_token"); }
+function getEmpUser() { const u = localStorage.getItem("emp_user"); return u ? JSON.parse(u) : null; }
+function esEmpleadoCadena() { return !!getEmpToken(); }
+function enCuenta() {  // true si el token activo es el de la cuenta (no un restaurante)
+    return !esEmpleadoCadena() || getToken() === getEmpToken();
+}
+function volverACuenta() {
+    const t = getEmpToken(), u = getEmpUser();
+    if (t) setToken(t);
+    if (u) setUser(u);
+}
+async function entrarRestaurante(restId) {
+    // Usa SIEMPRE el token de empleado para emitir el del restaurante.
+    const resp = await apiFetch("/empleado/entrar/" + restId, {
+        method: "POST", body: JSON.stringify({}), token: getEmpToken()
+    });
+    setToken(resp.access_token);
+    const { access_token, token_type, ...uf } = resp;
+    setUser(uf);
+    return resp;
 }
 
 // ── EVENTOS EN TIEMPO REAL (SSE) ──────────────────────────────
@@ -119,7 +146,7 @@ const _RETRY_METHODS = new Set(["GET", "HEAD", "PUT", "DELETE"]);
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function apiFetch(endpoint, options = {}) {
-    const token  = getToken();
+    const token  = options.token || getToken();
     const method = (options.method || "GET").toUpperCase();
     // Con FormData (multipart) NO seteamos Content-Type: el browser pone el boundary solo.
     const headers = {
@@ -212,6 +239,14 @@ async function login(username, password, codigo) {
     // Guardar todos los campos del token (username, rol + todos los permisos)
     const { access_token, token_type, ...userFields } = data;
     setUser(userFields);
+    // Empleado de cadena: guardar la sesión base de "cuenta" (token activo = cuenta).
+    if (data.rol === "empleado_cadena") {
+        localStorage.setItem("emp_token", data.access_token);
+        localStorage.setItem("emp_user", JSON.stringify(userFields));
+    } else {
+        localStorage.removeItem("emp_token");
+        localStorage.removeItem("emp_user");
+    }
     return data;
 }
 

@@ -349,6 +349,79 @@
     }
     window.toggleGroup = toggleGroup;
 
+    // ── MODO EMPLEADO DE CADENA ─────────────────────────────────
+    // Sesión de empleado (sin restaurante): el sidebar muestra los comunes (a medida que
+    // se adaptan las pantallas) + un grupo por cada restaurante donde tiene rol, con solo
+    // las pantallas permitidas ahí. Al abrir una común → contexto cuenta; un local → entra.
+    const _isEmpleado = (typeof esEmpleadoCadena === "function") && esEmpleadoCadena();
+
+    function _escS(s){ return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+    function _hasPermDe(permisos, perm){ if(!perm) return true; const ps=Array.isArray(perm)?perm:[perm]; return ps.some(p=>!!(permisos||{})[p]); }
+    function _hasModDe(modulos, mod){ if(!mod) return true; return Array.isArray(modulos) && modulos.includes(mod); }
+
+    // Pantallas con CONTEXTO de restaurante (se abren entrando al local).
+    const REST_PAGES = [
+        { href:"reservas.html",        icon:"📅", label:"Reservas",                mod:"reservas",     perm:["gestion_reservas","ver_reservas"] },
+        { href:"productos.html",       icon:"🍽️", label:"Productos",               mod:"productos",    perm:["edicion_carta"] },
+        { href:"importar-ventas.html", icon:"📥", label:"Importar ventas",         mod:"importar",     perm:["edicion_carta","acceso_estadisticas"] },
+        { href:"mesas.html",           icon:"🗺️", label:"Herramienta de Edición",  mod:"mesas",        perm:"edicion_sala" },
+        { href:"stock.html",           icon:"📦", label:"Stock",                   mod:"stock",        perm:["gestion_stock","gestion_produccion","ver_stock"] },
+        { href:"clientes.html",        icon:"🧑‍🤝‍🧑", label:"Clientes",            mod:"clientes",     perm:["gestion_clientes","ver_clientes"] },
+        { href:"facturas.html",        icon:"🧾", label:"Facturas",                mod:"facturas",     perm:["acceso_facturacion","ver_facturas"] },
+        { href:"caja.html",            icon:"💰", label:"Caja",                    mod:"caja",         perm:"gestion_caja" },
+        { href:"usuarios.html",        icon:"👤", label:"Usuarios",                mod:"personal",     perm:["acceso_usuarios","ver_usuarios"] },
+        { href:"salarios.html",        icon:"💼", label:"Salarios",                mod:"personal",     perm:"revision_salarios" },
+        { href:"estadisticas.html",    icon:"📊", label:"Facturación y Est.",      mod:"estadisticas", perm:"acceso_estadisticas" },
+        { href:"configuracion.html",   icon:"⚙️", label:"Configuración de sistema",                    perm:"acceso_configuracion" },
+    ];
+
+    // Comunes del empleado (sin restaurante). Se irán sumando al adaptar cada pantalla.
+    // 'ready:true' = ya funciona en modo empleado.
+    const COMMON_EMP = [
+        { href:"dashboard.html", icon:"🏠", label:"Panel principal", ready:true },
+    ];
+
+    function renderNavEmpleado() {
+        const comunes = COMMON_EMP.filter(c => c.ready).map(c => {
+            const act = currentPage === c.href ? " active" : "";
+            return `<a href="#" onclick="navCuenta('${c.href}');return false;" class="sidebar-link${act}"><span class="si-icon">${c.icon}</span>${c.label}</a>`;
+        }).join("");
+        return comunes + `<div id="emp-rest-groups"><div style="padding:10px 16px;color:#9ca3af;font-size:12px;">Cargando tus restaurantes…</div></div>`;
+    }
+
+    function _grupoRestaurante(r) {
+        const vis = REST_PAGES.filter(c => _hasModDe(r.modulos, c.mod) && _hasPermDe(r.permisos, c.perm));
+        if (!vis.length) return "";
+        const key = "resto-" + r.restaurante_id;
+        const children = vis.map(c =>
+            `<a href="#" onclick="navResto(${r.restaurante_id},'${c.href}');return false;" class="sidebar-child"><span class="si-icon">${c.icon}</span>${c.label}</a>`).join("");
+        return `
+            <div class="sidebar-group-head" onclick="toggleGroup('${key}')">
+                <span class="si-icon">🍽️</span>${_escS(r.restaurante)}
+                <span class="grp-arrow" id="grpa-${key}">›</span>
+            </div>
+            <div class="sidebar-children" id="grpc-${key}">${children}</div>`;
+    }
+
+    async function _cargarRestaurantesEmpleado() {
+        const cont = document.getElementById("emp-rest-groups");
+        if (!cont) return;
+        let rests = [];
+        try { rests = await apiFetch("/empleado/mis-restaurantes", { token: getEmpToken() }); }
+        catch (e) { rests = []; }
+        const html = (rests || []).map(_grupoRestaurante).filter(Boolean).join("");
+        cont.innerHTML = html || '<div style="padding:10px 16px;color:#9ca3af;font-size:12px;">Sin restaurantes asignados.</div>';
+    }
+
+    window.navCuenta = function (href) {
+        if (typeof volverACuenta === "function") volverACuenta();
+        window.location.href = href;
+    };
+    window.navResto = async function (restId, href) {
+        try { if (typeof entrarRestaurante === "function") await entrarRestaurante(restId); window.location.href = href; }
+        catch (e) { alert("No se pudo entrar al restaurante: " + (e.message || e)); }
+    };
+
     // ── HTML: overlay + panel ────────────────────────────────────
     const overlay = document.createElement("div");
     overlay.id = "sidebar-overlay";
@@ -360,10 +433,11 @@
     panel.innerHTML = `
         <div class="sidebar-title">Acceso rápido</div>
         <nav class="sidebar-nav">
-            ${renderNav()}
+            ${_isEmpleado ? renderNavEmpleado() : renderNav()}
         </nav>
     `;
     document.body.appendChild(panel);
+    if (_isEmpleado) _cargarRestaurantesEmpleado();
 
     // ── CSS extra para el botón de mensajes en navbar ───────────
     style.textContent += `
