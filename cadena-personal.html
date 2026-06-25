@@ -78,13 +78,13 @@
         <div class="modal">
             <div class="modal-head" id="m-title">Nuevo empleado</div>
             <div class="modal-body">
-                <div class="fld"><label>Usuario (para login)</label><input id="m-username" autocomplete="off"></div>
+                <div class="fld"><label>Email (identidad — con esto entra a la web)</label><input id="m-email" type="email" autocomplete="off" placeholder="tu@email.com"></div>
+                <div class="fld"><label>Nombre de usuario <span style="color:#94a3b8;font-weight:400">(opcional · único en la cadena · login cómodo en el terminal)</span></label><input id="m-username" autocomplete="off"></div>
                 <div class="fld"><label id="m-pass-lbl">Contraseña</label><input id="m-password" type="password" autocomplete="new-password"></div>
                 <div class="fld"><div class="row2">
                     <div style="flex:1"><label>Nombre</label><input id="m-nombre"></div>
                     <div style="flex:1"><label>Apellido</label><input id="m-apellido"></div>
                 </div></div>
-                <div class="fld"><label>Email</label><input id="m-email" type="email"></div>
                 <div class="fld"><div class="row2">
                     <div style="flex:1"><label>Teléfono</label><input id="m-telefono"></div>
                     <div style="flex:1"><label>DNI</label><input id="m-dni"></div>
@@ -111,7 +111,7 @@
     let _editId = null;
 
     function _esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-    function _ini(e){ return ((e.iniciales || ((e.nombre||'')[0]||'')+((e.apellido||'')[0]||'') || (e.username||'?').slice(0,2))).toUpperCase(); }
+    function _ini(e){ return ((e.iniciales || ((e.nombre||'')[0]||'')+((e.apellido||'')[0]||'') || (e.username||e.email||'?').slice(0,2))).toUpperCase(); }
 
     async function cargar(){
         try { _rests = await api.get('/cadena/restaurantes'); } catch(e){ _rests = []; }
@@ -140,8 +140,8 @@
             return `<div class="emp-card">
                 <div class="emp-head">
                     <div class="av">${_esc(_ini(e))}</div>
-                    <div><div class="emp-n">${_esc(nombre||e.username)}</div>
-                        <div class="emp-m">@${_esc(e.username)}${e.email?' · '+_esc(e.email):''}${e.telefono?' · '+_esc(e.telefono):''}</div></div>
+                    <div><div class="emp-n">${_esc(nombre||e.username||e.email)}</div>
+                        <div class="emp-m">${_esc(e.email||'(sin email — no puede entrar a la web)')}${e.username?' · usuario: '+_esc(e.username):''}${e.telefono?' · '+_esc(e.telefono):''}</div></div>
                     <div class="acc">
                         <button class="btn-sm" onclick="abrirModal(${e.id})">✏️ Editar</button>
                         <button class="btn-sm danger" onclick="borrar(${e.id}, '${_esc(e.username)}')">🗑</button>
@@ -184,13 +184,12 @@
         _editId = id;
         const e = id ? _emps.find(x=>x.id===id) : null;
         document.getElementById('m-title').textContent = e ? 'Editar empleado' : 'Nuevo empleado';
-        document.getElementById('m-username').value = e ? e.username : '';
-        document.getElementById('m-username').disabled = !!e;
+        document.getElementById('m-email').value = e ? (e.email||'') : '';
+        document.getElementById('m-username').value = e ? (e.username||'') : '';
         document.getElementById('m-pass-lbl').textContent = e ? 'Contraseña (dejar vacío = no cambiar)' : 'Contraseña';
         document.getElementById('m-password').value = '';
         document.getElementById('m-nombre').value = e ? (e.nombre||'') : '';
         document.getElementById('m-apellido').value = e ? (e.apellido||'') : '';
-        document.getElementById('m-email').value = e ? (e.email||'') : '';
         document.getElementById('m-telefono').value = e ? (e.telefono||'') : '';
         document.getElementById('m-dni').value = e ? (e.dni||'') : '';
         document.getElementById('m-msg').textContent = '';
@@ -211,11 +210,11 @@
         };
         try {
             if (_editId) {
-                const patch = { nombre:body.nombre, apellido:body.apellido, email:body.email, telefono:body.telefono, dni:body.dni };
+                const patch = { email:body.email, username:body.username, nombre:body.nombre, apellido:body.apellido, telefono:body.telefono, dni:body.dni };
                 if (body.password) patch.password = body.password;
                 await api.patch('/cadena/empleados/'+_editId, patch);
             } else {
-                if (!body.username || !body.password) { msg.className='msg err'; msg.textContent='Usuario y contraseña son obligatorios.'; return; }
+                if (!body.email || !body.password) { msg.className='msg err'; msg.textContent='El email y la contraseña son obligatorios.'; return; }
                 await api.post('/cadena/empleados', body);
             }
             cerrarModal(); await cargar();
