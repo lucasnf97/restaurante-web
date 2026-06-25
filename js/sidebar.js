@@ -353,7 +353,10 @@
     // Sesión de empleado (sin restaurante): el sidebar muestra los comunes (a medida que
     // se adaptan las pantallas) + un grupo por cada restaurante donde tiene rol, con solo
     // las pantallas permitidas ahí. Al abrir una común → contexto cuenta; un local → entra.
-    const _isEmpleado = (typeof esEmpleadoCadena === "function") && esEmpleadoCadena();
+    // OJO: leer localStorage directo, NO esEmpleadoCadena() de api.js. Este IIFE puede
+    // correr ANTES de que api.js cargue (el orden de <script> varía por página); si
+    // dependiera de api.js, _isEmpleado quedaría false y nunca se arma el modo empleado.
+    const _isEmpleado = !!localStorage.getItem("emp_token");
 
     function _escS(s){ return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
     function _hasPermDe(permisos, perm){ if(!perm) return true; const ps=Array.isArray(perm)?perm:[perm]; return ps.some(p=>!!(permisos||{})[p]); }
@@ -407,8 +410,15 @@
         const cont = document.getElementById("emp-rest-groups");
         if (!cont) return;
         let rests = [];
-        try { rests = await apiFetch("/empleado/mis-restaurantes", { token: getEmpToken() }); }
-        catch (e) { rests = []; }
+        try {
+            // fetch crudo (no apiFetch): este código puede correr antes de que api.js cargue.
+            const token = localStorage.getItem("emp_token");
+            const API_URL = window._API_URL || "https://restaurante-backend-production-459b.up.railway.app";
+            const res = await fetch(`${API_URL}/empleado/mis-restaurantes`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) rests = await res.json();
+        } catch (e) { rests = []; }
         const html = (rests || []).map(_grupoRestaurante).filter(Boolean).join("");
         cont.innerHTML = html || '<div style="padding:10px 16px;color:#9ca3af;font-size:12px;">Sin restaurantes asignados.</div>';
     }
