@@ -110,12 +110,18 @@
             <p>Panel de gerencia</p>
         </div>
 
-        <div class="form-group">
-            <label for="codigo">N° de restaurante</label>
-            <input type="text" id="codigo" placeholder="Número de restaurante" autocomplete="off">
+        <!-- Empleado: login por email (sin código) -->
+        <div class="form-group" id="grp-email">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="tu@email.com" autocomplete="username">
         </div>
 
-        <div class="form-group">
+        <!-- Gerente / administración: con código + usuario (oculto por defecto) -->
+        <div class="form-group" id="grp-codigo" style="display:none">
+            <label for="codigo">N° de restaurante / cadena</label>
+            <input type="text" id="codigo" placeholder="Código" autocomplete="off">
+        </div>
+        <div class="form-group" id="grp-username" style="display:none">
             <label for="username">Usuario</label>
             <input type="text" id="username" placeholder="Tu usuario" autocomplete="username">
         </div>
@@ -127,6 +133,10 @@
 
         <button id="btn-login" onclick="handleLogin()">Ingresar</button>
 
+        <div style="text-align:center;margin-top:14px;">
+            <a href="#" id="toggle-modo" onclick="toggleModo(event)" style="font-size:13px;color:#4f46e5;text-decoration:none;">Ingresar con código (gerente / administración)</a>
+        </div>
+
         <div class="error" id="error-msg"></div>
     </div>
 
@@ -135,10 +145,30 @@
         // Si ya está logueado, ir a la pantalla de inicio de la web.
         // OJO: `pantalla_default` configura SOLO el ejecutable (PyQt). En la web
         // todos los usuarios entran al dashboard y ven lo que sus permisos habilitan.
+        function _destino(rol) {
+            return rol === 'superadmin' ? 'restaurantes.html'
+                 : rol === 'gerente_cadena' ? 'cadena.html'
+                 : rol === 'empleado_cadena' ? 'mi-portal.html'
+                 : 'dashboard.html';
+        }
+
         if (getToken()) {
             const _u = JSON.parse(localStorage.getItem('user') || '{}');
-            window.location.href = _u.rol === 'superadmin' ? 'restaurantes.html'
-                                 : _u.rol === 'gerente_cadena' ? 'cadena.html' : 'dashboard.html';
+            window.location.href = _destino(_u.rol);
+        }
+
+        // Modo: false = empleado (email); true = con código (gerente/admin/terminal)
+        let _modoCodigo = false;
+        function toggleModo(e) {
+            if (e) e.preventDefault();
+            _modoCodigo = !_modoCodigo;
+            document.getElementById('grp-email').style.display    = _modoCodigo ? 'none' : '';
+            document.getElementById('grp-codigo').style.display   = _modoCodigo ? '' : 'none';
+            document.getElementById('grp-username').style.display = _modoCodigo ? '' : 'none';
+            document.getElementById('toggle-modo').textContent = _modoCodigo
+                ? 'Soy empleado — ingresar con email'
+                : 'Ingresar con código (gerente / administración)';
+            document.getElementById('error-msg').style.display = 'none';
         }
 
         // Permitir login con Enter
@@ -147,26 +177,27 @@
         });
 
         async function handleLogin() {
-            const username = document.getElementById("username").value.trim();
             const password = document.getElementById("password").value;
-            const codigo   = document.getElementById("codigo").value.trim();
             const btn = document.getElementById("btn-login");
-            const errorDiv = document.getElementById("error-msg");
+            document.getElementById("error-msg").style.display = "none";
 
-            if (!username || !password) {
-                mostrarError("Completá usuario y contraseña.");
-                return;
+            let userArg, codigoArg;
+            if (_modoCodigo) {
+                userArg   = document.getElementById("username").value.trim();
+                codigoArg = document.getElementById("codigo").value.trim();
+                if (!userArg || !password) { mostrarError("Completá usuario y contraseña."); return; }
+            } else {
+                userArg   = document.getElementById("email").value.trim();
+                codigoArg = "";
+                if (!userArg || !password) { mostrarError("Completá email y contraseña."); return; }
             }
 
             btn.disabled = true;
             btn.textContent = "Ingresando...";
-            errorDiv.style.display = "none";
-
             try {
-                await login(username, password, codigo);
+                await login(userArg, password, codigoArg);
                 const _u2 = JSON.parse(localStorage.getItem('user') || '{}');
-                window.location.href = _u2.rol === 'superadmin' ? 'restaurantes.html'
-                                     : _u2.rol === 'gerente_cadena' ? 'cadena.html' : 'dashboard.html';
+                window.location.href = _destino(_u2.rol);
             } catch (err) {
                 mostrarError(err.message);
             } finally {
