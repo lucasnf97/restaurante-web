@@ -1318,23 +1318,28 @@ function resetConfig() {
 
 // ── INIT ─────────────────────────────────────────────────────
 async function initDashboardEmpleado() {
-    // Empleado de cadena sin restaurante: solo widgets comunes (horarios + mensajes)
-    // vía /empleado/*; sin llamadas por-esquema (evita 401/500 y el logout).
+    // Empleado de cadena: hub común (horarios + mensajes) vía /empleado/*. Restaura el
+    // contexto "cuenta" (por si quedó activo un token de restaurante tras una pantalla
+    // común) y pide SIEMPRE con el emp_token, así no depende del token activo.
+    if (typeof volverACuenta === 'function') volverACuenta();
+    const _emp = (typeof getEmpToken === 'function') ? getEmpToken() : null;
     _canEditDash = false;
     const btnCfg = document.querySelector('.btn-config'); if (btnCfg) btnCfg.style.display = 'none';
     config = _mergeConfig({ blocks: [ { id:'horarios-semana', visible:true }, { id:'mensajes', visible:true } ] });
     try {
         const wk = _semanaActual();
         const dDom = new Date(wk.lunesDate); dDom.setDate(wk.lunesDate.getDate() + 6);
-        horariosSemanaData = await api.get(`/empleado/horarios?desde=${wk.fmt(wk.lunesDate)}&hasta=${wk.fmt(dDom)}`) || [];
+        horariosSemanaData = await apiFetch(`/empleado/horarios?desde=${wk.fmt(wk.lunesDate)}&hasta=${wk.fmt(dDom)}`, { token: _emp }) || [];
     } catch (e) { horariosSemanaData = []; }
-    try { mensajesData = await api.get('/empleado/mensajes') || []; } catch (e) { mensajesData = []; }
+    try { mensajesData = await apiFetch('/empleado/mensajes', { token: _emp }) || []; } catch (e) { mensajesData = []; }
     renderDash();
 }
 
 async function initDashboard() {
-    // Modo empleado de cadena (sin restaurante seleccionado) → dashboard común.
-    if (typeof esEmpleadoCadena === 'function' && esEmpleadoCadena() && (typeof enCuenta !== 'function' || enCuenta())) {
+    // Empleado de cadena: el dashboard es SIEMPRE su hub, aunque haya quedado activo un
+    // token de restaurante tras visitar una pantalla común (initDashboardEmpleado
+    // restaura el contexto "cuenta").
+    if (typeof esEmpleadoCadena === 'function' && esEmpleadoCadena()) {
         await initDashboardEmpleado();
         return;
     }
