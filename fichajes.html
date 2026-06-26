@@ -1651,57 +1651,56 @@ function formatHoras(h) {
     return sign + str;
 }
 
-// ── Modo empleado de cadena (contexto "cuenta", sin restaurante) ──────────
-// El acceso común "Fichajes" dirige a ESTA página. Para un empleado sin restaurante
-// mostramos sus fichajes propios agregados de todos sus locales (solo lectura),
-// reusando los estilos de la página. No se arma la UI de gestión.
-async function initEmpleadoFichajes() {
-    const h2 = document.querySelector(".page-header h2");
-    if (h2) h2.textContent = "🕐 Mis fichajes";
-    [".stats", ".activos-section", ".filtros"].forEach(sel => {
-        const el = document.querySelector(sel); if (el) el.style.display = "none";
-    });
-    const cont = document.getElementById("fichajes-container");
-    cont.innerHTML = '<div class="empty">Cargando…</div>';
-
+// ── Modo empleado de cadena: pantalla común "Fichajes" ────────────────────
+// El acceso común "Fichajes" dirige a ESTA página. Para un empleado de cadena
+// mostramos la página NORMAL del restaurante donde trabaja (con sus permisos ahí:
+// sin edición ve solo sus propios fichajes); si trabaja en varios, un filtro permite
+// cambiar. Se logra "entrando" al restaurante (token activo del local) y dejando
+// correr la página tal cual. Tras entrar, enCuenta() pasa a false → sessionStorage
+// 'emp_hor' recuerda que seguimos en una pantalla común sobre un restaurante.
+let _empMode = false, _empRests = null, _empRid = null;
+function _empFichActivo() {
+    return esEmpleadoCadena() && (enCuenta() || sessionStorage.getItem("emp_hor") !== null);
+}
+function _empInjectFiltroFichajes(rests, rid) {
+    const bar = document.querySelector(".filtros");
+    if (!bar || document.getElementById("emp-fich-filtro-wrap")) return;
     const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
-    const fmt = ts => {
-        if (!ts) return "—";
-        const d = new Date(String(ts).replace(" ", "T"));
-        if (isNaN(d)) return esc(ts);
-        const p = n => String(n).padStart(2,"0");
-        return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
-    };
-    const dur = (a,b) => {
-        if (!a || !b) return "";
-        const da = new Date(String(a).replace(" ","T")), db = new Date(String(b).replace(" ","T"));
-        if (isNaN(da)||isNaN(db)) return "";
-        let m = Math.round((db-da)/60000); if (m<0) return "";
-        const h = Math.floor(m/60), mm = m%60; return h ? `${h}h ${mm}m` : `${mm}m`;
-    };
-
-    let rows = [];
-    try { rows = await apiFetch("/empleado/fichajes", { token: getEmpToken() }); }
-    catch (e) { cont.innerHTML = `<div class="empty">No se pudieron cargar tus fichajes: ${esc(e.message||e)}</div>`; return; }
-    if (!rows || !rows.length) { cont.innerHTML = '<div class="empty">Todavía no tenés fichajes registrados.</div>'; return; }
-
-    cont.innerHTML = '<div class="user-card"><table class="detail-table" style="width:100%;">' +
-        '<thead><tr><th>Restaurante</th><th>Entrada</th><th>Salida</th><th>Duración</th></tr></thead><tbody>' +
-        rows.map(r => {
-            const salida = r.ts_salida ? fmt(r.ts_salida) : '<span class="sub-activo">En turno</span>';
-            const d = r.ts_salida ? dur(r.ts_entrada, r.ts_salida) : "—";
-            return `<tr>
-                <td><span class="franja-tag">${esc(r.restaurante)}</span></td>
-                <td>${fmt(r.ts_entrada)}</td>
-                <td>${salida}</td>
-                <td>${esc(d)}</td>
-            </tr>`;
-        }).join("") +
-        '</tbody></table></div>';
+    const wrap = document.createElement("div");
+    wrap.id = "emp-fich-filtro-wrap";
+    wrap.style.cssText = "display:flex;align-items:center;gap:6px;margin-right:auto;";
+    if (rests.length > 1) {
+        const opts = rests.map(r => `<option value="${r.restaurante_id}" ${r.restaurante_id===rid?"selected":""}>${esc(r.restaurante)}</option>`).join("");
+        wrap.innerHTML = `<label>🍽️ Restaurante:</label><select id="emp-fich-filtro">${opts}</select>`;
+        bar.insertBefore(wrap, bar.firstChild);
+        document.getElementById("emp-fich-filtro").addEventListener("change", async (e) => {
+            sessionStorage.setItem("emp_hor", String(e.target.value));
+            try { await entrarRestaurante(parseInt(e.target.value)); } catch(_) {}
+            location.reload();
+        });
+    } else {
+        wrap.innerHTML = `<label>🍽️ ${esc(rests[0].restaurante)}</label>`;
+        bar.insertBefore(wrap, bar.firstChild);
+    }
 }
 
-if (esEmpleadoCadena() && enCuenta()) initEmpleadoFichajes();
-else init();
+(async () => {
+    if (_empFichActivo()) {
+        _empRests = await apiFetch("/empleado/mis-restaurantes", { token: getEmpToken() }).catch(() => []);
+        if (!_empRests || !_empRests.length) {
+            document.getElementById("fichajes-container").innerHTML = '<div class="empty">No estás asignado a ningún restaurante.</div>';
+            [".stats", ".activos-section", ".filtros"].forEach(s => { const e = document.querySelector(s); if (e) e.style.display = "none"; });
+            return;
+        }
+        _empMode = true;
+        const saved = sessionStorage.getItem("emp_hor");
+        _empRid = (saved && _empRests.some(r => String(r.restaurante_id) === saved)) ? parseInt(saved) : _empRests[0].restaurante_id;
+        sessionStorage.setItem("emp_hor", String(_empRid));
+        try { await entrarRestaurante(_empRid); } catch(_) {}
+    }
+    await init();
+    if (_empMode && _empRests) _empInjectFiltroFichajes(_empRests, _empRid);
+})();
 </script>
 </body>
 </html>

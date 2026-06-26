@@ -1584,79 +1584,61 @@ function renderModalRestRef(diaSemana) {
     el.style.display = '';
 }
 
-// ── Modo empleado de cadena (contexto "cuenta", sin restaurante) ──────────
-// El acceso común "Horarios" dirige a ESTA página. Para un empleado sin restaurante
-// se ocultan los controles de gestión y se muestran SUS turnos publicados (agregados
-// de todos sus locales), solo lectura. Reusa getMondayOf/addDays de la página.
-let _empOffset = 0;
-const _EMP_DOW = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-const _EMP_MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-
-async function initEmpleadoHorarios() {
-    ['.view-tabs', '.nav-bar', '.filter-bar', '.templates-bar'].forEach(sel => {
-        const el = document.querySelector(sel); if (el) el.style.display = 'none';
-    });
-    const ga = document.getElementById('grid-area');
-    if (ga) { ga.style.top = '70px'; ga.style.padding = '20px 28px'; ga.style.overflow = 'auto'; }
-    await _empRenderHorarios();
+// ── Modo empleado de cadena: pantalla común "Horarios" ────────────────────
+// El acceso común "Horarios" dirige a ESTA página. Para un empleado de cadena
+// mostramos la grilla NORMAL del restaurante donde trabaja; si trabaja en varios,
+// un filtro permite cambiar. Se logra "entrando" al restaurante (token activo del
+// local) y dejando correr la página tal cual; el filtro re-entra a otro local y
+// recarga. Tras entrar, enCuenta() pasa a false → usamos sessionStorage 'emp_hor'
+// para recordar que seguimos en esta pantalla común.
+function _empHorActivo() {
+    return esEmpleadoCadena() && (enCuenta() || sessionStorage.getItem('emp_hor') !== null);
 }
 
-window._empSemana = function (n) { _empOffset = (n === 0) ? 0 : _empOffset + n; _empRenderHorarios(); };
-
-async function _empRenderHorarios() {
-    const wrap = document.getElementById('grid-wrap');
-    if (!wrap) return;
+function _empInjectFiltroHorarios(rests, rid) {
+    const bar = document.querySelector('.nav-bar');
+    if (!bar || document.getElementById('emp-hor-filtro-wrap')) return;
     const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-    const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-
-    const lunes = getMondayOf(new Date()); lunes.setHours(0,0,0,0);
-    lunes.setDate(lunes.getDate() + _empOffset*7);
-    const domingo = addDays(lunes, 6);
-
-    wrap.innerHTML = '<div style="padding:30px;color:#9ca3af;">Cargando…</div>';
-    let rows = [];
-    try { rows = await apiFetch(`/empleado/horarios?desde=${iso(lunes)}&hasta=${iso(domingo)}`, { token: getEmpToken() }); }
-    catch (e) { wrap.innerHTML = `<div style="padding:30px;color:#9ca3af;">No se pudieron cargar tus horarios: ${esc(e.message||e)}</div>`; return; }
-
-    const porDia = {};
-    (rows||[]).forEach(r => { (porDia[r.fecha] = porDia[r.fecha] || []).push(r); });
-
-    const hoyIso = iso(new Date());
-    let dias = '';
-    for (let i=0; i<7; i++) {
-        const d = addDays(lunes, i); const k = iso(d);
-        const ts = porDia[k] || [];
-        const turnos = ts.length ? ts.map(t => {
-            const horas = (t.franjas||[]).map(f => `${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`).join(', ') || '—';
-            const rol = t.rol_turno ? ` · ${esc(t.rol_turno)}` : '';
-            const brk = t.break_mins ? ` · descanso ${t.break_mins}m` : '';
-            return `<div style="background:#f8fafc;border:1px solid #eef0f3;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                <span style="background:#eef2ff;color:#4338ca;font-weight:600;font-size:11.5px;padding:3px 9px;border-radius:999px;">${esc(t.restaurante)}</span>
-                <span style="font-weight:700;color:#1a1a2e;font-size:14px;">${horas}</span>
-                <span style="font-size:11.5px;color:#6b7280;">${rol}${brk}</span>
-            </div>`;
-        }).join('') : '<div style="color:#cbd5e1;font-style:italic;font-size:13px;padding-top:3px;">Libre</div>';
-        dias += `<div style="background:white;border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.05);margin-bottom:10px;padding:12px 16px;display:flex;gap:16px;align-items:flex-start;${k===hoyIso?'border:1.5px solid #4f46e5;':''}">
-            <div style="min-width:80px;"><div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;font-weight:700;">${_EMP_DOW[i]}</div><div style="font-size:20px;font-weight:700;color:#1a1a2e;">${d.getDate()}</div></div>
-            <div style="flex:1;">${turnos}</div>
-        </div>`;
+    const wrap = document.createElement('div');
+    wrap.id = 'emp-hor-filtro-wrap';
+    wrap.style.cssText = 'display:flex;align-items:center;gap:6px;margin-right:auto;';
+    if (rests.length > 1) {
+        const opts = rests.map(r => `<option value="${r.restaurante_id}" ${r.restaurante_id===rid?'selected':''}>${esc(r.restaurante)}</option>`).join('');
+        wrap.innerHTML = `<span style="font-size:12px;color:#6b7280;font-weight:600;">🍽️ Restaurante:</span>
+            <select id="emp-hor-filtro" style="padding:6px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">${opts}</select>`;
+        bar.insertBefore(wrap, bar.firstChild);
+        document.getElementById('emp-hor-filtro').addEventListener('change', async (e) => {
+            sessionStorage.setItem('emp_hor', String(e.target.value));
+            try { await entrarRestaurante(parseInt(e.target.value)); } catch(_) {}
+            location.reload();
+        });
+    } else {
+        wrap.innerHTML = `<span style="font-size:13px;color:#374151;font-weight:600;">🍽️ ${esc(rests[0].restaurante)}</span>`;
+        bar.insertBefore(wrap, bar.firstChild);
     }
-    wrap.innerHTML = `<div style="max-width:840px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;background:white;border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.05);padding:10px 14px;margin-bottom:14px;">
-            <button onclick="_empSemana(-1)" style="background:#eef2ff;color:#4338ca;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;">‹ Anterior</button>
-            <span style="font-size:14.5px;font-weight:700;color:#1a1a2e;">${lunes.getDate()} ${_EMP_MES[lunes.getMonth()]} – ${domingo.getDate()} ${_EMP_MES[domingo.getMonth()]} ${domingo.getFullYear()}</span>
-            <span style="display:flex;gap:8px;">
-                <button onclick="_empSemana(0)" style="background:#4f46e5;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;">Hoy</button>
-                <button onclick="_empSemana(1)" style="background:#eef2ff;color:#4338ca;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;">Siguiente ›</button>
-            </span>
-        </div>
-        ${dias}
-    </div>`;
 }
 
 // ── Init ─────────────────────────────────────────────────────────
+let _empMode = false, _empRests = null, _empRid = null;
 (async () => {
-    if (esEmpleadoCadena() && enCuenta()) { await initEmpleadoHorarios(); return; }
+    if (_empHorActivo()) {
+        _empMode = true;
+        _empRests = await apiFetch('/empleado/mis-restaurantes', { token: getEmpToken() }).catch(() => []);
+        if (!_empRests || !_empRests.length) {
+            const gw = document.getElementById('grid-wrap');
+            if (gw) gw.innerHTML = '<div class="grid-loading">No estás asignado a ningún restaurante.</div>';
+            ['.view-tabs','.nav-bar','.filter-bar','.templates-bar'].forEach(s=>{const e=document.querySelector(s);if(e)e.style.display='none';});
+            return;
+        }
+        const saved = sessionStorage.getItem('emp_hor');
+        _empRid = (saved && _empRests.some(r => String(r.restaurante_id) === saved))
+            ? parseInt(saved) : _empRests[0].restaurante_id;
+        sessionStorage.setItem('emp_hor', String(_empRid));
+        try { await entrarRestaurante(_empRid); } catch(_) {}
+        // Re-evaluar solo-vista/sin-apertura según permisos en ESTE restaurante
+        document.body.classList.toggle('solo-vista',  !hasPermiso('edicion_agenda'));
+        document.body.classList.toggle('sin-apertura', !hasPermiso('edicion_horarios'));
+    }
     try {
         meUser = await api.get('/auth/me');
         canEdit = (meUser.rol === 'admin' || meUser.rol === 'gerente' || meUser.edicion_agenda === true);
@@ -1680,6 +1662,9 @@ async function _empRenderHorarios() {
 
     document.body.classList.add('view-semana');
     await cargarYRenderizar();
+
+    // Empleado de cadena: inyectar el filtro de restaurante (o el nombre si es uno solo)
+    if (_empMode && _empRests) _empInjectFiltroHorarios(_empRests, _empRid);
 })();
 
 // ═══════════════════════════════════════════════════════════════

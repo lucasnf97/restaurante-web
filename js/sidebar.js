@@ -430,10 +430,12 @@
     }
 
     window.navCuenta = function (href) {
+        try { sessionStorage.removeItem("emp_hor"); } catch (e) {}
         if (typeof volverACuenta === "function") volverACuenta();
         window.location.href = href;
     };
     window.navResto = async function (restId, href) {
+        try { sessionStorage.removeItem("emp_hor"); } catch (e) {}
         try { if (typeof entrarRestaurante === "function") await entrarRestaurante(restId); window.location.href = href; }
         catch (e) { alert("No se pudo entrar al restaurante: " + (e.message || e)); }
     };
