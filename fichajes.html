@@ -1651,7 +1651,57 @@ function formatHoras(h) {
     return sign + str;
 }
 
-init();
+// ── Modo empleado de cadena (contexto "cuenta", sin restaurante) ──────────
+// El acceso común "Fichajes" dirige a ESTA página. Para un empleado sin restaurante
+// mostramos sus fichajes propios agregados de todos sus locales (solo lectura),
+// reusando los estilos de la página. No se arma la UI de gestión.
+async function initEmpleadoFichajes() {
+    const h2 = document.querySelector(".page-header h2");
+    if (h2) h2.textContent = "🕐 Mis fichajes";
+    [".stats", ".activos-section", ".filtros"].forEach(sel => {
+        const el = document.querySelector(sel); if (el) el.style.display = "none";
+    });
+    const cont = document.getElementById("fichajes-container");
+    cont.innerHTML = '<div class="empty">Cargando…</div>';
+
+    const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+    const fmt = ts => {
+        if (!ts) return "—";
+        const d = new Date(String(ts).replace(" ", "T"));
+        if (isNaN(d)) return esc(ts);
+        const p = n => String(n).padStart(2,"0");
+        return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    };
+    const dur = (a,b) => {
+        if (!a || !b) return "";
+        const da = new Date(String(a).replace(" ","T")), db = new Date(String(b).replace(" ","T"));
+        if (isNaN(da)||isNaN(db)) return "";
+        let m = Math.round((db-da)/60000); if (m<0) return "";
+        const h = Math.floor(m/60), mm = m%60; return h ? `${h}h ${mm}m` : `${mm}m`;
+    };
+
+    let rows = [];
+    try { rows = await apiFetch("/empleado/fichajes", { token: getEmpToken() }); }
+    catch (e) { cont.innerHTML = `<div class="empty">No se pudieron cargar tus fichajes: ${esc(e.message||e)}</div>`; return; }
+    if (!rows || !rows.length) { cont.innerHTML = '<div class="empty">Todavía no tenés fichajes registrados.</div>'; return; }
+
+    cont.innerHTML = '<div class="user-card"><table class="detail-table" style="width:100%;">' +
+        '<thead><tr><th>Restaurante</th><th>Entrada</th><th>Salida</th><th>Duración</th></tr></thead><tbody>' +
+        rows.map(r => {
+            const salida = r.ts_salida ? fmt(r.ts_salida) : '<span class="sub-activo">En turno</span>';
+            const d = r.ts_salida ? dur(r.ts_entrada, r.ts_salida) : "—";
+            return `<tr>
+                <td><span class="franja-tag">${esc(r.restaurante)}</span></td>
+                <td>${fmt(r.ts_entrada)}</td>
+                <td>${salida}</td>
+                <td>${esc(d)}</td>
+            </tr>`;
+        }).join("") +
+        '</tbody></table></div>';
+}
+
+if (esEmpleadoCadena() && enCuenta()) initEmpleadoFichajes();
+else init();
 </script>
 </body>
 </html>
