@@ -673,6 +673,24 @@ function optsInsumos(selId) {
 function optsServicios(selId) {
     return _servicios.map(s => `<option value="${s.id}" ${s.id === selId ? 'selected' : ''}>${s.nombre}${s.categoria ? ' — '+s.categoria : ''}</option>`).join("");
 }
+// Refrescan TODOS los desplegables de insumo/servicio del modal de confirmación conservando
+// la selección de cada fila; en la fila que creó el ítem nuevo (forzarIdx) selecciona el nuevo.
+// Así un mismo ítem recién creado queda disponible en las demás filas sin reanalizar la factura.
+function _refrescarSelectsInsumo(forzarIdx, nuevoId) {
+    document.querySelectorAll("select[id^='ci-insumo-']").forEach(sel => {
+        const idx   = sel.id.replace('ci-insumo-', '');
+        const selId = (String(idx) === String(forzarIdx)) ? nuevoId : (parseInt(sel.value) || null);
+        sel.innerHTML = `<option value="">— Seleccioná —</option>` + optsInsumos(selId);
+        actualizarIconoItem(idx);
+    });
+}
+function _refrescarSelectsServicio(forzarIdx, nuevoId) {
+    document.querySelectorAll("select[id^='ci-servicio-']").forEach(sel => {
+        const idx   = sel.id.replace('ci-servicio-', '');
+        const selId = (String(idx) === String(forzarIdx)) ? nuevoId : (parseInt(sel.value) || null);
+        sel.innerHTML = `<option value="">— Seleccioná —</option>` + optsServicios(selId);
+    });
+}
 
 function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, marca) {
     const esInsumo   = tipo === "insumo";
@@ -1199,15 +1217,8 @@ async function guardarInsumoRapido() {
         const nuevo = await api.post("/stock/insumos", body);
         _insumos = await api.get("/stock/insumos");
         cerrarModal("modal-insumo-rapido");
-        if (_insumoRapidoIdx !== null) {
-            const sel = document.getElementById(`ci-insumo-${_insumoRapidoIdx}`);
-            if (sel) {
-                sel.innerHTML = `<option value="">— Seleccioná —</option>` +
-                    _insumos.map(i => `<option value="${i.id}" ${i.id === nuevo.id ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`).join("");
-                actualizarIconoItem(_insumoRapidoIdx);
-            }
-            _insumoRapidoIdx = null;
-        }
+        _refrescarSelectsInsumo(_insumoRapidoIdx, nuevo.id);   // disponible en TODAS las filas
+        _insumoRapidoIdx = null;
     } catch(e) { alert("Error: " + e.message); }
 }
 
@@ -1710,17 +1721,12 @@ async function guardarServicio() {
         else { const nuevo = await api.post("/stock/servicios", body); nuevoId = nuevo.id; }
         _servicios = await api.get("/stock/servicios");
         cerrarModal("modal-servicio");
-        // Si se abrió desde el modal de confirmación, auto-seleccionar en el ítem
-        if (_servicioRapidoIdx !== null && nuevoId !== null) {
-            const sel = document.getElementById(`ci-servicio-${_servicioRapidoIdx}`);
-            if (sel) {
-                sel.innerHTML = `<option value="">— Seleccioná —</option>` +
-                    _servicios.map(s => `<option value="${s.id}" ${s.id === nuevoId ? 'selected' : ''}>${s.nombre}${s.categoria ? ' — '+s.categoria : ''}</option>`).join("");
-            }
-            _servicioRapidoIdx = null;
-        } else {
-            await cargarServicios();
+        // Si el modal de confirmación está abierto, refrescar TODOS sus desplegables de servicio
+        if (document.querySelector("select[id^='ci-servicio-']")) {
+            _refrescarSelectsServicio(_servicioRapidoIdx, nuevoId);
         }
+        _servicioRapidoIdx = null;
+        await cargarServicios();   // y refrescar la pestaña Servicios
     } catch(e) { alert("Error: " + e.message); }
 }
 
