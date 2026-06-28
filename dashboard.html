@@ -1317,22 +1317,109 @@ function resetConfig() {
 }
 
 // ── INIT ─────────────────────────────────────────────────────
+// Empleado de cadena: el dashboard es su HUB. Arriba, un PANEL GENERAL fijo (datos
+// de todos sus locales vía /empleado/*, contexto cuenta): horarios + mensajes [+ muro].
+// Debajo, una SOLAPA por restaurante; al activarla se "entra" al local y se carga su
+// dashboard REAL (config + datos del local) reusando cargarDatos()/renderDash().
+function _empInjectCss() {
+    if (document.getElementById('emp-dash-css')) return;
+    const st = document.createElement('style'); st.id = 'emp-dash-css';
+    st.textContent = `
+        .emp-sec-title { font-size:13px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.5px; margin:20px 4px 10px; }
+        .emp-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 14px; }
+        .emp-tab { background:white; border:1.5px solid #e5e7eb; color:#374151; border-radius:10px; padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.05); transition:all .15s; }
+        .emp-tab:hover { border-color:#a5b4fc; color:#4338ca; }
+        .emp-tab.active { background:#4f46e5; border-color:#4f46e5; color:white; }
+    `;
+    document.head.appendChild(st);
+}
+
+function _empBuildLayout() {
+    if (document.getElementById('emp-general')) return;
+    const content = document.querySelector('.content');
+    const grid = document.getElementById('dash-grid');
+    const frag = document.createElement('div');
+    frag.innerHTML = `
+        <div class="emp-sec-title">General</div>
+        <div class="dash-grid" id="emp-general"></div>
+        <div class="emp-sec-title" id="emp-tabs-title" style="display:none;">Mis restaurantes</div>
+        <div class="emp-tabs" id="emp-tabs"></div>
+    `;
+    while (frag.firstChild) content.insertBefore(frag.firstChild, grid);
+}
+
+function _empRenderGeneral() {
+    const cont = document.getElementById('emp-general');
+    if (!cont) return;
+    // Reusa los renderers existentes (devuelven HTML usando las vars globales, que ya
+    // cargamos con datos del empleado). 'muro' se sumará en el próximo incremento.
+    const blocks = [
+        { id:'horarios-semana', type:'horarios-semana', span:6, visible:true },
+        { id:'mensajes',        type:'mensajes',        span:3, visible:true },
+    ];
+    cont.innerHTML = blocks.map(b => `<div class="db-block span-${b.span}" data-id="${b.id}">${buildBlock(b)}</div>`).join('');
+}
+
+function _empRenderTabs(rests) {
+    const bar = document.getElementById('emp-tabs');
+    const title = document.getElementById('emp-tabs-title');
+    if (!bar) return;
+    if (!rests.length) { bar.innerHTML = ''; if (title) title.style.display = 'none'; return; }
+    if (title) title.style.display = '';
+    const cur = sessionStorage.getItem('emp_dash');
+    const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    bar.innerHTML = rests.map(r => {
+        const active = String(r.restaurante_id) === cur ? ' active' : '';
+        return `<button class="emp-tab${active}" data-rid="${r.restaurante_id}" onclick="_empSelectResto(${r.restaurante_id})">🍽️ ${esc(r.restaurante)}</button>`;
+    }).join('');
+}
+
+async function _empSelectResto(rid) {
+    sessionStorage.setItem('emp_dash', String(rid));
+    document.querySelectorAll('#emp-tabs .emp-tab').forEach(t => t.classList.toggle('active', String(t.dataset.rid) === String(rid)));
+    const grid = document.getElementById('dash-grid');
+    if (window.UI) UI.skeletonCards(grid, 6); else grid.innerHTML = '<div class="res-empty" style="padding:30px;">Cargando…</div>';
+    try { await entrarRestaurante(rid); }
+    catch (e) { grid.innerHTML = `<div class="res-empty" style="padding:30px;">No se pudo abrir el restaurante: ${(e.message||e)}</div>`; return; }
+    // Dashboard REAL del local (su config resuelta en backend; el empleado no lo edita acá)
+    let resp = null;
+    try { resp = await api.get('/dashboards/mio'); } catch (e) {}
+    config = _mergeConfig((resp && resp.config) || MINIMAL_CONFIG);
+    _canEditDash = false;
+    await cargarDatos();   // usa el token del local; renderiza en #dash-grid
+}
+window._empSelectResto = _empSelectResto;
+
 async function initDashboardEmpleado() {
-    // Empleado de cadena: hub común (horarios + mensajes) vía /empleado/*. Restaura el
-    // contexto "cuenta" (por si quedó activo un token de restaurante tras una pantalla
-    // común) y pide SIEMPRE con el emp_token, así no depende del token activo.
+    // Restaura contexto "cuenta" y pide el panel general con el emp_token explícito.
     if (typeof volverACuenta === 'function') volverACuenta();
     const _emp = (typeof getEmpToken === 'function') ? getEmpToken() : null;
     _canEditDash = false;
     const btnCfg = document.querySelector('.btn-config'); if (btnCfg) btnCfg.style.display = 'none';
-    config = _mergeConfig({ blocks: [ { id:'horarios-semana', visible:true }, { id:'mensajes', visible:true } ] });
+
+    _empInjectCss();
+    _empBuildLayout();
+
+    // 1) Panel general (datos del empleado, todos sus locales)
     try {
         const wk = _semanaActual();
         const dDom = new Date(wk.lunesDate); dDom.setDate(wk.lunesDate.getDate() + 6);
         horariosSemanaData = await apiFetch(`/empleado/horarios?desde=${wk.fmt(wk.lunesDate)}&hasta=${wk.fmt(dDom)}`, { token: _emp }) || [];
     } catch (e) { horariosSemanaData = []; }
     try { mensajesData = await apiFetch('/empleado/mensajes', { token: _emp }) || []; } catch (e) { mensajesData = []; }
-    renderDash();
+    _empRenderGeneral();
+
+    // 2) Solapas por restaurante + dashboard real del seleccionado
+    let rests = [];
+    try { rests = await apiFetch('/empleado/mis-restaurantes', { token: _emp }) || []; } catch (e) { rests = []; }
+    _empRenderTabs(rests);
+    if (!rests.length) {
+        document.getElementById('dash-grid').innerHTML = '<div class="res-empty" style="padding:30px;">No estás asignado a ningún restaurante todavía.</div>';
+        return;
+    }
+    const saved = sessionStorage.getItem('emp_dash');
+    const rid = (saved && rests.some(r => String(r.restaurante_id) === saved)) ? parseInt(saved) : rests[0].restaurante_id;
+    await _empSelectResto(rid);
 }
 
 async function initDashboard() {
