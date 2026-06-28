@@ -298,7 +298,7 @@
             </label>
             <label style="font-size:12px;color:#3730a3;display:flex;align-items:center;gap:6px;">
                 Período
-                <input type="month" id="conf-periodo" onchange="onPeriodoChange()"
+                <input type="month" id="conf-periodo" onchange="onPeriodoUserChange()"
                        style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;">
             </label>
             <span id="conf-periodo-label" style="font-size:12px;font-weight:700;color:#4338ca;"></span>
@@ -881,10 +881,11 @@ function _periodoLabel(periodoMes) {
     const { desde, hasta } = _periodoRango(periodoMes);
     return `${_MESES_PER[m-1]} ${y}  (${desde} → ${hasta})`;
 }
+let _periodoManual = false;   // true cuando el usuario eligió el período a mano → no recalcularlo de la fecha
 function onFechaFacturaChange() {
     const f = document.getElementById('conf-fecha')?.value;
     const pEl = document.getElementById('conf-periodo');
-    if (pEl) pEl.value = _periodoMesDeFecha(f);
+    if (pEl && !_periodoManual) pEl.value = _periodoMesDeFecha(f);   // no pisar el período elegido a mano
     onPeriodoChange();
 }
 function onPeriodoChange() {
@@ -892,6 +893,8 @@ function onPeriodoChange() {
     const lbl = document.getElementById('conf-periodo-label');
     if (lbl) lbl.textContent = per ? ('→ ' + _periodoLabel(per)) : '';
 }
+// El usuario cambió el período manualmente → respetarlo (no recalcular de la fecha)
+function onPeriodoUserChange() { _periodoManual = true; onPeriodoChange(); }
 function _setFechaPeriodoConf(fechaStr, periodoMes) {
     const fechaEl = document.getElementById('conf-fecha');
     const okFecha = (typeof fechaStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(fechaStr));
@@ -900,6 +903,7 @@ function _setFechaPeriodoConf(fechaStr, periodoMes) {
     if (periodoMes) {
         const pEl = document.getElementById('conf-periodo');
         if (pEl) pEl.value = periodoMes;
+        _periodoManual = true;   // período explícito (edición): respetarlo, no recalcular de la fecha
         onPeriodoChange();
     } else {
         onFechaFacturaChange();
@@ -908,6 +912,7 @@ function _setFechaPeriodoConf(fechaStr, periodoMes) {
 
 function abrirModalConfirmacion(datos) {
     _confItemCounter = 0;
+    _periodoManual = false;   // al abrir, el período se auto-deriva de la fecha hasta que el usuario lo cambie
     // Por defecto NO estamos editando (editarFactura setea estas vars DESPUÉS de llamar acá).
     _editandoFacturaId = null; _editArchivoUrl = null; _editArchivoNombre = null;
     document.getElementById("conf-prov-nombre").value = datos.proveedor_nombre || "";
