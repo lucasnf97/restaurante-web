@@ -360,6 +360,7 @@
 
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-confirmacion')">Cancelar</button>
+            <button class="btn btn-secondary" id="btn-guardar-borrador" onclick="guardarBorrador()" title="Guardar el avance para continuar después">💾 Guardar borrador</button>
             <button class="btn btn-primary" onclick="confirmarFactura()">✓ Confirmar y registrar</button>
         </div>
     </div>
@@ -506,11 +507,15 @@ function getEntrada(id) { return _archivosFactura.find(a => a.id === id); }
 function renderArchivos() {
     const cont = document.getElementById("archivos-cargados");
     if (!_archivosFactura.length) { cont.innerHTML = ""; return; }
-    const statusTexto = { pendiente: 'Listo para procesar', procesando: 'Procesando con IA…', procesado: 'Listo para confirmar', confirmado: 'Registrado ✓', error: 'Error al procesar' };
+    const statusTexto = { pendiente: 'Listo para procesar', procesando: 'Procesando con IA…', procesado: 'Listo para confirmar', confirmado: 'Registrado ✓', error: 'Error al procesar', borrador: '📝 En proceso de confirmación' };
     cont.innerHTML = _archivosFactura.map((a) => {
-        const icon = a.file.name.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️';
+        const nombre = a.file ? a.file.name : (a.archivo_nombre || 'Factura');
+        const icon = nombre.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️';
         let acciones = '';
-        if (a.estado === 'pendiente') {
+        if (a.estado === 'borrador') {
+            acciones = `<button class="btn btn-primary btn-sm" onclick="continuarBorrador(${a.id})">▶ Continuar</button>
+                        <button class="btn btn-secondary btn-sm" onclick="eliminarBorrador(${a.id})">✕</button>`;
+        } else if (a.estado === 'pendiente') {
             acciones = `<button class="btn btn-primary btn-sm" onclick="procesarArchivo(${a.id})">🤖 Procesar</button>
                         <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${a.id})">✕</button>`;
         } else if (a.estado === 'procesando') {
@@ -525,11 +530,11 @@ function renderArchivos() {
                         <button class="btn btn-primary btn-sm" onclick="procesarArchivo(${a.id})">🔁 Reintentar</button>
                         <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${a.id})">✕</button>`;
         }
-        const claseCard = a.estado === 'confirmado' ? 'confirmado' : a.estado === 'procesado' ? 'procesado' : a.estado === 'error' ? 'error' : '';
+        const claseCard = a.estado === 'confirmado' ? 'confirmado' : a.estado === 'procesado' ? 'procesado' : a.estado === 'borrador' ? 'procesado' : a.estado === 'error' ? 'error' : '';
         return `<div class="fcard ${claseCard}">
             <div class="fcard-icon">${icon}</div>
             <div class="fcard-info">
-                <div class="fcard-name">${a.file.name}</div>
+                <div class="fcard-name">${nombre}</div>
                 <div class="fcard-status">${statusTexto[a.estado] || ''}</div>
             </div>
             <div class="fcard-actions">${acciones}</div>
@@ -921,7 +926,7 @@ function abrirModalConfirmacion(datos) {
     _confItemCounter = 0;
     _periodoManual = false;   // al abrir, el período se auto-deriva de la fecha hasta que el usuario lo cambie
     // Por defecto NO estamos editando (editarFactura setea estas vars DESPUÉS de llamar acá).
-    _editandoFacturaId = null; _editArchivoUrl = null; _editArchivoNombre = null;
+    _editandoFacturaId = null; _editArchivoUrl = null; _editArchivoNombre = null; _borradorActivo = null;
     document.getElementById("conf-prov-nombre").value = datos.proveedor_nombre || "";
     document.getElementById("conf-prov-cuit").value   = datos.proveedor_cuit   || "";
 
@@ -1256,6 +1261,8 @@ async function confirmarFactura() {
     // stock + datos) antes de re-crear la factura con los datos corregidos.
     const editId = _editandoFacturaId;
     _editandoFacturaId = null;
+    const borradorId = _borradorActivo;   // si veníamos de un borrador, borrarlo al registrar OK
+    _borradorActivo = null;
     // Fecha + período de facturación elegidos en la confirmación.
     const fechaFactura = document.getElementById("conf-fecha")?.value || null;
     const periodoMes   = document.getElementById("conf-periodo")?.value || null;
@@ -1279,8 +1286,8 @@ async function confirmarFactura() {
         let archivoNom  = entradaActiva?.datos?.archivo || entradaActiva?.file?.name || null;
         const fileASubir = entradaActiva?.file || _manualFile || null;
 
-        if (editId && _editArchivoUrl && !fileASubir) {
-            // Edición sin archivo nuevo → conservar el comprobante original.
+        if (_editArchivoUrl && !fileASubir) {
+            // Edición o borrador continuado, sin archivo nuevo → reusar el comprobante ya subido.
             facturaUrl = _editArchivoUrl;
             archivoNom = _editArchivoNombre;
         } else if (fileASubir) {
@@ -1386,7 +1393,12 @@ async function confirmarFactura() {
         cerrarModal("modal-confirmacion");
         _manualFile = null;
         _editArchivoUrl = null; _editArchivoNombre = null;
-        if (_archivoActivo !== null) {
+        if (borradorId) {
+            // Veníamos de un borrador: borrarlo del servidor y sacarlo de la lista.
+            try { await api.delete(`/stock/facturas/borradores/${borradorId}`); } catch(e) {}
+            _archivosFactura = _archivosFactura.filter(a => a.borrador_id !== borradorId);
+            _archivoActivo = null;
+        } else if (_archivoActivo !== null) {
             const ea = getEntrada(_archivoActivo);
             if (ea) ea.estado = 'confirmado';
             _archivoActivo = null;
@@ -1400,11 +1412,120 @@ async function confirmarFactura() {
     } catch(e) { alert("Error: " + e.message); }
 }
 
+// ── BORRADORES (estado transitorio de la revisión, persistido en el servidor) ──
+function _numOrNull(v){ const n = parseFloat(v); return isNaN(n) ? null : n; }
+
+// Captura el estado actual del modal (forma IA), tolerante a campos incompletos.
+// Preserva fuentes/página para que el resaltado siga andando al continuar.
+function _capturarBorrador() {
+    const items = [];
+    document.querySelectorAll("[id^='conf-item-']").forEach(row => {
+        const idx = row.id.replace("conf-item-", "");
+        const tipo = document.getElementById(`ci-tipo-${idx}`)?.value || 'insumo';
+        const desc = row.dataset.desc || '';
+        const fuentes = _confFuentes[idx] || null;
+        const pagina  = _confPaginas[idx] || 1;
+        if (tipo === 'servicio') {
+            items.push({ tipo:'servicio', descripcion_factura:desc,
+                servicio_id: parseInt(document.getElementById(`ci-servicio-${idx}`)?.value) || null,
+                precio_total: _numOrNull(document.getElementById(`cs-precio-neto-${idx}`)?.value),
+                incluye_impuesto: false,
+                impuesto_pct: _numOrNull(document.getElementById(`cs-imp-${idx}`)?.value) || 0,
+                fuentes, pagina });
+        } else {
+            items.push({ tipo, descripcion_factura:desc,
+                insumo_id: parseInt(document.getElementById(`ci-insumo-${idx}`)?.value) || null,
+                cantidad: _numOrNull(document.getElementById(`ci-cant-${idx}`)?.value),
+                precio_total: _numOrNull(document.getElementById(`ci-precio-neto-${idx}`)?.value),
+                incluye_impuesto: false,
+                impuesto_pct: _numOrNull(document.getElementById(`ci-imp-${idx}`)?.value) || 0,
+                marca: document.getElementById(`ci-marca-${idx}`)?.value?.trim() || null,
+                fuentes, pagina });
+        }
+    });
+    const impG = parseFloat(document.getElementById('conf-imp-global')?.value);
+    return {
+        proveedor_nombre: document.getElementById('conf-prov-nombre')?.value.trim() || '',
+        proveedor_cuit:   document.getElementById('conf-prov-cuit')?.value.trim() || null,
+        moneda:           document.getElementById('conf-moneda-codigo')?.value || null,
+        impuesto_pct:     isNaN(impG) ? null : impG,
+        fecha:            document.getElementById('conf-fecha')?.value || null,
+        _periodo:         document.getElementById('conf-periodo')?.value || null,
+        items,
+    };
+}
+
+async function guardarBorrador() {
+    const btn = document.getElementById('btn-guardar-borrador');
+    const datos = _capturarBorrador();
+    const entrada = _archivoActivo !== null ? getEntrada(_archivoActivo) : null;
+    let archivo_url    = _editArchivoUrl || null;        // si continuamos un borrador, ya tiene URL
+    let archivo_nombre = _editArchivoNombre || entrada?.file?.name || entrada?.datos?.archivo || null;
+    const fileLocal = entrada?.file || _manualFile || null;
+    if (btn) { btn.disabled = true; btn.textContent = '💾 Guardando…'; }
+    try {
+        if (!archivo_url && fileLocal) {
+            const fd = new FormData(); fd.append("file", fileLocal);
+            const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
+            const up = await fetch(`${API_URL}/stock/facturas/upload`, { method:"POST", headers:{ "Authorization":`Bearer ${token}` }, body: fd });
+            if (up.ok) { archivo_url = (await up.json()).url; archivo_nombre = archivo_nombre || fileLocal.name; }
+        }
+        const body = { datos_json: JSON.stringify(datos), archivo_url, archivo_nombre };
+        if (_borradorActivo) await api.patch(`/stock/facturas/borradores/${_borradorActivo}`, body);
+        else await api.post('/stock/facturas/borradores', body);
+        cerrarModal('modal-confirmacion');
+        await cargarBorradores();
+        alert('💾 Borrador guardado. Lo podés continuar desde la lista cuando quieras.');
+    } catch(e) {
+        alert('No se pudo guardar el borrador: ' + (e.message || e));
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar borrador'; }
+    }
+}
+
+async function cargarBorradores() {
+    let bs = [];
+    try { bs = await api.get('/stock/facturas/borradores'); } catch(e) { bs = []; }
+    _archivosFactura = _archivosFactura.filter(a => a.estado !== 'borrador');
+    (bs || []).forEach(b => {
+        let datos = {}; try { datos = JSON.parse(b.datos_json || '{}'); } catch(e) {}
+        _archivosFactura.push({ id: _nextFileId++, estado:'borrador', file:null, datos,
+            archivo_url: b.archivo_url, archivo_nombre: b.archivo_nombre, borrador_id: b.id });
+    });
+    renderArchivos();
+}
+
+async function continuarBorrador(id) {
+    const entry = getEntrada(id); if (!entry) return;
+    _archivoActivo = id; _manualFile = null;
+    document.getElementById("modal-conf-titulo").textContent = "✅ Confirmar datos de la factura";
+    document.getElementById("conf-archivo-manual").style.display = "none";
+    abrirModalConfirmacion(entry.datos || {});
+    _editArchivoUrl = entry.archivo_url || null;        // reusar comprobante (no re-subir)
+    _editArchivoNombre = entry.archivo_nombre || null;
+    _borradorActivo = entry.borrador_id;
+    if (entry.archivo_url) {
+        try {
+            const blob = await fetch(entry.archivo_url).then(r => r.ok ? r.blob() : null);
+            _renderViewer(blob ? new File([blob], entry.archivo_nombre || 'factura', { type: blob.type }) : null);
+        } catch(e) { _renderViewer(null); }
+    } else { _renderViewer(null); }
+}
+
+async function eliminarBorrador(id) {
+    const entry = getEntrada(id); if (!entry) return;
+    if (!confirm('¿Eliminar este borrador? Se perderá el avance guardado.')) return;
+    try { await api.delete(`/stock/facturas/borradores/${entry.borrador_id}`); } catch(e) {}
+    _archivosFactura = _archivosFactura.filter(a => a.id !== id);
+    renderArchivos();
+}
+
 // ── HISTORIAL FACTURAS ────────────────────────────────────────
 let _historialFacturas = [];
 let _editandoFacturaId = null;     // si != null, confirmar = editar esa factura (borra la vieja y re-crea)
-let _editArchivoUrl    = null;     // archivo original a reutilizar al editar (no se re-sube)
+let _editArchivoUrl    = null;     // archivo original a reutilizar al editar/continuar borrador (no se re-sube)
 let _editArchivoNombre = null;
+let _borradorActivo    = null;     // id del borrador que se está continuando (se borra al confirmar)
 
 function parseFechaUTC(str) {
     // Fuerza interpretación UTC agregando Z si no tiene info de timezone
@@ -1819,6 +1940,9 @@ Promise.all([
     api.get("/stock/servicios").then(d => _servicios = d),
     api.get("/stock/proveedores").then(d => _proveedores = d)
 ]).catch(console.error);
+
+// Borradores en curso → aparecen en la lista de "Procesar con IA" para continuarlos
+if (!_facturasSoloVista) cargarBorradores();
 
 // Solo-vista (ver_facturas): la pestaña de carga está oculta → arrancar en Historial
 if (_facturasSoloVista) setTab('historial');
