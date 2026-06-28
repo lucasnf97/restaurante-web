@@ -231,12 +231,18 @@
     //   gerente_cadena → /cadena/* (edita)         empleado_cadena → /empleado/* (solo lectura)
     //   usuario de un restaurante → "upgrade": si es gerente de la cadena del local, obtiene un
     //   token de cadena (solo para estas llamadas, sin pisar la sesión del local) y ve/edita la
-    //   cadena entera; si no, va al editor de un solo restaurante (cuadrante.html).
-    let _RO = false, _TOK = null, _EP_RESTS = '/cadena/restaurantes';
+    //   cadena entera; si no, edita SOLO este restaurante (grilla y guardado por /horarios-personal).
+    let _RO = false, _TOK = null, _SINGLE = false, _EP_RESTS = '/cadena/restaurantes';
     let _epHorarios = (qs) => `/cadena/horarios?${qs}`;
     function _get(p){ return apiFetch(p, { token: _TOK }); }
     function _post(p,b){ return apiFetch(p, { method:'POST', body: JSON.stringify(b||{}), token: _TOK }); }
     function _del(p){ return apiFetch(p, { method:'DELETE', token: _TOK }); }
+    // Guardar/eliminar/publicar: cadena (/cadena/horarios/*) vs un solo restaurante (/horarios-personal)
+    function _saveTurno(b){ return _SINGLE
+        ? _post('/horarios-personal', { usuario_id:b.usuario_id, fecha:b.fecha, franjas:b.franjas, rol_turno:b.rol_turno, break_mins:b.break_mins })
+        : _post('/cadena/horarios/guardar', b); }
+    function _delTurno(rid, eid){ return _SINGLE ? _del(`/horarios-personal/${eid}`) : _del(`/cadena/horarios/${rid}/${eid}`); }
+    function _publicarTurnos(desde, hasta, ids){ return _SINGLE ? _post('/horarios-personal/publicar', { desde, hasta }) : _post('/cadena/horarios/publicar', { desde, hasta, restaurante_ids:ids }); }
 
     function _applyRO(){
         if(!_RO) return;
@@ -256,13 +262,17 @@
         } else if (_user.rol === 'empleado_cadena') {
             _EP_RESTS='/empleado/mis-restaurantes'; _epHorarios=(qs)=>`/empleado/horarios-grid?${qs}`; _RO=true;
         } else {
-            // Usuario de un restaurante: ¿gerente de la cadena? → token de cadena para estas llamadas
+            // Usuario de un restaurante: ¿gerente de la cadena? → token de cadena (ve/edita la
+            // cadena entera). Si no → un solo restaurante (este local): grilla y guardado por esquema.
             try {
                 const up = await apiFetch('/cadena/upgrade', { method:'POST', body:'{}' });
                 _TOK = up.access_token;
                 _EP_RESTS='/cadena/restaurantes'; _epHorarios=(qs)=>`/cadena/horarios?${qs}`; _RO=false;
             } catch(e) {
-                window.location.href = 'cuadrante.html'; return;   // editor de un solo restaurante
+                _SINGLE = true;
+                _EP_RESTS='/horarios-personal/restaurante';
+                _epHorarios=(qs)=>`/horarios-personal/grid?${qs}`;
+                _RO = !hasPermiso('edicion_agenda');   // edita si tiene permiso; si no, solo lectura
             }
         }
         _applyRO();
@@ -527,14 +537,14 @@
         if(!_modal || !_modal.usuario_id) return;
         const franjas=_leerFranjas();
         try{
-            if(!franjas.length){ if(_modal.entryId) await _del(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); }
-            else await _post('/cadena/horarios/guardar', { restaurante_id:_modal.restaurante_id, usuario_id:_modal.usuario_id, fecha:_modal.fecha, franjas, rol_turno:document.getElementById('m-rol').value||null, break_mins:parseInt(document.getElementById('m-break').value,10)||0 });
+            if(!franjas.length){ if(_modal.entryId) await _delTurno(_modal.restaurante_id, _modal.entryId); }
+            else await _saveTurno({ restaurante_id:_modal.restaurante_id, usuario_id:_modal.usuario_id, fecha:_modal.fecha, franjas, rol_turno:document.getElementById('m-rol').value||null, break_mins:parseInt(document.getElementById('m-break').value,10)||0 });
             cerrarModal(); await cargarYRenderizar();
         }catch(e){ alert('No se pudo guardar: '+(e.message||e)); }
     }
     async function eliminarTurno(){
         if(!_modal || !_modal.entryId){ cerrarModal(); return; }
-        try{ await _del(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); cerrarModal(); await cargarYRenderizar(); }
+        try{ await _delTurno(_modal.restaurante_id, _modal.entryId); cerrarModal(); await cargarYRenderizar(); }
         catch(e){ alert('No se pudo eliminar: '+(e.message||e)); }
     }
 
@@ -542,9 +552,9 @@
     async function publicarHorarios(){
         const days=getDays(), desde=formatDate(days[0]), hasta=formatDate(days[days.length-1]);
         const ids=_selRest.size?[..._selRest]:null;
-        const quien=ids?`${ids.length} restaurante(s) seleccionado(s)`:'TODOS tus restaurantes';
+        const quien=_SINGLE?'este restaurante':(ids?`${ids.length} restaurante(s) seleccionado(s)`:'TODOS tus restaurantes');
         if(!confirm(`¿Publicar los horarios en borrador del período ${desde} a ${hasta} para ${quien}?`)) return;
-        try{ const r=await _post('/cadena/horarios/publicar',{ desde, hasta, restaurante_ids:ids }); alert(`Publicados: ${r.publicados||0} horario(s).`); await cargarYRenderizar(); }
+        try{ const r=await _publicarTurnos(desde, hasta, ids); alert(`Publicados: ${r.publicados||0} horario(s).`); await cargarYRenderizar(); }
         catch(e){ alert('No se pudo publicar: '+(e.message||e)); }
     }
 
@@ -581,7 +591,7 @@
         let restId = _selRest.size===1 ? [..._selRest][0] : (allowed.length===1 ? allowed[0].restaurante_id : null);
         const m = allowed.find(x=>x.restaurante_id===restId);
         if(restId==null || !m){ alert('Este usuario pertenece a varios restaurantes.\nFiltrá por un restaurante (o usá el modal de la celda) para aplicar la plantilla.'); return; }
-        try{ await _post('/cadena/horarios/guardar',{ restaurante_id:restId, usuario_id:m.usuario_id, fecha, franjas:tpl.franjas, rol_turno:null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
+        try{ await _saveTurno({ restaurante_id:restId, usuario_id:m.usuario_id, fecha, franjas:tpl.franjas, rol_turno:null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
         catch(err){ alert('Error al aplicar plantilla: '+(err.message||err)); }
     }
     let _editingTplId=null;
