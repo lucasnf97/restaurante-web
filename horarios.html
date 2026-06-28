@@ -151,12 +151,17 @@
         </div>
 
         <div class="nav-bar">
-            <button class="nav-btn" onclick="navDate(-1)">◀</button>
-            <span class="nav-label" id="nav-label">—</span>
-            <button class="nav-btn" onclick="navDate(1)">▶</button>
-            <input class="search" id="buscar" placeholder="🔍 Buscar empleado…" oninput="onFiltroNombre(this.value)">
-            <div class="spacer"></div>
-            <button class="btn-pub" onclick="publicarHorarios()">📤 Publicar</button>
+            <div style="flex:1;display:flex;align-items:center;gap:8px;min-width:0;">
+                <input class="search" id="buscar" placeholder="🔍 Buscar empleado…" oninput="onFiltroNombre(this.value)">
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                <button class="nav-btn" onclick="navDate(-1)">◀</button>
+                <span class="nav-label" id="nav-label">—</span>
+                <button class="nav-btn" onclick="navDate(1)">▶</button>
+            </div>
+            <div style="flex:1;display:flex;justify-content:flex-end;align-items:center;gap:8px;">
+                <button class="btn-pub" onclick="publicarHorarios()">📤 Publicar</button>
+            </div>
         </div>
 
         <div class="filtros">
@@ -220,14 +225,21 @@
     <script>
     requireAuth();
     const _user = getUser() || {};
-    // Actor: gerente_cadena (edita) o empleado_cadena (solo lectura). Otros → fuera.
-    const _RO = _user.rol === 'empleado_cadena';
-    if (_user.rol !== 'gerente_cadena' && _user.rol !== 'empleado_cadena') { window.location.href = 'dashboard.html'; }
-    const _EP_RESTS   = _RO ? '/empleado/mis-restaurantes' : '/cadena/restaurantes';
-    const _epHorarios = (qs) => (_RO ? `/empleado/horarios-grid?${qs}` : `/cadena/horarios?${qs}`);
     document.getElementById('who').textContent = _user.nombre || _user.username || '';
-    if (_RO) {
-        // Solo lectura: título "Mis horarios", volver al dashboard, sin publicar ni plantillas ni edición de celdas
+
+    // Actor de la grilla:
+    //   gerente_cadena → /cadena/* (edita)         empleado_cadena → /empleado/* (solo lectura)
+    //   usuario de un restaurante → "upgrade": si es gerente de la cadena del local, obtiene un
+    //   token de cadena (solo para estas llamadas, sin pisar la sesión del local) y ve/edita la
+    //   cadena entera; si no, va al editor de un solo restaurante (cuadrante.html).
+    let _RO = false, _TOK = null, _EP_RESTS = '/cadena/restaurantes';
+    let _epHorarios = (qs) => `/cadena/horarios?${qs}`;
+    function _get(p){ return apiFetch(p, { token: _TOK }); }
+    function _post(p,b){ return apiFetch(p, { method:'POST', body: JSON.stringify(b||{}), token: _TOK }); }
+    function _del(p){ return apiFetch(p, { method:'DELETE', token: _TOK }); }
+
+    function _applyRO(){
+        if(!_RO) return;
         const h1 = document.querySelector('.navbar h1'); if (h1) h1.textContent = 'Mis horarios';
         const volver = document.querySelector('.navbar button'); if (volver) volver.setAttribute('onclick', "window.location.href='dashboard.html'");
         const pub = document.querySelector('.btn-pub'); if (pub) pub.style.display = 'none';
@@ -236,6 +248,25 @@
         const st = document.createElement('style');
         st.textContent = 'body.solo-vista .cell-add,body.solo-vista .cell-add-mini{display:none!important;} body.solo-vista .td-day{cursor:default!important;}';
         document.head.appendChild(st);
+    }
+
+    async function _bootstrap(){
+        if (_user.rol === 'gerente_cadena') {
+            _EP_RESTS='/cadena/restaurantes'; _epHorarios=(qs)=>`/cadena/horarios?${qs}`; _RO=false;
+        } else if (_user.rol === 'empleado_cadena') {
+            _EP_RESTS='/empleado/mis-restaurantes'; _epHorarios=(qs)=>`/empleado/horarios-grid?${qs}`; _RO=true;
+        } else {
+            // Usuario de un restaurante: ¿gerente de la cadena? → token de cadena para estas llamadas
+            try {
+                const up = await apiFetch('/cadena/upgrade', { method:'POST', body:'{}' });
+                _TOK = up.access_token;
+                _EP_RESTS='/cadena/restaurantes'; _epHorarios=(qs)=>`/cadena/horarios?${qs}`; _RO=false;
+            } catch(e) {
+                window.location.href = 'cuadrante.html'; return;   // editor de un solo restaurante
+            }
+        }
+        _applyRO();
+        init();
     }
 
     // ── Constantes / colores ────────────────────────────────────
@@ -322,7 +353,7 @@
     // ── Carga ───────────────────────────────────────────────────
     async function init(){
         try {
-            const rs = await api.get(_EP_RESTS);
+            const rs = await _get(_EP_RESTS);
             // Normalizar: /cadena/restaurantes da {id,nombre}; /empleado/mis-restaurantes da {restaurante_id,restaurante}
             _rests = (rs||[]).map(r => ({ id: (r.id != null ? r.id : r.restaurante_id), nombre: (r.nombre != null ? r.nombre : r.restaurante), codigo: r.codigo }));
         } catch(e){ _rests=[]; }
@@ -335,7 +366,7 @@
         const days=getDays(), desde=formatDate(days[0]), hasta=formatDate(days[days.length-1]);
         const area=document.getElementById('grid-area');
         area.innerHTML='<div class="grid-loading">Cargando…</div>';
-        try { _data = await api.get(_epHorarios(`desde=${desde}&hasta=${hasta}`)); }
+        try { _data = await _get(_epHorarios(`desde=${desde}&hasta=${hasta}`)); }
         catch(e){ area.innerHTML='<div class="grid-empty">Error cargando horarios.</div>'; return; }
         // Deduplicar por username: un usuario = una fila, con N membresías y turnos por restaurante.
         _users={};
@@ -496,14 +527,14 @@
         if(!_modal || !_modal.usuario_id) return;
         const franjas=_leerFranjas();
         try{
-            if(!franjas.length){ if(_modal.entryId) await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); }
-            else await api.post('/cadena/horarios/guardar', { restaurante_id:_modal.restaurante_id, usuario_id:_modal.usuario_id, fecha:_modal.fecha, franjas, rol_turno:document.getElementById('m-rol').value||null, break_mins:parseInt(document.getElementById('m-break').value,10)||0 });
+            if(!franjas.length){ if(_modal.entryId) await _del(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); }
+            else await _post('/cadena/horarios/guardar', { restaurante_id:_modal.restaurante_id, usuario_id:_modal.usuario_id, fecha:_modal.fecha, franjas, rol_turno:document.getElementById('m-rol').value||null, break_mins:parseInt(document.getElementById('m-break').value,10)||0 });
             cerrarModal(); await cargarYRenderizar();
         }catch(e){ alert('No se pudo guardar: '+(e.message||e)); }
     }
     async function eliminarTurno(){
         if(!_modal || !_modal.entryId){ cerrarModal(); return; }
-        try{ await api.delete(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); cerrarModal(); await cargarYRenderizar(); }
+        try{ await _del(`/cadena/horarios/${_modal.restaurante_id}/${_modal.entryId}`); cerrarModal(); await cargarYRenderizar(); }
         catch(e){ alert('No se pudo eliminar: '+(e.message||e)); }
     }
 
@@ -513,7 +544,7 @@
         const ids=_selRest.size?[..._selRest]:null;
         const quien=ids?`${ids.length} restaurante(s) seleccionado(s)`:'TODOS tus restaurantes';
         if(!confirm(`¿Publicar los horarios en borrador del período ${desde} a ${hasta} para ${quien}?`)) return;
-        try{ const r=await api.post('/cadena/horarios/publicar',{ desde, hasta, restaurante_ids:ids }); alert(`Publicados: ${r.publicados||0} horario(s).`); await cargarYRenderizar(); }
+        try{ const r=await _post('/cadena/horarios/publicar',{ desde, hasta, restaurante_ids:ids }); alert(`Publicados: ${r.publicados||0} horario(s).`); await cargarYRenderizar(); }
         catch(e){ alert('No se pudo publicar: '+(e.message||e)); }
     }
 
@@ -550,7 +581,7 @@
         let restId = _selRest.size===1 ? [..._selRest][0] : (allowed.length===1 ? allowed[0].restaurante_id : null);
         const m = allowed.find(x=>x.restaurante_id===restId);
         if(restId==null || !m){ alert('Este usuario pertenece a varios restaurantes.\nFiltrá por un restaurante (o usá el modal de la celda) para aplicar la plantilla.'); return; }
-        try{ await api.post('/cadena/horarios/guardar',{ restaurante_id:restId, usuario_id:m.usuario_id, fecha, franjas:tpl.franjas, rol_turno:null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
+        try{ await _post('/cadena/horarios/guardar',{ restaurante_id:restId, usuario_id:m.usuario_id, fecha, franjas:tpl.franjas, rol_turno:null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
         catch(err){ alert('Error al aplicar plantilla: '+(err.message||err)); }
     }
     let _editingTplId=null;
@@ -582,7 +613,7 @@
     function confirmarEliminarTpl(id){ if(confirm('¿Eliminar esta plantilla?')){ _templates=_templates.filter(t=>t.id!==id); saveTemplates(); renderTemplatesBar(); } }
     function eliminarTemplate(){ if(_editingTplId){ confirmarEliminarTpl(_editingTplId); cerrarTplModal(); } }
 
-    init();
+    _bootstrap();
     </script>
 </body>
 </html>

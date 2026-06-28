@@ -29,7 +29,7 @@
             children: [
                 { href: "fichajes.html",   icon: "🕐", label: "Fichajes" },
                 { href: "usuarios.html",   icon: "👤", label: "Usuarios",  perm: ["acceso_usuarios","ver_usuarios"] },
-                { href: "cuadrante.html",  icon: "📋", label: "Horarios" },
+                { href: "horarios.html",   icon: "📋", label: "Horarios" },
                 { href: "salarios.html",   icon: "💼", label: "Salarios",  perm: "revision_salarios" },
             ]
         },
@@ -382,7 +382,7 @@
     // 'ready:true' = ya funciona en modo empleado.
     const COMMON_EMP = [
         { href:"dashboard.html",             icon:"🏠", label:"Panel principal",          ready:true },
-        { href:"cadena-horarios.html",       icon:"📋", label:"Horarios",                 ready:true },
+        { href:"horarios.html",              icon:"📋", label:"Horarios",                 ready:true },
         { href:"fichajes.html",              icon:"🕐", label:"Fichajes",                 ready:true },
         { href:"mensajes.html",              icon:"💬", label:"Mensajes",                 ready:false },
         { href:"social.html",                icon:"📣", label:"Social",                   ready:false },
