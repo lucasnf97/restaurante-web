@@ -1005,11 +1005,14 @@ function agregarItemConf() {
 
 // Visor embebido de la factura en revisión (columna derecha del modal de confirmación).
 let _viewerUrl = null;
-let _confFuentes = {};   // idx → { nombre:[[ymin,xmin,ymax,xmax],...], cantidad:[...], precio:[...] }
+let _confFuentes = {};   // idx → { nombre:{textos,box}, cantidad:{...}, precio:{...} }
 let _confPaginas = {};   // idx → página (1-based) donde está la línea (para PDF multipágina)
+let _pdfPages = {};      // página → { boxes:[{left,top,w,h}%], str, map[] } de la capa de texto
+function _norm(s){ return (s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
 function _renderViewer(file) {
     const cont = document.getElementById('conf-viewer');
     if (!cont) return;
+    _pdfPages = {};
     if (_viewerUrl) { try { URL.revokeObjectURL(_viewerUrl); } catch(e){} _viewerUrl = null; }
     if (!file) { cont.innerHTML = '<div class="conf-viewer-empty">Sin archivo para previsualizar.</div>'; return; }
     const isPdf = (file.type === 'application/pdf') || /\.pdf$/i.test(file.name || '');
@@ -1042,6 +1045,25 @@ async function _renderPdf(file, cont) {
         const overlay = document.createElement('div'); overlay.className = 'conf-viewer-overlay'; overlay.dataset.page = p;
         wrap.appendChild(canvas); wrap.appendChild(overlay); cont.appendChild(wrap);
         await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        // Capa de texto: caja (en %) de cada fragmento + string concatenado con mapa char→fragmento,
+        // para ubicar con precisión el texto que devuelve la IA.
+        try {
+            const tc = await page.getTextContent();
+            const boxes = [], W = viewport.width, H = viewport.height;
+            let str = '', map = [];
+            tc.items.forEach((it, i) => {
+                const tx = pdfjsLib.Util.transform(viewport.transform, it.transform);
+                const fh = Math.hypot(tx[2], tx[3]) || Math.abs(tx[3]) || 0;
+                const w = (it.width || 0) * viewport.scale;
+                boxes.push({ left: tx[4]/W*100, top: (tx[5]-fh)/H*100, w: w/W*100, h: fh/H*100 });
+                const s = _norm(it.str);
+                if (s) {
+                    if (str && !str.endsWith(' ')) { str += ' '; map.push(-1); }
+                    for (const ch of s) { str += ch; map.push(i); }
+                }
+            });
+            _pdfPages[p] = { boxes, str, map };
+        } catch (e) { /* sin capa de texto (PDF escaneado): se usa la caja del modelo */ }
     }
 }
 
@@ -1051,24 +1073,48 @@ function _overlayDePagina(pagina) {
     return document.querySelector(`#conf-viewer .conf-viewer-overlay[data-page="${pagina}"]`);
 }
 function _clearFuente() { document.querySelectorAll('#conf-viewer .conf-viewer-overlay').forEach(o => o.innerHTML = ''); }
+function _boxDiv(b) {   // b = {left,top,w,h} en %
+    const d = document.createElement('div'); d.className = 'fuente-box';
+    // pequeño margen para que el resaltado no quede pegado al texto
+    d.style.cssText = `top:${b.top - 0.3}%;left:${b.left - 0.3}%;width:${b.w + 0.6}%;height:${b.h + 0.6}%;`;
+    return d;
+}
+function _boxDivModelo(b) {   // b = [ymin,xmin,ymax,xmax] 0–1000
+    const d = document.createElement('div'); d.className = 'fuente-box';
+    d.style.cssText = `top:${b[0]/10}%;left:${b[1]/10}%;width:${Math.max(0,b[3]-b[1])/10}%;height:${Math.max(0,b[2]-b[0])/10}%;`;
+    return d;
+}
 function _highlightFuente(idx, campo) {
     _clearFuente();
-    const f = _confFuentes[idx];
-    const cajas = f && f[campo];
-    if (!Array.isArray(cajas) || !cajas.length) return;
-    const overlay = _overlayDePagina(_confPaginas[idx] || 1);
+    const src = _confFuentes[idx] && _confFuentes[idx][campo];
+    if (!src) return;
+    const pagina  = _confPaginas[idx] || 1;
+    const overlay = _overlayDePagina(pagina);
     if (!overlay) return;   // la página todavía no renderizó
     let primera = null;
-    cajas.forEach(b => {
-        if (!Array.isArray(b) || b.length < 4) return;
-        const ymin = b[0], xmin = b[1], ymax = b[2], xmax = b[3];
-        const top = ymin/10, left = xmin/10, h = Math.max(0,(ymax-ymin))/10, w = Math.max(0,(xmax-xmin))/10;
-        const d = document.createElement('div');
-        d.className = 'fuente-box';
-        d.style.cssText = `top:${top}%;left:${left}%;width:${w}%;height:${h}%;`;
-        overlay.appendChild(d);
-        if (!primera) primera = d;
-    });
+
+    // 1) Preciso: ubicar el texto EXACTO en la capa de texto del PDF
+    const pg = _pdfPages[pagina];
+    const textos = (src.textos || []).filter(Boolean);
+    if (pg && textos.length) {
+        const usados = new Set();
+        textos.forEach(t => {
+            const q = _norm(t); if (!q) return;
+            let from = 0, pos;
+            while ((pos = pg.str.indexOf(q, from)) !== -1) {
+                for (let k = pos; k < pos + q.length; k++) { const ii = pg.map[k]; if (ii >= 0) usados.add(ii); }
+                from = pos + q.length;
+            }
+        });
+        usados.forEach(ii => { const b = pg.boxes[ii]; if (b) { const d = _boxDiv(b); overlay.appendChild(d); if (!primera) primera = d; } });
+    }
+
+    // 2) Respaldo: caja aproximada del modelo (imágenes o si no se encontró el texto)
+    if (!primera) {
+        (src.box || []).forEach(b => {
+            if (Array.isArray(b) && b.length >= 4) { const d = _boxDivModelo(b); overlay.appendChild(d); if (!primera) primera = d; }
+        });
+    }
     if (primera) try { primera.scrollIntoView({ block:'center', behavior:'smooth' }); } catch(e) {}
 }
 
