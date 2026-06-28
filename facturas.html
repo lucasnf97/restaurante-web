@@ -49,8 +49,21 @@
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         /* Confirmación: modal en columna → el cuerpo scrollea y el footer queda SIEMPRE
            pegado al fondo del modal (sin nada visible por debajo). */
-        #modal-confirmacion .modal-conf { display: flex; flex-direction: column; padding: 0; max-height: 88vh; overflow: hidden; }
-        #modal-confirmacion .modal-conf-body { overflow-y: auto; padding: 26px 30px 8px; }
+        #modal-confirmacion .modal-conf { display: flex; flex-direction: column; padding: 0; max-height: 90vh; overflow: hidden; }
+        /* Revisión en 2 columnas: izquierda el form/ítems, derecha el visor de la factura */
+        #modal-confirmacion .modal-conf-split { display: flex; flex: 1; min-height: 0; }
+        #modal-confirmacion .modal-conf-body { flex: 1 1 56%; overflow-y: auto; padding: 26px 30px 8px; min-width: 0; }
+        #modal-confirmacion .modal-conf-viewer {
+            flex: 1 1 44%; min-width: 0; border-left: 1px solid #e5e7eb; background: #f1f5f9;
+            display: flex; flex-direction: column; overflow: auto;
+        }
+        #modal-confirmacion .modal-conf-viewer img { width: 100%; height: auto; display: block; }
+        #modal-confirmacion .modal-conf-viewer iframe { width: 100%; flex: 1; border: 0; min-height: 0; }
+        #modal-confirmacion .conf-viewer-empty { margin: auto; padding: 30px; text-align: center; color: #94a3b8; font-size: 13px; }
+        @media (max-width: 900px) {
+            #modal-confirmacion .modal-conf-split { flex-direction: column; }
+            #modal-confirmacion .modal-conf-viewer { border-left: 0; border-top: 1px solid #e5e7eb; min-height: 320px; }
+        }
         #modal-confirmacion .modal-footer {
             flex-shrink: 0; margin: 0; padding: 14px 30px;
             border-top: 1px solid #e5e7eb; background: #fff; border-radius: 0 0 16px 16px;
@@ -234,7 +247,8 @@
 
 <!-- Modal confirmación factura -->
 <div class="modal-overlay" id="modal-confirmacion">
-    <div class="modal modal-conf" style="max-width:1080px;">
+    <div class="modal modal-conf" style="max-width:1280px;width:96vw;">
+        <div class="modal-conf-split">
         <div class="modal-conf-body">
         <h3 id="modal-conf-titulo">✅ Confirmar datos de la factura</h3>
         <p style="font-size:13px;color:#888;margin-bottom:16px;">Revisá y corregí los datos. Cada ítem puede ser un insumo de stock, un servicio o puede omitirse.</p>
@@ -335,9 +349,12 @@
             </button>
         </div>
         </div><!-- /modal-conf-body -->
+        <div class="modal-conf-viewer" id="conf-viewer">
+            <div class="conf-viewer-empty">Sin archivo para previsualizar.</div>
+        </div>
+        </div><!-- /modal-conf-split -->
 
         <div class="modal-footer">
-            <button class="btn btn-secondary" id="btn-ver-factura" onclick="previsualizarFactura()">👁 Ver factura</button>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-confirmacion')">Cancelar</button>
             <button class="btn btn-primary" onclick="confirmarFactura()">✓ Confirmar y registrar</button>
         </div>
@@ -585,9 +602,9 @@ function abrirRevision(id) {
     _manualFile    = null;
     const entrada = getEntrada(id);
     document.getElementById("modal-conf-titulo").textContent     = "✅ Confirmar datos de la factura";
-    document.getElementById("btn-ver-factura").style.display     = "";
     document.getElementById("conf-archivo-manual").style.display = "none";
     abrirModalConfirmacion(entrada.datos);
+    _renderViewer(entrada.file);
 }
 
 // ── Archivo adjunto en modo manual ───────────────────────────
@@ -603,6 +620,7 @@ function onArchivoManualChange(input) {
     document.getElementById('conf-archivo-name').style.color  = '#374151';
     document.getElementById('conf-archivo-label').style.borderColor = '#6366f1';
     document.getElementById('conf-archivo-quitar').style.display = '';
+    _renderViewer(file);
 }
 
 function quitarArchivoManual() {
@@ -613,13 +631,13 @@ function quitarArchivoManual() {
     document.getElementById('conf-archivo-name').style.color    = '#9ca3af';
     document.getElementById('conf-archivo-label').style.borderColor = '#e5e7eb';
     document.getElementById('conf-archivo-quitar').style.display = 'none';
+    _renderViewer(null);
 }
 
 function cargarManual() {
     _archivoActivo = null;
     _manualFile    = null;
     document.getElementById("modal-conf-titulo").textContent = "✏️ Nueva factura manual";
-    document.getElementById("btn-ver-factura").style.display = "none";
     document.getElementById("conf-archivo-manual").style.display = "";
     quitarArchivoManual();
     abrirModalConfirmacion({ items: [{ tipo: "insumo", descripcion_factura: "" }] });
@@ -964,10 +982,18 @@ function agregarItemConf() {
     container.appendChild(div.firstElementChild);
 }
 
-function previsualizarFactura() {
-    const entrada = _archivoActivo !== null ? getEntrada(_archivoActivo) : _archivosFactura[0];
-    if (!entrada) { alert("No hay factura cargada para previsualizar."); return; }
-    window.open(URL.createObjectURL(entrada.file), "_blank");
+// Visor embebido de la factura en revisión (columna derecha del modal de confirmación).
+let _viewerUrl = null;
+function _renderViewer(file) {
+    const cont = document.getElementById('conf-viewer');
+    if (!cont) return;
+    if (_viewerUrl) { try { URL.revokeObjectURL(_viewerUrl); } catch(e){} _viewerUrl = null; }
+    if (!file) { cont.innerHTML = '<div class="conf-viewer-empty">Sin archivo para previsualizar.</div>'; return; }
+    _viewerUrl = URL.createObjectURL(file);
+    const isPdf = (file.type === 'application/pdf') || /\.pdf$/i.test(file.name || '');
+    cont.innerHTML = isPdf
+        ? `<iframe src="${_viewerUrl}#toolbar=1" title="Factura"></iframe>`
+        : `<img src="${_viewerUrl}" alt="Factura">`;
 }
 
 // ── SERVICIO RÁPIDO ───────────────────────────────────────────
