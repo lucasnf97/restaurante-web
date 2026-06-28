@@ -487,12 +487,19 @@ function handleDrop(event) {
 }
 
 async function agregarArchivos(files) {
+    // Copiar la selección ANTES de tocar nada (el FileList es vivo) y resetear el input para
+    // poder volver a elegir el mismo archivo después (si no, onchange no vuelve a dispararse y
+    // "no pasa nada", p. ej. tras cancelar el aviso de duplicado).
+    const lista = Array.from(files || []);
+    const inp = document.getElementById('file-input-main');
+    if (inp) inp.value = '';
+    if (!lista.length) return;
     // El histórico se carga al abrir su pestaña; en la carga inicial está vacío. Lo traemos
     // ahora para poder detectar duplicados aunque no se haya abierto esa pestaña.
     if (!_historialFacturas.length) {
         try { _historialFacturas = await api.get("/stock/facturas/historial"); } catch(e) {}
     }
-    for (const f of files) {
+    for (const f of lista) {
         const nombreLc = f.name.toLowerCase();
         // Mismo archivo exacto ya en la cola → ignorar en silencio
         if (_archivosFactura.find(a => a.file && a.file.name === f.name && a.file.size === f.size)) continue;
