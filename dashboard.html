@@ -1348,16 +1348,33 @@ function _empBuildLayout() {
     while (frag.firstChild) content.insertBefore(frag.firstChild, grid);
 }
 
+let _empMuroData = [];
+function _empBuildMuro() {
+    const esc = s => (s==null?'':String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
+    const posts = (_empMuroData || []).slice(0, 8);
+    const inner = posts.length ? posts.map(p => {
+        const img = (p.adjuntos || []).find(a => a.tipo === 'imagen');
+        const imgHtml = img ? `<img class="social-item-img" src="${esc(img.url)}" alt="" loading="lazy">` : '';
+        const txt = p.contenido ? `<div class="social-item-txt">${esc(p.contenido)}</div>` : '';
+        const tag = p.restaurante ? `<span style="margin-left:auto;font-size:9px;font-weight:700;color:#4338ca;background:#eef2ff;border-radius:4px;padding:1px 5px;">${esc(p.restaurante)}</span>` : '';
+        return `<div class="social-item"><div class="social-item-top"><div class="social-item-av">${esc((p.username || '?').substring(0,2).toUpperCase())}</div><span class="social-item-user">${esc(p.username)}</span>${tag}</div>${txt}${imgHtml}</div>`;
+    }).join('') : '<div class="res-empty">Sin publicaciones</div>';
+    return `${blockHeader("")}
+    <div class="social-card">
+        <a href="social.html" class="widget-title">📣 Muro</a>
+        <div class="social-list">${inner}</div>
+    </div>`;
+}
+
 function _empRenderGeneral() {
     const cont = document.getElementById('emp-general');
     if (!cont) return;
-    // Reusa los renderers existentes (devuelven HTML usando las vars globales, que ya
-    // cargamos con datos del empleado). 'muro' se sumará en el próximo incremento.
-    const blocks = [
-        { id:'horarios-semana', type:'horarios-semana', span:6, visible:true },
-        { id:'mensajes',        type:'mensajes',        span:3, visible:true },
-    ];
-    cont.innerHTML = blocks.map(b => `<div class="db-block span-${b.span}" data-id="${b.id}">${buildBlock(b)}</div>`).join('');
+    // Panel general del empleado: horarios + mensajes (renderers existentes con datos del
+    // empleado en las vars globales) + muro (Social agregado de sus locales).
+    cont.innerHTML =
+        `<div class="db-block span-6" data-id="horarios-semana">${buildBlock({ type:'horarios-semana' })}</div>` +
+        `<div class="db-block span-3" data-id="mensajes">${buildBlock({ type:'mensajes' })}</div>` +
+        `<div class="db-block span-3" data-id="muro">${_empBuildMuro()}</div>`;
     // En modo empleado, "Mis horarios" va a la grilla agregada (no al editor de 1 restaurante)
     cont.querySelectorAll('a[href="cuadrante.html"]').forEach(a => { a.href = 'horarios.html'; });
 }
@@ -1409,6 +1426,7 @@ async function initDashboardEmpleado() {
         horariosSemanaData = await apiFetch(`/empleado/horarios?desde=${wk.fmt(wk.lunesDate)}&hasta=${wk.fmt(dDom)}`, { token: _emp }) || [];
     } catch (e) { horariosSemanaData = []; }
     try { mensajesData = await apiFetch('/empleado/mensajes', { token: _emp }) || []; } catch (e) { mensajesData = []; }
+    try { _empMuroData = await apiFetch('/empleado/social', { token: _emp }) || []; } catch (e) { _empMuroData = []; }
     _empRenderGeneral();
 
     // 2) Solapas por restaurante + dashboard real del seleccionado
