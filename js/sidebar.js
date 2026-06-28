@@ -382,7 +382,7 @@
     // 'ready:true' = ya funciona en modo empleado.
     const COMMON_EMP = [
         { href:"dashboard.html",             icon:"🏠", label:"Panel principal",          ready:true },
-        { href:"cuadrante.html",             icon:"📋", label:"Horarios",                 ready:true },
+        { href:"cadena-horarios.html",       icon:"📋", label:"Horarios",                 ready:true },
         { href:"fichajes.html",              icon:"🕐", label:"Fichajes",                 ready:true },
         { href:"mensajes.html",              icon:"💬", label:"Mensajes",                 ready:false },
         { href:"social.html",                icon:"📣", label:"Social",                   ready:false },

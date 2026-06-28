@@ -220,8 +220,23 @@
     <script>
     requireAuth();
     const _user = getUser() || {};
-    if (_user.rol !== 'gerente_cadena') { window.location.href = 'dashboard.html'; }
+    // Actor: gerente_cadena (edita) o empleado_cadena (solo lectura). Otros → fuera.
+    const _RO = _user.rol === 'empleado_cadena';
+    if (_user.rol !== 'gerente_cadena' && _user.rol !== 'empleado_cadena') { window.location.href = 'dashboard.html'; }
+    const _EP_RESTS   = _RO ? '/empleado/mis-restaurantes' : '/cadena/restaurantes';
+    const _epHorarios = (qs) => (_RO ? `/empleado/horarios-grid?${qs}` : `/cadena/horarios?${qs}`);
     document.getElementById('who').textContent = _user.nombre || _user.username || '';
+    if (_RO) {
+        // Solo lectura: título "Mis horarios", volver al dashboard, sin publicar ni plantillas ni edición de celdas
+        const h1 = document.querySelector('.navbar h1'); if (h1) h1.textContent = 'Mis horarios';
+        const volver = document.querySelector('.navbar button'); if (volver) volver.setAttribute('onclick', "window.location.href='dashboard.html'");
+        const pub = document.querySelector('.btn-pub'); if (pub) pub.style.display = 'none';
+        const tb = document.getElementById('templates-bar'); if (tb) tb.style.display = 'none';
+        document.body.classList.add('solo-vista');
+        const st = document.createElement('style');
+        st.textContent = 'body.solo-vista .cell-add,body.solo-vista .cell-add-mini{display:none!important;} body.solo-vista .td-day{cursor:default!important;}';
+        document.head.appendChild(st);
+    }
 
     // ── Constantes / colores ────────────────────────────────────
     const DIAS_CORTO = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
@@ -306,9 +321,13 @@
 
     // ── Carga ───────────────────────────────────────────────────
     async function init(){
-        try { _rests = await api.get('/cadena/restaurantes'); } catch(e){ _rests=[]; }
+        try {
+            const rs = await api.get(_EP_RESTS);
+            // Normalizar: /cadena/restaurantes da {id,nombre}; /empleado/mis-restaurantes da {restaurante_id,restaurante}
+            _rests = (rs||[]).map(r => ({ id: (r.id != null ? r.id : r.restaurante_id), nombre: (r.nombre != null ? r.nombre : r.restaurante), codigo: r.codigo }));
+        } catch(e){ _rests=[]; }
         renderRestChips();
-        renderTemplatesBar();
+        if (!_RO) renderTemplatesBar();
         await cargarYRenderizar();
     }
     async function cargarYRenderizar(){
@@ -316,7 +335,7 @@
         const days=getDays(), desde=formatDate(days[0]), hasta=formatDate(days[days.length-1]);
         const area=document.getElementById('grid-area');
         area.innerHTML='<div class="grid-loading">Cargando…</div>';
-        try { _data = await api.get(`/cadena/horarios?desde=${desde}&hasta=${hasta}`); }
+        try { _data = await api.get(_epHorarios(`desde=${desde}&hasta=${hasta}`)); }
         catch(e){ area.innerHTML='<div class="grid-empty">Error cargando horarios.</div>'; return; }
         // Deduplicar por username: un usuario = una fila, con N membresías y turnos por restaurante.
         _users={};
@@ -433,6 +452,7 @@
 
     // ── Modal turno ─────────────────────────────────────────────
     function abrirModal(userKey, fecha, preRestId){
+        if(_RO) return;   // empleado: grilla de solo lectura
         const u=_users[userKey]; if(!u) return;
         const allowed=userRests(u); if(!allowed.length) return;
         let restId=preRestId;
