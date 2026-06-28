@@ -487,8 +487,16 @@ function handleDrop(event) {
 
 function agregarArchivos(files) {
     for (const f of files) {
-        if (!_archivosFactura.find(a => a.file.name === f.name && a.file.size === f.size))
-            _archivosFactura.push({ id: _nextFileId++, file: f, estado: 'pendiente', datos: null, error: null });
+        // Ya en la cola actual → no duplicar
+        if (_archivosFactura.find(a => a.file.name === f.name && a.file.size === f.size)) continue;
+        // Alarma: ya existe una factura REGISTRADA con ese nombre de archivo (posible duplicado)
+        const dup = (_historialFacturas || []).find(h => (h.archivo_nombre || '').toLowerCase() === f.name.toLowerCase());
+        if (dup) {
+            const fecha = dup.fecha ? ` (${dup.fecha})` : '';
+            const prov  = dup.proveedor_nombre ? ` de ${dup.proveedor_nombre}` : '';
+            if (!confirm(`⚠️ Ya hay una factura cargada con el archivo "${f.name}"${prov}${fecha}.\n\nPodrías estar duplicándola. ¿Cargarla igual?`)) continue;
+        }
+        _archivosFactura.push({ id: _nextFileId++, file: f, estado: 'pendiente', datos: null, error: null });
     }
     renderArchivos();
 }
