@@ -60,6 +60,10 @@
         #modal-confirmacion .modal-conf-viewer img { width: 100%; height: auto; display: block; }
         #modal-confirmacion .modal-conf-viewer iframe { width: 100%; flex: 1; border: 0; min-height: 0; }
         #modal-confirmacion .conf-viewer-empty { margin: auto; padding: 30px; text-align: center; color: #94a3b8; font-size: 13px; }
+        /* Resaltado de la fuente del dato (Parte B): recuadros sobre la imagen */
+        #modal-confirmacion .conf-viewer-imgwrap { position: relative; width: 100%; }
+        #modal-confirmacion .conf-viewer-overlay { position: absolute; inset: 0; pointer-events: none; }
+        #modal-confirmacion .fuente-box { position: absolute; background: rgba(250,204,21,.30); border: 2px solid #f59e0b; border-radius: 3px; box-shadow: 0 0 0 2px rgba(245,158,11,.25); }
         @media (max-width: 900px) {
             #modal-confirmacion .modal-conf-split { flex-direction: column; }
             #modal-confirmacion .modal-conf-viewer { border-left: 0; border-top: 1px solid #e5e7eb; min-height: 320px; }
@@ -921,8 +925,10 @@ function abrirModalConfirmacion(datos) {
     const impGlobalInput = document.getElementById("conf-imp-global");
     if (impGlobalInput) impGlobalInput.value = impDefault;
 
+    _confFuentes = {};
     document.getElementById("conf-items").innerHTML = items.map((item, idx) => {
         const tipo = item.tipo === "servicio" ? "servicio" : "insumo";
+        _confFuentes[idx] = item.fuentes || null;   // regiones fuente de la IA (Parte B)
         // precio_total = total de la línea tal como figura en la factura (fallback al viejo precio_unitario)
         const precioRaw  = item.precio_total ?? item.precio_unitario ?? null;
         // % por ítem: el de la línea si la IA lo dio; si no, el general de la factura; si no, config.
@@ -984,6 +990,7 @@ function agregarItemConf() {
 
 // Visor embebido de la factura en revisión (columna derecha del modal de confirmación).
 let _viewerUrl = null;
+let _confFuentes = {};   // idx → { nombre:[[ymin,xmin,ymax,xmax],...], cantidad:[...], precio:[...] }
 function _renderViewer(file) {
     const cont = document.getElementById('conf-viewer');
     if (!cont) return;
@@ -993,8 +1000,60 @@ function _renderViewer(file) {
     const isPdf = (file.type === 'application/pdf') || /\.pdf$/i.test(file.name || '');
     cont.innerHTML = isPdf
         ? `<iframe src="${_viewerUrl}#toolbar=1" title="Factura"></iframe>`
-        : `<img src="${_viewerUrl}" alt="Factura">`;
+        : `<div class="conf-viewer-imgwrap"><img src="${_viewerUrl}" alt="Factura"><div class="conf-viewer-overlay" id="conf-viewer-overlay"></div></div>`;
 }
+
+// ── Parte B: resaltar en el visor la fuente del dato al enfocar un campo ──────
+// Las cajas vienen de la IA como [ymin, xmin, ymax, xmax] normalizadas 0–1000.
+function _highlightFuente(idx, campo) {
+    const overlay = document.getElementById('conf-viewer-overlay');
+    if (!overlay) return;   // PDF u otro: sin overlay (Parte B2 pendiente)
+    overlay.innerHTML = '';
+    const f = _confFuentes[idx];
+    const cajas = f && f[campo];
+    if (!Array.isArray(cajas) || !cajas.length) return;
+    let primera = null;
+    cajas.forEach(b => {
+        if (!Array.isArray(b) || b.length < 4) return;
+        const ymin = b[0], xmin = b[1], ymax = b[2], xmax = b[3];
+        const top = ymin/10, left = xmin/10, h = Math.max(0,(ymax-ymin))/10, w = Math.max(0,(xmax-xmin))/10;
+        const d = document.createElement('div');
+        d.className = 'fuente-box';
+        d.style.cssText = `top:${top}%;left:${left}%;width:${w}%;height:${h}%;`;
+        overlay.appendChild(d);
+        if (!primera) primera = d;
+    });
+    if (primera) try { primera.scrollIntoView({ block:'center', behavior:'smooth' }); } catch(e) {}
+}
+function _clearFuente() { const o = document.getElementById('conf-viewer-overlay'); if (o) o.innerHTML = ''; }
+
+// Mapea el id del input enfocado → { idx, campo }
+function _campoDeInput(id) {
+    if (!id) return null;
+    const idx = id.split('-').pop();
+    let campo = null;
+    if (id.indexOf('insumo') >= 0 || id.indexOf('servicio') >= 0) campo = 'nombre';
+    else if (id.indexOf('cant') >= 0) campo = 'cantidad';
+    else if (id.indexOf('precio') >= 0 || id.indexOf('-imp-') >= 0) campo = 'precio';
+    return campo ? { idx, campo } : null;
+}
+
+// Delegación: al enfocar un campo de un ítem, resaltar su fuente
+document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (!t || !t.id || !document.getElementById('conf-items')?.contains(t)) return;
+    const m = _campoDeInput(t.id);
+    if (m) _highlightFuente(m.idx, m.campo); else _clearFuente();
+});
+// Pasar el mouse por el nombre de la factura también resalta el nombre
+document.addEventListener('mouseover', (e) => {
+    const desc = e.target.closest && e.target.closest('.item-desc-original');
+    if (!desc) return;
+    const row = desc.closest('[id^="conf-item-"]');
+    if (!row) return;
+    const idx = row.id.replace('conf-item-', '');
+    _highlightFuente(idx, 'nombre');
+});
 
 // ── SERVICIO RÁPIDO ───────────────────────────────────────────
 function abrirServicioRapido(idx) {
