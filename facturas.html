@@ -1473,6 +1473,10 @@ async function guardarBorrador() {
         const body = { datos_json: JSON.stringify(datos), archivo_url, archivo_nombre };
         if (_borradorActivo) await api.patch(`/stock/facturas/borradores/${_borradorActivo}`, body);
         else await api.post('/stock/facturas/borradores', body);
+        // Sacar la línea original (la factura "lista para confirmar") para no duplicarla:
+        // queda solo la entrada de borrador que agrega cargarBorradores().
+        if (_archivoActivo !== null) _archivosFactura = _archivosFactura.filter(a => a.id !== _archivoActivo);
+        _archivoActivo = null;
         cerrarModal('modal-confirmacion');
         await cargarBorradores();
         alert('💾 Borrador guardado. Lo podés continuar desde la lista cuando quieras.');
