@@ -486,16 +486,29 @@ function handleDrop(event) {
     agregarArchivos(event.dataTransfer.files);
 }
 
-function agregarArchivos(files) {
+async function agregarArchivos(files) {
+    // El histórico se carga al abrir su pestaña; en la carga inicial está vacío. Lo traemos
+    // ahora para poder detectar duplicados aunque no se haya abierto esa pestaña.
+    if (!_historialFacturas.length) {
+        try { _historialFacturas = await api.get("/stock/facturas/historial"); } catch(e) {}
+    }
     for (const f of files) {
-        // Ya en la cola actual → no duplicar
-        if (_archivosFactura.find(a => a.file.name === f.name && a.file.size === f.size)) continue;
-        // Alarma: ya existe una factura REGISTRADA con ese nombre de archivo (posible duplicado)
-        const dup = (_historialFacturas || []).find(h => (h.archivo_nombre || '').toLowerCase() === f.name.toLowerCase());
-        if (dup) {
-            const fecha = dup.fecha ? ` (${dup.fecha})` : '';
-            const prov  = dup.proveedor_nombre ? ` de ${dup.proveedor_nombre}` : '';
-            if (!confirm(`⚠️ Ya hay una factura cargada con el archivo "${f.name}"${prov}${fecha}.\n\nPodrías estar duplicándola. ¿Cargarla igual?`)) continue;
+        const nombreLc = f.name.toLowerCase();
+        // Mismo archivo exacto ya en la cola → ignorar en silencio
+        if (_archivosFactura.find(a => a.file && a.file.name === f.name && a.file.size === f.size)) continue;
+        // Alarma de duplicado por NOMBRE: en el histórico (registrada), en un borrador o ya en la lista
+        const dupHist = (_historialFacturas || []).find(h => (h.archivo_nombre || '').toLowerCase() === nombreLc);
+        const dupCola = _archivosFactura.find(a => ((a.file ? a.file.name : (a.archivo_nombre || '')).toLowerCase() === nombreLc));
+        if (dupHist || dupCola) {
+            let donde;
+            if (dupHist) {
+                const prov  = (dupHist.proveedor_nombre_reg || dupHist.proveedor_nombre) ? ` de ${dupHist.proveedor_nombre_reg || dupHist.proveedor_nombre}` : '';
+                const fecha = dupHist.fecha_factura ? ` (${dupHist.fecha_factura})` : '';
+                donde = `ya está registrada${prov}${fecha}`;
+            } else {
+                donde = dupCola.estado === 'borrador' ? 'ya tiene un borrador en proceso' : 'ya está en la lista para procesar';
+            }
+            if (!confirm(`⚠️ Ya hay una factura con el archivo "${f.name}": ${donde}.\n\nPodrías estar duplicándola. ¿Cargarla igual?`)) continue;
         }
         _archivosFactura.push({ id: _nextFileId++, file: f, estado: 'pendiente', datos: null, error: null });
     }
