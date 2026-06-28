@@ -1584,57 +1584,79 @@ function renderModalRestRef(diaSemana) {
     el.style.display = '';
 }
 
-// ── Modo empleado de cadena: pantalla común "Horarios" ────────────────────
-// El acceso común "Horarios" dirige a ESTA página. Para un empleado de cadena
-// mostramos la grilla NORMAL del restaurante donde trabaja; si trabaja en varios,
-// un filtro permite cambiar. Se logra "entrando" al restaurante (token activo del
-// local) y dejando correr la página tal cual; el filtro re-entra a otro local y
-// recarga. Tras entrar, enCuenta() pasa a false → usamos sessionStorage 'emp_hor'
-// para recordar que seguimos en esta pantalla común.
-function _empHorActivo() {
-    return esEmpleadoCadena() && (enCuenta() || sessionStorage.getItem('emp_hor') !== null);
+// ── Filtro multi-restaurante UNIFICADO ────────────────────────────────────
+// cuadrante.html es el editor de horarios para 3 tipos de actor:
+//   • empleado de cadena (emp_token)  → sus locales, entra con /empleado/entrar
+//   • gerente de cadena  (ger_token)  → locales de su cadena, /cadena/entrar
+//   • usuario de un restaurante (token con esquema) → su único local (sin filtro)
+// Para los dos primeros se "entra" al local elegido (token activo del local) y se deja
+// correr la grilla normal; el filtro re-entra a otro local y recarga. La selección se
+// recuerda en sessionStorage 'emp_hor'.
+function _ctxTipo() {
+    if (typeof esEmpleadoCadena === 'function' && esEmpleadoCadena()) return 'empleado';
+    if (typeof esGerenteCadena  === 'function' && esGerenteCadena())  return 'gerente';
+    return 'resto';
+}
+function _ctxMulti() { return _ctxTipo() !== 'resto'; }
+
+async function _ctxLocales() {
+    const t = _ctxTipo();
+    if (t === 'empleado') {
+        const rs = await apiFetch('/empleado/mis-restaurantes', { token: getEmpToken() }).catch(() => []);
+        return (rs || []).map(r => ({ rid: r.restaurante_id, nombre: r.restaurante, codigo: r.codigo }));
+    }
+    if (t === 'gerente') {
+        const rs = await apiFetch('/cadena/restaurantes', { token: getGerToken() }).catch(() => []);
+        return (rs || []).map(r => ({ rid: r.id, nombre: r.nombre, codigo: r.codigo }));
+    }
+    return [];
+}
+async function _ctxEntrar(rid) {
+    const t = _ctxTipo();
+    if (t === 'empleado') return await entrarRestaurante(rid);
+    if (t === 'gerente')  return await entrarRestauranteGer(rid);
 }
 
-function _empInjectFiltroHorarios(rests, rid) {
+function _injectFiltroLocal(locales, rid) {
     const bar = document.querySelector('.nav-bar');
-    if (!bar || document.getElementById('emp-hor-filtro-wrap')) return;
+    if (!bar || document.getElementById('cuad-loc-filtro-wrap')) return;
     const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const wrap = document.createElement('div');
-    wrap.id = 'emp-hor-filtro-wrap';
+    wrap.id = 'cuad-loc-filtro-wrap';
     wrap.style.cssText = 'display:flex;align-items:center;gap:6px;margin-right:auto;';
-    if (rests.length > 1) {
-        const opts = rests.map(r => `<option value="${r.restaurante_id}" ${r.restaurante_id===rid?'selected':''}>${esc(r.restaurante)}</option>`).join('');
+    if (locales.length > 1) {
+        const opts = locales.map(l => `<option value="${l.rid}" ${l.rid===rid?'selected':''}>${esc(l.nombre)}</option>`).join('');
         wrap.innerHTML = `<span style="font-size:12px;color:#6b7280;font-weight:600;">🍽️ Restaurante:</span>
-            <select id="emp-hor-filtro" style="padding:6px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">${opts}</select>`;
+            <select id="cuad-loc-filtro" style="padding:6px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">${opts}</select>`;
         bar.insertBefore(wrap, bar.firstChild);
-        document.getElementById('emp-hor-filtro').addEventListener('change', async (e) => {
+        document.getElementById('cuad-loc-filtro').addEventListener('change', async (e) => {
             sessionStorage.setItem('emp_hor', String(e.target.value));
-            try { await entrarRestaurante(parseInt(e.target.value)); } catch(_) {}
+            try { await _ctxEntrar(parseInt(e.target.value)); } catch(_) {}
             location.reload();
         });
     } else {
-        wrap.innerHTML = `<span style="font-size:13px;color:#374151;font-weight:600;">🍽️ ${esc(rests[0].restaurante)}</span>`;
+        const l = locales[0];
+        wrap.innerHTML = `<span style="font-size:13px;color:#374151;font-weight:600;">🍽️ ${esc(l.nombre)}</span>`;
         bar.insertBefore(wrap, bar.firstChild);
     }
 }
 
 // ── Init ─────────────────────────────────────────────────────────
-let _empMode = false, _empRests = null, _empRid = null;
+let _multiMode = false, _locales = null, _ridSel = null;
 (async () => {
-    if (_empHorActivo()) {
-        _empMode = true;
-        _empRests = await apiFetch('/empleado/mis-restaurantes', { token: getEmpToken() }).catch(() => []);
-        if (!_empRests || !_empRests.length) {
+    if (_ctxMulti()) {
+        _multiMode = true;
+        _locales = await _ctxLocales();
+        if (!_locales || !_locales.length) {
             const gw = document.getElementById('grid-wrap');
-            if (gw) gw.innerHTML = '<div class="grid-loading">No estás asignado a ningún restaurante.</div>';
+            if (gw) gw.innerHTML = '<div class="grid-loading">No tenés restaurantes asignados.</div>';
             ['.view-tabs','.nav-bar','.filter-bar','.templates-bar'].forEach(s=>{const e=document.querySelector(s);if(e)e.style.display='none';});
             return;
         }
         const saved = sessionStorage.getItem('emp_hor');
-        _empRid = (saved && _empRests.some(r => String(r.restaurante_id) === saved))
-            ? parseInt(saved) : _empRests[0].restaurante_id;
-        sessionStorage.setItem('emp_hor', String(_empRid));
-        try { await entrarRestaurante(_empRid); } catch(_) {}
+        _ridSel = (saved && _locales.some(l => String(l.rid) === saved)) ? parseInt(saved) : _locales[0].rid;
+        sessionStorage.setItem('emp_hor', String(_ridSel));
+        try { await _ctxEntrar(_ridSel); } catch(_) {}
         // Re-evaluar solo-vista/sin-apertura según permisos en ESTE restaurante
         document.body.classList.toggle('solo-vista',  !hasPermiso('edicion_agenda'));
         document.body.classList.toggle('sin-apertura', !hasPermiso('edicion_horarios'));
@@ -1663,8 +1685,8 @@ let _empMode = false, _empRests = null, _empRid = null;
     document.body.classList.add('view-semana');
     await cargarYRenderizar();
 
-    // Empleado de cadena: inyectar el filtro de restaurante (o el nombre si es uno solo)
-    if (_empMode && _empRests) _empInjectFiltroHorarios(_empRests, _empRid);
+    // Empleado/gerente de cadena: inyectar el filtro de restaurante (o el nombre si es uno solo)
+    if (_multiMode && _locales) _injectFiltroLocal(_locales, _ridSel);
 })();
 
 // ═══════════════════════════════════════════════════════════════

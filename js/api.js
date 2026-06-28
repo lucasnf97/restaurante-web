@@ -30,6 +30,8 @@ function _doLogout() {
     localStorage.removeItem("edit_mode");
     localStorage.removeItem("emp_token");
     localStorage.removeItem("emp_user");
+    localStorage.removeItem("ger_token");
+    localStorage.removeItem("ger_user");
     window.location.href = "index.html";
 }
 
@@ -51,6 +53,30 @@ async function entrarRestaurante(restId) {
     // Usa SIEMPRE el token de empleado para emitir el del restaurante.
     const resp = await apiFetch("/empleado/entrar/" + restId, {
         method: "POST", body: JSON.stringify({}), token: getEmpToken()
+    });
+    setToken(resp.access_token);
+    const { access_token, token_type, ...uf } = resp;
+    setUser(uf);
+    return resp;
+}
+
+// ── Contexto de gerente de cadena ─────────────────────────────
+// Sesión base = token de cadena (ger_token/ger_user). Igual que el empleado: el token
+// activo puede ser el de cadena o el de un restaurante donde "entró". Permite cambiar
+// entre locales sin re-loguearse (p. ej. el filtro multi-restaurante de cuadrante).
+function getGerToken() { return localStorage.getItem("ger_token"); }
+function getGerUser() { const u = localStorage.getItem("ger_user"); return u ? JSON.parse(u) : null; }
+function esGerenteCadena() { return !!getGerToken(); }
+function enCuentaGer() { return !esGerenteCadena() || getToken() === getGerToken(); }
+function volverACuentaGer() {
+    const t = getGerToken(), u = getGerUser();
+    if (t) setToken(t);
+    if (u) setUser(u);
+}
+async function entrarRestauranteGer(restId) {
+    // Usa SIEMPRE el token de cadena para emitir el del restaurante.
+    const resp = await apiFetch("/cadena/entrar/" + restId, {
+        method: "POST", body: JSON.stringify({}), token: getGerToken()
     });
     setToken(resp.access_token);
     const { access_token, token_type, ...uf } = resp;
@@ -246,6 +272,14 @@ async function login(username, password, codigo) {
     } else {
         localStorage.removeItem("emp_token");
         localStorage.removeItem("emp_user");
+    }
+    // Gerente de cadena: guardar la sesión base de "cuenta" (igual que el empleado).
+    if (data.rol === "gerente_cadena") {
+        localStorage.setItem("ger_token", data.access_token);
+        localStorage.setItem("ger_user", JSON.stringify(userFields));
+    } else {
+        localStorage.removeItem("ger_token");
+        localStorage.removeItem("ger_user");
     }
     return data;
 }
