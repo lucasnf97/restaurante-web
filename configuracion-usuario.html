@@ -176,6 +176,21 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 <script>
 requireAuth();
 
+// Empleado de cadena (contexto cuenta): edita su perfil MAESTRO (public.empleados) vía
+// /empleado/*. El username lo gestiona el gerente; iniciales/aviso-por-correo no aplican.
+const _emp = (typeof esEmpleadoCadena === 'function' && esEmpleadoCadena()
+              && (typeof enCuenta !== 'function' || enCuenta()));
+if (_emp) {
+    if (typeof volverACuenta === 'function') volverACuenta();
+    const sub = document.querySelector('.page-header p'); if (sub) sub.textContent = 'Editá tu email y contraseña de acceso';
+    document.getElementById('p-iniciales')?.closest('.field')?.style.setProperty('display', 'none');
+    document.getElementById('p-email-notif')?.closest('.checkrow')?.style.setProperty('display', 'none');
+    const u = document.getElementById('p-username');
+    if (u) { u.disabled = true; u.title = 'Tu usuario lo gestiona el gerente de la cadena'; }
+    const hint = u?.closest('.field')?.querySelector('.hint');
+    if (hint) hint.textContent = 'Tu nombre de usuario lo gestiona el gerente de la cadena.';
+}
+
 function _msg(id, texto, ok) {
     const el = document.getElementById(id);
     el.textContent = texto;
@@ -186,12 +201,14 @@ let perfilOriginal = { username: '' };
 
 async function cargarPerfil() {
     try {
-        const p = await api.get('/auth/perfil');
+        const p = await api.get(_emp ? '/empleado/perfil' : '/auth/perfil');
         perfilOriginal = p;
-        document.getElementById('p-username').value   = p.username || '';
-        document.getElementById('p-iniciales').value  = p.iniciales || '';
-        document.getElementById('p-email').value      = p.email || '';
-        document.getElementById('p-email-notif').checked = !!p.email_notif;
+        document.getElementById('p-username').value = p.username || '';
+        document.getElementById('p-email').value    = p.email || '';
+        if (!_emp) {
+            document.getElementById('p-iniciales').value     = p.iniciales || '';
+            document.getElementById('p-email-notif').checked = !!p.email_notif;
+        }
     } catch (err) {
         _msg('msg-datos', 'No se pudieron cargar tus datos: ' + err.message, false);
     }
@@ -199,6 +216,20 @@ async function cargarPerfil() {
 
 async function guardarDatos() {
     const btn = document.getElementById('btn-guardar');
+    if (_emp) {
+        const email = document.getElementById('p-email').value.trim();
+        if (!email) { _msg('msg-datos', 'El email no puede estar vacío.', false); return; }
+        btn.disabled = true;
+        try {
+            await api.patch('/empleado/perfil', { email });
+            const eu = (typeof getEmpUser === 'function') ? getEmpUser() : null;
+            if (eu) { eu.email = email; localStorage.setItem('emp_user', JSON.stringify(eu)); }
+            _msg('msg-datos', 'Datos guardados ✓', true);
+        } catch (err) {
+            _msg('msg-datos', 'Error: ' + err.message, false);
+        } finally { btn.disabled = false; }
+        return;
+    }
     const username = document.getElementById('p-username').value.trim();
     if (!username) { _msg('msg-datos', 'El nombre de usuario no puede estar vacío.', false); return; }
 
@@ -247,7 +278,7 @@ async function cambiarPassword() {
 
     btn.disabled = true;
     try {
-        await api.post('/auth/cambiar-password', { password_actual: actual, password_nuevo: nueva });
+        await api.post(_emp ? '/empleado/cambiar-password' : '/auth/cambiar-password', { password_actual: actual, password_nuevo: nueva });
         document.getElementById('p-pass-actual').value = '';
         document.getElementById('p-pass-nueva').value  = '';
         document.getElementById('p-pass-rep').value    = '';

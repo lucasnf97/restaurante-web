@@ -387,7 +387,7 @@
         { href:"mensajes.html",              icon:"💬", label:"Mensajes",                 ready:false },
         { href:"social.html",                icon:"📣", label:"Social",                   ready:false },
         { href:"documentos.html",            icon:"📁", label:"Documentos",              ready:false },
-        { href:"configuracion-usuario.html", icon:"🙍", label:"Configuración de usuario", ready:false },
+        { href:"configuracion-usuario.html", icon:"🙍", label:"Configuración de usuario", ready:true },
     ];
 
     function renderNavEmpleado() {
