@@ -305,6 +305,10 @@
     let _rests=[], _data=[], _users={};
     let _selRest=new Set(), rolesActivos=new Set(), filtroNombre='';
     let _modal=null;
+    // Solicitudes de turnos (Fase 1: intercambio). Mi fila de la grilla = mi username.
+    const _miKey = (_user.username||_user.nombre||'').toLowerCase();
+    let _solicitudesSemana = {};   // `${restaurante_id}|${usuario_id}|${fechaISO}` -> solicitud activa
+    let _desdeISO='', _hastaISO='';
 
     const addDays=(d,n)=>{ const r=new Date(d); r.setDate(r.getDate()+n); return r; };
     function getMondayOf(d){ const r=new Date(d); const j=r.getDay(); r.setDate(r.getDate()-(j===0?6:j-1)); return r; }
@@ -362,6 +366,7 @@
 
     // ── Carga ───────────────────────────────────────────────────
     async function init(){
+        _injectIntercambioUI();
         try {
             const rs = await _get(_EP_RESTS);
             // Normalizar: /cadena/restaurantes da {id,nombre}; /empleado/mis-restaurantes da {restaurante_id,restaurante}
@@ -395,7 +400,30 @@
         }));
         buildRolColors();
         renderRolChips();
+        _desdeISO=desde; _hastaISO=hasta;
+        await _cargarSolicitudes(desde, hasta);
         renderGrid();
+    }
+
+    // Trae las solicitudes activas del rango y las indexa para pintar el marcador 🔁.
+    // Single restaurante (token con schema): una sola llamada. Cadena: una por restaurante.
+    async function _cargarSolicitudes(desde, hasta){
+        _solicitudesSemana = {};
+        const ctxs = _SINGLE ? [null] : _rests.map(r=>r.id);
+        for (const rid of ctxs){
+            try{
+                const qs = new URLSearchParams({ desde, hasta });
+                if (rid!=null) qs.set('restaurante_id', rid);
+                const arr = await _get('/horarios/solicitudes?'+qs.toString());
+                const R = (rid!=null) ? rid : ((_rests[0]||{}).id);
+                (arr||[]).forEach(s=>{
+                    if(['rechazada','denegada','cancelada','aprobada'].includes(s.estado)) return;
+                    if(s.tipo!=='intercambio') return;
+                    if(s.creado_por && s.origen_fecha)        _solicitudesSemana[`${R}|${s.creado_por}|${s.origen_fecha}`]=s;
+                    if(s.destino_usuario_id && s.destino_fecha) _solicitudesSemana[`${R}|${s.destino_usuario_id}|${s.destino_fecha}`]=s;
+                });
+            }catch(e){ /* contexto sin acceso (p.ej. gerente_cadena): se ignora */ }
+        }
     }
 
     // ── Filtros ─────────────────────────────────────────────────
@@ -464,7 +492,12 @@
                         const rolB=e.rol_turno?`<div class="cell-rol-badge">${_esc(getRolLabel(e.rol_turno))}</div>`:'';
                         const brk=e.break_mins>0?`<span class="cell-break">☕${e.break_mins}m</span>`:'';
                         const net=_netMin(e);
-                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" onclick="event.stopPropagation();abrirModal('${u.key}','${key}',${s.restaurante_id})">${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
+                        const esMio=(u.key===_miKey);
+                        const _mk=_solicitudesSemana[`${s.restaurante_id}|${s.usuario_id}|${key}`]?'<span class="sol-mk" title="En intercambio">🔁</span>':'';
+                        const _click=esMio
+                          ? `event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id})`
+                          : `event.stopPropagation();abrirModal('${u.key}','${key}',${s.restaurante_id})`;
+                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" onclick="${_click}">${_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
                         const rE=e.rol_turno||s.rol;
                         if(!summary[key][rE]) summary[key][rE]={mins:0,count:0};
                         summary[key][rE].mins+=net; summary[key][rE].count+=1;
@@ -490,6 +523,113 @@
         html+=`</tr></tbody></table>`;
         area.innerHTML=html;
     }
+
+    // ── Solicitudes: menú en celda + modal "Proponer intercambio" ──────────
+    function _injectIntercambioUI(){
+        if(document.getElementById('modal-intercambio')) return;
+        const st=document.createElement('style');
+        st.textContent = `
+          .sol-mk{ font-size:11px; margin-right:3px; }
+          .cell-menu{ position:absolute; z-index:9000; background:#fff; border:1px solid #d1d5db; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.16); min-width:200px; overflow:hidden; }
+          .cell-menu .it{ padding:9px 12px; font-size:13px; cursor:pointer; color:#374151; }
+          .cell-menu .it:hover{ background:#f5f7ff; }
+          .ix-ov{ position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:9001; display:none; align-items:center; justify-content:center; }
+          .ix-card{ background:#fff; border-radius:12px; width:440px; max-width:94vw; padding:18px 20px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+          .ix-card h3{ margin:0 0 4px; font-size:17px; }
+          .ix-card .ix-sub{ color:#6b7280; font-size:12px; margin-bottom:12px; }
+          .ix-box{ border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; font-size:13px; background:#fafafa; margin-bottom:10px; }
+          .ix-card label{ display:block; font-size:12px; font-weight:700; color:#374151; margin:8px 0 4px; }
+          .ix-card select{ width:100%; padding:8px; border:1px solid #d1d5db; border-radius:7px; font-size:13px; }
+          .ix-acts{ display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+          .ix-b{ padding:8px 14px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid transparent; }
+          .ix-b.prim{ background:#2563eb; color:#fff; } .ix-b.sec{ background:#fff; color:#374151; border-color:#d1d5db; }
+        `;
+        document.head.appendChild(st);
+        const ov=document.createElement('div');
+        ov.className='ix-ov'; ov.id='modal-intercambio';
+        ov.innerHTML = `<div class="ix-card">
+            <h3>🔁 Proponer intercambio</h3>
+            <div class="ix-sub">Tu turno se intercambia con el de un compañero del mismo restaurante. El compañero acepta y luego un encargado confirma.</div>
+            <div class="ix-box" id="ix-origen">—</div>
+            <label>Compañero</label>
+            <select id="ix-companero" onchange="_ixPoblarTurnos()"><option value="">Elegí…</option></select>
+            <label>Turno del compañero a recibir</label>
+            <select id="ix-turno"><option value="">Elegí compañero primero…</option></select>
+            <div class="ix-acts">
+              <button class="ix-b sec" onclick="cerrarIntercambio()">Cancelar</button>
+              <button class="ix-b prim" onclick="enviarIntercambio()">Enviar solicitud</button>
+            </div>
+          </div>`;
+        ov.addEventListener('click', e=>{ if(e.target===ov) cerrarIntercambio(); });
+        document.body.appendChild(ov);
+    }
+    function cerrarMenuTurno(){ const e=document.getElementById('cell-menu'); if(e) e.remove(); }
+    function abrirMenuTurno(ev, userKey, fecha, restauranteId, origenHorarioId){
+        ev.stopPropagation(); cerrarMenuTurno();
+        const m=document.createElement('div'); m.className='cell-menu'; m.id='cell-menu';
+        let items=`<div class="it" onclick="abrirModalIntercambio(${restauranteId},'${fecha}',${origenHorarioId})">🔁 Proponer intercambio…</div>`;
+        if(!_RO) items+=`<div class="it" onclick="cerrarMenuTurno();abrirModal('${userKey}','${fecha}',${restauranteId})">✏️ Editar turno</div>`;
+        m.innerHTML=items; document.body.appendChild(m);
+        const r=ev.currentTarget.getBoundingClientRect();
+        m.style.left=(r.left+window.scrollX)+'px'; m.style.top=(r.bottom+window.scrollY+2)+'px';
+        setTimeout(()=>document.addEventListener('click', cerrarMenuTurno, {once:true}), 0);
+    }
+    function _ixHoyISO(){ const t=new Date(); t.setHours(0,0,0,0); return formatDate(t); }
+    function _ixTurnosDe(u, R){
+        const hoy=_ixHoyISO(), out=[];
+        Object.entries(u.shiftsByDate||{}).forEach(([date,arr])=>{
+            (arr||[]).forEach(s=>{ if(s.restaurante_id===R && s.entry && s.entry.publicado && date>=hoy)
+                out.push({ id:s.entry.id, date, franjas:(s.entry.franjas||[]).map(f=>`${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`).join(', ') }); });
+        });
+        out.sort((a,b)=>a.date.localeCompare(b.date));
+        return out;
+    }
+    function abrirModalIntercambio(R, fecha, origenHorarioId){
+        cerrarMenuTurno(); _injectIntercambioUI();
+        const yo=_users[_miKey];
+        // Datos del turno propio (origen) para mostrar
+        let oTxt=`${fecha}`;
+        (yo&&yo.shiftsByDate[fecha]||[]).forEach(s=>{ if(s.restaurante_id===R && s.entry && s.entry.id===origenHorarioId){
+            const fr=(s.entry.franjas||[]).map(f=>`${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`).join(', ');
+            oTxt=`<b>Tu turno:</b> ${fecha} · ${fr} · ${_esc(s.restaurante)}`; } });
+        document.getElementById('ix-origen').innerHTML=oTxt;
+        const ov=document.getElementById('modal-intercambio');
+        ov.dataset.origen=origenHorarioId; ov.dataset.rest=R;
+        // Compañeros: usuarios (≠ yo) con membresía en este restaurante
+        const colegas=Object.values(_users).filter(u=>u.key!==_miKey && u.memberships.some(m=>m.restaurante_id===R));
+        const selC=document.getElementById('ix-companero');
+        selC.innerHTML='<option value="">Elegí…</option>'+colegas.map(u=>{
+            const m=u.memberships.find(x=>x.restaurante_id===R); return `<option value="${m.usuario_id}|${u.key}">${_esc(u.nombre)}</option>`;
+        }).join('');
+        document.getElementById('ix-turno').innerHTML='<option value="">Elegí compañero primero…</option>';
+        ov.style.display='flex';
+    }
+    function _ixPoblarTurnos(){
+        const ov=document.getElementById('modal-intercambio'); const R=+ov.dataset.rest;
+        const val=document.getElementById('ix-companero').value;
+        const selT=document.getElementById('ix-turno');
+        if(!val){ selT.innerHTML='<option value="">Elegí compañero primero…</option>'; return; }
+        const uKey=val.split('|')[1]; const u=_users[uKey];
+        const turnos=u?_ixTurnosDe(u,R):[];
+        selT.innerHTML = turnos.length
+            ? turnos.map(t=>`<option value="${t.id}">${t.date} · ${t.franjas||'sin franjas'}</option>`).join('')
+            : '<option value="">El compañero no tiene turnos publicados a futuro</option>';
+    }
+    async function enviarIntercambio(){
+        const ov=document.getElementById('modal-intercambio');
+        const origen=+ov.dataset.origen, R=+ov.dataset.rest;
+        const val=document.getElementById('ix-companero').value;
+        const destHid=+document.getElementById('ix-turno').value;
+        if(!val || !destHid){ alert('Elegí compañero y turno.'); return; }
+        const destUid=+val.split('|')[0];
+        try{
+            await _post('/horarios/solicitudes', { origen_horario_id:origen, destino_usuario_id:destUid, destino_horario_id:destHid, restaurante_id:R });
+            cerrarIntercambio();
+            alert('Solicitud de intercambio enviada.');
+            await _cargarSolicitudes(_desdeISO,_hastaISO); renderGrid();
+        }catch(e){ alert('Error: '+(e.message||e)); }
+    }
+    function cerrarIntercambio(){ const ov=document.getElementById('modal-intercambio'); if(ov) ov.style.display='none'; }
 
     // ── Modal turno ─────────────────────────────────────────────
     function abrirModal(userKey, fecha, preRestId){
