@@ -187,7 +187,7 @@
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Costo unit.</th><th>Estado</th><th>Acciones</th><th></th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Costo unit.</th><th>Estado</th><th></th><th></th></tr></thead>
                 <tbody id="tbody-insumos"><tr><td colspan="10" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
@@ -658,7 +658,7 @@ async function cargarInsumos() {
             else if (i.ultimo_precio_compra != null) costoCell = `<span style="color:#9ca3af;" title="Último precio de compra">${(+i.ultimo_precio_compra).toFixed(2)} <small>(compra)</small></span>`;
             else costoCell = '<span style="color:#d1d5db">—</span>';
             return `<tr>
-                <td><strong>${i.nombre}</strong></td>
+                <td><span onclick="editarInsumo(${i.id})" title="Editar insumo" style="cursor:pointer;margin-right:6px;">✏️</span><strong>${i.nombre}</strong></td>
                 <td>${i.unidad}</td>
                 <td><div style="display:flex;align-items:center;gap:8px;">
                     <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
@@ -669,11 +669,8 @@ async function cargarInsumos() {
                 <td>${provNombre}</td>
                 <td style="font-size:13px;">${costoCell}</td>
                 <td>${badge}</td>
-                <td><div style="display:flex;gap:6px;">
-                    <button class="btn btn-secondary btn-sm" onclick="editarInsumo(${i.id})">Editar</button>
-                    <button class="btn btn-danger btn-sm" onclick="eliminarInsumo(${i.id})">✕</button>
-                </div></td>
                 <td>${btnHistorial}</td>
+                <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="eliminarInsumo(${i.id})" title="Eliminar insumo">✕</button></td>
             </tr>`;
         }).join("");
     } catch(e) { console.error(e); }
