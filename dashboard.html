@@ -1404,6 +1404,9 @@ async function _empSelectResto(rid) {
     let resp = null;
     try { resp = await api.get('/dashboards/mio'); } catch (e) {}
     config = _mergeConfig((resp && resp.config) || MINIMAL_CONFIG);
+    // Sacar de la solapa los widgets que ya están en el panel general (no duplicar).
+    const _GEN = new Set(['horarios-semana', 'mensajes', 'social']);
+    config.blocks = (config.blocks || []).filter(b => !_GEN.has(b.type) && !_GEN.has(b.id));
     _canEditDash = false;
     await cargarDatos();   // usa el token del local; renderiza en #dash-grid
 }
