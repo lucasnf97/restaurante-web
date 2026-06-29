@@ -217,7 +217,7 @@
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Estado</th><th>Receta</th><th>Acciones</th><th></th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Estado</th><th>Receta</th><th></th><th></th></tr></thead>
                 <tbody id="tbody-produccion"><tr><td colspan="10" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
@@ -253,8 +253,8 @@
         </div>
         <div class="tabla-wrapper" style="max-width:50%;min-width:560px;">
             <table style="width:100%;">
-                <thead><tr><th>Insumo de producción</th><th>Unidad</th><th style="text-align:right;">Costo de producción</th><th style="text-align:right;width:150px;">Receta</th></tr></thead>
-                <tbody id="tbody-costos"><tr><td colspan="4" class="empty">Cargando...</td></tr></tbody>
+                <thead><tr><th>Insumo de producción</th><th>Unidad</th><th style="text-align:right;">Costo de producción</th></tr></thead>
+                <tbody id="tbody-costos"><tr><td colspan="3" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -563,7 +563,7 @@ function renderCostos() {
     if (filtroR==="con") data = data.filter(p => p.tiene_receta);
     if (filtroR==="sin") data = data.filter(p => !p.tiene_receta);
     const tbody = document.getElementById("tbody-costos");
-    if (!data.length) { tbody.innerHTML = `<tr><td colspan="4" class="empty">Sin insumos de producción</td></tr>`; return; }
+    if (!data.length) { tbody.innerHTML = `<tr><td colspan="3" class="empty">Sin insumos de producción</td></tr>`; return; }
     if (!_monedaSimbolo) _monedaSimbolo = simboloMoneda();
     const fmt = v => v==null ? "—" : `${_monedaSimbolo}${(+v).toFixed(2)}`;
     const _e = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -572,14 +572,14 @@ function renderCostos() {
             ? `<span class="cos-arr" id="cos-arr-${p.id}" style="display:inline-block;width:14px;color:#9ca3af;">▸</span> `
             : `<span style="display:inline-block;width:14px;"></span> `;
         const rowAttrs = p.tiene_receta ? `onclick="_toggleReceta(${p.id})" style="cursor:pointer;" title="Ver insumos de la receta"` : '';
+        const lapiz = `<span onclick="event.stopPropagation();editarInsumoProduccion(${p.id})" title="Editar receta" style="cursor:pointer;margin-right:6px;">✏️</span>`;
         return `<tr class="cos-row" ${rowAttrs}>
-            <td>${arrow}<strong>${_e(p.nombre)}</strong></td>
+            <td>${arrow}${lapiz}<strong>${_e(p.nombre)}</strong></td>
             <td>${_e(p.unidad||'—')}</td>
             <td style="text-align:right;font-weight:600;">${p.tiene_receta ? fmt(p.costo) : '<span style="color:#9ca3af;font-style:italic;">Sin receta</span>'}</td>
-            <td style="text-align:right;"><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editarInsumoProduccion(${p.id})">✏️ Editar receta</button></td>
         </tr>
         <tr class="cos-det" id="cos-det-${p.id}" style="display:none;">
-            <td colspan="4" style="padding:0;background:#f9fafb;">
+            <td colspan="3" style="padding:0;background:#f9fafb;">
                 <div id="cos-det-cont-${p.id}" style="padding:10px 16px 12px 30px;">…</div>
             </td>
         </tr>`;
@@ -1038,7 +1038,7 @@ async function cargarInsumosProduccion() {
                 onclick="window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
                 title="Ver historial de compras">📋 Facturas</button>`;
             return `<tr>
-                <td><strong>${i.nombre}</strong></td>
+                <td><span onclick="editarInsumoProduccion(${i.id})" title="Editar insumo" style="cursor:pointer;margin-right:6px;">✏️</span><strong>${i.nombre}</strong></td>
                 <td>${i.unidad}</td>
                 <td><div style="display:flex;align-items:center;gap:8px;">
                     <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
@@ -1049,11 +1049,8 @@ async function cargarInsumosProduccion() {
                 <td>${provNombre}</td>
                 <td>${badge}</td>
                 <td><button class="btn btn-secondary btn-sm" onclick="verReceta(${i.id}, '${i.nombre.replace(/'/g,"\\'")}')">Ver receta</button></td>
-                <td><div style="display:flex;gap:6px;">
-                    <button class="btn btn-secondary btn-sm" onclick="editarInsumoProduccion(${i.id})">Editar</button>
-                    <button class="btn btn-danger btn-sm" onclick="eliminarInsumoProduccion(${i.id})">✕</button>
-                </div></td>
                 <td>${btnHistorial}</td>
+                <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="eliminarInsumoProduccion(${i.id})" title="Eliminar insumo">✕</button></td>
             </tr>`;
         }).join("");
         actualizarStats();
