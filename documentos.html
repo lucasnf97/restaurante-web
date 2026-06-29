@@ -114,6 +114,9 @@
 requireAuth();
 const _user = getUser() || {};
 const canEdit = hasPermiso('edicion_documentos');   // admin/gerente también
+// Empleado de cadena (contexto cuenta): solo ve los Generales de la cadena (read-only).
+const _emp = (typeof esEmpleadoCadena === 'function' && esEmpleadoCadena()
+              && (typeof enCuenta !== 'function' || enCuenta()));
 
 let _cat = 'general';            // general | grupos | personal
 let _grupos = [], _grupoSel = null, _puedeGestionar = false;
@@ -140,7 +143,9 @@ function _icono(a) {
 
 // ── Tabs ─────────────────────────────────────────────────────
 function renderTabs() {
-    const cats = [['general','📂 General'], ['grupos','👥 Grupos'], ['personal','🔒 Personal']];
+    // El empleado (sin restaurante) solo ve la categoría General (cadena); grupos/personal son por local.
+    const cats = _emp ? [['general','📂 General']]
+                      : [['general','📂 General'], ['grupos','👥 Grupos'], ['personal','🔒 Personal']];
     document.getElementById('cat-tabs').innerHTML = cats.map(([c, l]) =>
         `<div class="cat-tab ${_cat === c ? 'active' : ''}" onclick="seleccionarCat('${c}')">${l}</div>`).join('');
 }
@@ -234,6 +239,13 @@ function _ctxParams() {
 async function cargarContenido(carpetaId) {
     _docCadena = false;
     _carpetaId = carpetaId;
+    // General = almacén común de la CADENA (compartido entre restaurantes).
+    if (_cat === 'general') {
+        try { _contenido = await api.get('/documentos/cadena' + (carpetaId ? '?parent_id=' + carpetaId : '')); }
+        catch (e) { document.getElementById('doc-body').innerHTML = `<div class="doc-empty">No se pudo cargar.</div>`; return; }
+        renderContenido();
+        return;
+    }
     let q = _ctxParams();
     if (carpetaId) q += `&carpeta_id=${carpetaId}`;
     try { _contenido = await api.get('/documentos/contenido?' + q); }
@@ -344,38 +356,56 @@ function renderPersonalCadena(files) {
 async function nuevaCarpeta() {
     const nombre = prompt('Nombre de la carpeta:');
     if (!nombre || !nombre.trim()) return;
-    const body = { categoria: _cat, nombre: nombre.trim(), parent_id: _carpetaId,
-                   grupo_id: _cat === 'grupos' ? _grupoSel : null,
-                   usuario_id: _cat === 'personal' ? _usuarioSel : null };
-    try { await apiFetch('/documentos/carpetas', { method: 'POST', body: JSON.stringify(body) }); cargarContenido(_carpetaId); }
-    catch (e) { alert('No se pudo crear la carpeta: ' + (e.message || e)); }
+    try {
+        if (_cat === 'general') {
+            await apiFetch('/documentos/cadena/carpetas', { method: 'POST', body: JSON.stringify({ nombre: nombre.trim(), parent_id: _carpetaId }) });
+        } else {
+            const body = { categoria: _cat, nombre: nombre.trim(), parent_id: _carpetaId,
+                           grupo_id: _cat === 'grupos' ? _grupoSel : null,
+                           usuario_id: _cat === 'personal' ? _usuarioSel : null };
+            await apiFetch('/documentos/carpetas', { method: 'POST', body: JSON.stringify(body) });
+        }
+        cargarContenido(_carpetaId);
+    } catch (e) { alert('No se pudo crear la carpeta: ' + (e.message || e)); }
 }
 async function renombrarCarpeta(id) {
     const nombre = prompt('Nuevo nombre de la carpeta:');
     if (!nombre || !nombre.trim()) return;
-    try { await apiFetch(`/documentos/carpetas/${id}`, { method: 'PATCH', body: JSON.stringify({ nombre: nombre.trim() }) }); cargarContenido(_carpetaId); }
+    const url = _cat === 'general' ? `/documentos/cadena/carpetas/${id}` : `/documentos/carpetas/${id}`;
+    try { await apiFetch(url, { method: 'PATCH', body: JSON.stringify({ nombre: nombre.trim() }) }); cargarContenido(_carpetaId); }
     catch (e) { alert('No se pudo renombrar: ' + (e.message || e)); }
 }
 async function eliminarCarpeta(id, nombre) {
     if (!confirm(`¿Eliminar la carpeta "${nombre}" y todo su contenido (subcarpetas y archivos)?`)) return;
-    try { await apiFetch(`/documentos/carpetas/${id}`, { method: 'DELETE' }); cargarContenido(_carpetaId); }
+    const url = _cat === 'general' ? `/documentos/cadena/carpetas/${id}` : `/documentos/carpetas/${id}`;
+    try { await apiFetch(url, { method: 'DELETE' }); cargarContenido(_carpetaId); }
     catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
 }
 async function onFileSel(files) {
     if (!files || !files.length) return;
-    const fd = new FormData();
-    fd.append('categoria', _cat);
-    if (_cat === 'grupos' && _grupoSel) fd.append('grupo_id', String(_grupoSel));
-    if (_cat === 'personal' && _usuarioSel) fd.append('usuario_id', String(_usuarioSel));
-    if (_carpetaId) fd.append('carpeta_id', String(_carpetaId));
-    fd.append('file', files[0]);
     document.getElementById('file-input').value = '';
-    try { await apiFetch('/documentos/archivos', { method: 'POST', body: fd }); cargarContenido(_carpetaId); }
-    catch (e) { alert('No se pudo subir el archivo: ' + (e.message || e)); }
+    try {
+        if (_cat === 'general') {
+            const fd = new FormData();
+            if (_carpetaId) fd.append('parent_id', String(_carpetaId));
+            fd.append('file', files[0]);
+            await apiFetch('/documentos/cadena/archivos', { method: 'POST', body: fd });
+        } else {
+            const fd = new FormData();
+            fd.append('categoria', _cat);
+            if (_cat === 'grupos' && _grupoSel) fd.append('grupo_id', String(_grupoSel));
+            if (_cat === 'personal' && _usuarioSel) fd.append('usuario_id', String(_usuarioSel));
+            if (_carpetaId) fd.append('carpeta_id', String(_carpetaId));
+            fd.append('file', files[0]);
+            await apiFetch('/documentos/archivos', { method: 'POST', body: fd });
+        }
+        cargarContenido(_carpetaId);
+    } catch (e) { alert('No se pudo subir el archivo: ' + (e.message || e)); }
 }
 async function eliminarArchivo(id) {
     if (!confirm('¿Eliminar este archivo?')) return;
-    try { await apiFetch(`/documentos/archivos/${id}`, { method: 'DELETE' }); cargarContenido(_carpetaId); }
+    const url = _cat === 'general' ? `/documentos/cadena/archivos/${id}` : `/documentos/archivos/${id}`;
+    try { await apiFetch(url, { method: 'DELETE' }); cargarContenido(_carpetaId); }
     catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
 }
 
@@ -424,8 +454,9 @@ async function eliminarGrupo() {
 function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // ── Init ─────────────────────────────────────────────────────
+if (_emp && typeof volverACuenta === 'function') volverACuenta();   // contexto cuenta para /documentos/cadena
 renderTabs();
-(async () => { try { _misLocales = await api.get('/auth/mis-locales'); } catch (e) {} })();
+if (!_emp) { (async () => { try { _misLocales = await api.get('/auth/mis-locales'); } catch (e) {} })(); }
 seleccionarCat('general');
 </script>
 </body>
