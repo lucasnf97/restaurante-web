@@ -49,7 +49,7 @@
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         /* Confirmación: modal en columna → el cuerpo scrollea y el footer queda SIEMPRE
            pegado al fondo del modal (sin nada visible por debajo). */
-        #modal-confirmacion .modal-conf { display: flex; flex-direction: column; padding: 0; height: 95vh; max-height: 95vh; overflow: hidden; }
+        #modal-confirmacion .modal-conf { display: flex; flex-direction: column; padding: 0; height: calc(100vh - 32px); max-height: calc(100vh - 32px); overflow: hidden; }
         /* Revisión en 2 columnas: izquierda el form/ítems, derecha el visor de la factura */
         #modal-confirmacion .modal-conf-split { display: flex; flex: 1; min-height: 0; }
         #modal-confirmacion .modal-conf-body { flex: 1 1 48%; overflow-y: auto; padding: 26px 30px 8px; min-width: 0; }
@@ -359,6 +359,7 @@
         </div><!-- /modal-conf-split -->
 
         <div class="modal-footer">
+            <div id="conf-totales" style="margin-right:auto;display:flex;gap:16px;align-items:center;font-size:13px;color:#374151;"></div>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-confirmacion')">Cancelar</button>
             <button class="btn btn-secondary" id="btn-guardar-borrador" onclick="guardarBorrador()" title="Guardar el avance para continuar después">💾 Guardar borrador</button>
             <button class="btn btn-primary" onclick="confirmarFactura()">✓ Confirmar y registrar</button>
@@ -871,6 +872,7 @@ function onMonedaSelect() {
         cus.style.display = "none";
         _setMonedaCodigo(sel.value);
     }
+    _actualizarTotalesConf();
 }
 
 function onMonedaCustomInput() {
@@ -1014,6 +1016,7 @@ function abrirModalConfirmacion(datos) {
     _setFechaPeriodoConf(datos.fecha, datos._periodo || null);
 
     document.getElementById("modal-confirmacion").classList.add("active");
+    _actualizarTotalesConf();
 }
 
 function cambiarTipoItem(idx) {
@@ -1025,6 +1028,7 @@ function cambiarTipoItem(idx) {
     document.getElementById(`icono-${idx}`).textContent = tipo === 'insumo' ? '⚠️' : tipo === 'servicio' ? '🔧' : '—';
     if (fi) fi.style.display = tipo === 'insumo' ? '' : 'none';
     if (fs) fs.style.display = tipo === 'servicio' ? '' : 'none';
+    _actualizarTotalesConf();
 }
 
 function actualizarIconoItem(idx) {
@@ -1045,7 +1049,7 @@ function seleccionarProveedorExistente() {
     }
 }
 
-function quitarItemConf(idx) { document.getElementById(`conf-item-${idx}`)?.remove(); }
+function quitarItemConf(idx) { document.getElementById(`conf-item-${idx}`)?.remove(); _actualizarTotalesConf(); }
 
 function agregarItemConf() {
     const idx = `m${_confItemCounter++}`;
@@ -1056,6 +1060,7 @@ function agregarItemConf() {
     const div = document.createElement("div");
     div.innerHTML = itemRow(idx, "insumo", "Ítem manual", null, null, null, null, pct, _confModoImp === 'con', monedaSimbolo, '');
     container.appendChild(div.firstElementChild);
+    _actualizarTotalesConf();
 }
 
 // Visor embebido de la factura en revisión (columna derecha del modal de confirmación).
@@ -1859,13 +1864,36 @@ function _recalcFila(pfx, idx, fuente) {
         _setVal(`${pfx}-precio-${idx}`, neto === null ? null : neto * (1 + t / 100));
     }
     if (pfx === 'ci') _recalcUnit(idx);
+    _actualizarTotalesConf();
+}
+
+// Totales de la factura (sin/con impuesto) en el footer del modal de confirmación.
+function _actualizarTotalesConf() {
+    const el = document.getElementById('conf-totales');
+    if (!el) return;
+    let neto = 0, bruto = 0;
+    document.querySelectorAll("[id^='conf-item-']").forEach(row => {
+        const idx = row.id.replace('conf-item-', '');
+        const tipo = document.getElementById(`ci-tipo-${idx}`)?.value;
+        if (tipo === 'omitir') return;
+        const pfx = tipo === 'servicio' ? 'cs' : 'ci';
+        const n = parseFloat(document.getElementById(`${pfx}-precio-neto-${idx}`)?.value);
+        const b = parseFloat(document.getElementById(`${pfx}-precio-${idx}`)?.value);
+        if (!isNaN(n)) neto += n;
+        if (!isNaN(b)) bruto += b;
+    });
+    const sym = (document.getElementById('conf-moneda-badge')?.textContent || '').trim()
+             || document.getElementById('conf-moneda-codigo')?.value || '';
+    const f = v => v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    el.innerHTML = `<span>Total s/imp: <b style="color:#1a1a2e;">${sym} ${f(neto)}</b></span>`
+                 + `<span>Total c/imp: <b style="color:#16a34a;">${sym} ${f(bruto)}</b></span>`;
 }
 
 // Insumos
 function onEditNeto(idx)  { _recalcFila('ci', idx, 'neto'); }
 function onEditBruto(idx) { _recalcFila('ci', idx, 'bruto'); }
 function onEditImp(idx)   { _recalcFila('ci', idx, 'neto'); }   // % cambia → neto sigue siendo la fuente
-function onEditCant(idx)  { _recalcUnit(idx); }
+function onEditCant(idx)  { _recalcUnit(idx); _actualizarTotalesConf(); }
 // Servicios
 function onEditSrvNeto(idx)  { _recalcFila('cs', idx, 'neto'); }
 function onEditSrvBruto(idx) { _recalcFila('cs', idx, 'bruto'); }
