@@ -161,7 +161,6 @@
         <button class="tab active" id="tab-insumos" onclick="setTab('insumos')">📦 Insumos de Stock</button>
         <button class="tab" id="tab-produccion" onclick="setTab('produccion')">🏭 Insumos de Producción</button>
         <button class="tab" id="tab-historial" onclick="setTab('historial')">📋 Historial</button>
-        <button class="tab" id="tab-costos" onclick="setTab('costos')">💰 Costos de producción</button>
     </div>
 
     <!-- INSUMOS -->
@@ -217,7 +216,7 @@
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Estado</th><th>Receta</th><th></th><th></th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Costo prod.</th><th>Estado</th><th></th><th></th></tr></thead>
                 <tbody id="tbody-produccion"><tr><td colspan="10" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
@@ -238,26 +237,6 @@
         </div>
     </div>
 
-    <!-- COSTOS Y MÁRGENES -->
-    <div id="vista-costos" style="display:none">
-        <div class="filtros">
-            <input type="text" id="filtro-cos-nombre" placeholder="Buscar insumo de producción..." oninput="renderCostos()" style="min-width:240px;">
-            <select id="filtro-cos-receta" onchange="renderCostos()">
-                <option value="">Todos</option>
-                <option value="con">Con receta</option>
-                <option value="sin">Sin receta</option>
-            </select>
-            <span class="hint" style="color:#9ca3af;font-size:12px;align-self:center;">Costo de producir cada insumo = suma de su receta (insumos de stock), sin impuesto. Tocá una fila para ver el desglose.</span>
-            <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirCostos()"
-                    title="Imprimir el listado según el filtro aplicado">🖨 Imprimir listado</button>
-        </div>
-        <div class="tabla-wrapper" style="max-width:50%;min-width:560px;">
-            <table style="width:100%;">
-                <thead><tr><th>Insumo de producción</th><th>Unidad</th><th style="text-align:right;">Costo de producción</th></tr></thead>
-                <tbody id="tbody-costos"><tr><td colspan="3" class="empty">Cargando...</td></tr></tbody>
-            </table>
-        </div>
-    </div>
 </div>
 
 <!-- Modal insumo -->
@@ -532,7 +511,7 @@ async function cargarUltimasCompras() {
 
 function _switchTabUI(tab) {
     // Cambia visualmente el tab activo sin disparar ninguna carga de datos
-    ["insumos","produccion","historial","costos"].forEach(t => {
+    ["insumos","produccion","historial"].forEach(t => {
         document.getElementById(`tab-${t}`).classList.toggle("active", t === tab);
         document.getElementById(`vista-${t}`).style.display = t === tab ? "block" : "none";
     });
@@ -541,49 +520,6 @@ function setTab(tab) {
     _switchTabUI(tab);
     if (tab === "historial")  cargarHistorial();
     if (tab === "produccion") cargarInsumosProduccion();
-    if (tab === "costos")     cargarCostos();
-}
-
-// ── COSTOS Y MÁRGENES ─────────────────────────────────────────
-// ── COSTOS DE PRODUCCIÓN (insumos de producción) ──────────────
-let _costos = [];
-async function cargarCostos() {
-    const tbody = document.getElementById("tbody-costos");
-    window.UI && UI.skeleton(tbody, 6, 4);
-    try {
-        _costos = await api.get("/stock/costos-produccion");
-        renderCostos();
-    } catch(e) { tbody.innerHTML = `<tr><td colspan="4" class="empty">Error: ${e.message}</td></tr>`; }
-}
-function renderCostos() {
-    const nombre = (document.getElementById("filtro-cos-nombre").value || "").trim().toLowerCase();
-    const filtroR = document.getElementById("filtro-cos-receta").value;
-    let data = _costos;
-    if (nombre)          data = data.filter(p => p.nombre.toLowerCase().includes(nombre));
-    if (filtroR==="con") data = data.filter(p => p.tiene_receta);
-    if (filtroR==="sin") data = data.filter(p => !p.tiene_receta);
-    const tbody = document.getElementById("tbody-costos");
-    if (!data.length) { tbody.innerHTML = `<tr><td colspan="3" class="empty">Sin insumos de producción</td></tr>`; return; }
-    if (!_monedaSimbolo) _monedaSimbolo = simboloMoneda();
-    const fmt = v => v==null ? "—" : `${_monedaSimbolo}${(+v).toFixed(2)}`;
-    const _e = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-    tbody.innerHTML = data.map(p => {
-        const arrow = p.tiene_receta
-            ? `<span class="cos-arr" id="cos-arr-${p.id}" style="display:inline-block;width:14px;color:#9ca3af;">▸</span> `
-            : `<span style="display:inline-block;width:14px;"></span> `;
-        const rowAttrs = p.tiene_receta ? `onclick="_toggleReceta(${p.id})" style="cursor:pointer;" title="Ver insumos de la receta"` : '';
-        const lapiz = `<span onclick="event.stopPropagation();editarInsumoProduccion(${p.id})" title="Editar receta" style="cursor:pointer;margin-right:6px;">✏️</span>`;
-        return `<tr class="cos-row" ${rowAttrs}>
-            <td>${arrow}${lapiz}<strong>${_e(p.nombre)}</strong></td>
-            <td>${_e(p.unidad||'—')}</td>
-            <td style="text-align:right;font-weight:600;">${p.tiene_receta ? fmt(p.costo) : '<span style="color:#9ca3af;font-style:italic;">Sin receta</span>'}</td>
-        </tr>
-        <tr class="cos-det" id="cos-det-${p.id}" style="display:none;">
-            <td colspan="3" style="padding:0;background:#f9fafb;">
-                <div id="cos-det-cont-${p.id}" style="padding:10px 16px 12px 30px;">…</div>
-            </td>
-        </tr>`;
-    }).join("");
 }
 
 // Despliega los insumos de la receta de un insumo de PRODUCCIÓN (cantidad + costo s/imp).
@@ -772,27 +708,6 @@ async function abrirImprimirHistorial() {
     const thead = `<tr><th>Fecha</th><th>Insumo</th><th>Tipo</th><th class="num">Cantidad</th><th class="num">Precio</th><th>Proveedor</th><th>Usuario</th></tr>`;
     let titulo = 'Historial de movimientos';
     if (nombre) titulo += ` · "${nombre}"`;
-    _mostrarImpresion(titulo, thead, filas, data.length);
-}
-
-// Costos y márgenes
-function abrirImprimirCostos() {
-    const nombre  = (document.getElementById('filtro-cos-nombre').value || '').trim().toLowerCase();
-    const filtroR = document.getElementById('filtro-cos-receta').value;
-    let data = (_costos || []).slice();
-    if (nombre) data = data.filter(p => p.nombre.toLowerCase().includes(nombre));
-    if (filtroR === 'con') data = data.filter(p => p.tiene_receta);
-    if (filtroR === 'sin') data = data.filter(p => !p.tiene_receta);
-    data.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    if (!_monedaSimbolo) _monedaSimbolo = simboloMoneda();
-    const f = v => v == null ? '—' : `${_monedaSimbolo}${(+v).toFixed(2)}`;
-    const filas = data.map(p =>
-        `<tr><td>${_escH(p.nombre)}</td><td>${_escH(p.unidad || '—')}</td>
-             <td class="num">${p.tiene_receta ? f(p.costo) : '<span style="color:#9ca3af;font-style:italic;">Sin receta</span>'}</td></tr>`).join('');
-    const titMap = { '': 'Costos de producción — todos', con: 'Costos de producción — con receta', sin: 'Costos de producción — sin receta' };
-    let titulo = titMap[filtroR] || 'Costos de producción';
-    if (nombre) titulo += ` · "${document.getElementById('filtro-cos-nombre').value.trim()}"`;
-    const thead = `<tr><th>Insumo de producción</th><th>Unidad</th><th class="num">Costo de producción</th></tr>`;
     _mostrarImpresion(titulo, thead, filas, data.length);
 }
 
@@ -1006,10 +921,16 @@ async function cargarInsumosProduccion() {
     const nombre = document.getElementById("filtro-prod-nombre").value.trim();
     const estado = document.getElementById("filtro-prod-estado").value;
     const prov   = document.getElementById("filtro-prod-prov")?.value || "";
-    window.UI && UI.skeleton(document.getElementById("tbody-produccion"), 6, 9);
+    window.UI && UI.skeleton(document.getElementById("tbody-produccion"), 6, 10);
     try {
         let data = await api.get("/stock/insumos-produccion");
         _insumosProduccion = data;
+        // Costos de producción (columna "Costo prod." + desglose de receta sin impuesto)
+        let _cmap = {};
+        try { (await api.get("/stock/costos-produccion") || []).forEach(c => _cmap[c.id] = c); }
+        catch (e) { console.warn("No se pudo cargar costos de producción:", e); }
+        if (!_monedaSimbolo) _monedaSimbolo = simboloMoneda();
+        const fmtCosto = v => v == null ? "—" : `${_monedaSimbolo}${(+v).toFixed(2)}`;
         if (estado === "agotado")          data = data.filter(i => i.agotado);
         else if (estado === "advertencia") data = data.filter(i => i.en_advertencia && !i.agotado);
         else if (estado === "ok")          data = data.filter(i => !i.en_advertencia);
@@ -1017,7 +938,7 @@ async function cargarInsumosProduccion() {
         if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || "") === prov);
 
         const tbody = document.getElementById("tbody-produccion");
-        if (!data.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin insumos de producción</td></tr>`; return; }
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="10" class="empty">Sin insumos de producción</td></tr>`; return; }
         tbody.innerHTML = data.map(i => {
             const actual = parseFloat(i.cantidad_actual);
             const estand = parseFloat(i.cantidad_estandar) || 1;
@@ -1032,10 +953,20 @@ async function cargarInsumosProduccion() {
                 ? `<span class="prov-chip">🏢 ${uc.proveedor_nombre}</span>`
                 : '<span style="color:#d1d5db">—</span>';
             const btnHistorial = `<button class="btn btn-secondary btn-sm"
-                onclick="window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
+                onclick="event.stopPropagation();window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
                 title="Ver historial de compras">📋 Facturas</button>`;
-            return `<tr>
-                <td><span onclick="editarInsumoProduccion(${i.id})" title="Editar insumo" style="cursor:pointer;margin-right:6px;">✏️</span><strong>${i.nombre}</strong></td>
+            const cinfo = _cmap[i.id] || {};
+            const tieneReceta = !!cinfo.tiene_receta;
+            const arrow = tieneReceta
+                ? `<span class="cos-arr" id="cos-arr-${i.id}" style="display:inline-block;width:14px;color:#9ca3af;">▸</span> `
+                : `<span style="display:inline-block;width:14px;"></span> `;
+            const lapiz = `<span onclick="event.stopPropagation();editarInsumoProduccion(${i.id})" title="Editar insumo" style="cursor:pointer;margin-right:6px;">✏️</span>`;
+            const rowAttrs = tieneReceta ? `onclick="_toggleReceta(${i.id})" style="cursor:pointer;" title="Ver insumos de la receta"` : '';
+            const costoCell = tieneReceta
+                ? `<strong>${fmtCosto(cinfo.costo)}</strong>`
+                : `<span style="color:#9ca3af;font-style:italic;font-size:12px;">Sin receta</span>`;
+            return `<tr ${rowAttrs}>
+                <td>${arrow}${lapiz}<strong>${i.nombre}</strong></td>
                 <td>${i.unidad}</td>
                 <td><div style="display:flex;align-items:center;gap:8px;">
                     <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
@@ -1044,10 +975,15 @@ async function cargarInsumosProduccion() {
                 <td style="font-size:12px;color:#374151;">${i.ubicacion_nombre || '<span style="color:#d1d5db">—</span>'}</td>
                 <td style="font-size:12px;color:#374151;">${marca}</td>
                 <td>${provNombre}</td>
+                <td style="font-size:13px;">${costoCell}</td>
                 <td>${badge}</td>
-                <td><button class="btn btn-secondary btn-sm" onclick="verReceta(${i.id}, '${i.nombre.replace(/'/g,"\\'")}')">Ver receta</button></td>
                 <td>${btnHistorial}</td>
-                <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="eliminarInsumoProduccion(${i.id})" title="Eliminar insumo">✕</button></td>
+                <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarInsumoProduccion(${i.id})" title="Eliminar insumo">✕</button></td>
+            </tr>
+            <tr class="cos-det" id="cos-det-${i.id}" style="display:none;">
+                <td colspan="10" style="padding:0;background:#f9fafb;">
+                    <div id="cos-det-cont-${i.id}" style="padding:10px 16px 12px 30px;">…</div>
+                </td>
             </tr>`;
         }).join("");
         actualizarStats();
@@ -1383,8 +1319,6 @@ async function guardarInsumoProduccion() {
         }
         cerrarModal("modal-insumo-produccion");
         await cargarInsumosProduccion();
-        // Si estamos en la pestaña de Costos de producción, refrescar el costo recalculado.
-        if (document.getElementById('vista-costos')?.style.display !== 'none') await cargarCostos();
     } catch(e) { alert("Error: " + (e.message || e)); }
 }
 
