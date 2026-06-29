@@ -260,6 +260,7 @@
         <button class="tab active" id="tab-productos" onclick="setTab('productos')">Productos</button>
         <button class="tab" id="tab-combos" onclick="setTab('combos')">Combos</button>
         <button class="tab" id="tab-recetas" onclick="setTab('recetas')">📓 Recetas</button>
+        <button class="tab" id="tab-costos" onclick="setTab('costos')">💰 Costos y márgenes</button>
     </div>
 
     <!-- ── VISTA PRODUCTOS ── -->
@@ -473,6 +474,26 @@
             <tbody id="tbody-recetas-doc">
                 <tr><td colspan="4" class="empty">Cargando...</td></tr>
             </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ── VISTA COSTOS Y MÁRGENES (productos) ── -->
+<div id="vista-costos" style="display:none">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+        <input type="text" id="filtro-cos-nombre" placeholder="Buscar producto..." oninput="renderCostos()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;min-width:240px;outline:none;">
+        <select id="filtro-cos-receta" onchange="renderCostos()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;">
+            <option value="">Todos</option>
+            <option value="con">Con receta</option>
+            <option value="sin">Sin receta</option>
+        </select>
+        <span style="color:#9ca3af;font-size:12px;">Costo desde la receta · margen y food-cost % sobre el precio de venta. Cargá costo a los insumos para que sea exacto.</span>
+        <button class="btn btn-secondary" style="margin-left:auto;" onclick="imprimirCostos()">🖨 Imprimir</button>
+    </div>
+    <div class="tabla-wrapper">
+        <table>
+            <thead><tr><th>Producto</th><th>Categoría</th><th style="text-align:right;">Precio</th><th style="text-align:right;">Costo</th><th style="text-align:right;">Margen</th><th style="text-align:right;">Margen %</th><th style="text-align:right;">Food-cost %</th></tr></thead>
+            <tbody id="tbody-costos"><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
         </table>
     </div>
 </div>
@@ -833,13 +854,100 @@ let _productosFiltrados = null;
 // ── TABS ──────────────────────────────────────────────────────
 function setTab(tab) {
     tabActual = tab;
-    ['productos','combos','recetas'].forEach(t => {
+    ['productos','combos','recetas','costos'].forEach(t => {
         document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
         const el = document.getElementById(`vista-${t}`);
         if (el) el.style.display = t === tab ? '' : 'none';
     });
+    if (tab === 'costos') cargarCostos();
     if (tab === 'combos') cargarCombos();
     if (tab === 'recetas') cargarRecetas();
+}
+
+// ── COSTOS Y MÁRGENES (productos) ─────────────────────────────
+let _costos = [];
+async function cargarCostos() {
+    const tbody = document.getElementById("tbody-costos");
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
+    try { _costos = await api.get("/stock/costos-productos"); renderCostos(); }
+    catch (e) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Error: ${e.message}</td></tr>`; }
+}
+function renderCostos() {
+    const nombre = (document.getElementById("filtro-cos-nombre").value || "").trim().toLowerCase();
+    const filtroR = document.getElementById("filtro-cos-receta").value;
+    let data = _costos;
+    if (nombre)          data = data.filter(p => p.nombre.toLowerCase().includes(nombre));
+    if (filtroR === "con") data = data.filter(p => p.tiene_receta);
+    if (filtroR === "sin") data = data.filter(p => !p.tiene_receta);
+    const tbody = document.getElementById("tbody-costos");
+    if (!data.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin productos</td></tr>`; return; }
+    const fmt = v => v == null ? "—" : (+v).toFixed(2);
+    const sem = fc => fc == null ? "#9ca3af" : fc < 30 ? "#16a34a" : fc <= 40 ? "#ca8a04" : "#dc2626";
+    const _e = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    tbody.innerHTML = data.map(p => {
+        if (!p.tiene_receta) {
+            return `<tr style="color:#9ca3af;"><td><strong>${_e(p.nombre)}</strong></td><td>${_e(p.categoria||'—')}</td>
+                <td style="text-align:right;">${fmt(p.precio)}</td>
+                <td colspan="4" style="font-style:italic;">Sin receta cargada</td></tr>`;
+        }
+        const neg = p.margen != null && p.margen < 0;
+        return `<tr class="cos-row" onclick="_toggleReceta(${p.id})" style="cursor:pointer;" title="Ver insumos de la receta">
+            <td><span class="cos-arr" id="cos-arr-${p.id}" style="display:inline-block;width:14px;color:#9ca3af;">▸</span> <strong>${_e(p.nombre)}</strong></td>
+            <td>${_e(p.categoria||'—')}</td>
+            <td style="text-align:right;">${fmt(p.precio)}</td>
+            <td style="text-align:right;">${fmt(p.costo)}</td>
+            <td style="text-align:right;color:${neg?'#dc2626':'#111827'};font-weight:600;">${fmt(p.margen)}</td>
+            <td style="text-align:right;">${p.margen_pct==null?'—':p.margen_pct+'%'}</td>
+            <td style="text-align:right;font-weight:600;color:${sem(p.food_cost_pct)};">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td>
+        </tr>
+        <tr class="cos-det" id="cos-det-${p.id}" style="display:none;"><td colspan="7" style="padding:0;background:#f9fafb;"><div id="cos-det-cont-${p.id}" style="padding:10px 16px 12px 30px;">…</div></td></tr>`;
+    }).join("");
+}
+async function _toggleReceta(id) {
+    const det = document.getElementById('cos-det-' + id), arr = document.getElementById('cos-arr-' + id);
+    if (!det) return;
+    const abierto = det.style.display !== 'none';
+    det.style.display = abierto ? 'none' : '';
+    if (arr) arr.textContent = abierto ? '▸' : '▾';
+    if (abierto) return;
+    const cont = document.getElementById('cos-det-cont-' + id);
+    if (cont.dataset.loaded) return;
+    const _e = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const f = v => `${simboloMoneda()}${(+v||0).toFixed(2)}`;
+    cont.innerHTML = '<span style="color:#9ca3af;font-size:13px;">Cargando…</span>';
+    try {
+        const r = await api.get('/stock/receta-costo/' + id);
+        const filas = (r.items || []).map(it => `
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #eef0f3;font-size:13px;">
+                <span>${_e(it.insumo)}${it.es_produccion ? ' <span style="color:#7c3aed;font-size:11px;">(producción)</span>' : ''}</span>
+                <span style="color:#6b7280;white-space:nowrap;">${it.cantidad} ${_e(it.unidad||'')} × ${f(it.costo_unit)} = <b style="color:#111827;">${f(it.subtotal)}</b></span>
+            </div>`).join('');
+        cont.innerHTML =
+            `<div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🧾 Insumos de la receta · costo sin impuesto</div>`
+            + (filas || '<div style="color:#9ca3af;font-size:13px;">Esta receta no tiene insumos cargados.</div>')
+            + `<div style="text-align:right;font-size:13px;font-weight:700;margin-top:8px;">Costo total: ${f(r.costo_total)}</div>`;
+        cont.dataset.loaded = '1';
+    } catch (e) { cont.innerHTML = '<span style="color:#dc2626;font-size:13px;">No se pudo cargar el detalle.</span>'; }
+}
+function imprimirCostos() {
+    const nombre = (document.getElementById("filtro-cos-nombre").value || "").trim().toLowerCase();
+    const filtroR = document.getElementById("filtro-cos-receta").value;
+    let data = (_costos || []).slice();
+    if (nombre)          data = data.filter(p => p.nombre.toLowerCase().includes(nombre));
+    if (filtroR === "con") data = data.filter(p => p.tiene_receta);
+    if (filtroR === "sin") data = data.filter(p => !p.tiene_receta);
+    data.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const _e = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const f = v => v == null ? "—" : (+v).toFixed(2);
+    const filas = data.map(p => p.tiene_receta
+        ? `<tr><td>${_e(p.nombre)}</td><td>${_e(p.categoria||'—')}</td><td class="n">${f(p.precio)}</td><td class="n">${f(p.costo)}</td><td class="n">${f(p.margen)}</td><td class="n">${p.margen_pct==null?'—':p.margen_pct+'%'}</td><td class="n">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td></tr>`
+        : `<tr><td>${_e(p.nombre)}</td><td>${_e(p.categoria||'—')}</td><td class="n">${f(p.precio)}</td><td colspan="4" style="color:#9ca3af;font-style:italic;">Sin receta</td></tr>`).join('');
+    const w = window.open('', '_blank');
+    w.document.write(`<html><head><title>Costos y márgenes</title><style>body{font-family:'Segoe UI',sans-serif;padding:24px;}h2{margin:0 0 4px;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #e5e7eb;padding:6px 9px;text-align:left;}td.n,th.n{text-align:right;}</style></head><body>
+        <h2>Costos y márgenes</h2><div style="color:#6b7280;font-size:12px;margin-bottom:12px;">${data.length} producto(s) · ${new Date().toLocaleString('es-AR')}</div>
+        <table><thead><tr><th>Producto</th><th>Categoría</th><th class="n">Precio</th><th class="n">Costo</th><th class="n">Margen</th><th class="n">Margen %</th><th class="n">Food-cost %</th></tr></thead><tbody>${filas}</tbody></table>
+        <script>onload=()=>{print();}<\/script></body></html>`);
+    w.document.close();
 }
 
 // ── INIT ──────────────────────────────────────────────────────
