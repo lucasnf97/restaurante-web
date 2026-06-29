@@ -158,6 +158,9 @@ requireAuth();
 // Social es de acceso libre: todos entran. edicion_social = moderar ajenas + grupos.
 const _user = getUser() || {};
 const _canModerar = hasPermiso('edicion_social');   // admin/gerente también (vía hasPermiso)
+// Empleado de cadena (contexto cuenta): muro AGREGADO de sus locales, solo lectura.
+const _emp = (typeof esEmpleadoCadena === 'function' && esEmpleadoCadena()
+              && (typeof enCuenta !== 'function' || enCuenta()));
 
 let _grupos = [];           // grupos visibles {id, nombre, es_miembro, roles, usuarios}
 let _puedeGestionar = false;
@@ -302,7 +305,7 @@ function renderPost(p) {
         <div class="post-head">
             <div class="post-avatar">${esc(iniciales(p.username))}</div>
             <div class="post-meta">
-                <div class="post-user">${esc(p.username)}</div>
+                <div class="post-user">${esc(p.username)}${p.restaurante ? ` <span style="background:#eef2ff;color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${esc(p.restaurante)}</span>` : ''}</div>
                 <div class="post-fecha">${fmtFecha(p.creado_en)}${editado}</div>
             </div>
             ${acc}
@@ -462,8 +465,27 @@ document.getElementById('edit-texto').addEventListener('blur', () => {
     setTimeout(() => { document.getElementById('edit-mention-box').style.display = 'none'; }, 150);
 });
 
+// ── Muro del empleado (read-only, agregado de sus locales) ───────────────────
+async function _cargarFeedEmpleado() {
+    const cont = document.getElementById('feed');
+    cont.innerHTML = '<div class="empty">Cargando…</div>';
+    let posts = [];
+    try { posts = await apiFetch('/empleado/social', { token: getEmpToken() }); }
+    catch (e) { cont.innerHTML = '<div class="empty">No se pudo cargar el muro.</div>'; return; }
+    cont.innerHTML = posts.length ? '' : '<div class="empty">Todavía no hay publicaciones.</div>';
+    posts.forEach(p => cont.insertAdjacentHTML('beforeend', renderPost(p)));
+    const mas = document.getElementById('btn-mas'); if (mas) mas.style.display = 'none';
+}
+
 // ── Init ─────────────────────────────────────────────────────
 (async function () {
+    if (_emp) {
+        if (typeof volverACuenta === 'function') volverACuenta();
+        document.querySelector('.composer')?.style.setProperty('display', 'none');
+        document.getElementById('feeds-bar')?.style.setProperty('display', 'none');
+        await _cargarFeedEmpleado();
+        return;
+    }
     await cargarMenciones();
     await cargarGrupos();
     // Link directo a una publicación (desde una notificación): ?post=<id>&grupo=<id>

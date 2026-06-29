@@ -384,8 +384,8 @@
         { href:"dashboard.html",             icon:"🏠", label:"Panel principal",          ready:true },
         { href:"horarios.html",              icon:"📋", label:"Horarios",                 ready:true },
         { href:"fichajes.html",              icon:"🕐", label:"Fichajes",                 ready:true },
-        { href:"mensajes.html",              icon:"💬", label:"Mensajes",                 ready:false },
-        { href:"social.html",                icon:"📣", label:"Social",                   ready:false },
+        { href:"mensajes.html",              icon:"💬", label:"Mensajes",                 ready:true },
+        { href:"social.html",                icon:"📣", label:"Social",                   ready:true },
         { href:"documentos.html",            icon:"📁", label:"Documentos",              ready:false },
         { href:"configuracion-usuario.html", icon:"🙍", label:"Configuración de usuario", ready:true },
     ];

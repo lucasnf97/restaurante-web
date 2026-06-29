@@ -231,6 +231,11 @@
 <script>
 requireAuth();
 
+// Empleado de cadena (contexto cuenta): bandeja AGREGADA de sus locales, solo lectura
+// (reutiliza la vista "cadena"). Enviar se hace entrando a un restaurante puntual.
+const _emp = (typeof esEmpleadoCadena === 'function' && esEmpleadoCadena()
+              && (typeof enCuenta !== 'function' || enCuenta()));
+
 let _tabActual   = "recibidos";
 let _cadena      = false;   // ver recibidos de todos mis locales
 let _misLocales  = [];
@@ -244,6 +249,15 @@ let _ccDests   = [];
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
+    if (_emp) {
+        if (typeof volverACuenta === 'function') volverACuenta();
+        const h2 = document.querySelector('.page-header h2'); if (h2) h2.textContent = '💬 Mis mensajes';
+        document.querySelector('.btn-nuevo')?.style.setProperty('display', 'none');
+        document.querySelector('.tabs')?.style.setProperty('display', 'none');
+        _cadena = true; _tabActual = 'recibidos';   // vista agregada read-only
+        await cargarMensajes();
+        return;
+    }
     await cargarUsuarios();
     try {
         _misLocales = await apiFetch('/auth/mis-locales');
@@ -286,6 +300,7 @@ async function cargarMensajes() {
     const lista = document.getElementById("mensajes-lista");
     lista.innerHTML = '<div class="loading">Cargando...</div>';
     try {
+        if (_emp) { _mensajes = await apiFetch('/empleado/mensajes', { token: getEmpToken() }); renderLista(); return; }
         const endpoint = _cadena ? "/mensajes/recibidos-cadena"
                        : (_tabActual === "recibidos" ? "/mensajes/recibidos" : "/mensajes/enviados");
         _mensajes = await apiFetch(endpoint);
