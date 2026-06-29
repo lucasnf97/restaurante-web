@@ -563,6 +563,7 @@ function renderCostos() {
     if (filtroR==="sin") data = data.filter(p => !p.tiene_receta);
     const tbody = document.getElementById("tbody-costos");
     if (!data.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin productos</td></tr>`; return; }
+    if (!_monedaSimbolo) _monedaSimbolo = simboloMoneda();
     const fmt = v => v==null ? "—" : (+v).toFixed(2);
     const sem = fc => fc==null ? "#9ca3af" : fc < 30 ? "#16a34a" : fc <= 40 ? "#ca8a04" : "#dc2626";
     tbody.innerHTML = data.map(p => {
@@ -573,16 +574,53 @@ function renderCostos() {
                 <td colspan="4" style="font-style:italic;">Sin receta cargada</td></tr>`;
         }
         const negativo = p.margen != null && p.margen < 0;
-        return `<tr>
-            <td><strong>${p.nombre}</strong></td>
+        return `<tr class="cos-row" onclick="_toggleReceta(${p.id})" style="cursor:pointer;" title="Ver insumos de la receta">
+            <td><span class="cos-arr" id="cos-arr-${p.id}" style="display:inline-block;width:14px;color:#9ca3af;">▸</span> <strong>${p.nombre}</strong></td>
             <td>${p.categoria||'—'}</td>
             <td style="text-align:right;">${fmt(p.precio)}</td>
             <td style="text-align:right;">${fmt(p.costo)}</td>
             <td style="text-align:right;color:${negativo?'#dc2626':'#111827'};font-weight:600;">${fmt(p.margen)}</td>
             <td style="text-align:right;">${p.margen_pct==null?'—':p.margen_pct+'%'}</td>
             <td style="text-align:right;font-weight:600;color:${sem(p.food_cost_pct)};">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td>
+        </tr>
+        <tr class="cos-det" id="cos-det-${p.id}" style="display:none;">
+            <td colspan="7" style="padding:0;background:#f9fafb;">
+                <div id="cos-det-cont-${p.id}" style="padding:10px 16px 12px 30px;">…</div>
+            </td>
         </tr>`;
     }).join("");
+}
+
+// Despliega los insumos de la receta de un producto (cantidad + costo s/imp de esa cantidad).
+async function _toggleReceta(id) {
+    const det = document.getElementById('cos-det-' + id);
+    const arr = document.getElementById('cos-arr-' + id);
+    if (!det) return;
+    const abierto = det.style.display !== 'none';
+    det.style.display = abierto ? 'none' : '';
+    if (arr) arr.textContent = abierto ? '▸' : '▾';
+    if (abierto) return;
+    const cont = document.getElementById('cos-det-cont-' + id);
+    if (cont.dataset.loaded) return;
+    const _e = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const sym = _monedaSimbolo || '';
+    const f = v => `${sym}${(+v||0).toFixed(2)}`;
+    cont.innerHTML = '<span style="color:#9ca3af;font-size:13px;">Cargando…</span>';
+    try {
+        const r = await api.get('/stock/receta-costo/' + id);
+        const filas = (r.items || []).map(it => `
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #eef0f3;font-size:13px;">
+                <span>${_e(it.insumo)}${it.es_produccion ? ' <span style="color:#7c3aed;font-size:11px;">(producción)</span>' : ''}</span>
+                <span style="color:#6b7280;white-space:nowrap;">${it.cantidad} ${_e(it.unidad||'')} × ${f(it.costo_unit)} = <b style="color:#111827;">${f(it.subtotal)}</b></span>
+            </div>`).join('');
+        cont.innerHTML =
+            `<div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🧾 Insumos de la receta · costo sin impuesto</div>`
+            + (filas || '<div style="color:#9ca3af;font-size:13px;">Esta receta no tiene insumos cargados.</div>')
+            + `<div style="text-align:right;font-size:13px;font-weight:700;margin-top:8px;">Costo total: ${f(r.costo_total)}</div>`;
+        cont.dataset.loaded = '1';
+    } catch (e) {
+        cont.innerHTML = '<span style="color:#dc2626;font-size:13px;">No se pudo cargar el detalle.</span>';
+    }
 }
 
 // ── INSUMOS ───────────────────────────────────────────────────
