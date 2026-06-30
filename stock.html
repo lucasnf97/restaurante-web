@@ -160,6 +160,7 @@
     <div class="tabs">
         <button class="tab active" id="tab-insumos" onclick="setTab('insumos')">📦 Insumos de Stock</button>
         <button class="tab" id="tab-produccion" onclick="setTab('produccion')">🏭 Insumos de Producción</button>
+        <button class="tab" id="tab-bienes" onclick="setTab('bienes')">🍽 Bienes de Uso</button>
         <button class="tab" id="tab-historial" onclick="setTab('historial')">📋 Historial</button>
     </div>
 
@@ -218,6 +219,31 @@
             <table>
                 <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Costo prod.</th><th>Estado</th><th></th><th></th></tr></thead>
                 <tbody id="tbody-produccion"><tr><td colspan="9" class="empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- BIENES DE USO -->
+    <div id="vista-bienes" style="display:none">
+        <div class="acciones-bar">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalBien()">+ Nuevo bien de uso</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalPerdida()" style="border-color:#dc2626;color:#dc2626;">🗑 Registrar pérdida</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevisionBienes()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
+        </div>
+        <div class="filtros">
+            <input type="text" id="filtro-bien-nombre" placeholder="Buscar por nombre..." oninput="renderBienesUso()">
+            <select id="filtro-bien-estado" onchange="renderBienesUso()">
+                <option value="">Todos los estados</option>
+                <option value="agotado">Agotados</option>
+                <option value="advertencia">En advertencia</option>
+                <option value="ok">OK</option>
+            </select>
+            <span class="hint" style="color:#9ca3af;font-size:12px;align-self:center;">Materiales, herramientas y utensilios del local (vasos, platos, cubiertos, etc.).</span>
+        </div>
+        <div class="tabla-wrapper">
+            <table>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Costo</th><th>Estado</th><th></th><th></th></tr></thead>
+                <tbody id="tbody-bienes"><tr><td colspan="10" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -511,7 +537,7 @@ async function cargarUltimasCompras() {
 
 function _switchTabUI(tab) {
     // Cambia visualmente el tab activo sin disparar ninguna carga de datos
-    ["insumos","produccion","historial"].forEach(t => {
+    ["insumos","produccion","bienes","historial"].forEach(t => {
         document.getElementById(`tab-${t}`).classList.toggle("active", t === tab);
         document.getElementById(`vista-${t}`).style.display = t === tab ? "block" : "none";
     });
@@ -520,6 +546,7 @@ function setTab(tab) {
     _switchTabUI(tab);
     if (tab === "historial")  cargarHistorial();
     if (tab === "produccion") cargarInsumosProduccion();
+    if (tab === "bienes")     cargarBienesUso();
 }
 
 // Despliega los insumos de la receta de un insumo de PRODUCCIÓN (cantidad + costo s/imp).
@@ -1751,6 +1778,170 @@ async function confirmarRevision() {
         if (hayParams) overlay.style.display = 'none';
     }
 })();
+
+// ══════════════ BIENES DE USO ══════════════
+let _bienes = [];
+let _editandoBienId = null;
+function _eB(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function cargarBienesUso() {
+    const tbody = document.getElementById("tbody-bienes");
+    window.UI && UI.skeleton(tbody, 6, 10);
+    try { _bienes = await api.get("/stock/bienes-uso"); renderBienesUso(); }
+    catch(e) { tbody.innerHTML = `<tr><td colspan="10" class="empty">Error: ${e.message}</td></tr>`; }
+}
+function renderBienesUso() {
+    const nombre = (document.getElementById("filtro-bien-nombre").value || "").trim().toLowerCase();
+    const estado = document.getElementById("filtro-bien-estado").value;
+    let data = (_bienes || []).slice();
+    if (nombre) data = data.filter(b => (b.nombre || "").toLowerCase().includes(nombre));
+    if (estado === "agotado")          data = data.filter(b => b.agotado);
+    else if (estado === "advertencia") data = data.filter(b => b.en_advertencia && !b.agotado);
+    else if (estado === "ok")          data = data.filter(b => !b.en_advertencia);
+    const tbody = document.getElementById("tbody-bienes");
+    if (!data.length) { tbody.innerHTML = `<tr><td colspan="10" class="empty">Sin bienes de uso. Agregá vasos, platos, utensilios, etc.</td></tr>`; return; }
+    if (!_monedaSimbolo) _monedaSimbolo = simboloMoneda();
+    tbody.innerHTML = data.map(b => {
+        const actual = parseFloat(b.cantidad_actual);
+        const estand = parseFloat(b.cantidad_estandar) || 1;
+        const pct = Math.min(100, (actual / estand) * 100);
+        const fill = b.agotado ? "#dc2626" : b.en_advertencia ? "#ca8a04" : "#16a34a";
+        const badge = b.agotado ? `<span class="badge badge-alert">Agotado</span>`
+            : b.en_advertencia ? `<span class="badge badge-warn">Advertencia</span>` : `<span class="badge badge-ok">OK</span>`;
+        const marca = b.marca ? _eB(b.marca) : '<span style="color:#d1d5db">—</span>';
+        const prov = b.proveedor_nombre ? `<span class="prov-chip">🏢 ${_eB(b.proveedor_nombre)}</span>` : '<span style="color:#d1d5db">—</span>';
+        let costo;
+        if (b.costo_unitario != null) costo = `<strong>${_monedaSimbolo}${(+b.costo_unitario).toFixed(2)}</strong>`;
+        else if (b.ultimo_precio_compra != null) costo = `<span style="color:#9ca3af;" title="Último precio de compra">${_monedaSimbolo}${(+b.ultimo_precio_compra).toFixed(2)} <small>(compra)</small></span>`;
+        else costo = '<span style="color:#d1d5db">—</span>';
+        return `<tr>
+            <td><span onclick="editarBien(${b.id})" title="Editar" style="cursor:pointer;margin-right:6px;">✏️</span><strong>${_eB(b.nombre)}</strong></td>
+            <td>${_eB(b.unidad)}</td>
+            <td><div style="display:flex;align-items:center;gap:8px;"><span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span><div class="stock-bar" style="width:80px;"><div class="stock-bar-fill" style="width:${pct}%;background:${fill};"></div></div></div></td>
+            <td style="font-size:12px;color:#374151;">${b.ubicacion_nombre ? _eB(b.ubicacion_nombre) : '<span style="color:#d1d5db">—</span>'}</td>
+            <td style="font-size:12px;color:#374151;">${marca}</td>
+            <td>${prov}</td>
+            <td style="font-size:13px;">${costo}</td>
+            <td>${badge}</td>
+            <td><button class="btn btn-secondary btn-sm" onclick="verFacturasBien(${b.id},'${_eB(b.nombre).replace(/'/g,"\\'")}')">📋 Facturas</button></td>
+            <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="eliminarBien(${b.id})" title="Eliminar">✕</button></td>
+        </tr>`;
+    }).join("");
+}
+function abrirModalBien() {
+    _editandoBienId = null;
+    document.getElementById("bien-titulo").textContent = "Nuevo bien de uso";
+    ["bn-nombre","bn-actual","bn-estandar","bn-advert","bn-minima","bn-costo"].forEach(id => document.getElementById(id).value = id === "bn-nombre" || id === "bn-costo" ? "" : "0");
+    document.getElementById("bn-unidad").value = "unidad";
+    poblarSelectUbicacion("bn-ubicacion", null);
+    document.getElementById("modal-bien").classList.add("active");
+}
+function editarBien(id) {
+    const b = _bienes.find(x => x.id === id); if (!b) return;
+    _editandoBienId = id;
+    document.getElementById("bien-titulo").textContent = `Editar — ${b.nombre}`;
+    document.getElementById("bn-nombre").value   = b.nombre;
+    document.getElementById("bn-unidad").value   = b.unidad;
+    document.getElementById("bn-actual").value   = b.cantidad_actual;
+    document.getElementById("bn-estandar").value = b.cantidad_estandar;
+    document.getElementById("bn-advert").value   = b.cantidad_advertencia;
+    document.getElementById("bn-minima").value   = b.cantidad_minima;
+    document.getElementById("bn-costo").value    = b.costo_unitario != null ? b.costo_unitario : "";
+    poblarSelectUbicacion("bn-ubicacion", b.ubicacion_id);
+    document.getElementById("modal-bien").classList.add("active");
+}
+async function guardarBien() {
+    const costoRaw = document.getElementById("bn-costo").value;
+    const body = {
+        nombre: document.getElementById("bn-nombre").value.trim(),
+        unidad: document.getElementById("bn-unidad").value,
+        cantidad_actual:      parseFloat(document.getElementById("bn-actual").value) || 0,
+        cantidad_estandar:    parseFloat(document.getElementById("bn-estandar").value) || 0,
+        cantidad_advertencia: parseFloat(document.getElementById("bn-advert").value) || 0,
+        cantidad_minima:      parseFloat(document.getElementById("bn-minima").value) || 0,
+        ubicacion_id:         parseInt(document.getElementById("bn-ubicacion").value) || null,
+        costo_unitario:       (costoRaw === "" ? null : (parseFloat(costoRaw) || 0)),
+    };
+    if (!body.nombre) { alert("El nombre es obligatorio."); return; }
+    try {
+        if (_editandoBienId) await api.patch(`/stock/bienes-uso/${_editandoBienId}`, body);
+        else                 await api.post("/stock/bienes-uso", body);
+        cerrarModal("modal-bien");
+        await cargarBienesUso();
+    } catch(e) { alert("Error: " + (e.message || e)); }
+}
+async function eliminarBien(id) {
+    const b = _bienes.find(x => x.id === id);
+    if (!confirm(`¿Eliminar "${b?.nombre}"? Se borrarán también sus movimientos.`)) return;
+    try { await api.delete(`/stock/bienes-uso/${id}`); await cargarBienesUso(); }
+    catch(e) { alert("Error: " + (e.message || e)); }
+}
+// Pérdida
+function abrirModalPerdida() {
+    const sel = document.getElementById("pe-bien");
+    sel.innerHTML = '<option value="">— Seleccioná —</option>' + (_bienes || []).map(b => `<option value="${b.id}" data-u="${_eB(b.unidad)}">${_eB(b.nombre)}</option>`).join('');
+    document.getElementById("pe-cantidad").value = "";
+    document.getElementById("pe-unidad").value = "";
+    document.getElementById("pe-nota").value = "";
+    document.getElementById("modal-perdida").classList.add("active");
+}
+function perdidaUnidad() {
+    const opt = document.getElementById("pe-bien").selectedOptions[0];
+    document.getElementById("pe-unidad").value = opt ? (opt.dataset.u || "") : "";
+}
+async function guardarPerdida() {
+    const id = parseInt(document.getElementById("pe-bien").value);
+    const cant = parseFloat(document.getElementById("pe-cantidad").value);
+    const nota = document.getElementById("pe-nota").value.trim();
+    if (!id) { alert("Elegí un bien."); return; }
+    if (!cant || cant <= 0) { alert("Cantidad inválida."); return; }
+    if (!nota) { alert("El motivo es obligatorio."); return; }
+    try { await api.post("/stock/bienes-uso/registrar-perdida", { bien_uso_id: id, cantidad: cant, nota });
+        cerrarModal("modal-perdida"); await cargarBienesUso();
+    } catch(e) { alert("Error: " + (e.message || e)); }
+}
+// Revisión
+function abrirModalRevisionBienes() {
+    const tbody = document.getElementById("revb-tbody");
+    tbody.innerHTML = (_bienes || []).map(b => `<tr>
+        <td>${_eB(b.nombre)}</td><td>${_eB(b.unidad)}</td>
+        <td style="text-align:right;">${+b.cantidad_actual}</td>
+        <td style="text-align:right;"><input type="number" step="0.001" data-id="${b.id}" value="${+b.cantidad_actual}" style="width:90px;text-align:right;"></td>
+    </tr>`).join('') || '<tr><td colspan="4" class="empty">Sin bienes de uso</td></tr>';
+    document.getElementById("modal-revision-bienes").classList.add("active");
+}
+async function guardarRevisionBienes() {
+    const items = [];
+    document.querySelectorAll("#revb-tbody input[data-id]").forEach(inp => {
+        const v = parseFloat(inp.value);
+        if (!isNaN(v)) items.push({ bien_uso_id: parseInt(inp.dataset.id), stock_real: v });
+    });
+    try { const r = await api.post("/stock/bienes-uso/revision", { items });
+        cerrarModal("modal-revision-bienes");
+        if (window.UI) UI.toast(r.mensaje || "Revisión guardada", "success");
+        await cargarBienesUso();
+    } catch(e) { alert("Error: " + (e.message || e)); }
+}
+// Facturas / movimientos
+async function verFacturasBien(id, nombre) {
+    document.getElementById("bmov-titulo").textContent = `Movimientos · ${nombre}`;
+    const tbody = document.getElementById("bmov-tbody");
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">Cargando…</td></tr>`;
+    document.getElementById("modal-bien-movs").classList.add("active");
+    try {
+        const movs = await api.get(`/stock/bienes-uso/${id}/movimientos`);
+        if (!_monedaSimbolo) _monedaSimbolo = simboloMoneda();
+        const tlbl = { compra:"Compra", perdida:"Pérdida", revision:"Revisión" };
+        tbody.innerHTML = movs.length ? movs.map(m => `<tr>
+            <td style="font-size:12px;">${(m.creado_en||'').toString().slice(0,16).replace('T',' ')}</td>
+            <td>${tlbl[m.tipo] || m.tipo}</td>
+            <td class="num">${m.cantidad != null ? (+m.cantidad) : '—'}</td>
+            <td class="num">${m.precio_unitario != null ? _monedaSimbolo + (+m.precio_unitario).toFixed(2) : '—'}</td>
+            <td>${m.proveedor_nombre ? _eB(m.proveedor_nombre) : '—'}</td>
+            <td style="font-size:12px;color:#6b7280;">${_eB(m.nota || m.referencia || '')}</td>
+        </tr>`).join('') : `<tr><td colspan="6" class="empty">Sin movimientos</td></tr>`;
+    } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Error: ${e.message}</td></tr>`; }
+}
 </script>
 
 <!-- Modal Ver Receta -->
@@ -1873,6 +2064,89 @@ async function confirmarRevision() {
             </div>
         </div>
 
+    </div>
+</div>
+
+<!-- Modal Bien de uso (nuevo/editar) -->
+<div class="modal-overlay" id="modal-bien">
+    <div class="modal" style="max-width:520px;">
+        <h3 id="bien-titulo">Nuevo bien de uso</h3>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="bn-nombre" placeholder="Ej: Vasos de vidrio"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Unidad *</label>
+                <select id="bn-unidad">
+                    <option value="unidad">unidad</option><option value="docena">docena</option>
+                    <option value="caja">caja</option><option value="paquete">paquete</option><option value="juego">juego</option>
+                    <option value="kg">kg</option><option value="g">g</option><option value="l">l</option><option value="ml">ml</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Stock actual</label><input type="number" id="bn-actual" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Cantidad estándar</label><input type="number" id="bn-estandar" min="0" step="0.001" value="0"></div>
+            <div class="form-group"><label>Stock de advertencia</label><input type="number" id="bn-advert" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Stock mínimo (agotado)</label><input type="number" id="bn-minima" min="0" step="0.001" value="0"></div>
+            <div class="form-group"><label>Costo unitario</label><input type="number" id="bn-costo" min="0" step="0.0001" placeholder="(vacío = último precio de compra)"></div>
+        </div>
+        <div class="form-group"><label>Ubicación</label><select id="bn-ubicacion"></select></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-bien')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarBien()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Registrar pérdida (bien de uso) -->
+<div class="modal-overlay" id="modal-perdida">
+    <div class="modal" style="max-width:460px;">
+        <h3>🗑 Registrar pérdida</h3>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:14px;">Extravío, rotura o deterioro de un bien de uso. El stock se descuenta.</p>
+        <div class="form-group"><label>Bien de uso *</label><select id="pe-bien" onchange="perdidaUnidad()"></select></div>
+        <div class="form-row">
+            <div class="form-group"><label>Cantidad *</label><input type="number" id="pe-cantidad" min="0.001" step="0.001" placeholder="0"></div>
+            <div class="form-group"><label>Unidad</label><input type="text" id="pe-unidad" disabled style="background:#f9fafb;color:#6b7280;border-color:#e5e7eb;"></div>
+        </div>
+        <div class="form-group"><label>Motivo *</label>
+            <textarea id="pe-nota" rows="3" maxlength="300" placeholder="Ej: Rotura, extravío, deterioro" style="width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-perdida')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarPerdida()" style="background:#dc2626;border-color:#dc2626;">Confirmar pérdida</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Revisión de bienes de uso -->
+<div class="modal-overlay" id="modal-revision-bienes">
+    <div class="modal" style="max-width:600px;">
+        <h3>🔍 Revisión de bienes de uso</h3>
+        <p style="font-size:13px;color:#666;margin-bottom:10px;">Ingresá el stock <strong>real</strong> de cada bien. Solo se guardan los que tengan diferencia.</p>
+        <div class="tabla-wrapper" style="max-height:50vh;overflow:auto;">
+            <table>
+                <thead><tr><th>Bien</th><th>Unidad</th><th style="text-align:right;">Stock teórico</th><th style="text-align:right;">Stock real</th></tr></thead>
+                <tbody id="revb-tbody"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-revision-bienes')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarRevisionBienes()" style="background:#f59e0b;border-color:#f59e0b;">Guardar revisión</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Movimientos de un bien de uso -->
+<div class="modal-overlay" id="modal-bien-movs">
+    <div class="modal" style="max-width:580px;">
+        <h3 id="bmov-titulo">Movimientos</h3>
+        <div class="tabla-wrapper" style="max-height:55vh;overflow:auto;">
+            <table>
+                <thead><tr><th>Fecha</th><th>Tipo</th><th class="num">Cant.</th><th class="num">Precio</th><th>Proveedor</th><th>Nota</th></tr></thead>
+                <tbody id="bmov-tbody"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal('modal-bien-movs')">Cerrar</button></div>
     </div>
 </div>
 
