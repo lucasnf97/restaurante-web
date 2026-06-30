@@ -111,7 +111,10 @@
         .item-confirm-row.servicio { border-left: 4px solid #8b5cf6; }
         .item-confirm-row.omitido { border-left: 4px solid #d1d5db; opacity: 0.5; }
         .item-confirm-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .item-desc-wrap { display: flex; align-items: center; gap: 6px; }
         .item-desc-original { font-size: 12px; color: #888; font-style: italic; }
+        .btn-lupa-fuente { background: none; border: none; cursor: pointer; font-size: 13px; line-height: 1; padding: 1px 4px; border-radius: 4px; transition: background .15s; flex-shrink: 0; }
+        .btn-lupa-fuente:hover { background: #eef2ff; }
         /* Insumo · Cantidad · Marca · Precio s/imp · % imp · Precio c/imp · Precio unitario */
         .item-fields { display: grid; grid-template-columns: 1.7fr 0.65fr 0.7fr 0.85fr 0.5fr 0.85fr 0.8fr; gap: 7px; align-items: end; }
         /* Servicio · Monto s/imp · % imp · Monto c/imp */
@@ -891,7 +894,12 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
                         <option value="omitir" ${esOmitido ? 'selected' : ''}>✕ Omitir</option>
                     </select>
                 </div>
-                <div class="item-desc-original">Factura: "${descripcion}"</div>
+                <div class="item-desc-wrap">
+                    ${(_confFuentes[idx] && _confFuentes[idx].nombre)
+                        ? `<button type="button" class="btn-lupa-fuente" onclick="resaltarNombreFuente('${idx}')" title="Resaltar en el PDF dónde aparece este nombre">🔍</button>`
+                        : ''}
+                    <div class="item-desc-original">Factura: "${descripcion}"</div>
+                </div>
             </div>
             <button onclick="quitarItemConf('${idx}')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:18px;line-height:1;">✕</button>
         </div>
@@ -1257,22 +1265,20 @@ function _campoDeInput(id) {
     return campo ? { idx, campo } : null;
 }
 
-// Delegación: al enfocar un campo de un ítem, resaltar su fuente
+// Delegación: al enfocar un campo numérico de un ítem (cantidad/precio), resaltar su fuente.
+// El NOMBRE ya NO se resalta automáticamente: solo mediante el botón 🔍 de cada línea.
 document.addEventListener('focusin', (e) => {
     const t = e.target;
     if (!t || !t.id || !document.getElementById('conf-items')?.contains(t)) return;
     const m = _campoDeInput(t.id);
-    if (m) _highlightFuente(m.idx, m.campo); else _clearFuente();
+    if (!m || m.campo === 'nombre') return;   // el nombre se resalta solo con la lupa 🔍
+    _highlightFuente(m.idx, m.campo);
 });
-// Pasar el mouse por el nombre de la factura también resalta el nombre
-document.addEventListener('mouseover', (e) => {
-    const desc = e.target.closest && e.target.closest('.item-desc-original');
-    if (!desc) return;
-    const row = desc.closest('[id^="conf-item-"]');
-    if (!row) return;
-    const idx = row.id.replace('conf-item-', '');
+
+// Lupa 🔍 a la izquierda del nombre: resalta en el PDF dónde aparece ese nombre (acción manual).
+function resaltarNombreFuente(idx) {
     _highlightFuente(idx, 'nombre');
-});
+}
 
 // ── SERVICIO RÁPIDO ───────────────────────────────────────────
 function abrirServicioRapido(idx) {
