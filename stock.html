@@ -216,8 +216,8 @@
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Costo prod.</th><th>Estado</th><th></th><th></th></tr></thead>
-                <tbody id="tbody-produccion"><tr><td colspan="10" class="empty">Cargando...</td></tr></tbody>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Costo prod.</th><th>Estado</th><th></th><th></th></tr></thead>
+                <tbody id="tbody-produccion"><tr><td colspan="9" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -921,7 +921,7 @@ async function cargarInsumosProduccion() {
     const nombre = document.getElementById("filtro-prod-nombre").value.trim();
     const estado = document.getElementById("filtro-prod-estado").value;
     const prov   = document.getElementById("filtro-prod-prov")?.value || "";
-    window.UI && UI.skeleton(document.getElementById("tbody-produccion"), 6, 10);
+    window.UI && UI.skeleton(document.getElementById("tbody-produccion"), 6, 9);
     try {
         let data = await api.get("/stock/insumos-produccion");
         _insumosProduccion = data;
@@ -938,7 +938,7 @@ async function cargarInsumosProduccion() {
         if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || "") === prov);
 
         const tbody = document.getElementById("tbody-produccion");
-        if (!data.length) { tbody.innerHTML = `<tr><td colspan="10" class="empty">Sin insumos de producción</td></tr>`; return; }
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin insumos de producción</td></tr>`; return; }
         tbody.innerHTML = data.map(i => {
             const actual = parseFloat(i.cantidad_actual);
             const estand = parseFloat(i.cantidad_estandar) || 1;
@@ -974,14 +974,13 @@ async function cargarInsumosProduccion() {
                 </div></td>
                 <td style="font-size:12px;color:#374151;">${i.ubicacion_nombre || '<span style="color:#d1d5db">—</span>'}</td>
                 <td style="font-size:12px;color:#374151;">${marca}</td>
-                <td>${provNombre}</td>
                 <td style="font-size:13px;">${costoCell}</td>
                 <td>${badge}</td>
                 <td>${btnHistorial}</td>
                 <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarInsumoProduccion(${i.id})" title="Eliminar insumo">✕</button></td>
             </tr>
             <tr class="cos-det" id="cos-det-${i.id}" style="display:none;">
-                <td colspan="10" style="padding:0;background:#f9fafb;">
+                <td colspan="9" style="padding:0;background:#f9fafb;">
                     <div id="cos-det-cont-${i.id}" style="padding:10px 16px 12px 30px;">…</div>
                 </td>
             </tr>`;

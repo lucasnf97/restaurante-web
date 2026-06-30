@@ -391,7 +391,11 @@
         </div>
         <div class="form-row">
             <div class="form-group"><label>Cantidad estándar</label><input type="number" id="ri-estandar" min="0" step="0.001" value="0"></div>
-            <div class="form-group"><label>Cantidad mínima</label><input type="number" id="ri-minima" min="0" step="0.001" value="0"></div>
+            <div class="form-group"><label>Stock de advertencia</label><input type="number" id="ri-advert" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Stock mínimo (agotado)</label><input type="number" id="ri-minima" min="0" step="0.001" value="0"></div>
+            <div class="form-group"></div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-insumo-rapido')">Cancelar</button>
@@ -1227,7 +1231,7 @@ function abrirServicioRapido(idx) {
 // ── GUARDAR INSUMO RÁPIDO ─────────────────────────────────────
 function abrirInsumoRapido(idx) {
     _insumoRapidoIdx = idx;
-    ["ri-nombre","ri-actual","ri-estandar","ri-minima"].forEach(id => document.getElementById(id).value = id === "ri-nombre" ? "" : "0");
+    ["ri-nombre","ri-actual","ri-estandar","ri-advert","ri-minima"].forEach(id => document.getElementById(id).value = id === "ri-nombre" ? "" : "0");
     document.getElementById("ri-unidad").value = "unidad";
     const el = document.getElementById("modal-insumo-rapido");
     el.style.zIndex = "600";
@@ -1239,8 +1243,8 @@ async function guardarInsumoRapido() {
         nombre: document.getElementById("ri-nombre").value.trim(),
         unidad: document.getElementById("ri-unidad").value,
         cantidad_actual:      parseFloat(document.getElementById("ri-actual").value) || 0,
-        cantidad_estandar:    0,
-        cantidad_advertencia: 0,
+        cantidad_estandar:    parseFloat(document.getElementById("ri-estandar").value) || 0,
+        cantidad_advertencia: parseFloat(document.getElementById("ri-advert").value) || 0,
         cantidad_minima:      parseFloat(document.getElementById("ri-minima").value) || 0
     };
     if (!body.nombre) { alert("El nombre es obligatorio."); return; }
