@@ -247,7 +247,7 @@
         <div class="form-group"><label>Nombre *</label><input type="text" id="ins-nombre" placeholder="Ej: Harina 000"></div>
         <div class="form-row">
             <div class="form-group"><label>Unidad *</label>
-                <select id="ins-unidad">
+                <select id="ins-unidad" onchange="onUnidadChange()">
                     <option value="kg">kg</option><option value="g">g</option><option value="l">l</option>
                     <option value="ml">ml</option><option value="unidad">unidad</option><option value="docena">docena</option>
                     <option value="porcion">porción</option><option value="rollo">rollo</option>
@@ -748,6 +748,7 @@ function abrirModalInsumo() {
         document.getElementById(id).value = id === "ins-nombre" ? "" : "0";
     });
     document.getElementById("ins-unidad").value = "unidad";
+    document.getElementById("ins-unidad").dataset.prev = "unidad";
     document.getElementById("ins-costo").value = "";
     document.getElementById("ins-costo-auto").dataset.precio = "";
     document.getElementById("ins-costo-hint").textContent = "";
@@ -764,6 +765,7 @@ function editarInsumo(id) {
     document.getElementById("insumo-titulo").textContent = `Editar — ${ins.nombre}`;
     document.getElementById("ins-nombre").value      = ins.nombre;
     document.getElementById("ins-unidad").value      = ins.unidad;
+    document.getElementById("ins-unidad").dataset.prev = ins.unidad;
     document.getElementById("ins-actual").value      = ins.cantidad_actual;
     document.getElementById("ins-estandar").value    = ins.cantidad_estandar;
     document.getElementById("ins-advertencia").value = ins.cantidad_advertencia;
@@ -784,6 +786,39 @@ function autocompletarCosto() {
     const p = document.getElementById("ins-costo-auto").dataset.precio;
     if (p === "" || p == null) { alert("Este insumo no tiene compras registradas para autocompletar."); return; }
     document.getElementById("ins-costo").value = p;
+}
+
+// Al cambiar la unidad de medida, convierte el costo (y la base de "↺ desde compra") a la
+// nueva unidad para pares convertibles (g↔kg, ml↔l). Así el costo no queda pegado a la unidad
+// vieja (ej.: 0,05 por g → 50 por kg). Para cambios no convertibles, avisa que lo revisen.
+const _UNIT_FACTOR = { 'g>kg': 1000, 'kg>g': 1/1000, 'ml>l': 1000, 'l>ml': 1/1000 };
+function onUnidadChange() {
+    const sel = document.getElementById("ins-unidad");
+    const oldU = sel.dataset.prev || '', newU = sel.value;
+    sel.dataset.prev = newU;
+    const hint = document.getElementById("ins-costo-hint");
+    if (!oldU || oldU === newU) return;
+    const factor = _UNIT_FACTOR[`${oldU}>${newU}`];
+    const recEl = document.getElementById("ins-costo-auto");
+    const costoEl = document.getElementById("ins-costo");
+    if (!factor) {
+        if (hint) hint.textContent = `Cambiaste la unidad a "${newU}". Revisá el costo y las cantidades para la nueva unidad.`;
+        return;
+    }
+    // base = costo manual si lo hay; si no, el último precio de compra
+    const baseStr = costoEl.value !== "" ? costoEl.value : (recEl.dataset.precio || "");
+    // convertir la base de compra para que "↺ desde compra" quede en la nueva unidad
+    if (recEl.dataset.precio !== "" && recEl.dataset.precio != null) {
+        const r = parseFloat(recEl.dataset.precio);
+        if (!isNaN(r)) recEl.dataset.precio = String(Math.round(r * factor * 10000) / 10000);
+    }
+    if (baseStr === "" || isNaN(parseFloat(baseStr))) {
+        if (hint) hint.textContent = `Cambiaste la unidad a "${newU}". Cargá el costo por ${newU}.`;
+        return;
+    }
+    const nuevo = Math.round(parseFloat(baseStr) * factor * 10000) / 10000;
+    costoEl.value = nuevo;
+    if (hint) hint.textContent = `Costo convertido a ${newU}: ${baseStr}/${oldU} → ${nuevo}/${newU}. Ajustá si hace falta.`;
 }
 
 async function guardarInsumo() {
