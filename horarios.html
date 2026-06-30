@@ -992,7 +992,10 @@
           #desglose-modal .dg-hl{ position:absolute; top:0; font-size:10px; color:#9ca3af; transform:translateX(-50%); }
           #desglose-modal .dg-row .dg-track{ background-image:repeating-linear-gradient(90deg,#eef0f3 0 1px, transparent 1px); }
           #desglose-modal .dg-blk{ position:absolute; top:5px; height:26px; border-radius:5px; color:#fff; font-size:10px; font-weight:700; padding:2px 5px; overflow:hidden; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,.18); display:flex; align-items:center; }
-          #desglose-modal .dg-empty{ padding:30px; text-align:center; color:#9ca3af; }`;
+          #desglose-modal .dg-empty{ padding:30px; text-align:center; color:#9ca3af; }
+          #desglose-modal .dg-legend{ display:flex; flex-wrap:wrap; gap:14px; padding:8px 18px; border-bottom:1px solid #f1f1f1; font-size:11px; color:#374151; }
+          #desglose-modal .dg-legend span{ display:inline-flex; align-items:center; gap:5px; }
+          #desglose-modal .dg-legend i{ width:12px; height:12px; border-radius:3px; display:inline-block; }`;
         document.head.appendChild(st);
     }
     function abrirDesgloseDia(fecha){
@@ -1000,11 +1003,12 @@
         _dgInject();
         const _t2=t=>{ const x=String(t||'').slice(0,5).split(':'); return (+x[0]||0)*60+(+x[1]||0); };
         const users=getVisibleUsers().filter(u=>userShifts(u,fecha).length);
-        let minS=Infinity, maxE=-Infinity; const rows=[];
+        let minS=Infinity, maxE=-Infinity; const rows=[]; const rolesUsados=new Set();
         users.forEach(u=>{
             const blocks=[];
             userShifts(u,fecha).forEach(s=>{
-                const color=getRolColor(s.entry.rol_turno||s.rol);
+                const rol=s.entry.rol_turno||s.rol; rolesUsados.add(rol);
+                const color=getRolColor(rol);
                 (s.entry.franjas||[]).forEach(f=>{
                     let a=_t2(f.inicio), b=_t2(f.fin); if(b<=a) b+=1440;
                     minS=Math.min(minS,a); maxE=Math.max(maxE,b);
@@ -1040,7 +1044,9 @@
         if(!ov){ ov=document.createElement('div'); ov.id='desglose-modal'; ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
         const dd=new Date(fecha+'T00:00:00');
         const titulo=`Desglose · ${DIAS_LARGO[jsDay2Api(dd)]} ${dd.getDate()} de ${MESES[dd.getMonth()]}`;
-        ov.innerHTML=`<div class="dg-card"><div class="dg-top"><h3>🗓 ${titulo}</h3><span class="dg-x" onclick="document.getElementById('desglose-modal').style.display='none'">✕</span></div>${body}</div>`;
+        const leyenda = rolesUsados.size
+            ? `<div class="dg-legend">${[...rolesUsados].map(r=>`<span><i style="background:${getRolColor(r)}"></i>${_esc(getRolLabel(r))}</span>`).join('')}</div>` : '';
+        ov.innerHTML=`<div class="dg-card"><div class="dg-top"><h3>🗓 ${titulo}</h3><span class="dg-x" onclick="document.getElementById('desglose-modal').style.display='none'">✕</span></div>${leyenda}${body}</div>`;
         ov.style.display='flex';
     }
 
