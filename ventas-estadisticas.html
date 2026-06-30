@@ -87,44 +87,6 @@ body.config-open .wgt-drag { display:flex; }
 .tv-btn-buscar:hover { background:#4338ca; }
 .tv-btn-buscar:disabled { background:#9ca3af; cursor:not-allowed; }
 
-/* Top-3 lista con medallas (reemplaza el podio gráfico) */
-.top3-list { padding:8px 16px 2px; }
-.top3-item {
-    display:flex; align-items:center; gap:10px;
-    padding:9px 0; border-bottom:1px solid #f3f4f6; min-width:0;
-}
-.top3-item:last-child { border-bottom:none; }
-.top3-medal { font-size:20px; flex-shrink:0; width:26px; text-align:center; }
-.top3-info { flex:1; min-width:0; }
-.top3-name { font-size:14px; font-weight:700; color:#1a1a2e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.top3-cat  { font-size:10px; color:#9ca3af; }
-.top3-right { display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0; }
-.top3-qty { font-size:12px; font-weight:700; color:#374151; white-space:nowrap; }
-.top3-rev { font-size:11px; font-weight:700; color:#4f46e5; white-space:nowrap; }
-
-/* Ranking */
-.tv-section-label {
-    padding:10px 16px 2px; font-size:10px; font-weight:700;
-    text-transform:uppercase; letter-spacing:.6px; color:#9ca3af;
-}
-.ranking-list { padding:2px 16px 6px; }
-.ranking-item {
-    display:flex; align-items:center; gap:10px;
-    padding:7px 0; border-bottom:1px solid #f3f4f6; min-width:0;
-}
-.ranking-item:last-child { border-bottom:none; }
-.rank-num {
-    width:22px; height:22px; border-radius:50%; background:#f3f4f6;
-    display:flex; align-items:center; justify-content:center;
-    font-size:10px; font-weight:800; color:#6b7280; flex-shrink:0;
-}
-.rank-info { flex:1; min-width:0; }
-.rank-name { font-size:13px; font-weight:600; color:#1a1a2e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.rank-cat  { font-size:10px; color:#9ca3af; }
-.rank-right { display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0; }
-.rank-qty { font-size:12px; font-weight:700; color:#374151; white-space:nowrap; }
-.rank-rev { font-size:11px; font-weight:700; color:#4f46e5; white-space:nowrap; }
-
 .tv-ver-mas {
     display:flex; align-items:center; justify-content:center;
     padding:10px; cursor:pointer; color:#6366f1; font-size:12px; font-weight:700;
@@ -503,7 +465,6 @@ requireAuth();
 // ── Definición de widgets ────────────────────────────────────────
 const CFG_KEY  = 'vest_cfg_v2';
 const WGT_DEFS = [
-    { key:'top_ventas',   icon:'🏆', name:'Top de Ventas',             spans:[2,3]  },
     { key:'calor',        icon:'🌡️', name:'Mapa de Calor — Mesas',     fixedSpan:3 },
     { key:'demanda',      icon:'📊', name:'Análisis de Demanda',        fixedSpan:6 },
     { key:'barras_prod',  icon:'📈', name:'Barras por Producto',        fixedSpan:6 },
@@ -513,8 +474,6 @@ const WGT_DEFS = [
 
 // ── Estado global ────────────────────────────────────────────────
 let cfg         = cargarCfg();
-let topData     = [];
-let showAll     = false;
 let categorias  = [];
 let draggingKey = null;
 
@@ -597,7 +556,6 @@ function applyCfg() {
 }
 
 function buildWgtInner(def) {
-    if (def.key === 'top_ventas')  return buildTopVentasHTML();
     if (def.key === 'calor')       return buildCalorHTML();
     if (def.key === 'demanda')     return buildDemandaHTML();
     if (def.key === 'barras_prod') return buildBarrasHTML('barras_prod');
@@ -606,44 +564,98 @@ function buildWgtInner(def) {
     return `<div style="padding:20px;color:#9ca3af">Widget pendiente</div>`;
 }
 
-// ── Top Ventas: HTML base ────────────────────────────────────────
-function buildTopVentasHTML() {
-    return `
-    <div class="wgt-tv-header">
-        <span class="wgt-drag" title="Arrastrar para reordenar">⠿</span>
-        <span class="wgt-tv-title">🏆 Top de Ventas</span>
-    </div>
-    <div class="tv-filters">
-        <div class="tv-fg">
-            <label>Desde</label>
-            <input type="date" id="tv-desde" value="${getDesdeDefault()}">
-        </div>
-        <div class="tv-fg">
-            <label>Hasta</label>
-            <input type="date" id="tv-hasta" value="${getHastaDefault()}">
-        </div>
-        <div class="tv-fg">
-            <label>Categoría</label>
-            <select id="tv-cat"><option value="">Todas</option></select>
-        </div>
-        <div class="tv-fg fg-nombre">
-            <label>Nombre contiene</label>
-            <input type="text" id="tv-nombre" placeholder="ej: cerveza">
-        </div>
-        <button class="tv-btn-buscar" id="tv-buscar-btn" onclick="buscarTopVentas()">
-            🔍 Buscar
-        </button>
-    </div>
-    <div id="tv-body">
-        <div class="tv-loading"><div class="tv-spinner"></div>Cargando…</div>
-    </div>`;
-}
-
 // ── Widget Rentabilidad y Análisis (POS + ventas importadas × costo) ─────────
 const RENT_CLASE_COLOR = { estrella:'#16a34a', caballo:'#ca8a04', puzzle:'#4f46e5', perro:'#dc2626' };
 const RENT_CLASE_LBL   = { estrella:'⭐ Estrella', caballo:'🐴 Caballo', puzzle:'🧩 Puzzle', perro:'🐶 Perro' };
 const RENT_CLASE_BADGE = { estrella:'#dcfce7;color:#15803d', caballo:'#fef9c3;color:#a16207', puzzle:'#e0e7ff;color:#4338ca', perro:'#fee2e2;color:#b91c1c' };
 let _rentCharts = {};
+
+// Estado de las tablas de Rentabilidad (orden por columna: 1er click desc, 2do asc).
+let _rentProds = [], _rentConsumo = [];
+let _rentDetSort = { col:null, dir:'desc' };
+let _rentConSort = { col:null, dir:'desc' };
+// Comparador genérico: numérico o texto; null/vacío siempre al final.
+function _rentCmp(a, b, dir) {
+    const an = (a === null || a === undefined || a === ''), bn = (b === null || b === undefined || b === '');
+    if (an && bn) return 0;
+    if (an) return 1;
+    if (bn) return -1;
+    let c = (typeof a === 'number' && typeof b === 'number')
+        ? a - b
+        : String(a).localeCompare(String(b), 'es', { numeric:true, sensitivity:'base' });
+    return dir === 'asc' ? c : -c;
+}
+function _rentArrows(prefix, cols, s) {
+    cols.forEach(col => {
+        const el = document.getElementById(`rar-${prefix}-${col}`);
+        if (!el) return;
+        if (s.col === col) { el.textContent = s.dir === 'asc' ? '↑' : '↓'; el.classList.add('active'); }
+        else { el.textContent = '↕'; el.classList.remove('active'); }
+    });
+}
+
+const _RENT_DET_ACC = {
+    nombre:        p => p.nombre,
+    categoria:     p => p.categoria || '',
+    unidades:      p => p.unidades,
+    ingresos_neto: p => p.ingresos_neto,
+    costo_total:   p => p.tiene_receta ? p.costo_total : null,
+    margen_total:  p => p.tiene_receta ? p.margen_total : null,
+    food_cost_pct: p => p.food_cost_pct,
+    clasificacion: p => p.clasificacion || '',
+};
+function renderRentDetalle() {
+    const tb = document.getElementById('rent-detalle');
+    if (!tb) return;
+    let rows = _rentProds.slice();
+    const s = _rentDetSort;
+    if (s.col && _RENT_DET_ACC[s.col]) rows.sort((a, b) => _rentCmp(_RENT_DET_ACC[s.col](a), _RENT_DET_ACC[s.col](b), s.dir));
+    tb.innerHTML = rows.length ? rows.map(p => `<tr>
+        <td><b>${esc(p.nombre)}</b></td><td>${esc(p.categoria||'—')}</td>
+        <td style="text-align:right">${fmtInt(p.unidades)}</td>
+        <td style="text-align:right">${simboloMoneda()} ${fmt(p.ingresos_neto)}</td>
+        <td style="text-align:right">${p.tiene_receta?simboloMoneda()+' '+fmt(p.costo_total):'—'}</td>
+        <td style="text-align:right;font-weight:600;color:${p.margen_total<0?'#dc2626':'#111827'}">${p.tiene_receta?simboloMoneda()+' '+fmt(p.margen_total):'—'}</td>
+        <td style="text-align:right">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td>
+        <td>${p.clasificacion?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:${RENT_CLASE_BADGE[p.clasificacion]}">${RENT_CLASE_LBL[p.clasificacion]}</span>`:'<span style="color:#d1d5db">sin receta</span>'}</td>
+    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:16px;">Sin ventas en el período.</td></tr>';
+    _rentArrows('det', Object.keys(_RENT_DET_ACC), s);
+}
+function sortRentDet(col) {
+    const s = _rentDetSort;
+    if (s.col === col) s.dir = (s.dir === 'desc') ? 'asc' : 'desc';
+    else { s.col = col; s.dir = 'desc'; }
+    renderRentDetalle();
+}
+
+const _RENT_CON_ACC = {
+    nombre:       i => i.nombre,
+    consumido:    i => i.consumido,
+    unidad:       i => i.unidad || '',
+    costo_total:  i => i.costo_total,
+    stock_actual: i => i.stock_actual,
+    a_reponer:    i => i.a_reponer,
+};
+function renderRentConsumo() {
+    const tb = document.getElementById('rent-consumo');
+    if (!tb) return;
+    let rows = _rentConsumo.slice();
+    const s = _rentConSort;
+    if (s.col && _RENT_CON_ACC[s.col]) rows.sort((a, b) => _rentCmp(_RENT_CON_ACC[s.col](a), _RENT_CON_ACC[s.col](b), s.dir));
+    tb.innerHTML = rows.length ? rows.map(i => `<tr>
+        <td><b>${esc(i.nombre)}</b></td><td style="text-align:right">${fmt(i.consumido)}</td><td>${esc(i.unidad||'')}</td>
+        <td style="text-align:right">${i.costo_total?simboloMoneda()+' '+fmt(i.costo_total):'—'}</td>
+        <td style="text-align:right">${fmt(i.stock_actual)}</td>
+        <td style="text-align:right;font-weight:600;color:${i.a_reponer>0?'#dc2626':'#16a34a'}">${i.a_reponer>0?fmt(i.a_reponer):'✓'}</td></tr>`).join('')
+        : '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">Cargá recetas a los productos para ver el consumo.</td></tr>';
+    _rentArrows('con', Object.keys(_RENT_CON_ACC), s);
+}
+function sortRentCon(col) {
+    const s = _rentConSort;
+    if (s.col === col) s.dir = (s.dir === 'desc') ? 'asc' : 'desc';
+    else { s.col = col; s.dir = 'desc'; }
+    renderRentConsumo();
+}
 
 function buildRentabilidadHTML() {
     return `
@@ -675,17 +687,33 @@ function buildRentabilidadHTML() {
         <div style="font-weight:700;font-size:13px;margin:16px 0 6px;">📦 Consumo de insumos <span id="rent-consumo-total" style="font-weight:400;color:#6b7280;font-size:12px;"></span></div>
         <div style="overflow:auto;max-height:280px;border:1px solid #eef2f7;border-radius:8px;">
         <table class="rent-tbl" style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead><tr><th>Insumo</th><th style="text-align:right">Consumido</th><th>Unidad</th><th style="text-align:right">Costo total</th><th style="text-align:right">Stock</th><th style="text-align:right">A reponer</th></tr></thead>
+            <thead><tr>
+                <th class="rent-th" onclick="sortRentCon('nombre')">Insumo <span class="rent-arrow" id="rar-con-nombre">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentCon('consumido')">Consumido <span class="rent-arrow" id="rar-con-consumido">↕</span></th>
+                <th class="rent-th" onclick="sortRentCon('unidad')">Unidad <span class="rent-arrow" id="rar-con-unidad">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentCon('costo_total')">Costo total <span class="rent-arrow" id="rar-con-costo_total">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentCon('stock_actual')">Stock <span class="rent-arrow" id="rar-con-stock_actual">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentCon('a_reponer')">A reponer <span class="rent-arrow" id="rar-con-a_reponer">↕</span></th>
+            </tr></thead>
             <tbody id="rent-consumo"><tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">—</td></tr></tbody>
         </table></div>
         <div style="font-weight:700;font-size:13px;margin:16px 0 6px;">📋 Detalle por producto</div>
         <div style="overflow:auto;max-height:340px;border:1px solid #eef2f7;border-radius:8px;">
         <table class="rent-tbl" style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead><tr><th>Producto</th><th>Categoría</th><th style="text-align:right">Unid.</th><th style="text-align:right">Ingresos</th><th style="text-align:right">Costo</th><th style="text-align:right">Margen</th><th style="text-align:right">Food-cost%</th><th>Clase</th></tr></thead>
+            <thead><tr>
+                <th class="rent-th" onclick="sortRentDet('nombre')">Producto <span class="rent-arrow" id="rar-det-nombre">↕</span></th>
+                <th class="rent-th" onclick="sortRentDet('categoria')">Categoría <span class="rent-arrow" id="rar-det-categoria">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentDet('unidades')">Unid. <span class="rent-arrow" id="rar-det-unidades">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentDet('ingresos_neto')">Ingresos <span class="rent-arrow" id="rar-det-ingresos_neto">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentDet('costo_total')">Costo <span class="rent-arrow" id="rar-det-costo_total">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentDet('margen_total')">Margen <span class="rent-arrow" id="rar-det-margen_total">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentDet('food_cost_pct')">Food-cost% <span class="rent-arrow" id="rar-det-food_cost_pct">↕</span></th>
+                <th class="rent-th" onclick="sortRentDet('clasificacion')">Clase <span class="rent-arrow" id="rar-det-clasificacion">↕</span></th>
+            </tr></thead>
             <tbody id="rent-detalle"><tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:16px;">Cargando…</td></tr></tbody>
         </table></div>
     </div>
-    <style>.rent-tbl th{position:sticky;top:0;background:#f8fafc;color:#9ca3af;font-size:10px;text-transform:uppercase;padding:6px 8px;text-align:left;z-index:1}.rent-tbl td{padding:6px 8px;border-top:1px solid #f1f5f9}</style>`;
+    <style>.rent-tbl th{position:sticky;top:0;background:#f8fafc;color:#9ca3af;font-size:10px;text-transform:uppercase;padding:6px 8px;text-align:left;z-index:1}.rent-tbl td{padding:6px 8px;border-top:1px solid #f1f5f9}.rent-tbl th.rent-th{cursor:pointer;user-select:none}.rent-tbl th.rent-th:hover{background:#eef2f7}.rent-arrow{margin-left:3px;color:#cbd5e1;font-size:9px}.rent-arrow.active{color:#4f46e5}</style>`;
 }
 
 function rentKpi(lbl, val){ return `<div style="background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:10px 12px;"><div style="font-size:11px;color:#6b7280;font-weight:600">${lbl}</div><div style="font-size:18px;font-weight:800;color:#111827;margin-top:3px">${val}</div></div>`; }
@@ -725,25 +753,14 @@ async function cargarRentabilidad() {
         options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
     });
 
-    document.getElementById('rent-detalle').innerHTML = prods.length ? prods.map(p=>`<tr>
-        <td><b>${esc(p.nombre)}</b></td><td>${esc(p.categoria||'—')}</td>
-        <td style="text-align:right">${fmtInt(p.unidades)}</td>
-        <td style="text-align:right">${simboloMoneda()} ${fmt(p.ingresos_neto)}</td>
-        <td style="text-align:right">${p.tiene_receta?simboloMoneda()+' '+fmt(p.costo_total):'—'}</td>
-        <td style="text-align:right;font-weight:600;color:${p.margen_total<0?'#dc2626':'#111827'}">${p.tiene_receta?simboloMoneda()+' '+fmt(p.margen_total):'—'}</td>
-        <td style="text-align:right">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td>
-        <td>${p.clasificacion?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:${RENT_CLASE_BADGE[p.clasificacion]}">${RENT_CLASE_LBL[p.clasificacion]}</span>`:'<span style="color:#d1d5db">sin receta</span>'}</td>
-    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:16px;">Sin ventas en el período.</td></tr>';
+    _rentProds = prods || [];
+    renderRentDetalle();
 
     try {
         const cons = await api.get(`/ventas/consumo-insumos?desde=${desde}&hasta=${hasta}`);
         document.getElementById('rent-consumo-total').textContent = cons.insumos.length ? `· costo total ${simboloMoneda()} ${fmt(cons.costo_total)}` : '';
-        document.getElementById('rent-consumo').innerHTML = cons.insumos.length ? cons.insumos.map(i=>`<tr>
-            <td><b>${esc(i.nombre)}</b></td><td style="text-align:right">${fmt(i.consumido)}</td><td>${esc(i.unidad||'')}</td>
-            <td style="text-align:right">${i.costo_total?simboloMoneda()+' '+fmt(i.costo_total):'—'}</td>
-            <td style="text-align:right">${fmt(i.stock_actual)}</td>
-            <td style="text-align:right;font-weight:600;color:${i.a_reponer>0?'#dc2626':'#16a34a'}">${i.a_reponer>0?fmt(i.a_reponer):'✓'}</td></tr>`).join('')
-            : '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">Cargá recetas a los productos para ver el consumo.</td></tr>';
+        _rentConsumo = cons.insumos || [];
+        renderRentConsumo();
     } catch(e) { /* consumo opcional */ }
 }
 
@@ -752,21 +769,6 @@ async function initWidgets() {
     // Cargar categorías (compartidas entre widgets)
     if (!categorias.length) {
         try { categorias = await api.get('/ventas/categorias'); } catch { /* ok */ }
-    }
-
-    if (document.getElementById('tv-body')) {
-        const sel = document.getElementById('tv-cat');
-        if (sel && sel.options.length <= 1) {
-            categorias.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id; opt.textContent = c.nombre;
-                sel.appendChild(opt);
-            });
-        }
-        document.getElementById('tv-nombre')?.addEventListener('keydown', e => {
-            if (e.key === 'Enter') buscarTopVentas();
-        });
-        await buscarTopVentas();
     }
 
     if (document.getElementById('hm-body')) {
@@ -782,100 +784,6 @@ async function initWidgets() {
     if (document.getElementById('rent-body'))        cargarRentabilidad();
 }
 
-// ── API: cargar top productos ────────────────────────────────────
-async function buscarTopVentas() {
-    const btn = document.getElementById('tv-buscar-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
-
-    const desde  = document.getElementById('tv-desde')?.value  || getDesdeDefault();
-    const hasta  = document.getElementById('tv-hasta')?.value  || getHastaDefault();
-    const catId  = document.getElementById('tv-cat')?.value    || '';
-    const nombre = document.getElementById('tv-nombre')?.value.trim() || '';
-
-    let url = `/ventas/top-productos?desde=${desde}&hasta=${hasta}&limit=20`;
-    if (catId)  url += `&categoria_id=${catId}`;
-    if (nombre) url += `&nombre=${encodeURIComponent(nombre)}`;
-
-    try {
-        topData = await api.get(url);
-        showAll = false;
-        renderTopVentas();
-    } catch(e) {
-        const body = document.getElementById('tv-body');
-        if (body) body.innerHTML = `<div class="tv-sin-datos">⚠️ Error al cargar: ${esc(e.message)}</div>`;
-    } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '🔍 Buscar'; }
-    }
-}
-
-// ── Render: lista con medallas ───────────────────────────────────
-function renderTopVentas() {
-    const body = document.getElementById('tv-body');
-    if (!body) return;
-
-    if (!topData.length) {
-        body.innerHTML = `<div class="tv-sin-datos">📭 Sin ventas en el período seleccionado</div>`;
-        return;
-    }
-
-    const MEDALS = ['🥇','🥈','🥉'];
-    let html = '';
-
-    // ─ TOP 3 con medallas ────────────────────────────────────────
-    html += `<div class="top3-list">`;
-    topData.slice(0, 3).forEach((d, i) => {
-        html += `
-        <div class="top3-item">
-            <div class="top3-medal">${MEDALS[i]}</div>
-            <div class="top3-info">
-                <div class="top3-name">${esc(d.nombre)}</div>
-                ${d.categoria ? `<div class="top3-cat">${esc(d.categoria)}</div>` : ''}
-            </div>
-            <div class="top3-right">
-                <div class="top3-qty">${fmtInt(d.cantidad_vendida)} uds</div>
-                <div class="top3-rev">${simboloMoneda()} ${fmt(d.ingresos)}</div>
-            </div>
-        </div>`;
-    });
-    html += `</div>`;
-
-    // ─ LISTA 4°+ ─────────────────────────────────────────────────
-    const resto = topData.slice(3);
-    if (resto.length) {
-        const visible  = showAll ? resto : resto.slice(0, 3);
-        const masCount = resto.length - 3;
-
-        html += `<div class="tv-section-label">Más productos</div>`;
-        html += `<div class="ranking-list">`;
-        visible.forEach((d, i) => {
-            html += `
-            <div class="ranking-item">
-                <div class="rank-num">${i + 4}</div>
-                <div class="rank-info">
-                    <div class="rank-name">${esc(d.nombre)}</div>
-                    ${d.categoria ? `<div class="rank-cat">${esc(d.categoria)}</div>` : ''}
-                </div>
-                <div class="rank-right">
-                    <div class="rank-qty">${fmtInt(d.cantidad_vendida)} uds</div>
-                    <div class="rank-rev">${simboloMoneda()} ${fmt(d.ingresos)}</div>
-                </div>
-            </div>`;
-        });
-        html += `</div>`;
-
-        if (!showAll && masCount > 0) {
-            html += `<div class="tv-ver-mas" onclick="toggleVerMas()">
-                ↓ Ver más (${masCount} producto${masCount !== 1 ? 's' : ''})
-            </div>`;
-        } else if (showAll && resto.length > 3) {
-            html += `<div class="tv-ver-mas" onclick="toggleVerMas()">↑ Ver menos</div>`;
-        }
-    }
-
-    body.innerHTML = html;
-}
-
-function toggleVerMas() { showAll = !showAll; renderTopVentas(); }
 
 // ═══════════════════════════════════════════════════════════════════
 // ── Mapa de Calor ───────────────────────────────────────────────
