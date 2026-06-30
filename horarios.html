@@ -375,6 +375,7 @@
         renderRestChips();
         if (!_RO) renderTemplatesBar();
         await cargarYRenderizar();
+        _chequearSolicitudURL();
     }
     async function cargarYRenderizar(){
         updateNavLabel();
@@ -630,6 +631,57 @@
         }catch(e){ alert('Error: '+(e.message||e)); }
     }
     function cerrarIntercambio(){ const ov=document.getElementById('modal-intercambio'); if(ov) ov.style.display='none'; }
+
+    // ── Deep-link desde Mensajes/Muro: ?solicitud=<id>&restaurante_id=<rid> ──
+    // Muestra una ventanita fija abajo-izquierda con la info y Confirmar/Denegar,
+    // dejando navegar la grilla con normalidad para revisar el personal del día.
+    async function _chequearSolicitudURL(){
+        const p = new URLSearchParams(location.search);
+        const sid = p.get('solicitud'); if(!sid) return;
+        const rid = p.get('restaurante_id');
+        try{
+            const q = rid ? ('?restaurante_id='+rid) : '';
+            const d = await _get(`/horarios/solicitudes/${sid}${q}`);
+            _mostrarWidgetSolicitud(d, rid);
+        }catch(e){ /* sin acceso / no existe: no mostrar nada */ }
+    }
+    function _swFmt(j){ try{ return (JSON.parse(j||'[]')||[]).map(f=>`${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`).join(', '); }catch(_){ return ''; } }
+    function _mostrarWidgetSolicitud(d, rid){
+        let el=document.getElementById('sol-widget');
+        if(!el){
+            const st=document.createElement('style'); st.textContent=`
+              #sol-widget{ position:fixed; left:16px; bottom:16px; z-index:9500; width:330px; max-width:92vw; background:#fff; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,.22); padding:14px 16px; }
+              #sol-widget h4{ margin:0 0 8px; font-size:14px; display:flex; justify-content:space-between; align-items:center; }
+              #sol-widget .sw-x{ cursor:pointer; color:#9ca3af; font-weight:700; }
+              #sol-widget .sw-row{ font-size:12.5px; color:#374151; padding:3px 0; }
+              #sol-widget .sw-acts{ display:flex; gap:8px; margin-top:12px; }
+              #sol-widget .sw-b{ flex:1; padding:8px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid transparent; }
+              #sol-widget .sw-b.ok{ background:#2563eb; color:#fff; } #sol-widget .sw-b.no{ background:#fff; color:#b91c1c; border-color:#fecaca; }
+              #sol-widget .sw-state{ font-size:12px; font-weight:700; color:#6b7280; margin-top:10px; }`;
+            document.head.appendChild(st);
+            el=document.createElement('div'); el.id='sol-widget'; document.body.appendChild(el);
+        }
+        const pend = d.estado==='pend_confirmacion';
+        const ridArg = (rid!=null && rid!=='') ? rid : 'null';
+        const acts = pend
+            ? `<div class="sw-acts"><button class="sw-b ok" onclick="_resolverSolicitud(${d.id},'confirmar',${ridArg})">Confirmar</button><button class="sw-b no" onclick="_resolverSolicitud(${d.id},'denegar',${ridArg})">Denegar</button></div>`
+            : `<div class="sw-state">Estado: ${_esc(d.estado)}</div>`;
+        let info = `<div class="sw-row"><b>${_esc(d.creador_username||'—')}</b> da: ${d.origen_fecha||'—'} · ${_swFmt(d.origen_franjas)||'—'}</div>`;
+        info += d.destino_horario_id
+            ? `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_swFmt(d.destino_franjas)||'—'}</div>`
+            : `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`;
+        el.innerHTML = `<h4>🔁 Intercambio de turno <span class="sw-x" onclick="document.getElementById('sol-widget').remove()">✕</span></h4>${info}${acts}`;
+        el.style.display='block';
+    }
+    async function _resolverSolicitud(id, accion, rid){
+        const body = (rid!=null) ? { restaurante_id: rid } : {};
+        try{
+            await _post(`/horarios/solicitudes/${id}/${accion}`, body);
+            alert(accion==='confirmar' ? 'Intercambio aprobado.' : 'Intercambio denegado.');
+            const w=document.getElementById('sol-widget'); if(w) w.remove();
+            await _cargarSolicitudes(_desdeISO,_hastaISO); renderGrid();
+        }catch(e){ alert('Error: '+(e.message||e)); }
+    }
 
     // ── Modal turno ─────────────────────────────────────────────
     function abrirModal(userKey, fecha, preRestId){

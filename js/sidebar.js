@@ -541,7 +541,13 @@
             const token = localStorage.getItem("token");
             if (!token) return;
             const API_URL = window._API_URL || "https://restaurante-backend-production-459b.up.railway.app";
-            const res = await fetch(`${API_URL}/mensajes/no-leidos/count`, {
+            // Empleado de cadena en su "cuenta" (token activo == emp_token, sin esquema):
+            // el conteo por-esquema no aplica → usar el agregado de todos sus locales.
+            const empToken = localStorage.getItem("emp_token");
+            const enCuentaEmp = empToken && token === empToken;
+            const url = enCuentaEmp ? `${API_URL}/empleado/mensajes/no-leidos`
+                                    : `${API_URL}/mensajes/no-leidos/count`;
+            const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!res.ok) return;

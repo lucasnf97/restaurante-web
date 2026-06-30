@@ -385,7 +385,7 @@ async function verMensaje(idx) {
     } else {
         cuerpoEl.innerHTML = _linkify(m.cuerpo || "");
     }
-    if (m.solicitud_id) cuerpoEl.innerHTML += _tarjetaSolicitud(m);
+    if (m.solicitud_id) { cuerpoEl.innerHTML += _tarjetaSolicitud(m); _rellenarInfoSolicitud(m); }
 
     // Mostrar botón Responder solo en mensajes recibidos (no en propios enviados)
     const foot = document.getElementById("modal-ver-foot");
@@ -411,7 +411,10 @@ function _solCss(){
     s.textContent = `
       .sol-card{ border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; margin-top:12px; background:#fafafa; }
       .sol-st{ font-size:13px; font-weight:700; color:#374151; margin-bottom:8px; }
-      .sol-btns{ display:flex; gap:8px; flex-wrap:wrap; }
+      .sol-info{ font-size:13px; color:#374151; background:#fff; border:1px solid #eef0f3; border-radius:6px; padding:8px 10px; margin-bottom:8px; }
+      .sol-info .sol-row{ padding:2px 0; }
+      .sol-btns{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+      .sol-btns a.b-sol{ text-decoration:none; display:inline-block; }
       .b-sol{ font-size:13px; font-weight:600; padding:7px 14px; border:1px solid #cbd5e1; background:#fff; border-radius:7px; cursor:pointer; }
       .b-sol.prim{ background:#2563eb; color:#fff; border-color:#2563eb; }
       .b-sol.rej{ color:#b91c1c; border-color:#fecaca; }
@@ -434,8 +437,29 @@ function _tarjetaSolicitud(m){
         btns = _bs(m,'confirmar','Confirmar','prim') + _bs(m,'denegar','Denegar','rej');
     const hint = (st==='prop_receptor'||st==='prop_solicitante')
         ? '<div class="sol-hint">Para contraproponer otro turno, usá la grilla de horarios.</div>' : '';
+    const rid = (m.restaurante_id!=null) ? m.restaurante_id : '';
+    const verGrilla = `<a class="b-sol" href="horarios.html?solicitud=${m.solicitud_id}${rid!==''?('&restaurante_id='+rid):''}">Ver en la grilla</a>`;
     return `<div class="sol-card"><div class="sol-st">🔁 Intercambio de turno · ${estadoTxt}</div>`
-         + (btns?`<div class="sol-btns">${btns}</div>`:'') + hint + `</div>`;
+         + `<div class="sol-info" id="sol-info-${m.solicitud_id}">Cargando detalle…</div>`
+         + `<div class="sol-btns">${btns}${verGrilla}</div>` + hint + `</div>`;
+}
+function _fmtFranjasTxt(jsonStr){
+    try{ return (JSON.parse(jsonStr||'[]')||[]).map(f=>`${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`).join(', '); }
+    catch(e){ return ''; }
+}
+async function _rellenarInfoSolicitud(m){
+    const el = document.getElementById('sol-info-'+m.solicitud_id);
+    if(!el) return;
+    try{
+        const q = (m.restaurante_id!=null) ? ('?restaurante_id='+m.restaurante_id) : '';
+        const opts = {}; if(_emp && typeof getEmpToken==='function') opts.token = getEmpToken();
+        const d = await apiFetch(`/horarios/solicitudes/${m.solicitud_id}${q}`, opts);
+        const fO = _fmtFranjasTxt(d.origen_franjas), fD = _fmtFranjasTxt(d.destino_franjas);
+        let html = `<div class="sol-row"><b>${_esc(d.creador_username||'—')}</b> da: ${d.origen_fecha||'—'} · ${fO||'—'}</div>`;
+        if(d.destino_horario_id) html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${fD||'—'}</div>`;
+        else html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`;
+        el.innerHTML = html;
+    }catch(e){ el.textContent = 'No se pudo cargar el detalle.'; }
 }
 function _bs(m, accion, label, kind){
     const rid = (m.restaurante_id!=null) ? m.restaurante_id : 'null';
