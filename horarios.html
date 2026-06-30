@@ -75,6 +75,8 @@
     body.view-mes .th-day { min-width:58px; }
     .day-head-inner { padding:6px 4px; display:flex; flex-direction:column; align-items:center; gap:1px; }
     .dh-dn { font-size:9px; font-weight:700; text-transform:uppercase; color:#9ca3af; letter-spacing:.4px; }
+    .dh-mag { font-size:8px; opacity:.4; margin-top:1px; }
+    .th-day[onclick]:hover { background:#f5f3ff; }
     .dh-dd { font-size:15px; font-weight:800; color:#1a1a2e; line-height:1.2; }
     .dh-dm { font-size:9px; color:#9ca3af; }
     .th-day.col-hoy { background:#fafafe !important; }
@@ -493,7 +495,9 @@
         let html=`<table class="cq-table"${tw}><thead><tr><th class="th-user"><div class="th-user-inner">👥 Personal</div></th>`;
         days.forEach(d=>{
             const cls=['th-day', isToday(d)?'col-hoy':'', (d.getDay()===0||d.getDay()===6)?'col-wknd':''].filter(Boolean).join(' ');
-            html+=`<th class="${cls}"><div class="day-head-inner"><span class="dh-dn">${DIAS_CORTO[jsDay2Api(d)]}</span><span class="dh-dd">${d.getDate()}</span><span class="dh-dm">${MESES_C[d.getMonth()]}</span></div></th>`;
+            // Editores: click en el encabezado del día abre el desglose horario de ese día.
+            const dh = !_RO ? ` style="cursor:pointer" title="Ver desglose horario del día" onclick="abrirDesgloseDia('${formatDate(d)}')"` : '';
+            html+=`<th class="${cls}"${dh}><div class="day-head-inner"><span class="dh-dn">${DIAS_CORTO[jsDay2Api(d)]}</span><span class="dh-dd">${d.getDate()}</span><span class="dh-dm">${MESES_C[d.getMonth()]}</span>${!_RO?'<span class="dh-mag">🔍</span>':''}</div></th>`;
         });
         html+=`</tr></thead><tbody>`;
 
@@ -966,6 +970,79 @@
         }catch(e){ alert('Error: '+(e.message||e)); }
     }
     function cerrarIntercambio(){ const ov=document.getElementById('modal-intercambio'); if(ov) ov.style.display='none'; }
+
+    // ── Desglose horario del día (Gantt) — solo editores ──
+    function _dgInject(){
+        if(document.getElementById('dg-style')) return;
+        const st=document.createElement('style'); st.id='dg-style';
+        st.textContent=`
+          #desglose-modal{ position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:9700; display:none; align-items:center; justify-content:center; padding:16px; }
+          #desglose-modal .dg-card{ background:#fff; border-radius:12px; width:min(1100px,96vw); max-height:92vh; display:flex; flex-direction:column; box-shadow:0 24px 60px rgba(0,0,0,.3); overflow:hidden; }
+          #desglose-modal .dg-top{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid #eef0f3; }
+          #desglose-modal .dg-top h3{ margin:0; font-size:16px; }
+          #desglose-modal .dg-x{ cursor:pointer; color:#9ca3af; font-weight:700; font-size:18px; }
+          #desglose-modal .dg-wrap{ overflow:auto; padding:6px 0 12px; }
+          #desglose-modal .dg-head, #desglose-modal .dg-row{ display:flex; align-items:stretch; }
+          #desglose-modal .dg-name{ position:sticky; left:0; z-index:2; background:#fff; width:150px; min-width:150px; padding:6px 10px; display:flex; align-items:center; gap:7px; border-right:2px solid #e5e7eb; font-size:13px; overflow:hidden; }
+          #desglose-modal .dg-name span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+          #desglose-modal .dg-corner{ background:#f8f9fa; }
+          #desglose-modal .dg-row .dg-name{ border-top:1px solid #f3f4f6; }
+          #desglose-modal .dg-track{ position:relative; height:36px; }
+          #desglose-modal .dg-head .dg-track{ height:20px; }
+          #desglose-modal .dg-hl{ position:absolute; top:0; font-size:10px; color:#9ca3af; transform:translateX(-50%); }
+          #desglose-modal .dg-row .dg-track{ background-image:repeating-linear-gradient(90deg,#eef0f3 0 1px, transparent 1px); }
+          #desglose-modal .dg-blk{ position:absolute; top:5px; height:26px; border-radius:5px; color:#fff; font-size:10px; font-weight:700; padding:2px 5px; overflow:hidden; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,.18); display:flex; align-items:center; }
+          #desglose-modal .dg-empty{ padding:30px; text-align:center; color:#9ca3af; }`;
+        document.head.appendChild(st);
+    }
+    function abrirDesgloseDia(fecha){
+        if(_RO) return;
+        _dgInject();
+        const _t2=t=>{ const x=String(t||'').slice(0,5).split(':'); return (+x[0]||0)*60+(+x[1]||0); };
+        const users=getVisibleUsers().filter(u=>userShifts(u,fecha).length);
+        let minS=Infinity, maxE=-Infinity; const rows=[];
+        users.forEach(u=>{
+            const blocks=[];
+            userShifts(u,fecha).forEach(s=>{
+                const color=getRolColor(s.entry.rol_turno||s.rol);
+                (s.entry.franjas||[]).forEach(f=>{
+                    let a=_t2(f.inicio), b=_t2(f.fin); if(b<=a) b+=1440;
+                    minS=Math.min(minS,a); maxE=Math.max(maxE,b);
+                    blocks.push({a,b,color,label:`${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`,rest:s.restaurante});
+                });
+            });
+            rows.push({u,blocks});
+        });
+        const multi=_rests.length>1;
+        let body;
+        if(!rows.length || minS===Infinity){
+            body=`<div class="dg-empty">Sin turnos ese día.</div>`;
+        } else {
+            const hMin=Math.max(0, Math.floor(minS/60)-1), hMax=Math.ceil(maxE/60)+1;
+            const PXH=54, W=(hMax-hMin)*PXH;
+            let head=`<div class="dg-head"><div class="dg-name dg-corner"></div><div class="dg-track" style="width:${W}px;">`;
+            for(let h=hMin; h<=hMax; h++){ head+=`<div class="dg-hl" style="left:${(h-hMin)*PXH}px">${String(h%24).padStart(2,'0')}</div>`; }
+            head+=`</div></div>`;
+            const filas=rows.map(r=>{
+                const col=getRolColor(userRol(r.u));
+                let track=`<div class="dg-track" style="width:${W}px;background-size:${PXH}px 100%;">`;
+                r.blocks.forEach(bl=>{
+                    const left=(bl.a-hMin*60)/60*PXH, w=Math.max(8,(bl.b-bl.a)/60*PXH);
+                    const tag=multi?` · ${_esc(bl.rest)}`:'';
+                    track+=`<div class="dg-blk" style="left:${left}px;width:${w}px;background:${bl.color};" title="${_esc(bl.label)}${_esc(tag)}">${bl.label}${tag}</div>`;
+                });
+                track+=`</div>`;
+                return `<div class="dg-row"><div class="dg-name"><div class="u-avatar-sm" style="width:22px;height:22px;font-size:9px;background:${col}">${_esc(_ini(r.u))}</div><span>${_esc(r.u.nombre)}</span></div>${track}</div>`;
+            }).join('');
+            body=`<div class="dg-wrap">${head}${filas}</div>`;
+        }
+        let ov=document.getElementById('desglose-modal');
+        if(!ov){ ov=document.createElement('div'); ov.id='desglose-modal'; ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
+        const dd=new Date(fecha+'T00:00:00');
+        const titulo=`Desglose · ${DIAS_LARGO[jsDay2Api(dd)]} ${dd.getDate()} de ${MESES[dd.getMonth()]}`;
+        ov.innerHTML=`<div class="dg-card"><div class="dg-top"><h3>🗓 ${titulo}</h3><span class="dg-x" onclick="document.getElementById('desglose-modal').style.display='none'">✕</span></div>${body}</div>`;
+        ov.style.display='flex';
+    }
 
     // ── Deep-link desde Mensajes/Muro: ?solicitud=<id>&restaurante_id=<rid> ──
     // Muestra una ventanita fija abajo-izquierda con la info y Confirmar/Denegar,
