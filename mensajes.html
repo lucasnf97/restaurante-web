@@ -438,7 +438,9 @@ function _tarjetaSolicitud(m){
     const hint = (st==='prop_receptor'||st==='prop_solicitante')
         ? '<div class="sol-hint">Para contraproponer otro turno, usá la grilla de horarios.</div>' : '';
     const rid = (m.restaurante_id!=null) ? m.restaurante_id : '';
-    const verGrilla = `<a class="b-sol" href="horarios.html?solicitud=${m.solicitud_id}${rid!==''?('&restaurante_id='+rid):''}">Ver en la grilla</a>`;
+    // "Ver en la grilla" es la herramienta del editor para confirmar mirando el personal del día.
+    const verGrilla = (st==='pend_confirmacion')
+        ? `<a class="b-sol" href="horarios.html?solicitud=${m.solicitud_id}${rid!==''?('&restaurante_id='+rid):''}">Ver en la grilla</a>` : '';
     return `<div class="sol-card"><div class="sol-st">🔁 Intercambio de turno · ${estadoTxt}</div>`
          + `<div class="sol-info" id="sol-info-${m.solicitud_id}">Cargando detalle…</div>`
          + `<div class="sol-btns">${btns}${verGrilla}</div>` + hint + `</div>`;
