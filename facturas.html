@@ -404,6 +404,37 @@
     </div>
 </div>
 
+<!-- Modal bien de uso rápido -->
+<div class="modal-overlay" id="modal-bien-rapido">
+    <div class="modal" style="z-index:400;">
+        <h3>Nuevo bien de uso</h3>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="rb-nombre" placeholder="Ej: Plato playo"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Unidad *</label>
+                <select id="rb-unidad">
+                    <option value="unidad">unidad</option><option value="docena">docena</option>
+                    <option value="paquete">paquete</option><option value="caja">caja</option>
+                    <option value="juego">juego</option><option value="par">par</option>
+                    <option value="kg">kg</option><option value="g">g</option><option value="l">l</option><option value="ml">ml</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Stock actual</label><input type="number" id="rb-actual" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Cantidad estándar</label><input type="number" id="rb-estandar" min="0" step="0.001" value="0"></div>
+            <div class="form-group"><label>Stock de advertencia</label><input type="number" id="rb-advert" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Stock mínimo (agotado)</label><input type="number" id="rb-minima" min="0" step="0.001" value="0"></div>
+            <div class="form-group"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-bien-rapido')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarBienRapido()">Guardar</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal servicio -->
 <div class="modal-overlay" id="modal-servicio">
     <div class="modal">
@@ -466,6 +497,7 @@ const _facturasSoloVista = !hasPermiso('acceso_facturacion');
 if (_facturasSoloVista) document.body.classList.add('solo-vista');
 
 let _insumos     = [];
+let _bienesFactura = [];
 let _servicios   = [];
 let _proveedores = [];
 let _archivosFactura  = [];   // [{id, file, estado, datos, error}]
@@ -474,6 +506,7 @@ let _nextFileId      = 0;
 let _fotoBlob    = null;
 let _cameraStream = null;
 let _insumoRapidoIdx  = null;
+let _bienRapidoIdx    = null;
 let _servicioRapidoIdx = null;
 let _editandoServId  = null;
 let _editandoProvId  = null;
@@ -701,6 +734,9 @@ function cargarManual() {
 function optsInsumos(selId) {
     return _insumos.map(i => `<option value="${i.id}" ${i.id === selId ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`).join("");
 }
+function optsBienes(selId) {
+    return _bienesFactura.map(b => `<option value="${b.id}" ${b.id === selId ? 'selected' : ''}>${b.nombre} (${b.unidad})</option>`).join("");
+}
 function optsServicios(selId) {
     return _servicios.map(s => `<option value="${s.id}" ${s.id === selId ? 'selected' : ''}>${s.nombre}${s.categoria ? ' — '+s.categoria : ''}</option>`).join("");
 }
@@ -710,8 +746,18 @@ function optsServicios(selId) {
 function _refrescarSelectsInsumo(forzarIdx, nuevoId) {
     document.querySelectorAll("select[id^='ci-insumo-']").forEach(sel => {
         const idx   = sel.id.replace('ci-insumo-', '');
+        if (document.getElementById(`ci-tipo-${idx}`)?.value === 'bien') return;  // las filas de bien usan optsBienes
         const selId = (String(idx) === String(forzarIdx)) ? nuevoId : (parseInt(sel.value) || null);
         sel.innerHTML = `<option value="">— Seleccioná —</option>` + optsInsumos(selId);
+        actualizarIconoItem(idx);
+    });
+}
+function _refrescarSelectsBien(forzarIdx, nuevoId) {
+    document.querySelectorAll("select[id^='ci-insumo-']").forEach(sel => {
+        const idx = sel.id.replace('ci-insumo-', '');
+        if (document.getElementById(`ci-tipo-${idx}`)?.value !== 'bien') return;
+        const selId = (String(idx) === String(forzarIdx)) ? nuevoId : (parseInt(sel.value) || null);
+        sel.innerHTML = `<option value="">— Seleccioná —</option>` + optsBienes(selId);
         actualizarIconoItem(idx);
     });
 }
@@ -726,6 +772,7 @@ function _refrescarSelectsServicio(forzarIdx, nuevoId) {
 function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, marca) {
     const esInsumo   = tipo === "insumo";
     const esServicio = tipo === "servicio";
+    const esBien     = tipo === "bien";
     const esOmitido  = tipo === "omitir";
     const claseRow   = esInsumo ? (insumoId ? 'ok' : 'pendiente') : esServicio ? 'servicio' : 'omitido';
     const icono      = esInsumo ? (insumoId ? '✅' : '⚠️') : esServicio ? '🔧' : '—';
@@ -771,12 +818,12 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
     const fieldsInsumo = `
         <div class="${gridClass}" id="fields-insumo-${idx}" style="${esServicio || esOmitido ? 'display:none' : ''}">
             <div class="item-field">
-                <label>Insumo *</label>
+                <label id="ci-sel-label-${idx}">${esBien ? 'Bien de uso *' : 'Insumo *'}</label>
                 <div style="display:flex;gap:5px;align-items:center;">
                     <select id="ci-insumo-${idx}" onchange="actualizarIconoItem('${idx}')" style="flex:1;min-width:0;padding:5px 6px;font-size:12px;">
-                        <option value="">— Seleccioná —</option>${optsInsumos(insumoId)}
+                        <option value="">— Seleccioná —</option>${esBien ? optsBienes(insumoId) : optsInsumos(insumoId)}
                     </select>
-                    <button type="button" onclick="abrirInsumoRapido('${idx}')" title="Nuevo insumo"
+                    <button type="button" onclick="nuevoDesdeFila('${idx}')" title="Nuevo"
                             style="flex-shrink:0;padding:5px 8px;background:#4f46e5;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;">+</button>
                 </div>
             </div>
@@ -839,6 +886,7 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
                     <select id="ci-tipo-${idx}" onchange="cambiarTipoItem('${idx}')" style="padding:4px 8px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:12px;font-weight:600;outline:none;">
                         <option value="insumo" ${esInsumo ? 'selected' : ''}>📦 Insumo de stock</option>
+                        <option value="bien" ${esBien ? 'selected' : ''}>🍽 Bien de uso</option>
                         <option value="servicio" ${esServicio ? 'selected' : ''}>🔧 Servicio</option>
                         <option value="omitir" ${esOmitido ? 'selected' : ''}>✕ Omitir</option>
                     </select>
@@ -1008,7 +1056,7 @@ function abrirModalConfirmacion(datos) {
 
     _confFuentes = {}; _confPaginas = {};
     document.getElementById("conf-items").innerHTML = items.map((item, idx) => {
-        const tipo = item.tipo === "servicio" ? "servicio" : "insumo";
+        const tipo = item.tipo === "servicio" ? "servicio" : item.tipo === "bien" ? "bien" : "insumo";
         _confFuentes[idx] = item.fuentes || null;   // regiones fuente de la IA (Parte B)
         _confPaginas[idx] = item.pagina || 1;        // página de la línea (PDF multipágina)
         // precio_total = total de la línea tal como figura en la factura (fallback al viejo precio_unitario)
@@ -1034,19 +1082,29 @@ function cambiarTipoItem(idx) {
     const row  = document.getElementById(`conf-item-${idx}`);
     const fi   = document.getElementById(`fields-insumo-${idx}`);
     const fs   = document.getElementById(`fields-servicio-${idx}`);
-    row.className = `item-confirm-row ${tipo === 'insumo' ? (document.getElementById(`ci-insumo-${idx}`)?.value ? 'ok' : 'pendiente') : tipo === 'servicio' ? 'servicio' : 'omitido'}`;
-    document.getElementById(`icono-${idx}`).textContent = tipo === 'insumo' ? '⚠️' : tipo === 'servicio' ? '🔧' : '—';
-    if (fi) fi.style.display = tipo === 'insumo' ? '' : 'none';
+    const esStock = (tipo === 'insumo' || tipo === 'bien');
+    // El bloque fields-insumo se reutiliza para insumo y bien; repoblar el select según el tipo.
+    const sel = document.getElementById(`ci-insumo-${idx}`);
+    if (sel && esStock) {
+        const prev = sel.value;
+        sel.innerHTML = `<option value="">— Seleccioná —</option>` + (tipo === 'bien' ? optsBienes(prev) : optsInsumos(prev));
+    }
+    const lbl = document.getElementById(`ci-sel-label-${idx}`);
+    if (lbl) lbl.textContent = tipo === 'bien' ? 'Bien de uso *' : 'Insumo *';
+    row.className = `item-confirm-row ${esStock ? (sel?.value ? 'ok' : 'pendiente') : tipo === 'servicio' ? 'servicio' : 'omitido'}`;
+    document.getElementById(`icono-${idx}`).textContent = tipo === 'insumo' ? '⚠️' : tipo === 'bien' ? '🍽' : tipo === 'servicio' ? '🔧' : '—';
+    if (fi) fi.style.display = esStock ? '' : 'none';
     if (fs) fs.style.display = tipo === 'servicio' ? '' : 'none';
     _actualizarTotalesConf();
 }
 
 function actualizarIconoItem(idx) {
     const row = document.getElementById(`conf-item-${idx}`);
-    if (row && document.getElementById(`ci-tipo-${idx}`)?.value === 'insumo') {
+    const tipo = document.getElementById(`ci-tipo-${idx}`)?.value;
+    if (row && (tipo === 'insumo' || tipo === 'bien')) {
         const ok = !!document.getElementById(`ci-insumo-${idx}`)?.value;
         row.className = `item-confirm-row ${ok ? 'ok' : 'pendiente'}`;
-        document.getElementById(`icono-${idx}`).textContent = ok ? '✅' : '⚠️';
+        document.getElementById(`icono-${idx}`).textContent = ok ? (tipo === 'bien' ? '🍽' : '✅') : '⚠️';
     }
 }
 
@@ -1257,6 +1315,42 @@ async function guardarInsumoRapido() {
     } catch(e) { alert("Error: " + e.message); }
 }
 
+// El botón "+" de cada fila abre el modal rápido según el tipo elegido (insumo o bien de uso).
+function nuevoDesdeFila(idx) {
+    const tipo = document.getElementById(`ci-tipo-${idx}`)?.value;
+    if (tipo === 'bien') abrirBienRapido(idx);
+    else abrirInsumoRapido(idx);
+}
+
+// ── GUARDAR BIEN DE USO RÁPIDO ────────────────────────────────
+function abrirBienRapido(idx) {
+    _bienRapidoIdx = idx;
+    ["rb-nombre","rb-actual","rb-estandar","rb-advert","rb-minima"].forEach(id => document.getElementById(id).value = id === "rb-nombre" ? "" : "0");
+    document.getElementById("rb-unidad").value = "unidad";
+    const el = document.getElementById("modal-bien-rapido");
+    el.style.zIndex = "600";
+    el.classList.add("active");
+}
+
+async function guardarBienRapido() {
+    const body = {
+        nombre: document.getElementById("rb-nombre").value.trim(),
+        unidad: document.getElementById("rb-unidad").value,
+        cantidad_actual:      parseFloat(document.getElementById("rb-actual").value) || 0,
+        cantidad_estandar:    parseFloat(document.getElementById("rb-estandar").value) || 0,
+        cantidad_advertencia: parseFloat(document.getElementById("rb-advert").value) || 0,
+        cantidad_minima:      parseFloat(document.getElementById("rb-minima").value) || 0
+    };
+    if (!body.nombre) { alert("El nombre es obligatorio."); return; }
+    try {
+        const nuevo = await api.post("/stock/bienes-uso", body);
+        _bienesFactura = await api.get("/stock/bienes-uso");
+        cerrarModal("modal-bien-rapido");
+        _refrescarSelectsBien(_bienRapidoIdx, nuevo.id);
+        _bienRapidoIdx = null;
+    } catch(e) { alert("Error: " + e.message); }
+}
+
 // ── CONFIRMAR FACTURA ─────────────────────────────────────────
 async function confirmarFactura() {
     const provNombre = document.getElementById("conf-prov-nombre").value.trim();
@@ -1273,14 +1367,27 @@ async function confirmarFactura() {
     const _conv    = v => (v == null) ? v : (_convOK ? v / _tasaObj.tasa : v);
     const monedaGuardar = _convOK ? _sysCod : moneda;   // los registros se guardan en esta moneda
     const rows = document.querySelectorAll("[id^='conf-item-']");
-    const itemsInsumo = [], itemsServicio = [];
+    const itemsInsumo = [], itemsServicio = [], itemsBien = [];
     const snapItems = [];   // snapshot (forma IA) para poder reabrir/editar la factura
     for (const row of rows) {
         const idx  = row.id.replace("conf-item-", "");
         const tipo = document.getElementById(`ci-tipo-${idx}`)?.value;
         if (tipo === "omitir") continue;
         const desc = row.dataset.desc || '';
-        if (tipo === "insumo") {
+        if (tipo === "bien") {
+            const bienId      = parseInt(document.getElementById(`ci-insumo-${idx}`)?.value);
+            const cant        = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
+            const precioBruto = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value) || null;       // total línea c/imp
+            const precioNeto  = parseFloat(document.getElementById(`ci-precio-neto-${idx}`)?.value) || null;  // total línea s/imp (base del costo)
+            const pctBien     = parseFloat(document.getElementById(`ci-imp-${idx}`)?.value) || 0;
+            const marca       = document.getElementById(`ci-marca-${idx}`)?.value?.trim() || null;
+            const precioUnit  = (precioNeto && cant && cant !== 0) ? precioNeto / cant : null;
+            if (!bienId) { alert("Todos los ítems de bien de uso deben tener un bien asignado."); return; }
+            if (!cant || cant === 0 || isNaN(cant)) { alert("Cantidad inválida en un ítem de bien de uso (puede ser negativa para reintegros)."); return; }
+            itemsBien.push({ bienId, cant, precio: _conv(precioUnit), precioPagado: _conv(precioBruto), marca });
+            snapItems.push({ tipo: "bien", descripcion_factura: desc, insumo_id: bienId, cantidad: cant,
+                             precio_total: precioNeto, incluye_impuesto: false, impuesto_pct: pctBien, marca });
+        } else if (tipo === "insumo") {
             const insId       = parseInt(document.getElementById(`ci-insumo-${idx}`)?.value);
             const cant        = parseFloat(document.getElementById(`ci-cant-${idx}`)?.value);
             const precioBruto = parseFloat(document.getElementById(`ci-precio-${idx}`)?.value) || null;       // total línea c/imp
@@ -1309,7 +1416,7 @@ async function confirmarFactura() {
                              precio_total: montoNeto, incluye_impuesto: false, impuesto_pct: pctSrv });
         }
     }
-    if (!itemsInsumo.length && !itemsServicio.length) { alert("No hay ítems para registrar (todos omitidos)."); return; }
+    if (!itemsInsumo.length && !itemsServicio.length && !itemsBien.length) { alert("No hay ítems para registrar (todos omitidos)."); return; }
 
     // Edición: si venimos del histórico, guardamos el id viejo para borrarlo (revertir
     // stock + datos) antes de re-crear la factura con los datos corregidos.
@@ -1372,6 +1479,17 @@ async function confirmarFactura() {
                             precio_unitario: item.precio || null,
                         };
                     }),
+                    ...itemsBien.map(item => {
+                        const bn = (_bienesFactura || []).find(b => b.id === item.bienId);
+                        return {
+                            tipo: "insumo",
+                            insumo_nombre: (bn?.nombre || `Bien #${item.bienId}`) + " (bien de uso)",
+                            cantidad:      item.cant,
+                            marca:         item.marca || null,
+                            precio_pagado: item.precioPagado || null,
+                            precio_unitario: item.precio || null,
+                        };
+                    }),
                     ...itemsServicio.map(item => {
                         const srv = (_servicios || []).find(s => s.id === item.srvId);
                         return {
@@ -1413,7 +1531,7 @@ async function confirmarFactura() {
 
         // Registrar factura
         // Total de la factura = lo efectivamente pagado (con impuesto): líneas + servicios.
-        const totalDetectado = [...itemsInsumo.map(i => (i.precioPagado || 0)), ...itemsServicio.map(s => (s.montoBruto || s.monto))].reduce((a, b) => a + b, 0);
+        const totalDetectado = [...itemsInsumo.map(i => (i.precioPagado || 0)), ...itemsBien.map(b => (b.precioPagado || 0)), ...itemsServicio.map(s => (s.montoBruto || s.monto))].reduce((a, b) => a + b, 0);
         const facturaReg = await api.post("/stock/facturas/registrar", {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
             archivo_nombre: archivoNom,
@@ -1432,6 +1550,16 @@ async function confirmarFactura() {
                 insumo_id: item.insId, tipo: "agregar", cantidad: item.cant,
                 precio_unitario: item.precio, proveedor_id: proveedorId,
                 referencia, moneda: monedaGuardar, factura_url: facturaUrl, factura_id: facturaId,
+                marca: item.marca || null,
+            });
+        }
+
+        // Registrar recargas de bienes de uso
+        for (const item of itemsBien) {
+            await api.post("/stock/bienes-uso/recargar", {
+                bien_uso_id: item.bienId, cantidad: item.cant,
+                precio_unitario: item.precio, proveedor_id: proveedorId,
+                referencia, moneda: monedaGuardar, factura_id: facturaId,
                 marca: item.marca || null,
             });
         }
@@ -1461,6 +1589,7 @@ async function confirmarFactura() {
         cargarHistorialFacturas();   // refresca el histórico (aparece la nueva; si era edición, la vieja ya no está)
         const msg = [];
         if (itemsInsumo.length)   msg.push(`${itemsInsumo.length} recarga(s) de stock`);
+        if (itemsBien.length)     msg.push(`${itemsBien.length} bien(es) de uso`);
         if (itemsServicio.length) msg.push(`${itemsServicio.length} gasto(s) de servicio`);
         alert(`✅ ${editId ? 'Factura actualizada' : 'Registrado'}: ${msg.join(" y ")}.`);
     } catch(e) { alert("Error: " + e.message); }
@@ -2027,6 +2156,7 @@ document.getElementById('conf-moneda-codigo')?.addEventListener('input', functio
 // Carga inicial
 Promise.all([
     api.get("/stock/insumos").then(d => _insumos = d),
+    api.get("/stock/bienes-uso").then(d => _bienesFactura = d).catch(() => _bienesFactura = []),
     api.get("/stock/servicios").then(d => _servicios = d),
     api.get("/stock/proveedores").then(d => _proveedores = d)
 ]).catch(console.error);
