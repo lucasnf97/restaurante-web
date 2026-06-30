@@ -516,7 +516,7 @@
                         else if(_ofDisp && !esMio)_click=`event.stopPropagation();_tomarOferta(${_sol.id},${s.restaurante_id})`;
                         else if(esMio)            _click=`event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id},${_ofId})`;
                         else                      _click=`event.stopPropagation();abrirModal('${u.key}','${key}',${s.restaurante_id})`;
-                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}${_selable?' ix-selectable':''}${_seld?' ix-selected':''}${_ofDisp?' ix-oferta':''}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" onclick="${_click}">${_seld?'✓ ':''}${_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
+                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}${_selable?' ix-selectable':''}${_seld?' ix-selected':''}${_ofDisp?' ix-oferta':''}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" onclick="${_click}">${_seld?'✓ ':''}${_ofDisp?'<span class="cell-oferta-tag">📣 En oferta</span>':_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
                         const rE=e.rol_turno||s.rol;
                         if(!summary[key][rE]) summary[key][rE]={mins:0,count:0};
                         summary[key][rE].mins+=net; summary[key][rE].count+=1;
@@ -554,7 +554,9 @@
           .cell-menu .it:hover{ background:#f5f7ff; }
           .cell-content.ix-selectable{ outline:2px solid #1d4ed8; outline-offset:1px; cursor:pointer; }
           .cell-content.ix-selected{ outline:2px solid #16a34a; background:#dcfce7 !important; }
-          .cell-content.ix-oferta{ box-shadow:inset 0 0 0 2px #16a34a; }
+          .cell-content.ix-oferta{ border:2px dashed #16a34a !important; background:#dcfce7 !important; color:#166534 !important; }
+          .cell-content.ix-oferta .franja-tag, .cell-content.ix-oferta .shift-rest, .cell-content.ix-oferta .cell-total-h{ color:#166534 !important; }
+          .cell-oferta-tag{ display:block; font-size:9px; font-weight:800; letter-spacing:.5px; color:#15803d; text-transform:uppercase; }
           .ix-ov{ position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:9001; display:none; align-items:center; justify-content:center; }
           .ix-card{ background:#fff; border-radius:12px; width:440px; max-width:94vw; padding:18px 20px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
           .ix-card h3{ margin:0 0 4px; font-size:17px; }
