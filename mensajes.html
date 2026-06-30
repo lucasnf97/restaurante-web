@@ -385,6 +385,7 @@ async function verMensaje(idx) {
     } else {
         cuerpoEl.innerHTML = _linkify(m.cuerpo || "");
     }
+    if (m.solicitud_id) cuerpoEl.innerHTML += _tarjetaSolicitud(m);
 
     // Mostrar botón Responder solo en mensajes recibidos (no en propios enviados)
     const foot = document.getElementById("modal-ver-foot");
@@ -401,6 +402,54 @@ async function verMensaje(idx) {
             actualizarBadge();
         } catch(e) { /* ignorar */ }
     }
+}
+
+// ── Solicitudes de turno: tarjeta accionable dentro del mensaje ──────────
+function _solCss(){
+    if(document.getElementById('sol-css')) return;
+    const s=document.createElement('style'); s.id='sol-css';
+    s.textContent = `
+      .sol-card{ border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; margin-top:12px; background:#fafafa; }
+      .sol-st{ font-size:13px; font-weight:700; color:#374151; margin-bottom:8px; }
+      .sol-btns{ display:flex; gap:8px; flex-wrap:wrap; }
+      .b-sol{ font-size:13px; font-weight:600; padding:7px 14px; border:1px solid #cbd5e1; background:#fff; border-radius:7px; cursor:pointer; }
+      .b-sol.prim{ background:#2563eb; color:#fff; border-color:#2563eb; }
+      .b-sol.rej{ color:#b91c1c; border-color:#fecaca; }
+      .sol-hint{ font-size:11px; color:#9ca3af; margin-top:8px; }`;
+    document.head.appendChild(s);
+}
+function _tarjetaSolicitud(m){
+    if(!m.solicitud_id) return '';
+    _solCss();
+    const st=m.solicitud_estado;
+    const estadoTxt = ({ prop_receptor:'Pendiente de tu respuesta',
+                         prop_solicitante:'Contrapropuesta — pendiente de tu respuesta',
+                         pend_confirmacion:'Pendiente de confirmación',
+                         aprobada:'✔ Aprobado', denegada:'Denegado',
+                         rechazada:'Rechazado', cancelada:'Cancelado' })[st] || st;
+    let btns='';
+    if(st==='prop_receptor' || st==='prop_solicitante')
+        btns = _bs(m,'aceptar','Aceptar','prim') + _bs(m,'rechazar','Rechazar','rej');
+    else if(st==='pend_confirmacion')
+        btns = _bs(m,'confirmar','Confirmar','prim') + _bs(m,'denegar','Denegar','rej');
+    const hint = (st==='prop_receptor'||st==='prop_solicitante')
+        ? '<div class="sol-hint">Para contraproponer otro turno, usá la grilla de horarios.</div>' : '';
+    return `<div class="sol-card"><div class="sol-st">🔁 Intercambio de turno · ${estadoTxt}</div>`
+         + (btns?`<div class="sol-btns">${btns}</div>`:'') + hint + `</div>`;
+}
+function _bs(m, accion, label, kind){
+    const rid = (m.restaurante_id!=null) ? m.restaurante_id : 'null';
+    return `<button class="b-sol ${kind}" onclick="accionSolicitud(${m.solicitud_id},'${accion}',${rid})">${label}</button>`;
+}
+async function accionSolicitud(id, accion, restauranteId){
+    const body = (restauranteId!=null) ? { restaurante_id: restauranteId } : {};
+    const opts = { method:'POST', body: JSON.stringify(body) };
+    if(_emp && typeof getEmpToken === 'function') opts.token = getEmpToken();
+    try{
+        await apiFetch(`/horarios/solicitudes/${id}/${accion}`, opts);
+        cerrarVer();
+        await cargarMensajes();
+    }catch(e){ alert('Error: '+(e.message||e)); }
 }
 
 function cerrarVer() {
