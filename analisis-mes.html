@@ -763,7 +763,7 @@ function renderBillingCards(d) {
         {
             cls:"stock", icon:"🏗️", label:"Monto acumulado de stock",
             value: fmt(d.monto_acumulado_stock), extraCls:"",
-            sub: "Valor actual en inventario — dato estadístico"
+            sub: d.stock_es_cierre ? "Valor al cierre del mes — dato estadístico" : "Valor actual en inventario — dato estadístico"
         },
         {
             cls:"insumos", icon:"📦", label:"Insumos facturados",
@@ -917,13 +917,16 @@ async function cargarDetalle(tipo) {
             }
 
             case 'stock': {
-                const data = await apiFetch('/reportes/stock-snapshot');
+                const data = await apiFetch(`/reportes/stock-snapshot?year=${y}&month=${m}`);
                 if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin inventario registrado.</div>'; break; }
-                body.innerHTML = `
+                const stockNota = data.es_cierre
+                    ? '<div class="bill-sub" style="margin-bottom:8px;">Reconstruido al cierre del mes</div>'
+                    : '';
+                body.innerHTML = stockNota + `
                     <table class="det-table">
                         <thead><tr>
                             <th>Insumo</th><th>Unidad</th>
-                            <th class="num">Cantidad</th><th class="num">Último precio</th><th class="num">Valor</th>
+                            <th class="num">Cantidad</th><th class="num">${data.es_cierre ? 'Precio' : 'Último precio'}</th><th class="num">Valor</th>
                         </tr></thead>
                         <tbody>
                             ${data.items.map(r => `<tr>
