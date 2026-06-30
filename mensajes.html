@@ -456,10 +456,15 @@ async function _rellenarInfoSolicitud(m){
         const q = (m.restaurante_id!=null) ? ('?restaurante_id='+m.restaurante_id) : '';
         const opts = {}; if(_emp && typeof getEmpToken==='function') opts.token = getEmpToken();
         const d = await apiFetch(`/horarios/solicitudes/${m.solicitud_id}${q}`, opts);
-        const fO = _fmtFranjasTxt(d.origen_franjas), fD = _fmtFranjasTxt(d.destino_franjas);
-        let html = `<div class="sol-row"><b>${_esc(d.creador_username||'—')}</b> da: ${d.origen_fecha||'—'} · ${fO||'—'}</div>`;
-        if(d.destino_horario_id) html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${fD||'—'}</div>`;
-        else html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`;
+        const fmt = t => `${t.fecha||'—'} · ${_fmtFranjasTxt(t.franjas)||'—'}`;
+        const da = (d.turnos||[]).filter(t=>t.lado==='da');
+        const re = (d.turnos||[]).filter(t=>t.lado==='recibe');
+        let html = '';
+        if(da.length) html += `<div class="sol-row"><b>${_esc(d.creador_username||'—')}</b> da: ${da.map(fmt).join('  |  ')}</div>`;
+        else          html += `<div class="sol-row"><b>${_esc(d.creador_username||'—')}</b> da: ${d.origen_fecha||'—'} · ${_fmtFranjasTxt(d.origen_franjas)||'—'}</div>`;
+        if(re.length)               html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b> da: ${re.map(fmt).join('  |  ')}</div>`;
+        else if(d.destino_horario_id) html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_fmtFranjasTxt(d.destino_franjas)||'—'}</div>`;
+        else                        html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`;
         el.innerHTML = html;
     }catch(e){ el.textContent = 'No se pudo cargar el detalle.'; }
 }
