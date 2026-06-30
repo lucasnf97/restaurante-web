@@ -1264,6 +1264,14 @@ async function confirmarFactura() {
     const provCuit = document.getElementById("conf-prov-cuit").value.trim();
     const entradaActiva = _archivoActivo !== null ? getEntrada(_archivoActivo) : null;
     const moneda   = document.getElementById("conf-moneda-codigo").value.trim() || entradaActiva?.datos?.moneda || null;
+    // Conversión a moneda del sistema: si la factura viene en otra divisa y hay tasa configurada,
+    // TODO lo que se guarda (costos de insumos, gastos de servicios, total) va en moneda del sistema.
+    const _sysCod = (window.SISTEMA_MONEDA?.codigo || '').toUpperCase();
+    const _facCod = (moneda || '').toUpperCase();
+    const _tasaObj = (_facCod && _sysCod && _facCod !== _sysCod && typeof getTasaCambio === 'function') ? getTasaCambio(_facCod) : null;
+    const _convOK  = !!(_tasaObj && _tasaObj.tasa);
+    const _conv    = v => (v == null) ? v : (_convOK ? v / _tasaObj.tasa : v);
+    const monedaGuardar = _convOK ? _sysCod : moneda;   // los registros se guardan en esta moneda
     const rows = document.querySelectorAll("[id^='conf-item-']");
     const itemsInsumo = [], itemsServicio = [];
     const snapItems = [];   // snapshot (forma IA) para poder reabrir/editar la factura
@@ -1283,7 +1291,7 @@ async function confirmarFactura() {
             const precioUnit  = (precioNeto && cant && cant !== 0) ? precioNeto / cant : null;
             if (!insId)  { alert("Todos los ítems de insumo deben tener un insumo asignado."); return; }
             if (!cant || cant === 0 || isNaN(cant)) { alert("Cantidad inválida en un ítem de insumo (puede ser negativa para reintegros)."); return; }
-            itemsInsumo.push({ insId, cant, precio: precioUnit, precioPagado: precioBruto, marca });
+            itemsInsumo.push({ insId, cant, precio: _conv(precioUnit), precioPagado: _conv(precioBruto), marca });
             snapItems.push({ tipo: "insumo", descripcion_factura: desc, insumo_id: insId, cantidad: cant,
                              precio_total: precioNeto, incluye_impuesto: false, impuesto_pct: pctIns, marca });
         } else if (tipo === "servicio") {
@@ -1296,7 +1304,7 @@ async function confirmarFactura() {
             // solo se bloquea el campo vacío/inválido.
             if (montoNeto === null || isNaN(montoNeto)) { alert("Completá el monto del ítem de servicio (puede ser 0 o negativo)."); return; }
             // Se guarda el gasto SIN impuesto (neto), coherente con el costo de los insumos.
-            itemsServicio.push({ srvId, monto: montoNeto, montoBruto });
+            itemsServicio.push({ srvId, monto: _conv(montoNeto), montoBruto: _conv(montoBruto) });
             snapItems.push({ tipo: "servicio", descripcion_factura: desc, servicio_id: srvId,
                              precio_total: montoNeto, incluye_impuesto: false, impuesto_pct: pctSrv });
         }
@@ -1409,7 +1417,7 @@ async function confirmarFactura() {
         const facturaReg = await api.post("/stock/facturas/registrar", {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
             archivo_nombre: archivoNom,
-            archivo_url: facturaUrl, moneda, total_detectado: totalDetectado || null,
+            archivo_url: facturaUrl, moneda: monedaGuardar, total_detectado: totalDetectado || null,
             fecha_factura: fechaFactura, periodo_desde: rango.desde, periodo_hasta: rango.hasta,
             datos_json: JSON.stringify(datosSnapshot),
         });
@@ -1423,7 +1431,7 @@ async function confirmarFactura() {
             await api.post("/stock/recargar", {
                 insumo_id: item.insId, tipo: "agregar", cantidad: item.cant,
                 precio_unitario: item.precio, proveedor_id: proveedorId,
-                referencia, moneda, factura_url: facturaUrl, factura_id: facturaId,
+                referencia, moneda: monedaGuardar, factura_url: facturaUrl, factura_id: facturaId,
                 marca: item.marca || null,
             });
         }
@@ -1432,7 +1440,7 @@ async function confirmarFactura() {
         for (const item of itemsServicio) {
             await api.post("/stock/servicios/movimiento", {
                 servicio_id: item.srvId, factura_id: facturaId,
-                monto: item.monto, moneda, proveedor_id: proveedorId, referencia
+                monto: item.monto, moneda: monedaGuardar, proveedor_id: proveedorId, referencia
             });
         }
 
@@ -1895,8 +1903,21 @@ function _actualizarTotalesConf() {
     const sym = (document.getElementById('conf-moneda-badge')?.textContent || '').trim()
              || document.getElementById('conf-moneda-codigo')?.value || '';
     const f = v => v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Si la factura está en otra divisa, mostrar también el equivalente en moneda del sistema
+    // (que es lo que efectivamente se guarda).
+    const facCod = (document.getElementById('conf-moneda-codigo')?.value || '').trim().toUpperCase();
+    const sys    = window.SISTEMA_MONEDA || {};
+    const sysCod = (sys.codigo || '').toUpperCase();
+    const sysSym = sys.simbolo || sysCod;
+    let extra = '';
+    if (facCod && sysCod && facCod !== sysCod && typeof convertirASistema === 'function') {
+        const nS = convertirASistema(neto, facCod), bS = convertirASistema(bruto, facCod);
+        if (nS != null && bS != null)
+            extra = `<span style="border-left:1px solid #e5e7eb;padding-left:14px;color:#6b7280;">Se guarda (${sysCod}): s/imp <b style="color:#1a1a2e;">${sysSym} ${f(nS)}</b> · c/imp <b style="color:#16a34a;">${sysSym} ${f(bS)}</b></span>`;
+    }
     el.innerHTML = `<span>Total s/imp: <b style="color:#1a1a2e;">${sym} ${f(neto)}</b></span>`
-                 + `<span>Total c/imp: <b style="color:#16a34a;">${sym} ${f(bruto)}</b></span>`;
+                 + `<span>Total c/imp: <b style="color:#16a34a;">${sym} ${f(bruto)}</b></span>`
+                 + extra;
 }
 
 // Insumos
@@ -1977,9 +1998,9 @@ function actualizarBannerConversion(codigoFactura) {
             Esta factura está en <strong>${codigoFactura}</strong>,
             distinta a la moneda del sistema (<strong>${codigoSis}</strong>).<br>
             Tasa configurada: <strong>1 ${codigoSis} = ${tasa.tasa} ${codigoFactura}</strong>
-            — los importes quedarán registrados en <strong>${codigoFactura}</strong>
-            y el equivalente en ${codigoSis} es
-            <strong>÷ ${tasa.tasa}</strong> por unidad.
+            — los importes se <strong>registrarán convertidos a ${codigoSis}</strong>
+            (÷ ${tasa.tasa}). Cargá los precios como figuran en la factura;
+            abajo ves el total en ambas monedas.
         `;
     } else {
         // No hay tasa configurada → aviso sin equivalencia
