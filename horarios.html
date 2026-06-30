@@ -643,7 +643,7 @@
             const q = rid ? ('?restaurante_id='+rid) : '';
             const d = await _get(`/horarios/solicitudes/${sid}${q}`);
             _mostrarWidgetSolicitud(d, rid);
-        }catch(e){ /* sin acceso / no existe: no mostrar nada */ }
+        }catch(e){ console.warn('No se pudo cargar la solicitud del deep-link:', e); }
     }
     function _swFmt(j){ try{ return (JSON.parse(j||'[]')||[]).map(f=>`${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`).join(', '); }catch(_){ return ''; } }
     function _mostrarWidgetSolicitud(d, rid){
