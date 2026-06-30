@@ -309,6 +309,7 @@
     const _miKey = (_user.username||_user.nombre||'').toLowerCase();
     let _solicitudesSemana = {};   // `${restaurante_id}|${usuario_id}|${fechaISO}` -> solicitud activa
     let _desdeISO='', _hastaISO='';
+    let _ixSel = null;             // modo "elegir turno del compañero desde la grilla"
 
     const addDays=(d,n)=>{ const r=new Date(d); r.setDate(r.getDate()+n); return r; };
     function getMondayOf(d){ const r=new Date(d); const j=r.getDay(); r.setDate(r.getDate()-(j===0?6:j-1)); return r; }
@@ -495,10 +496,12 @@
                         const net=_netMin(e);
                         const esMio=(u.key===_miKey);
                         const _mk=_solicitudesSemana[`${s.restaurante_id}|${s.usuario_id}|${key}`]?'<span class="sol-mk" title="En intercambio">🔁</span>':'';
-                        const _click=esMio
-                          ? `event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id})`
-                          : `event.stopPropagation();abrirModal('${u.key}','${key}',${s.restaurante_id})`;
-                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" onclick="${_click}">${_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
+                        const _selable = _ixSel && u.key===_ixSel.destKey && s.restaurante_id===_ixSel.R;
+                        let _click;
+                        if(_selable)   _click=`event.stopPropagation();_ixSeleccionarTurno(${e.id})`;
+                        else if(esMio) _click=`event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id})`;
+                        else           _click=`event.stopPropagation();abrirModal('${u.key}','${key}',${s.restaurante_id})`;
+                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}${_selable?' ix-selectable':''}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" onclick="${_click}">${_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
                         const rE=e.rol_turno||s.rol;
                         if(!summary[key][rE]) summary[key][rE]={mins:0,count:0};
                         summary[key][rE].mins+=net; summary[key][rE].count+=1;
@@ -534,6 +537,8 @@
           .cell-menu{ position:absolute; z-index:9000; background:#fff; border:1px solid #d1d5db; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.16); min-width:200px; overflow:hidden; }
           .cell-menu .it{ padding:9px 12px; font-size:13px; cursor:pointer; color:#374151; }
           .cell-menu .it:hover{ background:#f5f7ff; }
+          .cell-content.ix-selectable{ outline:2px solid #1d4ed8; outline-offset:1px; cursor:pointer; }
+          body.ix-picking .cell-content{ cursor:default; }
           .ix-ov{ position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:9001; display:none; align-items:center; justify-content:center; }
           .ix-card{ background:#fff; border-radius:12px; width:440px; max-width:94vw; padding:18px 20px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
           .ix-card h3{ margin:0 0 4px; font-size:17px; }
@@ -555,7 +560,7 @@
             <label>Compañero</label>
             <select id="ix-companero" onchange="_ixPoblarTurnos()"><option value="">Elegí…</option></select>
             <label>Turno del compañero a recibir</label>
-            <select id="ix-turno"><option value="">Elegí compañero primero…</option></select>
+            <select id="ix-turno" onchange="_ixTurnoChange()"><option value="">Elegí compañero primero…</option></select>
             <div class="ix-acts">
               <button class="ix-b sec" onclick="cerrarIntercambio()">Cancelar</button>
               <button class="ix-b prim" onclick="enviarIntercambio()">Enviar solicitud</button>
@@ -595,7 +600,7 @@
             oTxt=`<b>Tu turno:</b> ${fecha} · ${fr} · ${_esc(s.restaurante)}`; } });
         document.getElementById('ix-origen').innerHTML=oTxt;
         const ov=document.getElementById('modal-intercambio');
-        ov.dataset.origen=origenHorarioId; ov.dataset.rest=R;
+        ov.dataset.origen=origenHorarioId; ov.dataset.rest=R; ov.dataset.fecha=fecha;
         // Compañeros: usuarios (≠ yo) con membresía en este restaurante
         const colegas=Object.values(_users).filter(u=>u.key!==_miKey && u.memberships.some(m=>m.restaurante_id===R));
         const selC=document.getElementById('ix-companero');
@@ -605,6 +610,12 @@
         document.getElementById('ix-turno').innerHTML='<option value="">Elegí compañero primero…</option>';
         ov.style.display='flex';
     }
+    // Opciones del desplegable: "Sin turno a cambio" (default), turnos del compañero, y "Ver grilla".
+    function _ixTurnoOpciones(turnos){
+        return '<option value="" selected>Sin turno a cambio</option>'
+             + turnos.map(t=>`<option value="${t.id}">${t.date} · ${t.franjas||'sin franjas'}</option>`).join('')
+             + '<option value="__grid__">📅 Ver grilla…</option>';
+    }
     function _ixPoblarTurnos(){
         const ov=document.getElementById('modal-intercambio'); const R=+ov.dataset.rest;
         const val=document.getElementById('ix-companero').value;
@@ -612,24 +623,62 @@
         if(!val){ selT.innerHTML='<option value="">Elegí compañero primero…</option>'; return; }
         const uKey=val.split('|')[1]; const u=_users[uKey];
         const turnos=u?_ixTurnosDe(u,R):[];
-        selT.innerHTML = turnos.length
-            ? turnos.map(t=>`<option value="${t.id}">${t.date} · ${t.franjas||'sin franjas'}</option>`).join('')
-            : '<option value="">El compañero no tiene turnos publicados a futuro</option>';
+        selT.innerHTML=_ixTurnoOpciones(turnos);
+    }
+    function _ixTurnoChange(){
+        if(document.getElementById('ix-turno').value==='__grid__') _ixVerGrilla();
     }
     async function enviarIntercambio(){
         const ov=document.getElementById('modal-intercambio');
         const origen=+ov.dataset.origen, R=+ov.dataset.rest;
         const val=document.getElementById('ix-companero').value;
-        const destHid=+document.getElementById('ix-turno').value;
-        if(!val || !destHid){ alert('Elegí compañero y turno.'); return; }
+        if(!val){ alert('Elegí el compañero.'); return; }
+        const tval=document.getElementById('ix-turno').value;
+        if(tval==='__grid__'){ alert('Elegí un turno desde la grilla o "Sin turno a cambio".'); return; }
         const destUid=+val.split('|')[0];
+        const body={ origen_horario_id:origen, destino_usuario_id:destUid, restaurante_id:R };
+        if(tval!=='') body.destino_horario_id=+tval;   // vacío = sin turno a cambio (cesión)
         try{
-            await _post('/horarios/solicitudes', { origen_horario_id:origen, destino_usuario_id:destUid, destino_horario_id:destHid, restaurante_id:R });
+            await _post('/horarios/solicitudes', body);
             cerrarIntercambio();
-            alert('Solicitud de intercambio enviada.');
+            alert(tval!=='' ? 'Solicitud de intercambio enviada.' : 'Cesión de turno enviada.');
             await _cargarSolicitudes(_desdeISO,_hastaISO); renderGrid();
         }catch(e){ alert('Error: '+(e.message||e)); }
     }
+    // ── "Ver grilla": elegir el turno del compañero clickeándolo en la grilla ──
+    function _ixVerGrilla(){
+        const ov=document.getElementById('modal-intercambio');
+        const val=document.getElementById('ix-companero').value;
+        if(!val){ alert('Elegí primero el compañero.'); document.getElementById('ix-turno').value=''; return; }
+        const [destUid, destKey]=val.split('|');
+        _ixSel={ origen:+ov.dataset.origen, R:+ov.dataset.rest, fecha:ov.dataset.fecha, destUid:+destUid, destKey };
+        cerrarIntercambio();
+        // Filtro: solo este restaurante + nombre del compañero, para ver sus turnos.
+        _selRest=new Set([_ixSel.R]);
+        const comp=_users[destKey]; const nom=comp?comp.nombre:'';
+        filtroNombre=(nom||'').toLowerCase();
+        const inp=document.getElementById('buscar'); if(inp) inp.value=nom;
+        renderRestChips();
+        _ixBanner(nom);
+        renderGrid();
+    }
+    function _ixSeleccionarTurno(hid){
+        if(!_ixSel) return;
+        const sel=_ixSel; _ixSel=null; _ixClearBanner();
+        abrirModalIntercambio(sel.R, sel.fecha, sel.origen);
+        const c=document.getElementById('ix-companero'); c.value=`${sel.destUid}|${sel.destKey}`;
+        _ixPoblarTurnos();
+        const t=document.getElementById('ix-turno'); t.value=String(hid);
+    }
+    function _ixBanner(nombre){
+        _ixClearBanner();
+        const b=document.createElement('div'); b.id='ix-banner';
+        b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9600;background:#1d4ed8;color:#fff;padding:10px 16px;display:flex;justify-content:center;align-items:center;gap:14px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);';
+        b.innerHTML=`📅 Elegí un turno de <b style="margin:0 4px;">${_esc(nombre||'tu compañero')}</b> para recibir a cambio (tocá una celda) <button onclick="_ixCancelarSel()" style="background:#fff;color:#1d4ed8;border:0;border-radius:6px;padding:4px 10px;font-weight:600;cursor:pointer;">Cancelar</button>`;
+        document.body.appendChild(b);
+    }
+    function _ixClearBanner(){ const b=document.getElementById('ix-banner'); if(b) b.remove(); }
+    function _ixCancelarSel(){ _ixSel=null; _ixClearBanner(); }
     function cerrarIntercambio(){ const ov=document.getElementById('modal-intercambio'); if(ov) ov.style.display='none'; }
 
     // ── Deep-link desde Mensajes/Muro: ?solicitud=<id>&restaurante_id=<rid> ──
