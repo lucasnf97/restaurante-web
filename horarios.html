@@ -510,13 +510,15 @@
                         const _selPropio = _ixOwnSel && u.key===_miKey && s.restaurante_id===_ixOwnSel.R;
                         const _selable = _selRecibe || _selPropio;
                         const _seld = (_selRecibe && _ixRecibe.some(x=>x.id===e.id)) || (_selPropio && _ixOwnSel.turnos.some(x=>x.id===e.id));
-                        let _click;
-                        if(_selRecibe)            _click=`event.stopPropagation();_ixSeleccionarTurno(${e.id})`;
-                        else if(_selPropio)       _click=`event.stopPropagation();_ixTogglePropio(${e.id})`;
-                        else if(_ofDisp && !esMio)_click=`event.stopPropagation();_tomarOferta(${_sol.id},${s.restaurante_id})`;
-                        else if(esMio)            _click=`event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id},${_ofId})`;
-                        else                      _click=`event.stopPropagation();abrirModal('${u.key}','${key}',${s.restaurante_id})`;
-                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}${_selable?' ix-selectable':''}${_seld?' ix-selected':''}${_ofDisp?' ix-oferta':''}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" onclick="${_click}">${_seld?'✓ ':''}${_ofDisp?'<span class="cell-oferta-tag">📣 En oferta</span>':_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
+                        const _solId = _sol ? _sol.id : 0;
+                        let _handlers;
+                        if(_selRecibe)            _handlers=`onclick="event.stopPropagation();_ixSeleccionarTurno(${e.id})"`;
+                        else if(_selPropio)       _handlers=`onclick="event.stopPropagation();_ixTogglePropio(${e.id})"`;
+                        else if(_ofDisp && !esMio)_handlers=`onclick="event.stopPropagation();_tomarOferta(${_sol.id},${s.restaurante_id})"`;
+                        else if(esMio)            _handlers=`onclick="event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id},${_ofId})"`;
+                        // Editor sobre turno ajeno: 1 click = gestionar solicitud, doble click = editar config.
+                        else                      _handlers=`onclick="event.stopPropagation();_turnoClick('${u.key}','${key}',${s.restaurante_id},${_solId})" ondblclick="event.stopPropagation();_turnoDbl('${u.key}','${key}',${s.restaurante_id})"`;
+                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}${_selable?' ix-selectable':''}${_seld?' ix-selected':''}${_ofDisp?' ix-oferta':''}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" ${_handlers}>${_seld?'✓ ':''}${_ofDisp?'<span class="cell-oferta-tag">📣 En oferta</span>':_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
                         const rE=e.rol_turno||s.rol;
                         if(!summary[key][rE]) summary[key][rE]={mins:0,count:0};
                         summary[key][rE].mins+=net; summary[key][rE].count+=1;
@@ -609,6 +611,23 @@
         document.body.appendChild(of);
     }
     function cerrarMenuTurno(){ const e=document.getElementById('cell-menu'); if(e) e.remove(); }
+    // Turno ajeno (vista de editor): 1 click = gestionar la solicitud del turno; doble click = editar config.
+    let _clkTimer=null;
+    function _turnoClick(uKey, fecha, R, solId){
+        if(_clkTimer) return;                 // segundo click de un doble click: lo maneja _turnoDbl
+        _clkTimer=setTimeout(()=>{ _clkTimer=null; if(solId) _gestionarSolicitud(solId, R); }, 240);
+    }
+    function _turnoDbl(uKey, fecha, R){
+        if(_clkTimer){ clearTimeout(_clkTimer); _clkTimer=null; }
+        abrirModal(uKey, fecha, R);           // editar config (abrirModal sale si es solo-lectura)
+    }
+    async function _gestionarSolicitud(solId, R){
+        try{
+            const q = R ? ('?restaurante_id='+R) : '';
+            const d = await _get(`/horarios/solicitudes/${solId}${q}`);
+            _mostrarWidgetSolicitud(d, R);
+        }catch(e){ console.warn('No se pudo gestionar la solicitud:', e); }
+    }
     function abrirMenuTurno(ev, userKey, fecha, restauranteId, origenHorarioId, ofertaId){
         ev.stopPropagation(); cerrarMenuTurno();
         const m=document.createElement('div'); m.className='cell-menu'; m.id='cell-menu';
