@@ -674,11 +674,16 @@
         _ixClearBanner();
         const b=document.createElement('div'); b.id='ix-banner';
         b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9600;background:#1d4ed8;color:#fff;padding:10px 16px;display:flex;justify-content:center;align-items:center;gap:14px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);';
-        b.innerHTML=`📅 Elegí un turno de <b style="margin:0 4px;">${_esc(nombre||'tu compañero')}</b> para recibir a cambio (tocá una celda) <button onclick="_ixCancelarSel()" style="background:#fff;color:#1d4ed8;border:0;border-radius:6px;padding:4px 10px;font-weight:600;cursor:pointer;">Cancelar</button>`;
+        b.innerHTML=`📅 Elegí un turno de <b style="margin:0 4px;">${_esc(nombre||'tu compañero')}</b> para recibir a cambio (tocá una celda) <button onclick="_ixCancelarSel()" title="Cancelar y volver al intercambio" style="background:#fff;color:#1d4ed8;border:0;border-radius:6px;padding:4px 11px;font-weight:700;cursor:pointer;">✕ Cancelar</button>`;
         document.body.appendChild(b);
     }
     function _ixClearBanner(){ const b=document.getElementById('ix-banner'); if(b) b.remove(); }
-    function _ixCancelarSel(){ _ixSel=null; _ixClearBanner(); }
+    // Cancela la selección por grilla y vuelve al modal de intercambio (con el compañero
+    // reseteado) para poder elegir otro empleado.
+    function _ixCancelarSel(){
+        const sel=_ixSel; _ixSel=null; _ixClearBanner();
+        if(sel) abrirModalIntercambio(sel.R, sel.fecha, sel.origen);
+    }
     function cerrarIntercambio(){ const ov=document.getElementById('modal-intercambio'); if(ov) ov.style.display='none'; }
 
     // ── Deep-link desde Mensajes/Muro: ?solicitud=<id>&restaurante_id=<rid> ──
