@@ -377,6 +377,9 @@
     // ── Carga ───────────────────────────────────────────────────
     async function init(){
         _injectIntercambioUI();
+        // Deep-link con ?fecha=YYYY-MM-DD: abrir la semana de ese turno.
+        const _fp = new URLSearchParams(location.search).get('fecha');
+        if(_fp){ const dd=new Date(_fp+'T00:00:00'); if(!isNaN(dd.getTime())){ dd.setHours(0,0,0,0); anchorDate=dd; } }
         try {
             const rs = await _get(_EP_RESTS);
             // Normalizar: /cadena/restaurantes da {id,nombre}; /empleado/mis-restaurantes da {restaurante_id,restaurante}

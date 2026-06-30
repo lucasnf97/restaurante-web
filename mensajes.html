@@ -426,9 +426,10 @@ function _tarjetaSolicitud(m){
     _solCss();
     const st=m.solicitud_estado;
     const esOferta = m.solicitud_tipo==='oferta';
+    const esAbierto = m.solicitud_tipo==='abierto';
     const estadoTxt = ({ prop_receptor:'Pendiente de tu respuesta',
                          prop_solicitante:'Contrapropuesta — pendiente de tu respuesta',
-                         disponible:'Disponible',
+                         disponible:'Disponible', abierta:'Disponible', asignada:'✔ Asignado',
                          pend_confirmacion:'Pendiente de confirmación',
                          aprobada:'✔ Aprobado', denegada:'Denegado',
                          rechazada:'Rechazado', cancelada:'Cancelado' })[st] || st;
@@ -443,7 +444,7 @@ function _tarjetaSolicitud(m){
     // "Ver en la grilla" es la herramienta del editor para confirmar mirando el personal del día.
     const verGrilla = (st==='pend_confirmacion')
         ? `<a class="b-sol" href="horarios.html?solicitud=${m.solicitud_id}${rid!==''?('&restaurante_id='+rid):''}">Ver en la grilla</a>` : '';
-    const titulo = esOferta ? '📣 Oferta de turno' : '🔁 Intercambio de turno';
+    const titulo = esAbierto ? '⊕ Turno abierto' : (esOferta ? '📣 Oferta de turno' : '🔁 Intercambio de turno');
     return `<div class="sol-card"><div class="sol-st">${titulo} · ${estadoTxt}</div>`
          + `<div class="sol-info" id="sol-info-${m.solicitud_id}">Cargando detalle…</div>`
          + `<div class="sol-btns">${btns}${verGrilla}</div>` + hint + `</div>`;
@@ -459,6 +460,14 @@ async function _rellenarInfoSolicitud(m){
         const q = (m.restaurante_id!=null) ? ('?restaurante_id='+m.restaurante_id) : '';
         const opts = {}; if(_emp && typeof getEmpToken==='function') opts.token = getEmpToken();
         const d = await apiFetch(`/horarios/solicitudes/${m.solicitud_id}${q}`, opts);
+        if(d.tipo==='abierto'){
+            const rid = (m.restaurante_id!=null) ? ('&restaurante_id='+m.restaurante_id) : '';
+            const href = `horarios.html?fecha=${d.origen_fecha||''}${rid}`;
+            let h = `<div class="sol-row">⊕ Turno: <b>${d.origen_fecha||'—'}</b> · ${_fmtFranjasTxt(d.origen_franjas)||'—'}${d.origen_rol?(' · '+_esc(d.origen_rol)):''}</div>`;
+            if(d.tomado_username) h += `<div class="sol-row">Asignado a: <b>${_esc(d.tomado_username)}</b></div>`;
+            h += `<div style="margin-top:8px;"><a class="b-sol prim" style="text-decoration:none;display:inline-block;" href="${href}">📅 Ir a la grilla</a></div>`;
+            el.innerHTML = h; return;
+        }
         const fmt = t => `${t.fecha||'—'} · ${_fmtFranjasTxt(t.franjas)||'—'}`;
         const da = (d.turnos||[]).filter(t=>t.lado==='da');
         const re = (d.turnos||[]).filter(t=>t.lado==='recibe');
