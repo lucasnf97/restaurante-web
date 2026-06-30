@@ -594,7 +594,7 @@ function buildSocial(b) {
             const img = (p.adjuntos || []).find(a => a.tipo === 'imagen');
             const imgHtml = img ? `<img class="social-item-img" src="${esc(img.url)}" alt="" loading="lazy">` : '';
             const txt = p.contenido ? `<div class="social-item-txt">${esc(p.contenido)}</div>` : '';
-            return `<div class="social-item">
+            return `<div class="social-item" style="cursor:pointer" onclick="location.href='social.html?post=${p.id}'">
                 <div class="social-item-top">
                     <div class="social-item-av">${esc(ini(p.username))}</div>
                     <span class="social-item-user">${esc(p.username)}</span>
@@ -1357,7 +1357,8 @@ function _empBuildMuro() {
         const imgHtml = img ? `<img class="social-item-img" src="${esc(img.url)}" alt="" loading="lazy">` : '';
         const txt = p.contenido ? `<div class="social-item-txt">${esc(p.contenido)}</div>` : '';
         const tag = p.restaurante ? `<span style="margin-left:auto;font-size:9px;font-weight:700;color:#4338ca;background:#eef2ff;border-radius:4px;padding:1px 5px;">${esc(p.restaurante)}</span>` : '';
-        return `<div class="social-item"><div class="social-item-top"><div class="social-item-av">${esc((p.username || '?').substring(0,2).toUpperCase())}</div><span class="social-item-user">${esc(p.username)}</span>${tag}</div>${txt}${imgHtml}</div>`;
+        const href = `social.html?post=${p.id}${p.restaurante_id!=null?('&rest='+p.restaurante_id):''}`;
+        return `<div class="social-item" style="cursor:pointer" onclick="location.href='${href}'"><div class="social-item-top"><div class="social-item-av">${esc((p.username || '?').substring(0,2).toUpperCase())}</div><span class="social-item-user">${esc(p.username)}</span>${tag}</div>${txt}${imgHtml}</div>`;
     }).join('') : '<div class="res-empty">Sin publicaciones</div>';
     return `${blockHeader("")}
     <div class="social-card">

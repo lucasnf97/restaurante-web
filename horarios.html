@@ -872,6 +872,8 @@
                     ? `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_swFmt(d.destino_franjas)||'—'}</div>`
                     : `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`);
         }
+        if(d.tipo==='oferta' && d.tomado_username)
+            info += `<div class="sw-row">✋ Quiere tomarlo: <b>${_esc(d.tomado_username)}</b></div>`;
         const titulo = d.tipo==='oferta' ? '📣 Oferta de turno' : '🔁 Intercambio de turno';
         el.innerHTML = `<h4>${titulo} <span class="sw-x" onclick="document.getElementById('sol-widget').remove()">✕</span></h4>${info}${acts}`;
         el.style.display='block';

@@ -314,7 +314,7 @@ function renderPost(p) {
         </div>` : '';
     const editado = p.editado_en ? ' · editado' : '';
     return `
-    <div class="post" id="post-${p.id}">
+    <div class="post" id="post-${p.restaurante_id!=null?(p.restaurante_id+'-'):''}${p.id}">
         <div class="post-head">
             <div class="post-avatar">${esc(iniciales(p.username))}</div>
             <div class="post-meta">
@@ -497,6 +497,17 @@ async function _cargarFeedEmpleado() {
         document.querySelector('.composer')?.style.setProperty('display', 'none');
         document.getElementById('feeds-bar')?.style.setProperty('display', 'none');
         await _cargarFeedEmpleado();
+        const pe = new URLSearchParams(location.search);
+        const postE = pe.get('post'), restE = pe.get('rest');
+        if (postE) {
+            const tid = 'post-' + (restE ? (restE + '-') : '') + postE;
+            const el = document.getElementById(tid);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('post-highlight');
+                setTimeout(() => el.classList.remove('post-highlight'), 2800);
+            }
+        }
         return;
     }
     await cargarMenciones();

@@ -471,6 +471,8 @@ async function _rellenarInfoSolicitud(m){
             else if(d.destino_horario_id) html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_fmtFranjasTxt(d.destino_franjas)||'—'}</div>`;
             else                          html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`;
         }
+        if(d.tipo==='oferta' && d.tomado_username)
+            html += `<div class="sol-row">✋ Quiere tomarlo: <b>${_esc(d.tomado_username)}</b></div>`;
         el.innerHTML = html;
     }catch(e){ el.textContent = 'No se pudo cargar el detalle.'; }
 }
