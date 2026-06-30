@@ -294,6 +294,17 @@ function renderPost(p) {
     const filesBlock = files ? `<div class="post-files">${files}</div>` : '';
     const enlace = p.enlace ? `<div class="post-enlace"><a href="${esc(p.enlace)}" target="_blank" rel="noopener">🔗 ${esc(p.enlace)}</a></div>` : '';
     const texto = p.contenido ? `<div class="post-texto">${resaltarMenciones(esc(p.contenido))}</div>` : '';
+    let solBlock = '';
+    if (p.solicitud_id && p.solicitud_tipo === 'oferta') {
+        const rid = (p.restaurante_id != null) ? ('&restaurante_id=' + p.restaurante_id) : '';
+        const href = `horarios.html?solicitud=${p.solicitud_id}${rid}`;
+        if (p.solicitud_estado === 'disponible')
+            solBlock = `<div style="margin-top:8px;"><a href="${href}" style="display:inline-block;background:#6d28d9;color:#fff;text-decoration:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px;">✋ Tomar este turno → ir a la grilla</a></div>`;
+        else {
+            const lbl = ({ pend_confirmacion:'Reclamado — pendiente de confirmación', aprobada:'✔ Tomado', cancelada:'Cerrado', denegada:'Disponible nuevamente' })[p.solicitud_estado] || p.solicitud_estado;
+            solBlock = `<div style="margin-top:8px;font-size:13px;font-weight:700;color:#6b7280;">📣 ${esc(lbl)}</div>`;
+        }
+    }
     const acc = p.can_edit ? `
         <div class="post-acciones">
             <button class="post-acc-btn" title="Editar" onclick="abrirEditar(${p.id})">✏️</button>
@@ -310,7 +321,7 @@ function renderPost(p) {
             </div>
             ${acc}
         </div>
-        ${texto}${imgs}${filesBlock}${enlace}
+        ${texto}${solBlock}${imgs}${filesBlock}${enlace}
     </div>`;
 }
 

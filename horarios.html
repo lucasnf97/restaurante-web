@@ -421,7 +421,6 @@
                 const R = (rid!=null) ? rid : ((_rests[0]||{}).id);
                 (arr||[]).forEach(s=>{
                     if(['rechazada','denegada','cancelada','aprobada'].includes(s.estado)) return;
-                    if(s.tipo!=='intercambio') return;
                     if(s.creado_por && s.origen_fecha)        _solicitudesSemana[`${R}|${s.creado_por}|${s.origen_fecha}`]=s;
                     if(s.destino_usuario_id && s.destino_fecha) _solicitudesSemana[`${R}|${s.destino_usuario_id}|${s.destino_fecha}`]=s;
                     // todos los turnos involucrados (multi-turno): 'da' = creador, 'recibe' = destino
@@ -501,17 +500,23 @@
                         const brk=e.break_mins>0?`<span class="cell-break">☕${e.break_mins}m</span>`:'';
                         const net=_netMin(e);
                         const esMio=(u.key===_miKey);
-                        const _mk=_solicitudesSemana[`${s.restaurante_id}|${s.usuario_id}|${key}`]?'<span class="sol-mk" title="En intercambio">🔁</span>':'';
+                        const _sol=_solicitudesSemana[`${s.restaurante_id}|${s.usuario_id}|${key}`];
+                        const _mk = _sol ? (_sol.tipo==='oferta'
+                            ? '<span class="sol-mk" title="Turno ofrecido">📣</span>'
+                            : '<span class="sol-mk" title="En intercambio">🔁</span>') : '';
+                        const _ofDisp = _sol && _sol.tipo==='oferta' && _sol.estado==='disponible';
+                        const _ofId = (_ofDisp && esMio) ? _sol.id : 0;
                         const _selRecibe = _ixSel && u.key===_ixSel.destKey && s.restaurante_id===_ixSel.R;
                         const _selPropio = _ixOwnSel && u.key===_miKey && s.restaurante_id===_ixOwnSel.R;
                         const _selable = _selRecibe || _selPropio;
                         const _seld = (_selRecibe && _ixRecibe.some(x=>x.id===e.id)) || (_selPropio && _ixOwnSel.turnos.some(x=>x.id===e.id));
                         let _click;
-                        if(_selRecibe)      _click=`event.stopPropagation();_ixSeleccionarTurno(${e.id})`;
-                        else if(_selPropio) _click=`event.stopPropagation();_ixTogglePropio(${e.id})`;
-                        else if(esMio)      _click=`event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id})`;
-                        else                _click=`event.stopPropagation();abrirModal('${u.key}','${key}',${s.restaurante_id})`;
-                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}${_selable?' ix-selectable':''}${_seld?' ix-selected':''}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" onclick="${_click}">${_seld?'✓ ':''}${_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
+                        if(_selRecibe)            _click=`event.stopPropagation();_ixSeleccionarTurno(${e.id})`;
+                        else if(_selPropio)       _click=`event.stopPropagation();_ixTogglePropio(${e.id})`;
+                        else if(_ofDisp && !esMio)_click=`event.stopPropagation();_tomarOferta(${_sol.id},${s.restaurante_id})`;
+                        else if(esMio)            _click=`event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id},${_ofId})`;
+                        else                      _click=`event.stopPropagation();abrirModal('${u.key}','${key}',${s.restaurante_id})`;
+                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}${_selable?' ix-selectable':''}${_seld?' ix-selected':''}${_ofDisp?' ix-oferta':''}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" onclick="${_click}">${_seld?'✓ ':''}${_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
                         const rE=e.rol_turno||s.rol;
                         if(!summary[key][rE]) summary[key][rE]={mins:0,count:0};
                         summary[key][rE].mins+=net; summary[key][rE].count+=1;
@@ -549,6 +554,7 @@
           .cell-menu .it:hover{ background:#f5f7ff; }
           .cell-content.ix-selectable{ outline:2px solid #1d4ed8; outline-offset:1px; cursor:pointer; }
           .cell-content.ix-selected{ outline:2px solid #16a34a; background:#dcfce7 !important; }
+          .cell-content.ix-oferta{ box-shadow:inset 0 0 0 2px #16a34a; }
           .ix-ov{ position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:9001; display:none; align-items:center; justify-content:center; }
           .ix-card{ background:#fff; border-radius:12px; width:440px; max-width:94vw; padding:18px 20px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
           .ix-card h3{ margin:0 0 4px; font-size:17px; }
@@ -585,12 +591,27 @@
           </div>`;
         ov.addEventListener('click', e=>{ if(e.target===ov) cerrarIntercambio(); });
         document.body.appendChild(ov);
+        // Modal "Ofrecer turno(s)"
+        const of=document.createElement('div');
+        of.className='ix-ov'; of.id='ofrecer-modal';
+        of.innerHTML = `<div class="ix-card" style="width:380px;">
+            <h3>📣 Ofrecer turno(s)</h3>
+            <div class="ix-sub" id="ofr-sub">Ofrecés turnos para que otro los tome. Quien lo reclame, lo confirma un encargado.</div>
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;"><input type="checkbox" id="ofr-muro" style="width:auto;"> Publicar también en el muro del restaurante</label>
+            <div class="ix-acts">
+              <button class="ix-b sec" onclick="document.getElementById('ofrecer-modal').style.display='none'">Cancelar</button>
+              <button class="ix-b prim" onclick="_ixConfirmarOfrecer()">Ofrecer</button>
+            </div>
+          </div>`;
+        of.addEventListener('click', e=>{ if(e.target===of) of.style.display='none'; });
+        document.body.appendChild(of);
     }
     function cerrarMenuTurno(){ const e=document.getElementById('cell-menu'); if(e) e.remove(); }
-    function abrirMenuTurno(ev, userKey, fecha, restauranteId, origenHorarioId){
+    function abrirMenuTurno(ev, userKey, fecha, restauranteId, origenHorarioId, ofertaId){
         ev.stopPropagation(); cerrarMenuTurno();
         const m=document.createElement('div'); m.className='cell-menu'; m.id='cell-menu';
         let items=`<div class="it" onclick="_ixIniciarSelPropio(${restauranteId},${origenHorarioId})">✓ Seleccionar turnos…</div>`;
+        if(ofertaId) items+=`<div class="it" onclick="cerrarMenuTurno();_cancelarOferta(${ofertaId},${restauranteId})">📣 Cancelar oferta</div>`;
         if(!_RO) items+=`<div class="it" onclick="cerrarMenuTurno();abrirModal('${userKey}','${fecha}',${restauranteId})">✏️ Editar turno</div>`;
         m.innerHTML=items; document.body.appendChild(m);
         const r=ev.currentTarget.getBoundingClientRect();
@@ -749,7 +770,7 @@
         const n=_ixOwnSel?_ixOwnSel.turnos.length:0;
         const b=document.createElement('div'); b.id='ix-banner';
         b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9600;background:#0f766e;color:#fff;padding:10px 16px;display:flex;justify-content:center;align-items:center;gap:14px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);';
-        b.innerHTML=`✋ Tocá tus turnos para seleccionarlos · <b>${n}</b> seleccionado(s) — acciones: <button onclick="_ixAbrirConSeleccion()" style="background:#fff;color:#0f766e;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">🔁 Intercambiar</button> <button onclick="_ixCancelarPropio()" style="background:transparent;color:#fff;border:1px solid #fff;border-radius:6px;padding:4px 11px;font-weight:700;cursor:pointer;">✕ Cancelar</button>`;
+        b.innerHTML=`✋ Tocá tus turnos para seleccionarlos · <b>${n}</b> seleccionado(s) — acciones: <button onclick="_ixAbrirConSeleccion()" style="background:#fff;color:#0f766e;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">🔁 Intercambiar</button> <button onclick="_ixOfrecerSel()" style="background:#fff;color:#0f766e;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">📣 Ofrecer</button> <button onclick="_ixCancelarPropio()" style="background:transparent;color:#fff;border:1px solid #fff;border-radius:6px;padding:4px 11px;font-weight:700;cursor:pointer;">✕ Cancelar</button>`;
         document.body.appendChild(b);
     }
     function _ixCancelarPropio(){ _ixOwnSel=null; _ixClearBanner(); renderGrid(); }
@@ -760,6 +781,42 @@
         abrirModalIntercambio(sel.R, first.date, first.id);
         _ixDa = sel.turnos.slice();
         _ixRenderChips(); _ixRefreshDaAdder();
+    }
+    // ── Ofrecer turno(s) (Fase 2) ──
+    function _ixOfrecerSel(){
+        const sel=_ixOwnSel; if(!sel || !sel.turnos.length){ alert('Seleccioná al menos un turno.'); return; }
+        _injectIntercambioUI();
+        const m=document.getElementById('ofrecer-modal');
+        m.dataset.ids=JSON.stringify(sel.turnos.map(t=>t.id)); m.dataset.rest=sel.R;
+        document.getElementById('ofr-sub').textContent=`Ofrecés ${sel.turnos.length} turno(s) para que otro los tome. Quien lo reclame, lo confirma un encargado.`;
+        document.getElementById('ofr-muro').checked=false;
+        m.style.display='flex';
+    }
+    async function _ixConfirmarOfrecer(){
+        const m=document.getElementById('ofrecer-modal');
+        const ids=JSON.parse(m.dataset.ids||'[]'); const R=+m.dataset.rest;
+        const muro=document.getElementById('ofr-muro').checked;
+        try{
+            const r=await _post('/horarios/solicitudes/oferta', { horario_ids:ids, publicar_muro:muro, restaurante_id:R });
+            m.style.display='none'; _ixOwnSel=null; _ixClearBanner();
+            let msg=`Ofreciste ${(r&&r.creados?r.creados.length:0)} turno(s).`;
+            if(r && r.ya_ofrecidos) msg+=` (${r.ya_ofrecidos} ya estaban ofrecidos)`;
+            alert(msg);
+            await cargarYRenderizar();
+        }catch(e){ alert('Error: '+(e.message||e)); }
+    }
+    async function _tomarOferta(id, R){
+        if(!confirm('¿Tomar este turno? Queda pendiente de confirmación del encargado.')) return;
+        try{ await _post(`/horarios/solicitudes/${id}/postular`, R?{restaurante_id:R}:{});
+            alert('Reclamo enviado. Pendiente de confirmación del encargado.');
+            await cargarYRenderizar();
+        }catch(e){ alert('Error: '+(e.message||e)); }
+    }
+    async function _cancelarOferta(id, R){
+        if(!confirm('¿Cancelar esta oferta de turno?')) return;
+        try{ await _post(`/horarios/solicitudes/${id}/cancelar`, R?{restaurante_id:R}:{});
+            await cargarYRenderizar();
+        }catch(e){ alert('Error: '+(e.message||e)); }
     }
     function cerrarIntercambio(){ const ov=document.getElementById('modal-intercambio'); if(ov) ov.style.display='none'; }
 
@@ -778,7 +835,10 @@
     }
     function _swFmt(j){ try{ return (JSON.parse(j||'[]')||[]).map(f=>`${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`).join(', '); }catch(_){ return ''; } }
     function _mostrarWidgetSolicitud(d, rid){
-        if(!d.puede_editar) return;   // solo quien puede confirmar (no los empleados involucrados)
+        const ridArg = (rid!=null && rid!=='') ? rid : 'null';
+        const puedeTomar = d.tipo==='oferta' && d.estado==='disponible' && d.mi_usuario_id!==d.creado_por;
+        const puedeConfirmar = d.puede_editar && d.estado==='pend_confirmacion';
+        if(!puedeTomar && !puedeConfirmar) return;   // nada accionable para este usuario
         let el=document.getElementById('sol-widget');
         if(!el){
             const st=document.createElement('style'); st.textContent=`
@@ -793,24 +853,34 @@
             document.head.appendChild(st);
             el=document.createElement('div'); el.id='sol-widget'; document.body.appendChild(el);
         }
-        const pend = d.estado==='pend_confirmacion';
-        const ridArg = (rid!=null && rid!=='') ? rid : 'null';
-        const acts = pend
-            ? `<div class="sw-acts"><button class="sw-b ok" onclick="_resolverSolicitud(${d.id},'confirmar',${ridArg})">Confirmar</button><button class="sw-b no" onclick="_resolverSolicitud(${d.id},'denegar',${ridArg})">Denegar</button></div>`
-            : `<div class="sw-state">Estado: ${_esc(d.estado)}</div>`;
+        const acts = puedeTomar
+            ? `<div class="sw-acts"><button class="sw-b ok" onclick="_tomarOfertaWidget(${d.id},${ridArg})">Tomar este turno</button></div>`
+            : `<div class="sw-acts"><button class="sw-b ok" onclick="_resolverSolicitud(${d.id},'confirmar',${ridArg})">Confirmar</button><button class="sw-b no" onclick="_resolverSolicitud(${d.id},'denegar',${ridArg})">Denegar</button></div>`;
         const _fT = t => `${t.fecha||'—'} · ${_swFmt(t.franjas)||'—'}`;
         const _da = (d.turnos||[]).filter(t=>t.lado==='da');
         const _re = (d.turnos||[]).filter(t=>t.lado==='recibe');
+        const _verbo = d.tipo==='oferta' ? 'ofrece' : 'da';
         let info = _da.length
-            ? `<div class="sw-row"><b>${_esc(d.creador_username||'—')}</b> da: ${_da.map(_fT).join('  |  ')}</div>`
-            : `<div class="sw-row"><b>${_esc(d.creador_username||'—')}</b> da: ${d.origen_fecha||'—'} · ${_swFmt(d.origen_franjas)||'—'}</div>`;
-        info += _re.length
-            ? `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b> da: ${_re.map(_fT).join('  |  ')}</div>`
-            : (d.destino_horario_id
-                ? `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_swFmt(d.destino_franjas)||'—'}</div>`
-                : `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`);
-        el.innerHTML = `<h4>🔁 Intercambio de turno <span class="sw-x" onclick="document.getElementById('sol-widget').remove()">✕</span></h4>${info}${acts}`;
+            ? `<div class="sw-row"><b>${_esc(d.creador_username||'—')}</b> ${_verbo}: ${_da.map(_fT).join('  |  ')}</div>`
+            : `<div class="sw-row"><b>${_esc(d.creador_username||'—')}</b> ${_verbo}: ${d.origen_fecha||'—'} · ${_swFmt(d.origen_franjas)||'—'}</div>`;
+        if(d.tipo!=='oferta'){
+            info += _re.length
+                ? `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b> da: ${_re.map(_fT).join('  |  ')}</div>`
+                : (d.destino_horario_id
+                    ? `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_swFmt(d.destino_franjas)||'—'}</div>`
+                    : `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`);
+        }
+        const titulo = d.tipo==='oferta' ? '📣 Oferta de turno' : '🔁 Intercambio de turno';
+        el.innerHTML = `<h4>${titulo} <span class="sw-x" onclick="document.getElementById('sol-widget').remove()">✕</span></h4>${info}${acts}`;
         el.style.display='block';
+    }
+    async function _tomarOfertaWidget(id, rid){
+        try{
+            await _post(`/horarios/solicitudes/${id}/postular`, (rid!=null) ? { restaurante_id: rid } : {});
+            alert('Reclamo enviado. Pendiente de confirmación del encargado.');
+            const w=document.getElementById('sol-widget'); if(w) w.remove();
+            await cargarYRenderizar();
+        }catch(e){ alert('Error: '+(e.message||e)); }
     }
     async function _resolverSolicitud(id, accion, rid){
         const body = (rid!=null) ? { restaurante_id: rid } : {};

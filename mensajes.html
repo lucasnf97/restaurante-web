@@ -425,8 +425,10 @@ function _tarjetaSolicitud(m){
     if(!m.solicitud_id) return '';
     _solCss();
     const st=m.solicitud_estado;
+    const esOferta = m.solicitud_tipo==='oferta';
     const estadoTxt = ({ prop_receptor:'Pendiente de tu respuesta',
                          prop_solicitante:'Contrapropuesta — pendiente de tu respuesta',
+                         disponible:'Disponible',
                          pend_confirmacion:'Pendiente de confirmación',
                          aprobada:'✔ Aprobado', denegada:'Denegado',
                          rechazada:'Rechazado', cancelada:'Cancelado' })[st] || st;
@@ -441,7 +443,8 @@ function _tarjetaSolicitud(m){
     // "Ver en la grilla" es la herramienta del editor para confirmar mirando el personal del día.
     const verGrilla = (st==='pend_confirmacion')
         ? `<a class="b-sol" href="horarios.html?solicitud=${m.solicitud_id}${rid!==''?('&restaurante_id='+rid):''}">Ver en la grilla</a>` : '';
-    return `<div class="sol-card"><div class="sol-st">🔁 Intercambio de turno · ${estadoTxt}</div>`
+    const titulo = esOferta ? '📣 Oferta de turno' : '🔁 Intercambio de turno';
+    return `<div class="sol-card"><div class="sol-st">${titulo} · ${estadoTxt}</div>`
          + `<div class="sol-info" id="sol-info-${m.solicitud_id}">Cargando detalle…</div>`
          + `<div class="sol-btns">${btns}${verGrilla}</div>` + hint + `</div>`;
 }
@@ -459,12 +462,15 @@ async function _rellenarInfoSolicitud(m){
         const fmt = t => `${t.fecha||'—'} · ${_fmtFranjasTxt(t.franjas)||'—'}`;
         const da = (d.turnos||[]).filter(t=>t.lado==='da');
         const re = (d.turnos||[]).filter(t=>t.lado==='recibe');
+        const verbo = (d.tipo==='oferta') ? 'ofrece' : 'da';
         let html = '';
-        if(da.length) html += `<div class="sol-row"><b>${_esc(d.creador_username||'—')}</b> da: ${da.map(fmt).join('  |  ')}</div>`;
-        else          html += `<div class="sol-row"><b>${_esc(d.creador_username||'—')}</b> da: ${d.origen_fecha||'—'} · ${_fmtFranjasTxt(d.origen_franjas)||'—'}</div>`;
-        if(re.length)               html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b> da: ${re.map(fmt).join('  |  ')}</div>`;
-        else if(d.destino_horario_id) html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_fmtFranjasTxt(d.destino_franjas)||'—'}</div>`;
-        else                        html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`;
+        if(da.length) html += `<div class="sol-row"><b>${_esc(d.creador_username||'—')}</b> ${verbo}: ${da.map(fmt).join('  |  ')}</div>`;
+        else          html += `<div class="sol-row"><b>${_esc(d.creador_username||'—')}</b> ${verbo}: ${d.origen_fecha||'—'} · ${_fmtFranjasTxt(d.origen_franjas)||'—'}</div>`;
+        if(d.tipo!=='oferta'){
+            if(re.length)                 html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b> da: ${re.map(fmt).join('  |  ')}</div>`;
+            else if(d.destino_horario_id) html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_fmtFranjasTxt(d.destino_franjas)||'—'}</div>`;
+            else                          html += `<div class="sol-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`;
+        }
         el.innerHTML = html;
     }catch(e){ el.textContent = 'No se pudo cargar el detalle.'; }
 }
