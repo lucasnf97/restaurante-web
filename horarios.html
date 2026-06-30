@@ -651,7 +651,8 @@
         const val=document.getElementById('ix-companero').value;
         if(!val){ alert('Elegí primero el compañero.'); document.getElementById('ix-turno').value=''; return; }
         const [destUid, destKey]=val.split('|');
-        _ixSel={ origen:+ov.dataset.origen, R:+ov.dataset.rest, fecha:ov.dataset.fecha, destUid:+destUid, destKey };
+        _ixSel={ origen:+ov.dataset.origen, R:+ov.dataset.rest, fecha:ov.dataset.fecha, destUid:+destUid, destKey,
+                 prevSelRest:new Set(_selRest), prevFiltro:filtroNombre };
         cerrarIntercambio();
         // Filtro: solo este restaurante + nombre del compañero, para ver sus turnos.
         _selRest=new Set([_ixSel.R]);
@@ -662,9 +663,16 @@
         _ixBanner(nom);
         renderGrid();
     }
+    function _ixRestaurarFiltro(sel){
+        _selRest = sel.prevSelRest || new Set();
+        filtroNombre = sel.prevFiltro || '';
+        const inp=document.getElementById('buscar'); if(inp) inp.value = filtroNombre;
+        renderRestChips(); renderGrid();
+    }
     function _ixSeleccionarTurno(hid){
         if(!_ixSel) return;
         const sel=_ixSel; _ixSel=null; _ixClearBanner();
+        _ixRestaurarFiltro(sel);
         abrirModalIntercambio(sel.R, sel.fecha, sel.origen);
         const c=document.getElementById('ix-companero'); c.value=`${sel.destUid}|${sel.destKey}`;
         _ixPoblarTurnos();
@@ -682,7 +690,7 @@
     // reseteado) para poder elegir otro empleado.
     function _ixCancelarSel(){
         const sel=_ixSel; _ixSel=null; _ixClearBanner();
-        if(sel) abrirModalIntercambio(sel.R, sel.fecha, sel.origen);
+        if(sel){ _ixRestaurarFiltro(sel); abrirModalIntercambio(sel.R, sel.fecha, sel.origen); }
     }
     function cerrarIntercambio(){ const ov=document.getElementById('modal-intercambio'); if(ov) ov.style.display='none'; }
 
