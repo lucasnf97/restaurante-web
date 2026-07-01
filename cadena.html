@@ -115,19 +115,23 @@
             foot.innerHTML = '';
             return;
         }
+        // Celda: neto en grande + bruto (con impuesto) chico y gris debajo.
+        const _cell = (neto, bruto) => `${fmt(neto != null ? neto : bruto)}<div style="font-size:11px;color:#9ca3af;">${fmt(bruto || 0)} c/imp</div>`;
         body.innerHTML = datos.map(d => `
             <tr>
                 <td>${d.restaurante || '—'}</td>
-                <td>${fmt(d.dia)}</td>
-                <td>${fmt(d.semana)}</td>
-                <td>${fmt(d.mes)}</td>
-                <td>${fmt(d.anio)}</td>
+                <td>${_cell(d.dia_neto, d.dia)}</td>
+                <td>${_cell(d.semana_neto, d.semana)}</td>
+                <td>${_cell(d.mes_neto, d.mes)}</td>
+                <td>${_cell(d.anio_neto, d.anio)}</td>
             </tr>`).join('');
         const tot = datos.reduce((a, d) => ({
             dia: a.dia + (d.dia || 0), semana: a.semana + (d.semana || 0),
-            mes: a.mes + (d.mes || 0), anio: a.anio + (d.anio || 0)
-        }), { dia: 0, semana: 0, mes: 0, anio: 0 });
-        foot.innerHTML = `<tr><td>Total cadena</td><td>${fmt(tot.dia)}</td><td>${fmt(tot.semana)}</td><td>${fmt(tot.mes)}</td><td>${fmt(tot.anio)}</td></tr>`;
+            mes: a.mes + (d.mes || 0), anio: a.anio + (d.anio || 0),
+            dia_n: a.dia_n + (d.dia_neto || 0), semana_n: a.semana_n + (d.semana_neto || 0),
+            mes_n: a.mes_n + (d.mes_neto || 0), anio_n: a.anio_n + (d.anio_neto || 0)
+        }), { dia: 0, semana: 0, mes: 0, anio: 0, dia_n: 0, semana_n: 0, mes_n: 0, anio_n: 0 });
+        foot.innerHTML = `<tr><td>Total cadena</td><td>${_cell(tot.dia_n, tot.dia)}</td><td>${_cell(tot.semana_n, tot.semana)}</td><td>${_cell(tot.mes_n, tot.mes)}</td><td>${_cell(tot.anio_n, tot.anio)}</td></tr>`;
     }
 
     async function entrar(id, btn) {
