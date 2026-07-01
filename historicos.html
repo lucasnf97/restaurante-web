@@ -297,10 +297,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
                     <div class="an-divider"></div>
 
-                    <label class="an-checkbox">
-                        <input type="checkbox" id="an-con-impuesto">
-                        Incluir impuestos
-                    </label>
+                    <div style="font-size:11px;color:#9ca3af;align-self:center;">Valores sin impuesto · con impuesto en gris</div>
 
                     <button class="an-btn" id="an-btn-consultar" onclick="anConsultar()">Consultar</button>
                 </div>
@@ -325,6 +322,8 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 <script>
 // ── Formato moneda ──────────────────────────────────────────────
 function fmt(n) { return fmtDinero(n); }
+// Neto en grande + bruto (con impuesto) chico y gris debajo.
+function fmtNB(neto, bruto) { return `${fmt(neto)}<div style="font-size:11px;color:#9ca3af;font-weight:400;">${fmt(bruto||0)} c/imp</div>`; }
 
 // ── Mes actual del sistema ──────────────────────────────────────
 const mesActual  = new Date().getMonth() + 1;
@@ -381,7 +380,7 @@ async function cargarGrafico() {
             const d = await apiFetch(`/reportes/facturacion-mes?year=${y}&month=${m}`);
             const gastos = d.costo_insumos_facturados
                          + d.costo_servicios_facturados;
-            return { y, m, ventas: d.ventas || 0, gastos: Math.max(0, gastos) };
+            return { y, m, ventas: (d.ventas_neto != null ? d.ventas_neto : d.ventas) || 0, gastos: Math.max(0, gastos) };
         } catch { return { y, m, ventas: 0, gastos: 0 }; }
     }));
 
@@ -440,7 +439,6 @@ function anCambiarTipo() {
 
 async function anConsultar() {
     const tipo   = document.getElementById('an-tipo').value;
-    const conImp = document.getElementById('an-con-impuesto').checked;
     const wrap   = document.getElementById('an-tabla-wrap');
     const btn    = document.getElementById('an-btn-consultar');
     btn.disabled = true;
@@ -455,7 +453,7 @@ async function anConsultar() {
                 wrap.innerHTML = '<p class="an-hint">Seleccioná las fechas de inicio y fin.</p>';
                 return;
             }
-            const data = await api.get(`/reportes/ventas-diarias?desde=${desde}&hasta=${hasta}&con_impuesto=${conImp}`);
+            const data = await api.get(`/reportes/ventas-diarias?desde=${desde}&hasta=${hasta}`);
             anRenderDiario(data, wrap);
         } else {
             const anioD = document.getElementById('an-anio-desde').value;
@@ -464,7 +462,7 @@ async function anConsultar() {
                 wrap.innerHTML = '<p class="an-hint">Seleccioná el rango de años.</p>';
                 return;
             }
-            const data = await api.get(`/reportes/ventas-semanales?anio_desde=${anioD}&anio_hasta=${anioH}&con_impuesto=${conImp}`);
+            const data = await api.get(`/reportes/ventas-semanales?anio_desde=${anioD}&anio_hasta=${anioH}`);
             anRenderSemanal(data, wrap);
         }
     } catch(e) {
@@ -480,11 +478,12 @@ function anRenderDiario(rows, wrap) {
         wrap.innerHTML = '<p class="an-hint">Sin datos para el período seleccionado.</p>';
         return;
     }
-    let totMesas = 0, totFact = 0;
+    let totMesas = 0, totFact = 0, totFactBruto = 0;
 
     const filas = rows.map(r => {
         totMesas += r.mesas_cerradas;
         totFact  += r.facturacion;
+        totFactBruto += (r.facturacion_bruto || 0);
         const nd = `<span class="an-badge-zero">—</span>`;
         const sinMesas = r.mesas_cerradas === 0;        // importadas: "recibos" del otro POS = mesas cerradas
         const sinFact  = !r.facturacion;
@@ -493,7 +492,7 @@ function anRenderDiario(rows, wrap) {
             <td>${r.fecha}</td>
             <td>${r.dia_semana}</td>
             <td class="num">${sinMesas ? nd : r.mesas_cerradas}</td>
-            <td class="num">${sinFact ? nd : fmt(r.facturacion)}</td>
+            <td class="num">${sinFact ? nd : fmtNB(r.facturacion, r.facturacion_bruto)}</td>
             <td class="num">${sinMesas ? nd : fmt(r.promedio_por_mesa)}</td>
         </tr>`;
     }).join('');
@@ -517,7 +516,7 @@ function anRenderDiario(rows, wrap) {
                     <tr class="an-row-total">
                         <td colspan="2">TOTAL</td>
                         <td class="num">${totMesas}</td>
-                        <td class="num">${fmt(totFact)}</td>
+                        <td class="num">${fmtNB(totFact, totFactBruto)}</td>
                         <td class="num">${fmt(promTotal)}</td>
                     </tr>
                 </tbody>
@@ -539,7 +538,7 @@ function anRenderSemanal(data, wrap) {
         const isTotal = f.semana === 'TOTAL';
         const celdas = anios.map(y => {
             const v = f[y];
-            return `<td class="num">${v != null ? fmt(v) : nd}</td>`;
+            return `<td class="num">${v != null ? fmtNB(v.neto, v.bruto) : nd}</td>`;
         }).join('');
         return `<tr class="${isTotal ? 'an-row-total' : ''}">
             <td>${isTotal ? 'TOTAL' : `Sem. ${f.semana}`}</td>
@@ -591,9 +590,10 @@ async function cargarCalendarioAnual() {
             const sinDatos = !(m.facturacion > 0);
             const c = sinDatos ? _CAL_GRIS : _CAL_TONOS[tono[i]];
             return `<div class="cal-mes" style="background:${c.bg};color:${c.fg};"
-                         title="${_MESES_CAL[i]} ${_calAnio}: ${sinDatos ? 'sin datos' : fmt(m.facturacion)}">
+                         title="${_MESES_CAL[i]} ${_calAnio}: ${sinDatos ? 'sin datos' : fmt(m.facturacion)+' (sin imp.) · '+fmt(m.facturacion_bruto||0)+' con imp.'}">
                 <div class="cal-mes-nombre">${_MESES_CAL[i]}</div>
                 <div class="cal-mes-monto">${sinDatos ? '—' : fmt(m.facturacion)}</div>
+                ${sinDatos ? '' : `<div style="font-size:10px;opacity:.7;">${fmt(m.facturacion_bruto||0)} c/imp</div>`}
             </div>`;
         }).join("");
     } catch (e) {
