@@ -204,10 +204,23 @@
             </div>
             <button onclick="limpiarFiltrosHistorial()" style="padding:7px 14px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;font-size:13px;cursor:pointer;color:#374151;">✕ Limpiar</button>
         </div>
+        <!-- Total del filtro -->
+        <div id="hist-totales" style="display:flex;gap:28px;align-items:baseline;flex-wrap:wrap;padding:10px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;">
+            <div style="font-size:13px;color:#6b7280;">Total del filtro:</div>
+            <div><span style="font-size:12px;color:#6b7280;">Sin impuestos</span>
+                 <span id="hist-total-neto" style="font-size:20px;font-weight:700;color:#111827;margin-left:6px;">—</span></div>
+            <div><span style="font-size:12px;color:#6b7280;">Con impuestos</span>
+                 <span id="hist-total-bruto" style="font-size:20px;font-weight:700;color:#111827;margin-left:6px;">—</span></div>
+            <div id="hist-total-count" style="font-size:12px;color:#9ca3af;margin-left:auto;"></div>
+        </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Fecha carga</th><th>Fecha factura</th><th>Período</th><th>Proveedor</th><th>Moneda</th><th>Total</th><th>Usuario</th><th>Doc.</th><th>Acciones</th></tr></thead>
-                <tbody id="tbody-facturas"><tr><td colspan="9" class="empty">Cargando...</td></tr></tbody>
+                <thead><tr>
+                    <th>Proveedor / Fecha</th><th>Usuario</th>
+                    <th style="text-align:right;">Sin IVA</th><th style="text-align:right;">Con IVA</th>
+                    <th>Doc.</th><th>Acciones</th>
+                </tr></thead>
+                <tbody id="tbody-facturas"><tr><td colspan="6" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -1772,12 +1785,33 @@ function formatFecha(str) {
 
 async function cargarHistorialFacturas() {
     const tbody = document.getElementById("tbody-facturas");
-    if (window.UI) UI.skeleton(tbody, 6, 7);
-    else tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
+    if (window.UI) UI.skeleton(tbody, 6, 6);
+    else tbody.innerHTML = `<tr><td colspan="6" class="empty">Cargando...</td></tr>`;
+    // Preseleccionar el período actual la primera vez que se abre (si no viene ya seteado
+    // por un deep-link ?periodo=YYYY-MM u otra navegación).
+    const per = document.getElementById("filtro-periodo");
+    if (per && !per.value && !_histPeriodoPreseteado) {
+        const hoy = new Date();
+        per.value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+        _histPeriodoPreseteado = true;
+    }
     try {
         _historialFacturas = await api.get("/stock/facturas/historial");
         filtrarHistorial();
-    } catch(e) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Error cargando historial</td></tr>`; }
+    } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Error cargando historial</td></tr>`; }
+}
+let _histPeriodoPreseteado = false;
+// Símbolo de la moneda del sistema (las facturas se guardan ya convertidas a esta divisa).
+function _simboloSys() { const s = window.SISTEMA_MONEDA || {}; return s.simbolo || s.codigo || ''; }
+function _fmtSys(v) {
+    return `${_simboloSys()} ${(Number(v) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function _toggleProveedor(gi) {
+    const first = document.querySelector(`.factg-${gi}`);
+    const abrir = !first || first.style.display === 'none';   // si están ocultas → abrir
+    document.querySelectorAll(`.factg-${gi}`).forEach(tr => tr.style.display = abrir ? '' : 'none');
+    const arrow = document.getElementById(`prov-arrow-${gi}`);
+    if (arrow) arrow.textContent = abrir ? '▾' : '▸';
 }
 
 function _periodoDeFactura(f) {
@@ -1811,35 +1845,69 @@ function filtrarHistorial() {
         return true;
     });
 
+    // Totales del filtro (barra superior).
+    let totNeto = 0, totBruto = 0;
+    filtradas.forEach(f => { totNeto += Number(f.total_neto) || 0; totBruto += Number(f.total_detectado) || 0; });
+    const elN = document.getElementById("hist-total-neto");   if (elN) elN.textContent = _fmtSys(totNeto);
+    const elB = document.getElementById("hist-total-bruto");  if (elB) elB.textContent = _fmtSys(totBruto);
+    const elC = document.getElementById("hist-total-count");
+    if (elC) elC.textContent = `${filtradas.length} factura${filtradas.length === 1 ? '' : 's'}`;
+
     if (!filtradas.length) {
-        tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin facturas para los filtros aplicados</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">Sin facturas para los filtros aplicados</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = filtradas.map(f => {
-        const prov = f.proveedor_nombre_reg || f.proveedor_nombre || "—";
-        const docUrl  = f.archivo_url
-            ? (f.archivo_url.startsWith('http') ? f.archivo_url : `${API_URL}${f.archivo_url}`)
-            : null;
-        const docLink = docUrl
-            ? `<a href="javascript:void(0)" onclick="abrirDocumento('${docUrl.replace(/'/g,'%27')}')" style="color:#4f46e5;font-weight:600;text-decoration:none;cursor:pointer;">📄</a>`
-            : "—";
-        const fFactura = f.fecha_factura ? String(f.fecha_factura).slice(0, 10) : '—';
-        return `<tr>
-            <td style="font-size:12px;color:#555;">${formatFecha(f.creado_en)}</td>
-            <td style="font-size:12px;color:#555;">${fFactura}</td>
-            <td style="font-size:12px;color:#4338ca;font-weight:600;">${_periodoTextoFactura(f)}</td>
-            <td><strong>${prov}</strong></td>
-            <td>${f.moneda ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;">${f.moneda}</span>` : '—'}</td>
-            <td>${f.total_detectado ? `${f.moneda || ''} ${parseFloat(f.total_detectado).toFixed(2)}` : '—'}</td>
-            <td style="font-size:12px;color:#888;">${f.usuario || '—'}</td>
-            <td>${docLink}</td>
-            <td><div style="display:flex;gap:6px;">
-                <button class="btn btn-secondary btn-sm" title="Editar" onclick="editarFactura(${f.id})">✏️</button>
-                <button class="btn btn-danger btn-sm" title="Eliminar" onclick="eliminarFactura(${f.id})">🗑</button>
-            </div></td>
+    // Agrupar por proveedor (nombre registrado > nombre libre).
+    const grupos = new Map();  // nombre -> { nombre, facturas:[], neto, bruto }
+    filtradas.forEach(f => {
+        const nombre = f.proveedor_nombre_reg || f.proveedor_nombre || "Sin proveedor";
+        if (!grupos.has(nombre)) grupos.set(nombre, { nombre, facturas: [], neto: 0, bruto: 0 });
+        const g = grupos.get(nombre);
+        g.facturas.push(f);
+        g.neto  += Number(f.total_neto) || 0;
+        g.bruto += Number(f.total_detectado) || 0;
+    });
+    // Ordenar proveedores por gasto (con IVA) descendente.
+    const ordenados = [...grupos.values()].sort((a, b) => b.bruto - a.bruto);
+
+    let html = "";
+    ordenados.forEach((g, gi) => {
+        const n = g.facturas.length;
+        html += `<tr class="prov-row" style="cursor:pointer;background:#f9fafb;" onclick="_toggleProveedor(${gi})">
+            <td colspan="2" style="font-weight:700;color:#111827;">
+                <span id="prov-arrow-${gi}" style="display:inline-block;width:14px;color:#6b7280;">▸</span>
+                ${g.nombre}
+                <span style="font-weight:500;color:#9ca3af;font-size:12px;">· ${n} factura${n === 1 ? '' : 's'}</span>
+            </td>
+            <td style="text-align:right;font-weight:700;color:#111827;">${_fmtSys(g.neto)}</td>
+            <td style="text-align:right;font-weight:700;color:#16a34a;">${_fmtSys(g.bruto)}</td>
+            <td colspan="2"></td>
         </tr>`;
-    }).join("");
+        // Facturas del proveedor (colapsadas por defecto).
+        g.facturas.forEach(f => {
+            const docUrl = f.archivo_url
+                ? (f.archivo_url.startsWith('http') ? f.archivo_url : `${API_URL}${f.archivo_url}`)
+                : null;
+            const docLink = docUrl
+                ? `<a href="javascript:void(0)" onclick="abrirDocumento('${docUrl.replace(/'/g,'%27')}')" style="color:#4f46e5;font-weight:600;text-decoration:none;cursor:pointer;">📄</a>`
+                : "—";
+            const fFactura = f.fecha_factura ? String(f.fecha_factura).slice(0, 10) : formatFecha(f.creado_en);
+            html += `<tr class="factg-${gi}" style="display:none;">
+                <td style="padding-left:26px;font-size:12px;color:#555;">${fFactura}
+                    <span style="color:#9ca3af;">· ${_periodoTextoFactura(f)}</span></td>
+                <td style="font-size:12px;color:#888;">${f.usuario || '—'}</td>
+                <td style="text-align:right;font-size:13px;color:#1a1a2e;">${_fmtSys(f.total_neto)}</td>
+                <td style="text-align:right;font-size:13px;color:#16a34a;">${_fmtSys(f.total_detectado)}</td>
+                <td>${docLink}</td>
+                <td><div style="display:flex;gap:6px;">
+                    <button class="btn btn-secondary btn-sm" title="Editar" onclick="editarFactura(${f.id})">✏️</button>
+                    <button class="btn btn-danger btn-sm" title="Eliminar" onclick="eliminarFactura(${f.id})">🗑</button>
+                </div></td>
+            </tr>`;
+        });
+    });
+    tbody.innerHTML = html;
 }
 
 function limpiarFiltrosHistorial() {
@@ -2214,6 +2282,7 @@ if (_facturasSoloVista) setTab('historial');
     if (per && /^\d{4}-\d{2}$/.test(per)) {
         const el = document.getElementById('filtro-periodo');
         if (el) el.value = per;            // se aplica al renderizar el historial (filtrarHistorial)
+        _histPeriodoPreseteado = true;     // el deep-link ya definió el período → no re-presetear al actual
         setTab('historial');
     }
 })();
