@@ -663,7 +663,7 @@
             <label>Fecha</label><input type="date" id="ab-fecha" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:7px;">
             <label>Horario</label>
             <div style="display:flex;gap:8px;align-items:center;"><input type="time" id="ab-inicio" style="flex:1;padding:8px;border:1px solid #d1d5db;border-radius:7px;"> a <input type="time" id="ab-fin" style="flex:1;padding:8px;border:1px solid #d1d5db;border-radius:7px;"></div>
-            <label>Rol (opcional)</label><input type="text" id="ab-rol" placeholder="ej: Cocina" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:7px;">
+            <label>Rol (opcional)</label><select id="ab-rol" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:7px;"></select>
             <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;margin-top:8px;"><input type="checkbox" id="ab-muro" style="width:auto;"> Publicar también en el muro</label>
             <div class="ix-acts"><button class="ix-b sec" onclick="document.getElementById('abierto-modal').style.display='none'">Cancelar</button><button class="ix-b prim" onclick="_crearAbierto()">Crear</button></div>
           </div>`;
@@ -917,6 +917,8 @@
         if(_selRest.size===1) sel.value=[..._selRest][0];
         document.getElementById('ab-fecha').value=fecha||'';
         document.getElementById('ab-inicio').value='09:00'; document.getElementById('ab-fin').value='17:00';
+        // Rol: desplegable con los roles del restaurante (en vez de texto libre).
+        document.getElementById('ab-rol').innerHTML='<option value="">(sin rol)</option>'+rolesDisponibles.map(r=>`<option value="${_esc(r)}">${_esc(getRolLabel(r))}</option>`).join('');
         document.getElementById('ab-rol').value=''; document.getElementById('ab-muro').checked=false;
         document.getElementById('abierto-modal').style.display='flex';
     }
@@ -948,23 +950,42 @@
             document.getElementById('asignar-modal').style.display='flex';
         }catch(e){ alert('Error: '+(e.message||e)); }
     }
-    async function _asignarA(id, uid, R){
-        try{ await _post(`/horarios/solicitudes/${id}/asignar`, { usuario_id:uid, restaurante_id:R });
+    async function _asignarA(id, uid, R, permitir){
+        try{
+            const body={ usuario_id:uid, restaurante_id:R };
+            if(permitir) body.permitir_conflicto=true;
+            await _post(`/horarios/solicitudes/${id}/asignar`, body);
             document.getElementById('asignar-modal').style.display='none';
             alert('Turno asignado.');
             await cargarYRenderizar();
-        }catch(e){ alert('Error: '+(e.message||e)); }
+        }catch(e){
+            if(!permitir && String(e.message||'').includes('conflicto_dia')){
+                if(confirm('Ese empleado ya tiene un turno ese día. ¿Asignar igual (turno doble)?')) return _asignarA(id, uid, R, true);
+                return;
+            }
+            alert('Error: '+(e.message||e));
+        }
     }
+    // Postularse a un turno abierto/oferta desde la grilla, avisando si ya se tiene turno ese día.
     async function _postularAbierto(id, R, ya){
         try{
-            if(ya) await _post(`/horarios/solicitudes/${id}/desistir`, R?{restaurante_id:R}:{});
-            else   await _post(`/horarios/solicitudes/${id}/postular`, R?{restaurante_id:R}:{});
+            if(ya){ await _post(`/horarios/solicitudes/${id}/desistir`, R?{restaurante_id:R}:{}); await cargarYRenderizar(); return; }
+            const d = await _get(`/horarios/solicitudes/${id}${R?('?restaurante_id='+R):''}`);
+            if(d.mi_conflicto && !confirm(`Ya tenés un turno el ${d.origen_fecha||'ese día'}. ¿Postularte igual?`)) return;
+            await _post(`/horarios/solicitudes/${id}/postular`, R?{restaurante_id:R}:{});
             await cargarYRenderizar();
         }catch(e){ alert('Error: '+(e.message||e)); }
     }
-    async function _postularDesdeWidget(id, rid){
+    async function _postularConChequeo(id, rid, fecha, tengoConflicto){
+        if(tengoConflicto && !confirm(`Ya tenés un turno el ${fecha||'ese día'}. ¿Postularte igual?`)) return;
         try{ await _post(`/horarios/solicitudes/${id}/postular`, (rid!=null)?{restaurante_id:rid}:{});
-            alert('Te postulaste al turno abierto.');
+            alert('Te postulaste.');
+            const w=document.getElementById('sol-widget'); if(w) w.remove();
+            await cargarYRenderizar();
+        }catch(e){ alert('Error: '+(e.message||e)); }
+    }
+    async function _desistirPostulacion(id, rid){
+        try{ await _post(`/horarios/solicitudes/${id}/desistir`, (rid!=null)?{restaurante_id:rid}:{});
             const w=document.getElementById('sol-widget'); if(w) w.remove();
             await cargarYRenderizar();
         }catch(e){ alert('Error: '+(e.message||e)); }
@@ -1066,10 +1087,13 @@
     function _swFmt(j){ try{ return (JSON.parse(j||'[]')||[]).map(f=>`${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`).join(', '); }catch(_){ return ''; } }
     function _mostrarWidgetSolicitud(d, rid){
         const ridArg = (rid!=null && rid!=='') ? rid : 'null';
-        const puedeTomar = d.tipo==='oferta' && d.estado==='disponible' && d.mi_usuario_id!==d.creado_por;
+        // Oferta y turno abierto se manejan igual: los postulantes se acumulan y el editor asigna.
+        const disp = (d.tipo==='abierto' && d.estado==='abierta') || (d.tipo==='oferta' && d.estado==='disponible');
+        const yaPostulado = (d.postulantes||[]).some(p=>p.usuario_id===d.mi_usuario_id);
+        const puedeAsignar = disp && d.puede_editar;
+        const puedePostular = disp && !d.puede_editar && d.mi_usuario_id!==d.creado_por;
         const puedeConfirmar = d.puede_editar && d.estado==='pend_confirmacion';
-        const esAbierta = d.tipo==='abierto' && d.estado==='abierta';
-        if(!puedeTomar && !puedeConfirmar && !esAbierta) return;   // nada accionable para este usuario
+        if(!puedeAsignar && !puedePostular && !puedeConfirmar) return;   // nada accionable para este usuario
         let el=document.getElementById('sol-widget');
         if(!el){
             const st=document.createElement('style'); st.textContent=`
@@ -1085,12 +1109,12 @@
             el=document.createElement('div'); el.id='sol-widget'; document.body.appendChild(el);
         }
         let acts;
-        if(esAbierta){
-            acts = d.puede_editar
-                ? `<div class="sw-acts"><button class="sw-b ok" onclick="_abrirAsignar(${d.id},${ridArg})">Ver postulantes / asignar</button></div>`
-                : `<div class="sw-acts"><button class="sw-b ok" onclick="_postularDesdeWidget(${d.id},${ridArg})">✋ Postularme</button></div>`;
-        } else if(puedeTomar){
-            acts = `<div class="sw-acts"><button class="sw-b ok" onclick="_tomarOfertaWidget(${d.id},${ridArg})">Tomar este turno</button></div>`;
+        if(puedeAsignar){
+            acts = `<div class="sw-acts"><button class="sw-b ok" onclick="_abrirAsignar(${d.id},${ridArg})">Ver postulantes / asignar</button></div>`;
+        } else if(puedePostular){
+            acts = yaPostulado
+                ? `<div class="sw-acts"><button class="sw-b no" onclick="_desistirPostulacion(${d.id},${ridArg})">✓ Postulado — retirar</button></div>`
+                : `<div class="sw-acts"><button class="sw-b ok" onclick="_postularConChequeo(${d.id},${ridArg},'${d.origen_fecha||''}',${d.mi_conflicto?'true':'false'})">✋ Postularme</button></div>`;
         } else {
             acts = `<div class="sw-acts"><button class="sw-b ok" onclick="_resolverSolicitud(${d.id},'confirmar',${ridArg})">Confirmar</button><button class="sw-b no" onclick="_resolverSolicitud(${d.id},'denegar',${ridArg})">Denegar</button></div>`;
         }
@@ -1113,8 +1137,8 @@
                         ? `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_swFmt(d.destino_franjas)||'—'}</div>`
                         : `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`);
             }
-            if(d.tipo==='oferta' && d.tomado_username)
-                info += `<div class="sw-row">✋ Quiere tomarlo: <b>${_esc(d.tomado_username)}</b></div>`;
+            if(d.tipo==='oferta')
+                info += `<div class="sw-row">👤 ${(d.postulantes||[]).length} postulante(s)</div>`;
         }
         const titulo = d.tipo==='abierto' ? '⊕ Turno abierto' : (d.tipo==='oferta' ? '📣 Oferta de turno' : '🔁 Intercambio de turno');
         el.innerHTML = `<h4>${titulo} <span class="sw-x" onclick="document.getElementById('sol-widget').remove()">✕</span></h4>${info}${acts}`;
@@ -1128,14 +1152,21 @@
             await cargarYRenderizar();
         }catch(e){ alert('Error: '+(e.message||e)); }
     }
-    async function _resolverSolicitud(id, accion, rid){
+    async function _resolverSolicitud(id, accion, rid, permitir){
         const body = (rid!=null) ? { restaurante_id: rid } : {};
+        if(permitir) body.permitir_conflicto=true;
         try{
             await _post(`/horarios/solicitudes/${id}/${accion}`, body);
             alert(accion==='confirmar' ? 'Intercambio aprobado.' : 'Intercambio denegado.');
             const w=document.getElementById('sol-widget'); if(w) w.remove();
             await cargarYRenderizar();   // re-trae la grilla (los turnos ya quedaron intercambiados) + marcadores
-        }catch(e){ alert('Error: '+(e.message||e)); }
+        }catch(e){
+            if(accion==='confirmar' && !permitir && String(e.message||'').includes('conflicto_dia')){
+                if(confirm('Un empleado ya tiene un turno ese día. ¿Confirmar igual (turno doble)?')) return _resolverSolicitud(id, accion, rid, true);
+                return;
+            }
+            alert('Error: '+(e.message||e));
+        }
     }
 
     // ── Modal turno ─────────────────────────────────────────────

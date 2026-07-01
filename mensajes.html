@@ -489,15 +489,32 @@ function _bs(m, accion, label, kind){
     const rid = (m.restaurante_id!=null) ? m.restaurante_id : 'null';
     return `<button class="b-sol ${kind}" onclick="accionSolicitud(${m.solicitud_id},'${accion}',${rid})">${label}</button>`;
 }
-async function accionSolicitud(id, accion, restauranteId){
+async function accionSolicitud(id, accion, restauranteId, permitir){
+    const tk = (_emp && typeof getEmpToken === 'function') ? getEmpToken() : null;
+    // Aviso al aceptar un intercambio: si ya tenés un turno el día que recibirías.
+    if(accion==='aceptar'){
+        try{
+            const q = (restauranteId!=null) ? ('?restaurante_id='+restauranteId) : '';
+            const d = await apiFetch(`/horarios/solicitudes/${id}${q}`, tk?{token:tk}:{});
+            if(d && d.mi_conflicto && !confirm('Ya tenés un turno ese día. ¿Aceptar igual?')) return;
+        }catch(_){ /* si no se puede chequear, seguimos igual */ }
+    }
     const body = (restauranteId!=null) ? { restaurante_id: restauranteId } : {};
+    if(permitir) body.permitir_conflicto = true;
     const opts = { method:'POST', body: JSON.stringify(body) };
-    if(_emp && typeof getEmpToken === 'function') opts.token = getEmpToken();
+    if(tk) opts.token = tk;
     try{
         await apiFetch(`/horarios/solicitudes/${id}/${accion}`, opts);
         cerrarVer();
         await cargarMensajes();
-    }catch(e){ alert('Error: '+(e.message||e)); }
+    }catch(e){
+        // Editor confirmando pese a que un empleado ya tiene turno ese día → ofrecer turno doble.
+        if(accion==='confirmar' && !permitir && String(e.message||'').includes('conflicto_dia')){
+            if(confirm('Un empleado ya tiene un turno ese día. ¿Confirmar igual (turno doble)?')) return accionSolicitud(id, accion, restauranteId, true);
+            return;
+        }
+        alert('Error: '+(e.message||e));
+    }
 }
 
 function cerrarVer() {
