@@ -51,14 +51,14 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 /* ── Billing cards ── */
 .billing-cards {
     display:grid; grid-template-columns:repeat(auto-fill, minmax(175px, 1fr)); gap:16px; margin-bottom:32px;
+    align-items:stretch;   /* todas las tarjetas al mismo alto → el % queda a la misma altura */
 }
 @media(max-width:700px)  { .billing-cards { grid-template-columns:1fr 1fr; } }
 
 .bill-card {
-    background:white; border-radius:12px; padding:20px 22px;
+    background:white; border-radius:12px; padding:20px 22px 38px;   /* espacio reservado abajo para el % */
     box-shadow:0 2px 8px rgba(0,0,0,.06); position:relative; overflow:hidden;
     cursor:pointer; transition:transform .15s, box-shadow .15s;
-    display:flex; flex-direction:column;   /* permite fijar el % al fondo */
 }
 .bill-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.13); }
 .bill-card::before {
@@ -80,7 +80,8 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .bill-value.negativo { color:#dc2626; }
 .bill-value.positivo { color:#16a34a; }
 .bill-sub { font-size:11px; color:#aaa; margin-top:4px; }
-.bill-pct { font-size:11px; color:#9ca3af; margin-top:auto; padding-top:8px; font-weight:600; }
+/* % SIEMPRE fijo abajo-izquierda de la tarjeta (mismo lugar en todas, sin depender del texto) */
+.bill-pct { position:absolute; left:22px; bottom:16px; font-size:11px; color:#9ca3af; font-weight:600; margin:0; padding:0; }
 
 /* ── Section header ── */
 .section-header {
