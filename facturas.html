@@ -328,6 +328,8 @@
                 Nº de factura
                 <input type="text" id="conf-numero" placeholder="Ej: A-0001-00001234" onblur="verificarNumeroFactura()"
                        style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;width:170px;">
+                <button type="button" id="conf-numero-lupa" class="btn-lupa-fuente" onclick="resaltarNumeroFuente()"
+                        title="Resaltar en la factura de dónde se obtuvo el número" style="display:none;">🔍</button>
             </label>
             <span id="conf-numero-warn" style="font-size:12px;font-weight:700;color:#b45309;display:none;"></span>
         </div>
@@ -1078,6 +1080,11 @@ function abrirModalConfirmacion(datos) {
     if (numEl) numEl.value = datos.numero_factura || "";
     const numWarn = document.getElementById("conf-numero-warn");
     if (numWarn) { numWarn.style.display = "none"; numWarn.innerHTML = ""; }
+    // Fuente del Nº (para la lupa 🔍): solo si la IA la trajo con datos utilizables.
+    const nf = datos.numero_factura_fuente || null;
+    _confNumeroFuente = (nf && ((nf.textos && nf.textos.length) || (nf.box && nf.box.length))) ? nf : null;
+    const numLupa = document.getElementById("conf-numero-lupa");
+    if (numLupa) numLupa.style.display = _confNumeroFuente ? "" : "none";
 
     const monedaCodigo  = datos.moneda || "";
     const monedaSimbolo = datos.moneda_simbolo || (monedaCodigo ? monedaCodigo + " " : "$");
@@ -1265,10 +1272,14 @@ function _boxDivModelo(b) {   // b = [ymin,xmin,ymax,xmax] 0–1000
     return d;
 }
 function _highlightFuente(idx, campo) {
+    _highlightFuenteSrc(_confFuentes[idx] && _confFuentes[idx][campo], _confPaginas[idx] || 1);
+}
+// Núcleo del resaltado: recibe una fuente { textos, box } y la página. Sirve para ítems
+// (nombre/cantidad/precio) y para el Nº de factura (cabecera, fuente propia).
+function _highlightFuenteSrc(src, pagina) {
     _clearFuente();
-    const src = _confFuentes[idx] && _confFuentes[idx][campo];
     if (!src) return;
-    const pagina  = _confPaginas[idx] || 1;
+    pagina  = pagina || 1;
     const overlay = _overlayDePagina(pagina);
     if (!overlay) return;   // la página todavía no renderizó
     let primera = null;
@@ -1322,6 +1333,12 @@ document.addEventListener('focusin', (e) => {
 // Lupa 🔍 a la izquierda del nombre: resalta en el PDF dónde aparece ese nombre (acción manual).
 function resaltarNombreFuente(idx) {
     _highlightFuente(idx, 'nombre');
+}
+
+// Lupa 🔍 del Nº de factura: resalta en el visor de dónde la IA obtuvo el número.
+let _confNumeroFuente = null;   // { textos, box, pagina } — fuente del Nº de factura
+function resaltarNumeroFuente() {
+    _highlightFuenteSrc(_confNumeroFuente, _confNumeroFuente ? (_confNumeroFuente.pagina || 1) : 1);
 }
 
 // ── SERVICIO RÁPIDO ───────────────────────────────────────────
@@ -1634,7 +1651,7 @@ async function confirmarFactura() {
         const impGlobalVal = parseFloat(document.getElementById('conf-imp-global')?.value);
         const datosSnapshot = {
             proveedor_nombre: provNombre, proveedor_cuit: provCuit || null,
-            numero_factura: numeroFactura,
+            numero_factura: numeroFactura, numero_factura_fuente: _confNumeroFuente,
             moneda, impuesto_pct: isNaN(impGlobalVal) ? null : impGlobalVal,
             fecha: fechaFactura, _periodo: periodoMes, items: snapItems,
         };
@@ -1747,6 +1764,7 @@ function _capturarBorrador() {
         proveedor_nombre: document.getElementById('conf-prov-nombre')?.value.trim() || '',
         proveedor_cuit:   document.getElementById('conf-prov-cuit')?.value.trim() || null,
         numero_factura:   document.getElementById('conf-numero')?.value.trim() || null,
+        numero_factura_fuente: _confNumeroFuente,
         moneda:           document.getElementById('conf-moneda-codigo')?.value || null,
         impuesto_pct:     isNaN(impG) ? null : impG,
         fecha:            document.getElementById('conf-fecha')?.value || null,
