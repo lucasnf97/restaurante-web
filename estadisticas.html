@@ -1163,7 +1163,8 @@ async function cargarGrafico() {
             const gastos = d.costo_insumos_facturados
                          + d.costo_servicios_facturados
                          + (d.costo_bienes_facturados || 0)
-                         + (d.descuentos_personal || 0);
+                         + (d.descuentos_personal || 0)
+                         + (d.salarios || 0);
             return { y, m, ventas: d.ventas || 0, gastos: Math.max(0, gastos) };
         } catch { return { y, m, ventas: 0, gastos: 0 }; }
     }));
@@ -1266,7 +1267,8 @@ function renderProgressBar() {
     const breakEven = datosMes.costo_insumos_facturados
                     + datosMes.costo_servicios_facturados
                     + (datosMes.costo_bienes_facturados || 0)
-                    + (datosMes.descuentos_personal || 0);
+                    + (datosMes.descuentos_personal || 0)
+                    + (datosMes.salarios || 0);
     const ventasPrev = ventasMesAnterior ?? 0;
     const meta       = getMeta();
 
@@ -1384,7 +1386,7 @@ function renderBillingCards(d) {
             cls:"balance", icon:"⚖️", label:`Balance mensual${sufijo}`,
             value: fmt(d.balance),
             extraCls: d.balance >= 0 ? "positivo" : "negativo",
-            sub: "Ventas − insumos − servicios − desechos − descuentos"
+            sub: "Ventas netas − insumos − servicios − bienes de uso − desechos − descuentos − salarios"
         },
     ];
 
@@ -1652,12 +1654,14 @@ async function cargarDetalle(tipo) {
                 const d = datosMes;
                 if (!d) { body.innerHTML = '<div class="det-empty">Cargue primero los datos del mes.</div>'; break; }
                 const desechos = d.desechos || 0;
+                const salarios = d.salarios || 0;
+                const vn = (d.ventas_neto != null ? d.ventas_neto : d.ventas) || 0;
                 const bal = d.balance;
                 body.innerHTML = `
                     <div class="balance-formula">
                         <div class="bal-row">
-                            <span class="bal-label">💰 Ventas del mes</span>
-                            <span class="bal-val verde">+ ${fmt(d.ventas)}</span>
+                            <span class="bal-label">💰 Ventas del mes (neto)</span>
+                            <span class="bal-val verde">+ ${fmt(vn)}</span>
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
@@ -1683,6 +1687,11 @@ async function cargarDetalle(tipo) {
                         <div class="bal-row">
                             <span class="bal-label">🎟️ Descuentos / consumo personal</span>
                             <span class="bal-val rojo">− ${fmt(d.descuentos_personal || 0)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">👥 Salarios</span>
+                            <span class="bal-val rojo">− ${fmt(salarios)}</span>
                         </div>
                         <div class="bal-op">=</div>
                         <div class="bal-row bal-total">
