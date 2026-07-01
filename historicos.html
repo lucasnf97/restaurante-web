@@ -379,7 +379,8 @@ async function cargarGrafico() {
         try {
             const d = await apiFetch(`/reportes/facturacion-mes?year=${y}&month=${m}`);
             const gastos = d.costo_insumos_facturados
-                         + d.costo_servicios_facturados;
+                         + d.costo_servicios_facturados
+                         + (d.costo_bienes_facturados || 0);
             return { y, m, ventas: (d.ventas_neto != null ? d.ventas_neto : d.ventas) || 0, gastos: Math.max(0, gastos) };
         } catch { return { y, m, ventas: 0, gastos: 0 }; }
     }));

@@ -1162,6 +1162,7 @@ async function cargarGrafico() {
             const d = await apiFetch(`/reportes/facturacion-mes?year=${y}&month=${m}`);
             const gastos = d.costo_insumos_facturados
                          + d.costo_servicios_facturados
+                         + (d.costo_bienes_facturados || 0)
                          + (d.descuentos_personal || 0);
             return { y, m, ventas: d.ventas || 0, gastos: Math.max(0, gastos) };
         } catch { return { y, m, ventas: 0, gastos: 0 }; }
@@ -1264,6 +1265,7 @@ function renderProgressBar() {
     // break-even = punto donde balance = 0 (produccion NO entra, ya fue pagada con los insumos)
     const breakEven = datosMes.costo_insumos_facturados
                     + datosMes.costo_servicios_facturados
+                    + (datosMes.costo_bienes_facturados || 0)
                     + (datosMes.descuentos_personal || 0);
     const ventasPrev = ventasMesAnterior ?? 0;
     const meta       = getMeta();
@@ -1666,6 +1668,11 @@ async function cargarDetalle(tipo) {
                         <div class="bal-row">
                             <span class="bal-label">🔧 Servicios facturados</span>
                             <span class="bal-val rojo">− ${fmt(d.costo_servicios_facturados)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">🏗️ Bienes de uso</span>
+                            <span class="bal-val rojo">− ${fmt(d.costo_bienes_facturados || 0)}</span>
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">

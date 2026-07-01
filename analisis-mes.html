@@ -680,6 +680,7 @@ function renderProgressBar() {
     const ventas  = datosMes.ventas;
     const breakEven = datosMes.costo_insumos_facturados
                     + datosMes.costo_servicios_facturados
+                    + (datosMes.costo_bienes_facturados || 0)
                     + (datosMes.descuentos_personal || 0)
                     + (datosMes.salarios || 0);
     const ventasPrev = ventasMesAnterior ?? 0;
@@ -761,7 +762,7 @@ function renderBillingCards(d) {
 
     const desechos = d.desechos || 0;
     const salarios = d.salarios || 0;
-    const gastosFact = (d.costo_insumos_facturados || 0) + (d.costo_servicios_facturados || 0);   // insumos + servicios
+    const gastosFact = (d.costo_insumos_facturados || 0) + (d.costo_servicios_facturados || 0) + (d.costo_bienes_facturados || 0);   // insumos + servicios + bienes de uso
     // Base para los % de gasto: ventas NETAS (sin impuesto) del mes.
     const vn = (d.ventas_neto != null ? d.ventas_neto : d.ventas) || 0;
     const pctVentas = (val) => vn > 0 ? `${(val / vn * 100).toFixed(1)}% de ventas` : "";
@@ -781,7 +782,7 @@ function renderBillingCards(d) {
             cls:"gastos", icon:"🧾", label:"Gastos facturados",
             value: fmt(gastosFact),
             extraCls: gastosFact < 0 ? "positivo" : "negativo",
-            sub: "Insumos + servicios facturados",
+            sub: "Insumos + servicios + bienes de uso facturados",
             pct: pctVentas(gastosFact),
             // Redirige al historial de facturas con el período actual preseteado en el filtro.
             nav: `facturas.html?periodo=${d.year}-${String(d.month).padStart(2,'0')}`
@@ -803,7 +804,7 @@ function renderBillingCards(d) {
             cls:"balance", icon:"⚖️", label:`Balance mensual${sufijo}`,
             value: fmt(d.balance),
             extraCls: d.balance >= 0 ? "positivo" : "negativo",
-            sub: "Ventas netas − insumos − servicios − desechos − descuentos − salarios",
+            sub: "Ventas netas − insumos − servicios − bienes de uso − desechos − descuentos − salarios",
             pct: (vn > 0 ? `${(d.balance / vn * 100).toFixed(1)}% de la facturación` : "")
         },
     ];
@@ -1125,6 +1126,11 @@ async function cargarDetalle(tipo) {
                         <div class="bal-row">
                             <span class="bal-label">🔧 Servicios facturados</span>
                             <span class="bal-val rojo">− ${fmt(d.costo_servicios_facturados)}${pl(d.costo_servicios_facturados)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">🏗️ Bienes de uso</span>
+                            <span class="bal-val rojo">− ${fmt(d.costo_bienes_facturados || 0)}${pl(d.costo_bienes_facturados || 0)}</span>
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
@@ -1452,7 +1458,7 @@ function renderDayBars() {
 
     // Break-even mensual (de datosMes ya cargado por cargarFacturacion)
     const breakEvenMensual = datosMes
-        ? (datosMes.costo_insumos_facturados + datosMes.costo_servicios_facturados + (datosMes.descuentos_personal || 0) + (datosMes.salarios || 0))
+        ? (datosMes.costo_insumos_facturados + datosMes.costo_servicios_facturados + (datosMes.costo_bienes_facturados || 0) + (datosMes.descuentos_personal || 0) + (datosMes.salarios || 0))
         : 0;
     const breakEvenDiario = breakEvenMensual > 0 ? breakEvenMensual / diasMesActual : 0;
 
