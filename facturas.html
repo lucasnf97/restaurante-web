@@ -766,17 +766,32 @@ function _refrescarSelectsBien(forzarIdx, nuevoId) {
 }
 function _refrescarSelectsServicio(forzarIdx, nuevoId) {
     document.querySelectorAll("select[id^='ci-servicio-']").forEach(sel => {
-        const idx   = sel.id.replace('ci-servicio-', '');
-        const selId = (String(idx) === String(forzarIdx)) ? nuevoId : (parseInt(sel.value) || null);
-        sel.innerHTML = `<option value="">— Seleccioná —</option>` + optsServicios(selId);
+        const idx     = sel.id.replace('ci-servicio-', '');
+        const eraExtra = sel.value === '__extra__';   // conservar el "gasto extraordinario" ya elegido
+        const selId   = (String(idx) === String(forzarIdx)) ? nuevoId : (parseInt(sel.value) || null);
+        sel.innerHTML = `<option value="">— Seleccioná —</option>`
+            + `<option value="__extra__" ${eraExtra ? 'selected' : ''}>⚡ Gasto extraordinario (no se guarda)</option>`
+            + optsServicios(eraExtra ? null : selId);
     });
 }
 
-function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, marca) {
+// Al elegir "Gasto extraordinario" se muestra el campo de concepto libre y se oculta el botón
+// "+ Nuevo" (no tiene sentido crear catálogo para un cargo que no se guarda).
+function onServicioChange(idx) {
+    const esExtra = document.getElementById(`ci-servicio-${idx}`)?.value === '__extra__';
+    const concEl  = document.getElementById(`cs-concepto-${idx}`);
+    const btnEl   = document.getElementById(`cs-nuevo-btn-${idx}`);
+    if (concEl) { concEl.style.display = esExtra ? '' : 'none'; if (esExtra) concEl.focus(); }
+    if (btnEl)  btnEl.style.display = esExtra ? 'none' : '';
+}
+
+function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, marca, concepto, esExtra) {
     const esInsumo   = tipo === "insumo";
     const esServicio = tipo === "servicio";
     const esBien     = tipo === "bien";
     const esOmitido  = tipo === "omitir";
+    esExtra = esServicio && !!esExtra;   // gasto extraordinario (servicio one-off, sin catálogo)
+    const conceptoAttr = String(concepto || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
     const claseRow   = esInsumo ? (insumoId ? 'ok' : 'pendiente') : esServicio ? 'servicio' : 'omitido';
     const icono      = esInsumo ? (insumoId ? '✅' : '⚠️') : esServicio ? '🔧' : '—';
 
@@ -855,11 +870,16 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
             <div class="item-field">
                 <label>Servicio *</label>
                 <div style="display:flex;gap:6px;align-items:center;">
-                    <select id="ci-servicio-${idx}" style="flex:1;min-width:0;">
-                        <option value="">— Seleccioná —</option>${optsServicios(servicioId)}
+                    <select id="ci-servicio-${idx}" onchange="onServicioChange('${idx}')" style="flex:1;min-width:0;">
+                        <option value="">— Seleccioná —</option>
+                        <option value="__extra__" ${esExtra ? 'selected' : ''}>⚡ Gasto extraordinario (no se guarda)</option>
+                        ${optsServicios(esExtra ? null : servicioId)}
                     </select>
-                    <button type="button" onclick="abrirServicioRapido('${idx}')" title="Agregar nuevo servicio" style="flex-shrink:0;padding:7px 10px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;">+ Nuevo</button>
+                    <button type="button" id="cs-nuevo-btn-${idx}" onclick="abrirServicioRapido('${idx}')" title="Agregar nuevo servicio" style="flex-shrink:0;padding:7px 10px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;${esExtra ? 'display:none;' : ''}">+ Nuevo</button>
                 </div>
+                <input type="text" id="cs-concepto-${idx}" value="${conceptoAttr}"
+                       placeholder="Concepto del gasto (ej: Reparación urgente heladera)"
+                       style="margin-top:6px;width:100%;box-sizing:border-box;padding:6px 9px;border:1.5px solid #c4b5fd;border-radius:7px;font-size:12px;font-family:inherit;${esExtra ? '' : 'display:none;'}">
             </div>
             <div class="item-field">
                 <label>Monto s/imp</label>
@@ -1074,7 +1094,8 @@ function abrirModalConfirmacion(datos) {
         // Interpretación uniforme según el modo global (el toggle la cambia para todas las filas).
         const incluyeImp = (_confModoImp === 'con');
         return itemRow(idx, tipo, item.descripcion_factura, item.insumo_id, item.servicio_id || null,
-                       item.cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, item.marca || '');
+                       item.cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, item.marca || '',
+                       item.concepto || '', item.es_extra || false);
     }).join("");
 
     // Fecha de la factura + período (de la IA o del snapshot); el período se autocalcula
@@ -1408,18 +1429,27 @@ async function confirmarFactura() {
             snapItems.push({ tipo: "insumo", descripcion_factura: desc, insumo_id: insId, cantidad: cant,
                              precio_total: precioNeto, incluye_impuesto: false, impuesto_pct: pctIns, marca });
         } else if (tipo === "servicio") {
-            const srvId      = parseInt(document.getElementById(`ci-servicio-${idx}`)?.value);
+            const srvSel     = document.getElementById(`ci-servicio-${idx}`)?.value || '';
+            const esExtra    = srvSel === '__extra__';   // gasto extraordinario (one-off, no se guarda)
+            const srvId      = esExtra ? null : (parseInt(srvSel) || null);
+            // Concepto: para el extraordinario, el texto libre; para catálogo, el nombre del servicio.
+            const conceptoTxt = esExtra
+                ? (document.getElementById(`cs-concepto-${idx}`)?.value?.trim() || '')
+                : ((_servicios.find(s => s.id === srvId)?.nombre) || '');
             const montoNeto  = parseFloat(document.getElementById(`cs-precio-neto-${idx}`)?.value);
             const montoBruto = parseFloat(document.getElementById(`cs-precio-${idx}`)?.value) || null;  // total c/imp (para el total de la factura)
             const pctSrv     = parseFloat(document.getElementById(`cs-imp-${idx}`)?.value) || 0;
-            if (!srvId)  { alert("Todos los ítems de servicio deben tener un servicio asignado."); return; }
+            if (esExtra) {
+                if (!conceptoTxt) { alert("Escribí el concepto del gasto extraordinario."); return; }
+            } else if (!srvId) { alert("Todos los ítems de servicio deben tener un servicio asignado (o elegí \"Gasto extraordinario\")."); return; }
             // Se permite 0 (servicios subsidiados/sin costo) y negativos (reintegros);
             // solo se bloquea el campo vacío/inválido.
             if (montoNeto === null || isNaN(montoNeto)) { alert("Completá el monto del ítem de servicio (puede ser 0 o negativo)."); return; }
             // Se guarda el gasto SIN impuesto (neto), coherente con el costo de los insumos.
-            itemsServicio.push({ srvId, monto: _conv(montoNeto), montoBruto: _conv(montoBruto) });
+            itemsServicio.push({ srvId, monto: _conv(montoNeto), montoBruto: _conv(montoBruto), concepto: conceptoTxt });
             snapItems.push({ tipo: "servicio", descripcion_factura: desc, servicio_id: srvId,
-                             precio_total: montoNeto, incluye_impuesto: false, impuesto_pct: pctSrv });
+                             precio_total: montoNeto, incluye_impuesto: false, impuesto_pct: pctSrv,
+                             concepto: conceptoTxt, es_extra: esExtra });
         }
     }
     if (!itemsInsumo.length && !itemsServicio.length && !itemsBien.length) { alert("No hay ítems para registrar (todos omitidos)."); return; }
@@ -1500,7 +1530,7 @@ async function confirmarFactura() {
                         const srv = (_servicios || []).find(s => s.id === item.srvId);
                         return {
                             tipo: "servicio",
-                            servicio_nombre: srv?.nombre || `Servicio #${item.srvId}`,
+                            servicio_nombre: srv?.nombre || item.concepto || `Servicio #${item.srvId}`,
                             monto: item.monto,
                         };
                     }),
@@ -1574,7 +1604,8 @@ async function confirmarFactura() {
         for (const item of itemsServicio) {
             await api.post("/stock/servicios/movimiento", {
                 servicio_id: item.srvId, factura_id: facturaId,
-                monto: item.monto, moneda: monedaGuardar, proveedor_id: proveedorId, referencia
+                monto: item.monto, moneda: monedaGuardar, proveedor_id: proveedorId, referencia,
+                concepto: item.concepto || null
             });
         }
 
@@ -1615,8 +1646,12 @@ function _capturarBorrador() {
         const fuentes = _confFuentes[idx] || null;
         const pagina  = _confPaginas[idx] || 1;
         if (tipo === 'servicio') {
+            const srvSel  = document.getElementById(`ci-servicio-${idx}`)?.value || '';
+            const esExtra = srvSel === '__extra__';
             items.push({ tipo:'servicio', descripcion_factura:desc,
-                servicio_id: parseInt(document.getElementById(`ci-servicio-${idx}`)?.value) || null,
+                servicio_id: esExtra ? null : (parseInt(srvSel) || null),
+                es_extra: esExtra,
+                concepto: esExtra ? (document.getElementById(`cs-concepto-${idx}`)?.value?.trim() || '') : null,
                 precio_total: _numOrNull(document.getElementById(`cs-precio-neto-${idx}`)?.value),
                 incluye_impuesto: false,
                 impuesto_pct: _numOrNull(document.getElementById(`cs-imp-${idx}`)?.value) || 0,
