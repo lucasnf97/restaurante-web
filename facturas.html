@@ -312,7 +312,7 @@
 
         <!-- Fecha de la factura y período de facturación asignado -->
         <div style="background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-            <div style="font-size:13px;font-weight:700;color:#3730a3;">📅 Fecha y período</div>
+            <div style="font-size:13px;font-weight:700;color:#3730a3;">📅 Fecha, período y Nº</div>
             <label style="font-size:12px;color:#3730a3;display:flex;align-items:center;gap:6px;">
                 Fecha de la factura
                 <input type="date" id="conf-fecha" onchange="onFechaFacturaChange()"
@@ -324,6 +324,12 @@
                        style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;">
             </label>
             <span id="conf-periodo-label" style="font-size:12px;font-weight:700;color:#4338ca;"></span>
+            <label style="font-size:12px;color:#3730a3;display:flex;align-items:center;gap:6px;">
+                Nº de factura
+                <input type="text" id="conf-numero" placeholder="Ej: A-0001-00001234" onblur="verificarNumeroFactura()"
+                       style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;width:170px;">
+            </label>
+            <span id="conf-numero-warn" style="font-size:12px;font-weight:700;color:#b45309;display:none;"></span>
         </div>
 
         <!-- Impuesto de la factura (global): % por defecto + cómo interpretar el precio leído -->
@@ -1068,6 +1074,10 @@ function abrirModalConfirmacion(datos) {
     _editandoFacturaId = null; _editArchivoUrl = null; _editArchivoNombre = null; _borradorActivo = null;
     document.getElementById("conf-prov-nombre").value = datos.proveedor_nombre || "";
     document.getElementById("conf-prov-cuit").value   = datos.proveedor_cuit   || "";
+    const numEl = document.getElementById("conf-numero");
+    if (numEl) numEl.value = datos.numero_factura || "";
+    const numWarn = document.getElementById("conf-numero-warn");
+    if (numWarn) { numWarn.style.display = "none"; numWarn.innerHTML = ""; }
 
     const monedaCodigo  = datos.moneda || "";
     const monedaSimbolo = datos.moneda_simbolo || (monedaCodigo ? monedaCodigo + " " : "$");
@@ -1392,10 +1402,44 @@ async function guardarBienRapido() {
 }
 
 // ── CONFIRMAR FACTURA ─────────────────────────────────────────
+// Busca una factura ya cargada con el mismo Nº + mismo proveedor (excluye la que se está editando).
+function _escFactHtml(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function _buscarFacturaPorNumero(numero, proveedorId, proveedorNombre, excluirId) {
+    const num = (numero || '').trim();
+    if (!num) return null;
+    const p = new URLSearchParams({ numero: num });
+    if (proveedorId) p.set('proveedor_id', proveedorId);
+    else if (proveedorNombre) p.set('proveedor_nombre', proveedorNombre);
+    if (excluirId) p.set('excluir_id', excluirId);
+    try { const r = await api.get(`/stock/facturas/por-numero?${p.toString()}`); return (r && r.id) ? r : null; }
+    catch(e) { return null; }
+}
+// Aviso inline (al salir del campo Nº) si el número ya está cargado, con link a previsualizar.
+async function verificarNumeroFactura() {
+    const warn = document.getElementById('conf-numero-warn');
+    if (!warn) return;
+    const numero     = document.getElementById('conf-numero')?.value.trim() || '';
+    const provNombre = document.getElementById('conf-prov-nombre')?.value.trim() || '';
+    const selPid     = parseInt(document.getElementById('conf-prov-existente')?.value) || null;
+    if (!numero) { warn.style.display = 'none'; warn.innerHTML = ''; return; }
+    const dup = await _buscarFacturaPorNumero(numero, selPid, provNombre, _editandoFacturaId);
+    if (dup && dup.id) {
+        const prov  = dup.proveedor_nombre_reg || dup.proveedor_nombre || '';
+        const fecha = dup.fecha_factura ? ' (' + String(dup.fecha_factura).slice(0, 10) + ')' : '';
+        const docUrl = dup.archivo_url ? (dup.archivo_url.startsWith('http') ? dup.archivo_url : `${API_URL}${dup.archivo_url}`) : null;
+        warn.style.display = '';
+        warn.innerHTML = `⚠️ Ya cargada${prov ? ' — ' + _escFactHtml(prov) : ''}${fecha}` +
+            (docUrl ? ` · <a href="javascript:void(0)" onclick="abrirDocumento('${docUrl.replace(/'/g,'%27')}')" style="color:#4338ca;font-weight:700;">ver factura</a>` : '');
+    } else {
+        warn.style.display = 'none'; warn.innerHTML = '';
+    }
+}
+
 async function confirmarFactura() {
     const provNombre = document.getElementById("conf-prov-nombre").value.trim();
     if (!provNombre) { alert("El nombre del proveedor es obligatorio."); return; }
     const provCuit = document.getElementById("conf-prov-cuit").value.trim();
+    const numeroFactura = document.getElementById("conf-numero")?.value.trim() || null;
     const entradaActiva = _archivoActivo !== null ? getEntrada(_archivoActivo) : null;
     const moneda   = document.getElementById("conf-moneda-codigo").value.trim() || entradaActiva?.datos?.moneda || null;
     // Conversión a moneda del sistema: si la factura viene en otra divisa y hay tasa configurada,
@@ -1466,6 +1510,22 @@ async function confirmarFactura() {
         }
     }
     if (!itemsInsumo.length && !itemsServicio.length && !itemsBien.length) { alert("No hay ítems para registrar (todos omitidos)."); return; }
+
+    // Anti-duplicado por Nº de factura (mismo Nº + mismo proveedor; el Nº es casi un ID).
+    // Se corre ANTES de crear proveedor/subir archivo/registrar para no dejar rastros.
+    if (numeroFactura) {
+        const selPidDup = parseInt(document.getElementById("conf-prov-existente").value) || null;
+        const dup = await _buscarFacturaPorNumero(numeroFactura, selPidDup, provNombre, _editandoFacturaId);
+        if (dup && dup.id) {
+            const prov = dup.proveedor_nombre_reg || dup.proveedor_nombre || '';
+            const info = `Nº ${numeroFactura}${prov ? ' — ' + prov : ''}${dup.fecha_factura ? ' (' + String(dup.fecha_factura).slice(0,10) + ')' : ''}`;
+            const docUrl = dup.archivo_url ? (dup.archivo_url.startsWith('http') ? dup.archivo_url : `${API_URL}${dup.archivo_url}`) : null;
+            if (docUrl && confirm(`⚠️ Ya hay una factura cargada con ese número:\n${info}\n\n¿Querés previsualizarla antes de decidir?`)) {
+                abrirDocumento(docUrl);
+            }
+            if (!confirm(`Podrías estar duplicando la factura (${info}).\n\n¿Guardarla igual?`)) return;
+        }
+    }
 
     // Edición: si venimos del histórico, guardamos el id viejo para borrarlo (revertir
     // stock + datos) antes de re-crear la factura con los datos corregidos.
@@ -1574,6 +1634,7 @@ async function confirmarFactura() {
         const impGlobalVal = parseFloat(document.getElementById('conf-imp-global')?.value);
         const datosSnapshot = {
             proveedor_nombre: provNombre, proveedor_cuit: provCuit || null,
+            numero_factura: numeroFactura,
             moneda, impuesto_pct: isNaN(impGlobalVal) ? null : impGlobalVal,
             fecha: fechaFactura, _periodo: periodoMes, items: snapItems,
         };
@@ -1585,6 +1646,7 @@ async function confirmarFactura() {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
             archivo_nombre: archivoNom,
             archivo_url: facturaUrl, moneda: monedaGuardar, total_detectado: totalDetectado || null,
+            numero_factura: numeroFactura,
             fecha_factura: fechaFactura, periodo_desde: rango.desde, periodo_hasta: rango.hasta,
             datos_json: JSON.stringify(datosSnapshot),
         });
@@ -1684,6 +1746,7 @@ function _capturarBorrador() {
     return {
         proveedor_nombre: document.getElementById('conf-prov-nombre')?.value.trim() || '',
         proveedor_cuit:   document.getElementById('conf-prov-cuit')?.value.trim() || null,
+        numero_factura:   document.getElementById('conf-numero')?.value.trim() || null,
         moneda:           document.getElementById('conf-moneda-codigo')?.value || null,
         impuesto_pct:     isNaN(impG) ? null : impG,
         fecha:            document.getElementById('conf-fecha')?.value || null,
@@ -1893,9 +1956,11 @@ function filtrarHistorial() {
                 ? `<a href="javascript:void(0)" onclick="abrirDocumento('${docUrl.replace(/'/g,'%27')}')" style="color:#4f46e5;font-weight:600;text-decoration:none;cursor:pointer;">📄</a>`
                 : "—";
             const fFactura = f.fecha_factura ? String(f.fecha_factura).slice(0, 10) : formatFecha(f.creado_en);
+            const numTxt = f.numero_factura
+                ? ` · <span style="color:#4338ca;font-weight:600;">Nº ${_escFactHtml(f.numero_factura)}</span>` : '';
             html += `<tr class="factg-${gi}" style="display:none;">
                 <td style="padding-left:26px;font-size:12px;color:#555;">${fFactura}
-                    <span style="color:#9ca3af;">· ${_periodoTextoFactura(f)}</span></td>
+                    <span style="color:#9ca3af;">· ${_periodoTextoFactura(f)}</span>${numTxt}</td>
                 <td style="font-size:12px;color:#888;">${f.usuario || '—'}</td>
                 <td style="text-align:right;font-size:13px;color:#1a1a2e;">${_fmtSys(f.total_neto)}</td>
                 <td style="text-align:right;font-size:13px;color:#16a34a;">${_fmtSys(f.total_detectado)}</td>
