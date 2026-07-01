@@ -757,8 +757,9 @@ function renderBillingCards(d) {
     const cards = [
         {
             cls:"ventas", icon:"💰", label:"Ventas del mes",
-            value: fmt(d.ventas), extraCls: d.ventas >= 0 ? "" : "negativo",
-            sub: "Suma de cierres de caja"
+            value: fmt(d.ventas_neto != null ? d.ventas_neto : d.ventas),
+            extraCls: (d.ventas_neto != null ? d.ventas_neto : d.ventas) >= 0 ? "" : "negativo",
+            sub: (d.ventas_neto != null ? `${fmt(d.ventas)} con impuesto` : "Suma de cierres de caja")
         },
         {
             cls:"stock", icon:"🏗️", label:"Monto acumulado de stock",
