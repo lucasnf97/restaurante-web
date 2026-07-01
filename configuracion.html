@@ -760,6 +760,18 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                     <button class="btn-save" onclick="guardarMoneda()">Guardar divisa</button>
                     <span class="save-ok" id="ok-moneda">✓ Guardado</span>
                 </div>
+
+                <!-- Corrección de datos históricos cargados en otra moneda -->
+                <div style="margin-top:22px;padding-top:16px;border-top:1px solid #f0f0f0;">
+                    <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">Corregir facturas viejas en otra moneda</div>
+                    <div style="font-size:12px;color:#9ca3af;line-height:1.5;margin-bottom:10px;">
+                        Convierte a la moneda del sistema los movimientos y facturas que quedaron cargados en otra
+                        divisa (antes de la conversión automática), usando las tasas de arriba. Primero muestra una
+                        vista previa; nada cambia hasta que confirmes. Aplica <b>solo a este restaurante</b>.
+                    </div>
+                    <button class="btn-save" style="background:#0ea5e9;" onclick="previsualizarNormalizacion()">🔧 Revisar y normalizar</button>
+                    <div id="norm-resultado" style="margin-top:10px;font-size:12px;color:#374151;"></div>
+                </div>
             </div>
 
             <!-- ── Impuestos ── -->
@@ -2453,6 +2465,57 @@ function confirmarAddTasa() {
     _tasas.push({ codigo, nombre, tasa });
     renderTasas();
     cerrarAddTasa();
+}
+
+// ── Normalización de moneda de datos históricos ──────────────────
+const _NORM_TBL_LBL = { servicios_movimientos:'Servicios', stock_movimientos:'Insumos (stock)', bienes_uso_mov:'Bienes de uso', facturas:'Facturas (total)' };
+
+async function previsualizarNormalizacion() {
+    const cont = document.getElementById('norm-resultado');
+    cont.innerHTML = 'Revisando…';
+    try {
+        const d = await api.post('/stock/facturas/normalizar-moneda?dry_run=true', {});
+        _renderNormalizacion(d, false);
+    } catch(e) { cont.innerHTML = `<span style="color:#dc2626;">Error: ${e.message || e}</span>`; }
+}
+
+async function aplicarNormalizacion() {
+    if (!confirm('Se van a convertir los registros a la moneda del sistema. Esta acción NO se puede deshacer. ¿Continuar?')) return;
+    const cont = document.getElementById('norm-resultado');
+    cont.innerHTML = 'Aplicando…';
+    try {
+        const d = await api.post('/stock/facturas/normalizar-moneda?dry_run=false', {});
+        _renderNormalizacion(d, true);
+    } catch(e) { cont.innerHTML = `<span style="color:#dc2626;">Error: ${e.message || e}</span>`; }
+}
+
+function _renderNormalizacion(d, aplicado) {
+    const cont = document.getElementById('norm-resultado');
+    if (!d.cambios || !d.cambios.length) {
+        cont.innerHTML = `<span style="color:#16a34a;">✓ No hay registros en otra moneda. Todo ya está en ${d.sistema}.</span>`;
+        return;
+    }
+    const conv   = d.cambios.filter(c => c.convertible);
+    const noconv = d.cambios.filter(c => !c.convertible);
+    let html = `<div style="font-weight:700;margin-bottom:6px;">${aplicado
+        ? '✅ Convertido a ' + d.sistema + ' (' + d.filas_actualizadas + ' registros)'
+        : 'Vista previa — moneda del sistema: ' + d.sistema}</div>`;
+    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="color:#9ca3af;text-align:left;">'
+          + '<th style="padding:3px 6px;">Origen</th><th>Moneda</th><th style="text-align:right;">Registros</th>'
+          + '<th style="text-align:right;">Total origen</th><th style="text-align:right;padding-right:6px;">→ ' + d.sistema + '</th></tr></thead><tbody>';
+    d.cambios.forEach(c => {
+        html += `<tr style="border-top:1px solid #f1f5f9;">
+            <td style="padding:3px 6px;">${_NORM_TBL_LBL[c.tabla] || c.tabla}</td>
+            <td>${c.moneda}</td>
+            <td style="text-align:right;">${c.filas}</td>
+            <td style="text-align:right;">${c.total_origen}</td>
+            <td style="text-align:right;padding-right:6px;">${c.convertible ? c.total_convertido : '<span style="color:#dc2626;">sin tasa</span>'}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    if (noconv.length) html += `<div style="color:#dc2626;margin-top:6px;">⚠ Hay monedas sin tasa configurada; esos registros NO se convertirán. Configurá su tasa arriba y volvé a revisar.</div>`;
+    if (!aplicado && conv.length) html += `<button class="btn-save" style="margin-top:10px;background:#dc2626;" onclick="aplicarNormalizacion()">Aplicar conversión (irreversible)</button>`;
+    cont.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════════════════════
