@@ -70,6 +70,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .bill-card.servicios::before { background:#6366f1; }
 .bill-card.desechos::before  { background:#f59e0b; }
 .bill-card.descuentos::before{ background:#db2777; }
+.bill-card.salarios::before  { background:#7c3aed; }
 .bill-card.balance::before   { background:#0ea5e9; }
 
 .bill-icon { font-size:26px; margin-bottom:10px; }
@@ -78,6 +79,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .bill-value.negativo { color:#dc2626; }
 .bill-value.positivo { color:#16a34a; }
 .bill-sub { font-size:11px; color:#aaa; margin-top:4px; }
+.bill-pct { font-size:11px; color:#9ca3af; margin-top:6px; font-weight:600; }
 
 /* ── Section header ── */
 .section-header {
@@ -675,7 +677,8 @@ function renderProgressBar() {
     const ventas  = datosMes.ventas;
     const breakEven = datosMes.costo_insumos_facturados
                     + datosMes.costo_servicios_facturados
-                    + (datosMes.descuentos_personal || 0);
+                    + (datosMes.descuentos_personal || 0)
+                    + (datosMes.salarios || 0);
     const ventasPrev = ventasMesAnterior ?? 0;
     const meta       = getMeta();
 
@@ -721,9 +724,9 @@ async function cargarFacturacion() {
     requireAuth();
 
     document.getElementById("billing-cards").innerHTML = `
-        ${["ventas","stock","insumos","servicios","desechos","descuentos","balance"].map(c=>`
+        ${["ventas","stock","insumos","servicios","desechos","salarios","balance"].map(c=>`
         <div class="bill-card ${c} loading-card">
-            <div class="bill-icon">${{ventas:"💰",stock:"🏗️",insumos:"📦",servicios:"🔧",desechos:"🗑️",descuentos:"🎟️",balance:"⚖️"}[c]}</div>
+            <div class="bill-icon">${{ventas:"💰",stock:"🏗️",insumos:"📦",servicios:"🔧",desechos:"🗑️",salarios:"👥",balance:"⚖️"}[c]}</div>
             <div class="bill-value" style="color:#ddd;background:#f0f0f0;border-radius:6px;width:80%;height:28px;margin-top:14px;"></div>
         </div>`).join("")}`;
     document.getElementById("prog-wrap").innerHTML = '<p class="prog-no-data">Cargando…</p>';
@@ -754,6 +757,10 @@ function renderBillingCards(d) {
     const sufijo = esMesActual ? " (parcial)" : "";
 
     const desechos = d.desechos || 0;
+    const salarios = d.salarios || 0;
+    // Base para los % de gasto: ventas NETAS (sin impuesto) del mes.
+    const vn = (d.ventas_neto != null ? d.ventas_neto : d.ventas) || 0;
+    const pctVentas = (val) => vn > 0 ? `${(val / vn * 100).toFixed(1)}% de ventas` : "";
     const cards = [
         {
             cls:"ventas", icon:"💰", label:"Ventas del mes",
@@ -769,31 +776,34 @@ function renderBillingCards(d) {
         {
             cls:"insumos", icon:"📦", label:"Insumos facturados",
             value: fmt(d.costo_insumos_facturados), extraCls:"negativo",
-            sub: "Compras de stock del mes"
+            sub: "Compras de stock del mes", pct: pctVentas(d.costo_insumos_facturados)
         },
         {
             cls:"servicios", icon:"🔧", label:"Servicios facturados",
             value: fmt(d.costo_servicios_facturados),
             extraCls: d.costo_servicios_facturados < 0 ? "positivo" : "negativo",
-            sub: d.costo_servicios_facturados < 0 ? "Crédito neto (notas de crédito)" : "Gasto neto de servicios"
+            sub: d.costo_servicios_facturados < 0 ? "Crédito neto (notas de crédito)" : "Gasto neto de servicios",
+            pct: pctVentas(d.costo_servicios_facturados)
         },
         {
             cls:"desechos", icon:"🗑️", label:"Desechos / merma",
             value: fmt(desechos),
             extraCls: desechos > 0 ? "negativo" : "",
-            sub: desechos > 0 ? "Pérdida por revisiones de stock" : "Sin revisiones de stock este mes"
+            sub: desechos > 0 ? "Pérdida por revisiones de stock" : "Sin revisiones de stock este mes",
+            pct: pctVentas(desechos)
         },
         {
-            cls:"descuentos", icon:"🎟️", label:"Descuentos / refounds",
-            value: fmt(d.descuentos_personal || 0),
-            extraCls: (d.descuentos_personal || 0) > 0 ? "negativo" : "",
-            sub: (d.descuentos_personal || 0) > 0 ? "Descuentos, ticket personal y refunds (gasto)" : "Sin descuentos ni refunds este mes"
+            cls:"salarios", icon:"👥", label:"Salarios",
+            value: fmt(salarios),
+            extraCls: salarios > 0 ? "negativo" : "",
+            sub: "Sueldos del mes (horas fichadas)", pct: pctVentas(salarios)
         },
         {
             cls:"balance", icon:"⚖️", label:`Balance mensual${sufijo}`,
             value: fmt(d.balance),
             extraCls: d.balance >= 0 ? "positivo" : "negativo",
-            sub: "Ventas − insumos − servicios − desechos − descuentos"
+            sub: "Ventas netas − insumos − servicios − desechos − descuentos − salarios",
+            pct: (vn > 0 ? `${(d.balance / vn * 100).toFixed(1)}% de la facturación` : "")
         },
     ];
 
@@ -803,6 +813,7 @@ function renderBillingCards(d) {
             <div class="bill-label">${c.label}</div>
             <div class="bill-value ${c.extraCls}">${c.value}</div>
             <div class="bill-sub">${c.sub}</div>
+            ${c.pct ? `<div class="bill-pct">${c.pct}</div>` : ""}
         </div>
     `).join("");
 }
@@ -811,10 +822,11 @@ function renderBillingCards(d) {
 const _DET_TITLES = {
     ventas:    '💰 Ventas del mes — desglose diario',
     stock:     '🏗️ Monto acumulado de stock',
-    insumos:   '📦 Insumos facturados — compras del mes',
-    servicios: '🔧 Servicios facturados',
+    insumos:   '📦 Insumos facturados — por factura',
+    servicios: '🔧 Servicios facturados — por factura',
     desechos:  '🗑️ Desechos / merma',
     descuentos:'🎟️ Descuentos / refounds',
+    salarios:  '👥 Salarios del mes',
     balance:   '⚖️ Balance mensual — desglose',
 };
 
@@ -949,20 +961,19 @@ async function cargarDetalle(tipo) {
                 const data = await apiFetch(`/reportes/insumos-mes?year=${y}&month=${m}`);
                 if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin compras de stock registradas este mes.</div>'; break; }
                 body.innerHTML = `
+                    <div class="bill-sub" style="margin-bottom:8px;">Agrupado por factura — solo la parte de insumos de cada una.</div>
                     <table class="det-table">
                         <thead><tr>
-                            <th>Insumo</th><th>Fecha</th>
-                            <th class="num">Cantidad</th><th class="num">Precio unit.</th><th class="num">Subtotal</th>
+                            <th>Factura / Proveedor</th><th>Fecha</th><th class="num">Líneas</th><th class="num">Monto insumos</th>
                         </tr></thead>
                         <tbody>
                             ${data.items.map(r => `<tr>
-                                <td>${r.insumo}</td><td>${r.fecha}</td>
-                                <td class="num">${r.cantidad} ${r.unidad}</td>
-                                <td class="num">${fmt(r.precio_unitario)}</td>
-                                <td class="num">${fmt(r.subtotal)}</td>
+                                <td>${_escH(r.proveedor)}</td><td>${r.fecha}</td>
+                                <td class="num">${r.n_lineas}</td>
+                                <td class="num">${fmt(r.monto)}</td>
                             </tr>`).join('')}
                             <tr class="det-total">
-                                <td colspan="4">TOTAL</td>
+                                <td colspan="3">TOTAL</td>
                                 <td class="num">${fmt(data.total)}</td>
                             </tr>
                         </tbody>
@@ -974,13 +985,15 @@ async function cargarDetalle(tipo) {
                 const data = await apiFetch(`/reportes/servicios-mes?year=${y}&month=${m}`);
                 if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin servicios facturados este mes.</div>'; break; }
                 body.innerHTML = `
+                    <div class="bill-sub" style="margin-bottom:8px;">Agrupado por factura — solo la parte de servicios de cada una.</div>
                     <table class="det-table">
                         <thead><tr>
-                            <th>Concepto</th><th>Fecha</th><th>Usuario</th><th class="num">Monto</th>
+                            <th>Factura / Proveedor</th><th>Fecha</th><th class="num">Líneas</th><th class="num">Monto servicios</th>
                         </tr></thead>
                         <tbody>
                             ${data.items.map(r => `<tr>
-                                <td>${r.referencia}</td><td>${r.fecha}</td><td>${r.usuario}</td>
+                                <td>${_escH(r.proveedor)}</td><td>${r.fecha}</td>
+                                <td class="num">${r.n_lineas}</td>
                                 <td class="num" style="color:${r.monto < 0 ? '#16a34a' : '#dc2626'}">${fmt(r.monto)}</td>
                             </tr>`).join('')}
                             <tr class="det-total">
@@ -1060,41 +1073,77 @@ async function cargarDetalle(tipo) {
                 break;
             }
 
+            case 'salarios': {
+                const totalSal = (datosMes && datosMes.salarios) || 0;
+                let sd = null;
+                try { sd = await apiFetch(`/salarios/resumen?year=${y}&month=${m}`); } catch(e) {}
+                const emp = (sd && sd.usuarios ? sd.usuarios : []).filter(e => (e.salario_total||0) !== 0 || (e.horas_fichadas||0) > 0);
+                if (!emp.length) {
+                    body.innerHTML = `<div class="det-empty">Salarios del mes: <b>${fmt(totalSal)}</b>.<br>
+                        <span style="color:#9ca3af;font-size:12px;">El detalle por empleado está en la sección Salarios.</span></div>`;
+                    break;
+                }
+                body.innerHTML = `
+                    <table class="det-table">
+                        <thead><tr><th>Empleado</th><th class="num">Horas fichadas</th><th class="num">$/hora</th><th class="num">Salario</th></tr></thead>
+                        <tbody>
+                            ${emp.map(e => `<tr>
+                                <td>${_escH(e.username)}</td>
+                                <td class="num">${(e.horas_fichadas||0).toFixed(1)}</td>
+                                <td class="num">${fmt(e.sueldo_hora)}</td>
+                                <td class="num">${fmt(e.salario_total)}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total"><td colspan="3">TOTAL</td>
+                                <td class="num">${fmt(sd && sd.total_salarios != null ? sd.total_salarios : totalSal)}</td></tr>
+                        </tbody>
+                    </table>`;
+                break;
+            }
+
             case 'balance': {
                 const d = datosMes;
                 if (!d) { body.innerHTML = '<div class="det-empty">Cargue primero los datos del mes.</div>'; break; }
                 const desechos = d.desechos || 0;
+                const salarios = d.salarios || 0;
                 const bal = d.balance;
+                const vn  = (d.ventas_neto != null ? d.ventas_neto : d.ventas) || 0;
+                // % de cada línea sobre las ventas netas (gris, al lado del valor).
+                const pl = (val) => vn > 0 ? ` <span style="font-size:11px;color:#9ca3af;font-weight:400;">(${(val / vn * 100).toFixed(1)}%)</span>` : "";
                 body.innerHTML = `
                     <div class="balance-formula">
                         <div class="bal-row">
-                            <span class="bal-label">💰 Ventas del mes</span>
-                            <span class="bal-val verde">+ ${fmt(d.ventas)}</span>
+                            <span class="bal-label">💰 Ventas del mes (neto)</span>
+                            <span class="bal-val verde">+ ${fmt(vn)}</span>
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
                             <span class="bal-label">📦 Insumos facturados</span>
-                            <span class="bal-val rojo">− ${fmt(d.costo_insumos_facturados)}</span>
+                            <span class="bal-val rojo">− ${fmt(d.costo_insumos_facturados)}${pl(d.costo_insumos_facturados)}</span>
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
                             <span class="bal-label">🔧 Servicios facturados</span>
-                            <span class="bal-val rojo">− ${fmt(d.costo_servicios_facturados)}</span>
+                            <span class="bal-val rojo">− ${fmt(d.costo_servicios_facturados)}${pl(d.costo_servicios_facturados)}</span>
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
                             <span class="bal-label">🗑️ Desechos / merma</span>
-                            <span class="bal-val rojo">− ${fmt(desechos)}</span>
+                            <span class="bal-val rojo">− ${fmt(desechos)}${pl(desechos)}</span>
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
                             <span class="bal-label">🎟️ Descuentos / refounds</span>
-                            <span class="bal-val rojo">− ${fmt(d.descuentos_personal || 0)}</span>
+                            <span class="bal-val rojo">− ${fmt(d.descuentos_personal || 0)}${pl(d.descuentos_personal || 0)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">👥 Salarios</span>
+                            <span class="bal-val rojo">− ${fmt(salarios)}${pl(salarios)}</span>
                         </div>
                         <div class="bal-op">=</div>
                         <div class="bal-row bal-total">
                             <span class="bal-label">⚖️ Balance mensual</span>
-                            <span class="bal-val" style="color:${bal >= 0 ? '#4ade80' : '#f87171'}">${fmt(bal)}</span>
+                            <span class="bal-val" style="color:${bal >= 0 ? '#4ade80' : '#f87171'}">${fmt(bal)}${vn > 0 ? ` <span style="font-size:11px;color:#9ca3af;font-weight:400;">(${(bal / vn * 100).toFixed(1)}% de la facturación)</span>` : ""}</span>
                         </div>
                     </div>`;
                 break;
@@ -1402,7 +1451,7 @@ function renderDayBars() {
 
     // Break-even mensual (de datosMes ya cargado por cargarFacturacion)
     const breakEvenMensual = datosMes
-        ? (datosMes.costo_insumos_facturados + datosMes.costo_servicios_facturados + (datosMes.descuentos_personal || 0))
+        ? (datosMes.costo_insumos_facturados + datosMes.costo_servicios_facturados + (datosMes.descuentos_personal || 0) + (datosMes.salarios || 0))
         : 0;
     const breakEvenDiario = breakEvenMensual > 0 ? breakEvenMensual / diasMesActual : 0;
 
