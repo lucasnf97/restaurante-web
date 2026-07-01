@@ -832,6 +832,15 @@ function onUnidadChange() {
         if (hint) hint.textContent = `Cambiaste la unidad a "${newU}". Revisá el costo y las cantidades para la nueva unidad.`;
         return;
     }
+    // Cantidades (stock actual, estándar, advertencia, mínima): se convierten con el factor
+    // INVERSO al del costo, porque son magnitudes (ej: 2000 g → 2 kg = dividir por 1000).
+    ['ins-actual', 'ins-estandar', 'ins-advertencia', 'ins-minima'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const v = parseFloat(el.value);
+        if (!isNaN(v)) el.value = Math.round(v / factor * 1000) / 1000;
+    });
+    // Costo (precio POR unidad): se multiplica por el factor (ej: 0,05/g → 50/kg).
     // base = costo manual si lo hay; si no, el último precio de compra
     const baseStr = costoEl.value !== "" ? costoEl.value : (recEl.dataset.precio || "");
     // convertir la base de compra para que "↺ desde compra" quede en la nueva unidad
@@ -840,12 +849,12 @@ function onUnidadChange() {
         if (!isNaN(r)) recEl.dataset.precio = String(Math.round(r * factor * 10000) / 10000);
     }
     if (baseStr === "" || isNaN(parseFloat(baseStr))) {
-        if (hint) hint.textContent = `Cambiaste la unidad a "${newU}". Cargá el costo por ${newU}.`;
+        if (hint) hint.textContent = `Unidad cambiada a ${newU}: cantidades convertidas. Cargá el costo por ${newU}.`;
         return;
     }
     const nuevo = Math.round(parseFloat(baseStr) * factor * 10000) / 10000;
     costoEl.value = nuevo;
-    if (hint) hint.textContent = `Costo convertido a ${newU}: ${baseStr}/${oldU} → ${nuevo}/${newU}. Ajustá si hace falta.`;
+    if (hint) hint.textContent = `Convertido a ${newU}: costo ${baseStr}/${oldU} → ${nuevo}/${newU} y cantidades ajustadas. Revisá si hace falta.`;
 }
 
 async function guardarInsumo() {
