@@ -876,6 +876,17 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                                     <span style="color:#9ca3af;">%</span>
                                 </div>
                             </div>
+                            <div class="cfg-field" style="grid-column:1/-1;margin-top:4px;">
+                                <label class="cfg-label">Modo Take Away (para llevar)</label>
+                                <select class="cfg-input" id="takeaway-modo" style="padding:7px 10px;width:100%;max-width:520px;">
+                                    <option value="beneficio_restaurante">Precio intacto — la diferencia queda como ganancia del restaurante (Modo 2)</option>
+                                    <option value="beneficio_cliente">Bajar el precio — el cliente paga menos por el IVA reducido (Modo 1)</option>
+                                </select>
+                                <div style="font-size:11px;color:#9ca3af;margin-top:4px;line-height:1.5;">
+                                    <b>Modo 1:</b> el precio de llevar baja según la relación entre el IVA de salón y el de take away (ej. lista 100 con salón 25% y llevar 15% → se cobra 92).<br>
+                                    <b>Modo 2:</b> el cliente paga el precio de lista completo y la diferencia impositiva se registra como mayor ganancia.
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div id="imp-ejemplo-config" style="display:none;margin-top:14px;padding:14px 16px;
@@ -1390,6 +1401,7 @@ async function guardarPeriodoFacturacion() {
             imp_local_pct:      cfg.imp_local_pct      ?? null,
             imp_delivery_pct:   cfg.imp_delivery_pct   ?? null,
             imp_takeaway_pct:   cfg.imp_takeaway_pct   ?? null,
+            takeaway_modo:      cfg.takeaway_modo || 'beneficio_restaurante',
         };
         await api.put('/config/sistema', body);
         const badge = document.getElementById('badge-facturacion');
@@ -1468,6 +1480,7 @@ async function guardarCorteHorario() {
             imp_local_pct:         cfg.imp_local_pct      ?? null,
             imp_delivery_pct:      cfg.imp_delivery_pct   ?? null,
             imp_takeaway_pct:      cfg.imp_takeaway_pct   ?? null,
+            takeaway_modo:         cfg.takeaway_modo || 'beneficio_restaurante',
         };
         await api.put('/config/sistema', body);
         actualizarPreviewCorte();
@@ -1936,6 +1949,7 @@ async function cargarSeccionImpuestos() {
         if (cfg.imp_local_pct    != null) document.getElementById('imp-local').value    = cfg.imp_local_pct;
         if (cfg.imp_delivery_pct != null) document.getElementById('imp-delivery').value = cfg.imp_delivery_pct;
         if (cfg.imp_takeaway_pct != null) document.getElementById('imp-takeaway').value = cfg.imp_takeaway_pct;
+        document.getElementById('takeaway-modo').value = cfg.takeaway_modo || 'beneficio_restaurante';
 
         actualizarBadgeImpuesto();
     } catch {}
@@ -2017,6 +2031,7 @@ async function guardarImpuesto() {
             imp_local_pct:    loc,
             imp_delivery_pct: del,
             imp_takeaway_pct: ta,
+            takeaway_modo:    document.getElementById('takeaway-modo')?.value || 'beneficio_restaurante',
         };
     } else {
         const pct = parseFloat(document.getElementById('imp-pct')?.value || 0);
@@ -2044,6 +2059,7 @@ async function guardarImpuesto() {
                 hora_corte_turno:   cfgActual.hora_corte_turno   || 6,
                 corte_cierra_fichajes: cfgActual.corte_cierra_fichajes || false,
                 corte_cierra_caja:     cfgActual.corte_cierra_caja    || false,
+                takeaway_modo:         cfgActual.takeaway_modo || 'beneficio_restaurante',
                 ...impPayload,
             }),
         });
@@ -2287,6 +2303,7 @@ async function guardarMoneda() {
                 imp_local_pct:         cfgActual.imp_local_pct          ?? null,
                 imp_delivery_pct:      cfgActual.imp_delivery_pct       ?? null,
                 imp_takeaway_pct:      cfgActual.imp_takeaway_pct       ?? null,
+                takeaway_modo:         cfgActual.takeaway_modo || 'beneficio_restaurante',
             }),
         });
         actualizarBadgeMoneda(codigo, simbolo);
