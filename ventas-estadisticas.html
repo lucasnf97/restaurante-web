@@ -591,13 +591,23 @@ function renderRentMenu() {
     if (!canvas) return;
     const cat = document.getElementById('rent-menu-cat')?.value || '';
     try { _rentCharts.menu?.destroy(); } catch(e){}
+    // Se incluyen SIEMPRE todos los productos para que la escala de los ejes NO cambie al
+    // filtrar; los que no son de la categoría elegida se "apagan" (radio 0, sin hover ni hit).
     const grupos = { estrella:[], caballo:[], puzzle:[], perro:[] };
-    _rentProds
-        .filter(p => p.clasificacion && (!cat || (p.categoria || '') === cat))
-        .forEach(p => grupos[p.clasificacion].push({ x:p.unidades, y:p.margen_unit, nombre:p.nombre }));
+    _rentProds.filter(p => p.clasificacion).forEach(p => {
+        grupos[p.clasificacion].push({
+            x:p.unidades, y:p.margen_unit, nombre:p.nombre,
+            _vis: (!cat || (p.categoria || '') === cat),
+        });
+    });
     _rentCharts.menu = new Chart(canvas, {
         type:'scatter',
-        data:{ datasets:Object.keys(grupos).map(k => ({ label:RENT_CLASE_LBL[k], data:grupos[k], backgroundColor:RENT_CLASE_COLOR[k], pointRadius:5 })) },
+        data:{ datasets:Object.keys(grupos).map(k => ({
+            label:RENT_CLASE_LBL[k], data:grupos[k], backgroundColor:RENT_CLASE_COLOR[k],
+            pointRadius:      grupos[k].map(pt => pt._vis ? 5 : 0),
+            pointHoverRadius: grupos[k].map(pt => pt._vis ? 6 : 0),
+            pointHitRadius:   grupos[k].map(pt => pt._vis ? 5 : 0),
+        })) },
         options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.raw.nombre}: ${fmtInt(c.raw.x)} u, margen ${simboloMoneda()} ${fmt(c.raw.y)}`}}},
             scales:{ x:{title:{display:true,text:'Unidades'}}, y:{title:{display:true,text:'Margen unitario'}} } }
     });
