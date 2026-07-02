@@ -105,7 +105,9 @@ body.config-open .wgt-drag { display:flex; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
 /* ── Config Panel ─────────────────────────────────────────────── */
-.cfg-overlay { display:none; position:fixed; inset:0; z-index:350; }
+/* Sin fondo ni handler de cierre: su única función era de apilado. pointer-events:none
+   para que NO bloquee el arrastre de los widgets (⠿) mientras el panel está abierto. */
+.cfg-overlay { display:none; position:fixed; inset:0; z-index:350; pointer-events:none; }
 .cfg-overlay.open { display:block; }
 .cfg-panel {
     position:fixed; top:0; right:0; width:340px; height:100%;
@@ -570,6 +572,37 @@ const RENT_CLASE_LBL   = { estrella:'⭐ Estrella', caballo:'🐴 Caballo', puzz
 const RENT_CLASE_BADGE = { estrella:'#dcfce7;color:#15803d', caballo:'#fef9c3;color:#a16207', puzzle:'#e0e7ff;color:#4338ca', perro:'#fee2e2;color:#b91c1c' };
 let _rentCharts = {};
 
+// ── Ingeniería de menú: scatter con filtro por categoría ─────────
+function _rentCategoriasDe(prods) {
+    return [...new Set(prods.filter(p => p.clasificacion).map(p => p.categoria || '').filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'es', { sensitivity:'base' }));
+}
+function _rentPoblarCatMenu() {
+    const sel = document.getElementById('rent-menu-cat');
+    if (!sel) return;
+    const prev = sel.value;
+    const cats = _rentCategoriasDe(_rentProds);
+    sel.innerHTML = `<option value="">Todas las categorías</option>` +
+        cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    if (prev && cats.includes(prev)) sel.value = prev;
+}
+function renderRentMenu() {
+    const canvas = document.getElementById('rent-menu-canvas');
+    if (!canvas) return;
+    const cat = document.getElementById('rent-menu-cat')?.value || '';
+    try { _rentCharts.menu?.destroy(); } catch(e){}
+    const grupos = { estrella:[], caballo:[], puzzle:[], perro:[] };
+    _rentProds
+        .filter(p => p.clasificacion && (!cat || (p.categoria || '') === cat))
+        .forEach(p => grupos[p.clasificacion].push({ x:p.unidades, y:p.margen_unit, nombre:p.nombre }));
+    _rentCharts.menu = new Chart(canvas, {
+        type:'scatter',
+        data:{ datasets:Object.keys(grupos).map(k => ({ label:RENT_CLASE_LBL[k], data:grupos[k], backgroundColor:RENT_CLASE_COLOR[k], pointRadius:5 })) },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.raw.nombre}: ${fmtInt(c.raw.x)} u, margen ${simboloMoneda()} ${fmt(c.raw.y)}`}}},
+            scales:{ x:{title:{display:true,text:'Unidades'}}, y:{title:{display:true,text:'Margen unitario'}} } }
+    });
+}
+
 // Estado de las tablas de Rentabilidad (orden por columna: 1er click desc, 2do asc).
 let _rentProds = [], _rentConsumo = [];
 let _rentDetSort = { col:null, dir:'desc' };
@@ -667,12 +700,20 @@ function buildRentabilidadHTML() {
         <div class="tv-fg"><label>Desde</label><input type="date" id="rent-desde" value="${getDesdeDefault()}"></div>
         <div class="tv-fg"><label>Hasta</label><input type="date" id="rent-hasta" value="${getHastaDefault()}"></div>
         <button class="tv-btn-buscar" onclick="cargarRentabilidad()">🔍 Buscar</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#374151;cursor:pointer;align-self:flex-end;height:30px;" title="Reparte el precio de cada combo entre sus productos según su % de costo de producción">
+            <input type="checkbox" id="rent-incluir-combos" checked onchange="cargarRentProductos()"> Incluir combos (repartidos)
+        </label>
     </div>
     <div id="rent-body">
         <div id="rent-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:6px 0 14px;"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <div>
-                <div style="font-weight:700;font-size:13px;margin-bottom:6px;">🍽️ Ingeniería de menú</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+                    <span style="font-weight:700;font-size:13px;">🍽️ Ingeniería de menú</span>
+                    <select id="rent-menu-cat" onchange="renderRentMenu()" style="margin-left:auto;padding:3px 6px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:11px;background:white;color:#374151;">
+                        <option value="">Todas las categorías</option>
+                    </select>
+                </div>
                 <div style="position:relative;height:280px;"><canvas id="rent-menu-canvas"></canvas></div>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#475569;margin-top:6px;">
                     <span><b style="color:#16a34a">●</b> Estrella</span><span><b style="color:#ca8a04">●</b> Caballo</span>
@@ -712,6 +753,19 @@ function buildRentabilidadHTML() {
             </tr></thead>
             <tbody id="rent-detalle"><tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:16px;">Cargando…</td></tr></tbody>
         </table></div>
+        <div style="font-weight:700;font-size:13px;margin:16px 0 6px;">🍔 Detalle por combo <span style="font-weight:400;color:#6b7280;font-size:12px;">(clic en un combo para ver el desglose por producto)</span></div>
+        <div style="overflow:auto;max-height:340px;border:1px solid #eef2f7;border-radius:8px;">
+        <table class="rent-tbl" style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr>
+                <th class="rent-th" onclick="sortRentCombo('nombre')">Combo <span class="rent-arrow" id="rar-combo-nombre">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentCombo('unidades')">Unid. <span class="rent-arrow" id="rar-combo-unidades">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentCombo('ingreso_neto')">Ingreso <span class="rent-arrow" id="rar-combo-ingreso_neto">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentCombo('costo_prom')">Costo prom. <span class="rent-arrow" id="rar-combo-costo_prom">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentCombo('margen_total')">Margen <span class="rent-arrow" id="rar-combo-margen_total">↕</span></th>
+                <th class="rent-th" style="text-align:right" onclick="sortRentCombo('food_cost_pct')">Food-cost% <span class="rent-arrow" id="rar-combo-food_cost_pct">↕</span></th>
+            </tr></thead>
+            <tbody id="rent-combos"><tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">Cargando…</td></tr></tbody>
+        </table></div>
     </div>
     <style>.rent-tbl th{position:sticky;top:0;background:#f8fafc;color:#9ca3af;font-size:10px;text-transform:uppercase;padding:6px 8px;text-align:left;z-index:1}.rent-tbl td{padding:6px 8px;border-top:1px solid #f1f5f9}.rent-tbl th.rent-th{cursor:pointer;user-select:none}.rent-tbl th.rent-th:hover{background:#eef2f7}.rent-arrow{margin-left:3px;color:#cbd5e1;font-size:9px}.rent-arrow.active{color:#4f46e5}</style>`;
 }
@@ -721,10 +775,25 @@ function rentKpi(lbl, val){ return `<div style="background:#f8fafc;border:1px so
 async function cargarRentabilidad() {
     const desde = document.getElementById('rent-desde')?.value || getDesdeDefault();
     const hasta = document.getElementById('rent-hasta')?.value || getHastaDefault();
-    Object.values(_rentCharts).forEach(c => { try { c.destroy(); } catch(e){} });
-    _rentCharts = {};
+    await cargarRentProductos();     // KPIs + scatter + margen + detalle por producto
+    try {
+        const cons = await api.get(`/ventas/consumo-insumos?desde=${desde}&hasta=${hasta}`);
+        document.getElementById('rent-consumo-total').textContent = cons.insumos.length ? `· costo total ${simboloMoneda()} ${fmt(cons.costo_total)}` : '';
+        _rentConsumo = cons.insumos || [];
+        renderRentConsumo();
+    } catch(e) { /* consumo opcional */ }
+    await cargarRentCombos(desde, hasta);
+}
+
+// Solo productos (KPIs, scatter, margen, tabla): se re-llama al togglear "Incluir combos".
+async function cargarRentProductos() {
+    const desde = document.getElementById('rent-desde')?.value || getDesdeDefault();
+    const hasta = document.getElementById('rent-hasta')?.value || getHastaDefault();
+    const inc   = document.getElementById('rent-incluir-combos')?.checked ? 'true' : 'false';
+    try { _rentCharts.menu?.destroy();  } catch(e){}
+    try { _rentCharts.margen?.destroy(); } catch(e){}
     let d;
-    try { d = await api.get(`/ventas/rentabilidad?desde=${desde}&hasta=${hasta}`); }
+    try { d = await api.get(`/ventas/rentabilidad?desde=${desde}&hasta=${hasta}&incluir_combos=${inc}`); }
     catch(e) {
         document.getElementById('rent-detalle').innerHTML = `<tr><td colspan="8" style="text-align:center;color:#dc2626;padding:16px;">Error: ${esc(e.message)}</td></tr>`;
         return;
@@ -737,14 +806,9 @@ async function cargarRentabilidad() {
         rentKpi('Unidades', fmtInt(r.unidades)) +
         rentKpi('Con receta', r.n_con_receta+'/'+r.n_productos);
 
-    const grupos = {estrella:[],caballo:[],puzzle:[],perro:[]};
-    prods.filter(p=>p.clasificacion).forEach(p=>grupos[p.clasificacion].push({x:p.unidades,y:p.margen_unit,nombre:p.nombre}));
-    _rentCharts.menu = new Chart(document.getElementById('rent-menu-canvas'), {
-        type:'scatter',
-        data:{ datasets:Object.keys(grupos).map(k=>({ label:RENT_CLASE_LBL[k], data:grupos[k], backgroundColor:RENT_CLASE_COLOR[k], pointRadius:5 })) },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.raw.nombre}: ${fmtInt(c.raw.x)} u, margen ${simboloMoneda()} ${fmt(c.raw.y)}`}}},
-            scales:{ x:{title:{display:true,text:'Unidades'}}, y:{title:{display:true,text:'Margen unitario'}} } }
-    });
+    _rentProds = prods || [];
+    _rentPoblarCatMenu();
+    renderRentMenu();
 
     const pm = prods.filter(p=>p.tiene_receta).slice().sort((a,b)=>b.margen_total-a.margen_total).slice(0,12);
     _rentCharts.margen = new Chart(document.getElementById('rent-margen-canvas'), {
@@ -752,16 +816,81 @@ async function cargarRentabilidad() {
         data:{ labels:pm.map(p=>p.nombre), datasets:[{ data:pm.map(p=>p.margen_total), backgroundColor:pm.map(p=>p.margen_total<0?'#dc2626':'#16a34a') }] },
         options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
     });
-
-    _rentProds = prods || [];
     renderRentDetalle();
+}
 
+// ── Detalle por combo (filas expandibles con desglose por producto) ──────
+let _rentCombos = [], _rentCombosOrden = [];
+let _rentComboSort = { col:null, dir:'desc' };
+let _rentComboExp  = new Set();   // claves de combo expandidas
+const _rentComboKey = c => (c.combo_id != null ? 'id:' + c.combo_id : 'n:' + c.nombre);
+const _RENT_COMBO_ACC = {
+    nombre:        c => c.nombre,
+    unidades:      c => c.unidades,
+    ingreso_neto:  c => c.ingreso_neto,
+    costo_prom:    c => c.costo_prom,
+    margen_total:  c => c.margen_total,
+    food_cost_pct: c => c.food_cost_pct,
+};
+async function cargarRentCombos(desde, hasta) {
+    const tb = document.getElementById('rent-combos');
     try {
-        const cons = await api.get(`/ventas/consumo-insumos?desde=${desde}&hasta=${hasta}`);
-        document.getElementById('rent-consumo-total').textContent = cons.insumos.length ? `· costo total ${simboloMoneda()} ${fmt(cons.costo_total)}` : '';
-        _rentConsumo = cons.insumos || [];
-        renderRentConsumo();
-    } catch(e) { /* consumo opcional */ }
+        const d = await api.get(`/ventas/rentabilidad-combos?desde=${desde}&hasta=${hasta}`);
+        _rentCombos = d.combos || [];
+    } catch(e) {
+        _rentCombos = [];
+        if (tb) tb.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#dc2626;padding:16px;">Error: ${esc(e.message)}</td></tr>`;
+        return;
+    }
+    renderRentCombos();
+}
+function renderRentCombos() {
+    const tb = document.getElementById('rent-combos');
+    if (!tb) return;
+    let rows = _rentCombos.slice();
+    const s = _rentComboSort;
+    if (s.col && _RENT_COMBO_ACC[s.col]) rows.sort((a, b) => _rentCmp(_RENT_COMBO_ACC[s.col](a), _RENT_COMBO_ACC[s.col](b), s.dir));
+    _rentCombosOrden = rows;
+    if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">Sin combos vendidos en el período.</td></tr>';
+        _rentArrows('combo', Object.keys(_RENT_COMBO_ACC), s);
+        return;
+    }
+    tb.innerHTML = rows.map((c, i) => {
+        const exp = _rentComboExp.has(_rentComboKey(c));
+        const cab = `<tr style="cursor:pointer;background:#fafafa" onclick="toggleRentCombo(${i})">
+            <td><b><span id="rcarrow-${i}" style="display:inline-block;width:12px;color:#6b7280">${exp?'▾':'▸'}</span> ${esc(c.nombre)}</b> <span style="color:#9ca3af;font-weight:400;font-size:11px">· ${c.productos.length} prod.</span></td>
+            <td style="text-align:right">${fmtInt(c.unidades)}</td>
+            <td style="text-align:right">${simboloMoneda()} ${fmt(c.ingreso_neto)}<div style="font-size:10px;color:#9ca3af">${simboloMoneda()} ${fmt(c.ingreso_inc)} c/imp</div></td>
+            <td style="text-align:right">${simboloMoneda()} ${fmt(c.costo_prom)}</td>
+            <td style="text-align:right;font-weight:600;color:${c.margen_total<0?'#dc2626':'#111827'}">${simboloMoneda()} ${fmt(c.margen_total)}</td>
+            <td style="text-align:right">${c.food_cost_pct==null?'—':c.food_cost_pct+'%'}</td>
+        </tr>`;
+        const det = c.productos.map(p => `<tr class="rcd-${i}" style="${exp?'':'display:none;'}background:#fbfcfe">
+            <td style="padding-left:26px;color:#475569">└ ${esc(p.nombre)}</td>
+            <td style="text-align:right;color:#475569">${fmtInt(p.unidades)}</td>
+            <td style="text-align:right;color:#475569">${simboloMoneda()} ${fmt(p.costo_total)}</td>
+            <td style="text-align:right;color:#475569">${p.pct_costo}%</td>
+            <td colspan="2" style="text-align:right;color:#475569">Precio adj.: <b>${simboloMoneda()} ${fmt(p.ingreso_adjudicado_neto)}</b> <span style="color:#9ca3af;font-size:10px">(${simboloMoneda()} ${fmt(p.ingreso_adjudicado_inc)} c/imp)</span></td>
+        </tr>`).join('');
+        return cab + det;
+    }).join('');
+    _rentArrows('combo', Object.keys(_RENT_COMBO_ACC), s);
+}
+function toggleRentCombo(i) {
+    const c = _rentCombosOrden[i]; if (!c) return;
+    const k = _rentComboKey(c);
+    const abrir = !_rentComboExp.has(k);
+    if (abrir) _rentComboExp.add(k); else _rentComboExp.delete(k);
+    document.querySelectorAll(`.rcd-${i}`).forEach(tr => tr.style.display = abrir ? '' : 'none');
+    const ar = document.getElementById(`rcarrow-${i}`);
+    if (ar) ar.textContent = abrir ? '▾' : '▸';
+}
+function sortRentCombo(col) {
+    const s = _rentComboSort;
+    if (s.col === col) s.dir = (s.dir === 'desc') ? 'asc' : 'desc';
+    else { s.col = col; s.dir = 'desc'; }
+    renderRentCombos();
 }
 
 // ── Inicializar widgets ──────────────────────────────────────────
