@@ -859,7 +859,8 @@ async function verResumenMesa(pid){
                     ${d.descuento_monto>0 ? `<tr><td colspan="4">Descuento</td><td class="num">− ${fmt(d.descuento_monto)}</td></tr>` : ''}
                     <tr class="det-total"><td colspan="4">Total cobrado</td><td class="num">${fmt(d.neto)}</td></tr>
                 </tbody>
-            </table>`;
+            </table>
+            ${d.ticket_url ? `<div style="margin-top:12px;text-align:right;"><a href="${d.ticket_url}" target="_blank" rel="noopener" style="display:inline-block;background:#4f46e5;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;">🖨 Reimprimir ticket</a></div>` : '<div style="margin-top:10px;font-size:12px;color:#9ca3af;text-align:right;">Sin ticket guardado para esta mesa.</div>'}`;
     } catch(e){ bd.innerHTML = `<div class="det-empty">Error: ${e.message||''}</div>`; }
 }
 

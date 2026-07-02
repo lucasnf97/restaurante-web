@@ -900,6 +900,42 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                 </div>
             </div>
 
+            <!-- ── Datos del negocio / ticket ── -->
+            <div style="margin-top:28px;padding-top:20px;border-top:2px solid #f0f0f0;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span style="font-size:16px;">🧾</span>
+                    <span style="font-size:14px;font-weight:700;color:#1a1a2e;">Datos del negocio (ticket de pago)</span>
+                </div>
+                <p style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:14px;">
+                    Estos datos salen impresos en el ticket de pago de cada mesa.
+                </p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:760px;">
+                    <div class="cfg-field"><label class="cfg-label">Nombre del negocio</label>
+                        <input class="cfg-input" id="neg-nombre" type="text" placeholder="Nombre a mostrar" style="padding:7px 10px;width:100%;"></div>
+                    <div class="cfg-field"><label class="cfg-label">CUIT</label>
+                        <input class="cfg-input" id="neg-cuit" type="text" placeholder="30-12345678-9" style="padding:7px 10px;width:100%;"></div>
+                    <div class="cfg-field" style="grid-column:1/-1;"><label class="cfg-label">Dirección</label>
+                        <input class="cfg-input" id="neg-direccion" type="text" placeholder="Calle, número, ciudad" style="padding:7px 10px;width:100%;"></div>
+                    <div class="cfg-field"><label class="cfg-label">Teléfono</label>
+                        <input class="cfg-input" id="neg-telefono" type="text" placeholder="Tel." style="padding:7px 10px;width:100%;"></div>
+                    <div class="cfg-field"><label class="cfg-label">Nombre del impuesto</label>
+                        <input class="cfg-input" id="neg-impuesto-nombre" type="text" placeholder="IVA" style="padding:7px 10px;width:100%;"></div>
+                    <div class="cfg-field" style="grid-column:1/-1;">
+                        <label class="cfg-label">Logo</label>
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                            <img id="neg-logo-preview" src="" alt="" style="height:56px;max-width:180px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:4px;display:none;background:#fff;">
+                            <input type="file" id="neg-logo-file" accept="image/*" style="font-size:13px;" onchange="subirLogoNegocio()">
+                            <span class="save-ok" id="ok-logo">✓ Logo subido</span>
+                        </div>
+                        <div style="font-size:11px;color:#9ca3af;margin-top:4px;">Se sube al tocar "Elegir archivo". PNG/JPG, hasta 5 MB.</div>
+                    </div>
+                </div>
+                <div class="cfg-actions" style="margin-top:14px;">
+                    <button class="btn-save" onclick="guardarNegocio()">Guardar datos del negocio</button>
+                    <span class="save-ok" id="ok-negocio">✓ Guardado</span>
+                </div>
+            </div>
+
             <!-- ── Período de facturación salarial ── -->
             <div style="margin-top:28px;padding-top:20px;border-top:2px solid #f0f0f0;">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
@@ -1951,6 +1987,16 @@ async function cargarSeccionImpuestos() {
         if (cfg.imp_takeaway_pct != null) document.getElementById('imp-takeaway').value = cfg.imp_takeaway_pct;
         document.getElementById('takeaway-modo').value = cfg.takeaway_modo || 'beneficio_restaurante';
 
+        // Datos del negocio / ticket
+        document.getElementById('neg-nombre').value          = cfg.neg_nombre || '';
+        document.getElementById('neg-cuit').value            = cfg.neg_cuit || '';
+        document.getElementById('neg-direccion').value       = cfg.neg_direccion || '';
+        document.getElementById('neg-telefono').value        = cfg.neg_telefono || '';
+        document.getElementById('neg-impuesto-nombre').value = cfg.impuesto_nombre || 'IVA';
+        _negLogoUrl = cfg.neg_logo_url || null;
+        const _lp = document.getElementById('neg-logo-preview');
+        if (_negLogoUrl) { _lp.src = _negLogoUrl; _lp.style.display = ''; } else { _lp.style.display = 'none'; }
+
         actualizarBadgeImpuesto();
     } catch {}
 
@@ -2066,6 +2112,63 @@ async function guardarImpuesto() {
         actualizarBadgeImpuesto();
         mostrarOk('ok-impuestos');
         if (typeof cargarMonedaSistema === 'function') cargarMonedaSistema();
+    } catch (e) {
+        alert('Error al guardar: ' + (e.message || e));
+    }
+}
+
+// ── Datos del negocio / ticket ───────────────────────────────
+let _negLogoUrl = null;
+
+async function subirLogoNegocio() {
+    const inp = document.getElementById('neg-logo-file');
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    try {
+        const fd = new FormData(); fd.append('file', f);
+        const r = await apiFetch('/config/logo', { method: 'POST', body: fd });
+        _negLogoUrl = r.url;
+        const lp = document.getElementById('neg-logo-preview');
+        lp.src = _negLogoUrl; lp.style.display = '';
+        mostrarOk('ok-logo');
+    } catch (e) {
+        alert('Error al subir el logo: ' + (e.message || e));
+    } finally { inp.value = ''; }
+}
+
+async function guardarNegocio() {
+    let cfgActual = {};
+    try { cfgActual = await apiFetch('/config/sistema'); } catch {}
+    try {
+        await apiFetch('/config/sistema', {
+            method: 'PUT',
+            body: JSON.stringify({
+                moneda_codigo:      cfgActual.moneda_codigo  || 'EUR',
+                moneda_simbolo:     cfgActual.moneda_simbolo || '€',
+                moneda_nombre:      cfgActual.moneda_nombre  || 'Euro',
+                tasas_cambio:       cfgActual.tasas_cambio   || [],
+                impuesto_pct:       cfgActual.impuesto_pct   || 0,
+                dia_inicio_periodo: cfgActual.dia_inicio_periodo || 1,
+                hora_corte_turno:   cfgActual.hora_corte_turno   || 6,
+                corte_cierra_fichajes: cfgActual.corte_cierra_fichajes || false,
+                corte_cierra_caja:     cfgActual.corte_cierra_caja    || false,
+                modo_impositivo:    cfgActual.modo_impositivo || 'predeterminado',
+                imp_efectivo_pct:   cfgActual.imp_efectivo_pct ?? null,
+                imp_tarjeta_pct:    cfgActual.imp_tarjeta_pct  ?? null,
+                imp_local_pct:      cfgActual.imp_local_pct    ?? null,
+                imp_delivery_pct:   cfgActual.imp_delivery_pct ?? null,
+                imp_takeaway_pct:   cfgActual.imp_takeaway_pct ?? null,
+                takeaway_modo:      cfgActual.takeaway_modo || 'beneficio_restaurante',
+                // Datos del negocio (el backend preserva con COALESCE los que no se mandan)
+                neg_nombre:      document.getElementById('neg-nombre').value.trim() || null,
+                neg_direccion:   document.getElementById('neg-direccion').value.trim() || null,
+                neg_cuit:        document.getElementById('neg-cuit').value.trim() || null,
+                neg_telefono:    document.getElementById('neg-telefono').value.trim() || null,
+                neg_logo_url:    _negLogoUrl || null,
+                impuesto_nombre: document.getElementById('neg-impuesto-nombre').value.trim() || 'IVA',
+            }),
+        });
+        mostrarOk('ok-negocio');
     } catch (e) {
         alert('Error al guardar: ' + (e.message || e));
     }
