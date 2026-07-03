@@ -167,8 +167,32 @@
             display: flex; gap: 8px; align-items: center;
             padding: 8px; background: #f8f9fa; border-radius: 8px; margin-bottom: 6px;
         }
-        .combo-item-row select { flex: 1; }
-        .combo-item-row input { width: 60px; }
+        .combo-item-row input.ci-cant { width: 60px; }
+        .combo-item-row input.ci-nombre { flex: 1; min-width: 0; }
+        /* Selector de productos del grupo: toggle On/Off por producto */
+        .cp-cat-titulo {
+            font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase;
+            letter-spacing: 0.5px; margin: 14px 0 6px; padding-bottom: 4px;
+            border-bottom: 1px solid #eee;
+        }
+        .cp-prod-row {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; padding: 6px 8px; border-radius: 8px;
+        }
+        .cp-prod-row:hover { background: #f8f9fa; }
+        .cp-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+        .cp-switch input { opacity: 0; width: 0; height: 0; }
+        .cp-slider {
+            position: absolute; cursor: pointer; inset: 0; background: #d1d5db;
+            border-radius: 22px; transition: background 0.2s;
+        }
+        .cp-slider:before {
+            content: ""; position: absolute; height: 16px; width: 16px;
+            left: 3px; bottom: 3px; background: white; border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .cp-switch input:checked + .cp-slider { background: #4f46e5; }
+        .cp-switch input:checked + .cp-slider:before { transform: translateX(18px); }
         /* Modo solo-vista: oculta todos los controles de edición */
         /* La barra de acciones solo tiene botones de edición → ocultarla entera
            para que no quede una franja vacía entre las solapas y los filtros. */
@@ -328,7 +352,6 @@
     <div id="vista-combos" style="display:none">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalCombo()">+ Nuevo combo</button>
-            <button class="btn btn-secondary btn-sm" id="btn-editar-combo" disabled onclick="editarComboSel()">Editar</button>
             <button class="btn btn-danger btn-sm" id="btn-elim-combo" disabled onclick="eliminarComboSel()">Eliminar</button>
         </div>
         <div class="tabla-wrapper">
@@ -637,17 +660,17 @@
         </div>
     </div>
 </div>
-<!-- Modal combos habilitados -->
-<div class="modal-overlay" id="modal-combos-hab">
-    <div class="modal" style="max-width:440px">
-        <h3 id="modal-comb-hab-titulo">Combos habilitados</h3>
-        <p style="font-size:13px;color:#666;margin-bottom:16px">
-            Seleccioná en qué combos puede aparecer este producto.
+<!-- Modal selección de productos de un grupo del combo -->
+<div class="modal-overlay" id="modal-combo-prods">
+    <div class="modal" style="max-width:520px">
+        <h3 id="modal-cp-titulo">Productos del grupo</h3>
+        <p style="font-size:13px;color:#666;margin-bottom:10px">
+            Activá los productos que se pueden elegir en este grupo del combo.
         </p>
-        <div id="combos-hab-lista"></div>
+        <div id="cp-lista" style="max-height:50vh;overflow-y:auto;margin-bottom:8px"></div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="cerrarModal('modal-combos-hab')">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarCombosHab()">Guardar</button>
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-combo-prods')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarComboProds()">Aceptar</button>
         </div>
     </div>
 </div>
@@ -981,6 +1004,7 @@ function poblarSelects() {
 
 // ── PRODUCTOS ─────────────────────────────────────────────────
 async function cargarProductos() {
+    _cartaCombo = null;   // invalidar la caché del selector de productos de combos
     const cat = document.getElementById('filtro-cat').value;
     const area = document.getElementById('filtro-area').value;
     const estado = document.getElementById('filtro-estado').value;
@@ -1697,13 +1721,14 @@ async function cargarCombos() {
 function renderCombos() {
     const tbody = document.getElementById('tbody-combos');
     if (!combos.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">No hay combos</td></tr>`; return; }
+    const pencil = c => modoEdicion ? `<span class="prod-edit-pencil" title="Editar combo" onclick="event.stopPropagation();abrirModalCombo(${c.id})" style="cursor:pointer;margin-right:8px;">✏️</span>` : '';
     tbody.innerHTML = combos.map(c => `
         <tr class="${comboSel && comboSel.id === c.id ? 'sel' : ''}" onclick="selCombo(${c.id})">
             <td>${c.favorito ? '<span class="fav-star">★</span>' : ''}</td>
-            <td><strong>${c.nombre}</strong>${c.descripcion ? `<br><small style="color:#888">${c.descripcion}</small>` : ''}</td>
+            <td>${pencil(c)}<strong>${c.nombre}</strong>${c.descripcion ? `<br><small style="color:#888">${c.descripcion}</small>` : ''}</td>
             <td><strong>${simboloMoneda()} ${parseFloat(c.precio).toFixed(2)}</strong></td>
             <td>${c.categoria || '—'}</td>
-            <td>${c.items.map(i => `${i.cantidad}x ${i.categoria_nombre}`).join(', ')}</td>
+            <td>${c.items.map(i => `${i.cantidad}x ${i.nombre || i.categoria_nombre}`).join(', ')}</td>
             <td><span class="badge ${c.disponible ? 'badge-green' : 'badge-gray'}">${c.disponible ? 'Sí' : 'No'}</span></td>
             <td><span class="badge ${c.agotado ? 'badge-orange' : 'badge-gray'}">${c.agotado ? 'Sí' : 'No'}</span></td>
         </tr>
@@ -1717,25 +1742,33 @@ function selCombo(id) {
 }
 
 function actualizarBtnsCombo() {
-    const sel = !!comboSel;
-    document.getElementById('btn-editar-combo').disabled = !sel;
-    document.getElementById('btn-elim-combo').disabled = !sel;
+    document.getElementById('btn-elim-combo').disabled = !comboSel;
 }
 
-function abrirModalCombo(id = null) {
+// Carta completa para el selector de productos de los grupos (independiente de los
+// filtros de la solapa Productos, que pisan el global `productos`).
+let _cartaCombo = null;
+async function _cargarCartaCombo() {
+    if (!_cartaCombo) _cartaCombo = await api.get('/productos/?en_carta=true');
+    return _cartaCombo;
+}
+
+async function abrirModalCombo(id = null) {
     editandoComboId = id;
+    const c = id ? combos.find(x => x.id === id) : null;
     document.getElementById('modal-combo-titulo').textContent = id ? 'Editar combo' : 'Nuevo combo';
     document.getElementById('combo-items-cont').innerHTML = '';
+    try { await _cargarCartaCombo(); } catch(e) { _cartaCombo = []; }
 
-    if (id && comboSel) {
-        document.getElementById('fc-nombre').value = comboSel.nombre;
-        document.getElementById('fc-descripcion').value = comboSel.descripcion || '';
-        document.getElementById('fc-precio').value = comboSel.precio;
-        document.getElementById('fc-categoria').value = comboSel.categoria_id || '';
-        document.getElementById('fc-area').value = comboSel.area_id || '';
-        document.getElementById('fc-disponible').checked = comboSel.disponible;
-        document.getElementById('fc-favorito').checked = comboSel.favorito;
-        comboSel.items.forEach(i => agregarComboItem(i.categoria_id, i.cantidad));
+    if (c) {
+        document.getElementById('fc-nombre').value = c.nombre;
+        document.getElementById('fc-descripcion').value = c.descripcion || '';
+        document.getElementById('fc-precio').value = c.precio;
+        document.getElementById('fc-categoria').value = c.categoria_id || '';
+        document.getElementById('fc-area').value = c.area_id || '';
+        document.getElementById('fc-disponible').checked = c.disponible;
+        document.getElementById('fc-favorito').checked = c.favorito;
+        c.items.forEach(i => agregarComboItem(i));
     } else {
         ['fc-nombre','fc-descripcion'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('fc-precio').value = '';
@@ -1746,27 +1779,87 @@ function abrirModalCombo(id = null) {
     document.getElementById('modal-combo').classList.add('active');
 }
 
-function editarComboSel() { if (comboSel) abrirModalCombo(comboSel.id); }
-
-function agregarComboItem(catId = '', cant = 1) {
+function agregarComboItem(item = null) {
     const cont = document.getElementById('combo-items-cont');
     const row = document.createElement('div');
     row.className = 'combo-item-row';
-    const opts = categorias.map(c => `<option value="${c.id}" ${c.id == catId ? 'selected' : ''}>${c.nombre}</option>`).join('');
+    let nombre = '', cant = 1, pids = [];
+    if (item) {
+        cant = item.cantidad || 1;
+        if (item.producto_ids && item.producto_ids.length) {
+            nombre = item.nombre || item.categoria_nombre || '';
+            pids = item.producto_ids;
+        } else {
+            // Grupo legacy (por categoría): precargar nombre + productos en carta de esa categoría.
+            nombre = item.nombre || item.categoria_nombre || '';
+            pids = (_cartaCombo || []).filter(p => p.categoria_id === item.categoria_id).map(p => p.id);
+        }
+    }
+    row.dataset.pids = JSON.stringify(pids);
     row.innerHTML = `
-        <select class="ci-cat">${opts}</select>
-        <input type="number" class="ci-cant" min="1" value="${cant}" style="width:60px">
+        <input type="text" class="ci-nombre" placeholder="Nombre del grupo (ej: Elegí tu burger)" value="${(nombre || '').replace(/"/g, '&quot;')}">
+        <button class="btn btn-secondary btn-sm ci-prods" onclick="abrirComboProds(this.parentElement)">Elegir productos (${pids.length})</button>
+        <input type="number" class="ci-cant" min="1" value="${cant}">
         <span style="font-size:12px;color:#888">opciones</span>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>
     `;
     cont.appendChild(row);
 }
 
+// ── Selector de productos de un grupo (toggles On/Off agrupados por categoría) ──
+let _cpRow = null;   // fila .combo-item-row que está eligiendo productos
+
+async function abrirComboProds(row) {
+    _cpRow = row;
+    const carta = await _cargarCartaCombo();
+    const sel = new Set(JSON.parse(row.dataset.pids || '[]'));
+    const nombreGrupo = row.querySelector('.ci-nombre').value.trim();
+    document.getElementById('modal-cp-titulo').textContent = nombreGrupo ? `Productos — ${nombreGrupo}` : 'Productos del grupo';
+    const porCat = new Map();
+    for (const p of carta) {
+        const cat = p.categoria || 'Sin categoría';
+        if (!porCat.has(cat)) porCat.set(cat, []);
+        porCat.get(cat).push(p);
+    }
+    // Mismo orden que el listado de categorías; las no listadas al final
+    const ordenCats = categorias.map(c => c.nombre).filter(n => porCat.has(n));
+    for (const cat of porCat.keys()) if (!ordenCats.includes(cat)) ordenCats.push(cat);
+    let html = '';
+    for (const cat of ordenCats) {
+        html += `<div class="cp-cat-titulo">${cat}</div>`;
+        for (const p of porCat.get(cat)) {
+            html += `
+            <div class="cp-prod-row">
+                <span style="font-size:14px">${p.nombre}</span>
+                <label class="cp-switch">
+                    <input type="checkbox" class="cp-check" value="${p.id}" ${sel.has(p.id) ? 'checked' : ''}>
+                    <span class="cp-slider"></span>
+                </label>
+            </div>`;
+        }
+    }
+    document.getElementById('cp-lista').innerHTML = html || '<p style="color:#888;font-size:14px">No hay productos en carta.</p>';
+    document.getElementById('modal-combo-prods').classList.add('active');
+}
+
+function guardarComboProds() {
+    if (!_cpRow) { cerrarModal('modal-combo-prods'); return; }
+    const ids = Array.from(document.querySelectorAll('#cp-lista .cp-check:checked')).map(cb => parseInt(cb.value));
+    _cpRow.dataset.pids = JSON.stringify(ids);
+    _cpRow.querySelector('.ci-prods').textContent = `Elegir productos (${ids.length})`;
+    cerrarModal('modal-combo-prods');
+}
+
 async function guardarCombo() {
     const items = Array.from(document.querySelectorAll('.combo-item-row')).map(row => ({
-        categoria_id: parseInt(row.querySelector('.ci-cat').value),
-        cantidad: parseInt(row.querySelector('.ci-cant').value) || 1
+        nombre: row.querySelector('.ci-nombre').value.trim(),
+        cantidad: parseInt(row.querySelector('.ci-cant').value) || 1,
+        producto_ids: JSON.parse(row.dataset.pids || '[]')
     }));
+    for (const it of items) {
+        if (!it.nombre) { alert('Cada grupo del combo necesita un nombre.'); return; }
+        if (!it.producto_ids.length) { alert(`El grupo "${it.nombre}" no tiene productos seleccionados.`); return; }
+    }
     const body = {
         nombre: document.getElementById('fc-nombre').value.trim(),
         descripcion: document.getElementById('fc-descripcion').value.trim() || null,
@@ -1845,42 +1938,8 @@ async function eliminarCategoria(id) {
 function cerrarModal(id) { document.getElementById(id).classList.remove('active'); }
 // Los modales NO se cierran al hacer clic en el overlay (solo con el botón o la cruz)
 
-async function abrirModalCombosHab() {
-    if (!prodSel) return;
-    document.getElementById('modal-comb-hab-titulo').textContent = `Combos — ${prodSel.nombre}`;
-    const [todosLosCombos, habilitados] = await Promise.all([
-        api.get('/productos/combos/lista'),
-        api.get(`/productos/${prodSel.id}/combos-habilitados`)
-    ]);
-    const habIds = new Set(habilitados.map(h => h.id));
-    const cont = document.getElementById('combos-hab-lista');
-    if (!todosLosCombos.length) {
-        cont.innerHTML = '<p style="color:#888;font-size:14px">No hay combos creados todavía.</p>';
-    } else {
-        cont.innerHTML = todosLosCombos.map(c => `
-            <label class="checkbox-item" style="display:flex;gap:8px;padding:8px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:${habIds.has(c.id) ? '#f5f3ff' : '#fafafa'}">
-                <input type="checkbox" class="cb-combo-hab" value="${c.id}" ${habIds.has(c.id) ? 'checked' : ''}>
-                <span style="font-size:14px"><strong>${c.nombre}</strong> — ${simboloMoneda()} ${parseFloat(c.precio).toFixed(2)}</span>
-            </label>
-        `).join('');
-    }
-    document.getElementById('modal-combos-hab').classList.add('active');
-}
-
-async function guardarCombosHab() {
-    const ids = Array.from(document.querySelectorAll('.cb-combo-hab:checked')).map(cb => parseInt(cb.value));
-    try {
-        await fetch(`${API_URL}/productos/${prodSel.id}/combos-habilitados`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getToken()}`
-            },
-            body: JSON.stringify(ids)
-        });
-        cerrarModal('modal-combos-hab');
-    } catch(err) { alert('Error: ' + err.message); }
-}
+// (El modal "Combos habilitados" por producto se eliminó: combos v2 define los productos
+//  elegibles explícitamente por grupo en el editor del combo.)
 
 // ── RECETAS ──────────────────────────────────────────────
     let _recetas = [];
