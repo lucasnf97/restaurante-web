@@ -811,10 +811,23 @@ async function verItems(pedidoId, mesaNumero) {
                   </tr>`).join("")
                 : "";
 
-            tbody.innerHTML = filasNormales + filasEliminados + `
+            // Descuento a toda la cuenta (se aplica sobre el subtotal ya descontado por ítem).
+            const dc      = parseFloat((items[0] || {}).descuento_cuenta_pct) || 0;
+            const pagado  = +(subtotal * (1 - dc / 100)).toFixed(2);
+            const dcMonto = +(subtotal - pagado).toFixed(2);
+            const filasDesc = dc > 0 ? `
+                <tr style="background:#f8f9fa;">
+                    <td colspan="4" style="text-align:right;color:#666;">Cuenta total</td>
+                    <td style="text-align:right;">${simboloMoneda()} ${subtotal.toFixed(2)}</td>
+                </tr>
+                <tr style="background:#f8f9fa;">
+                    <td colspan="4" style="text-align:right;color:#16a34a;">Descuento cuenta ${+dc.toFixed(1)}%</td>
+                    <td style="text-align:right;color:#16a34a;">− ${simboloMoneda()} ${dcMonto.toFixed(2)}</td>
+                </tr>` : '';
+            tbody.innerHTML = filasNormales + filasEliminados + filasDesc + `
                 <tr style="background:#f8f9fa;border-top:2px solid #e2e8f0;">
                     <td colspan="4" style="text-align:right;font-weight:700;color:#666;">SUBTOTAL COBRADO</td>
-                    <td style="text-align:right;font-weight:700;font-size:15px;">${simboloMoneda()} ${subtotal.toFixed(2)}</td>
+                    <td style="text-align:right;font-weight:700;font-size:15px;">${simboloMoneda()} ${pagado.toFixed(2)}</td>
                 </tr>`;
         }
         document.getElementById("modal-items").classList.add("active");
