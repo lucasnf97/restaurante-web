@@ -681,7 +681,7 @@ function renderProgressBar() {
     const breakEven = datosMes.costo_insumos_facturados
                     + datosMes.costo_servicios_facturados
                     + (datosMes.costo_bienes_facturados || 0)
-                    + (datosMes.descuentos_personal || 0)
+                    + (datosMes.refunds || 0)   // descuentos ya bajan la venta (no son gasto); refunds sí
                     + (datosMes.salarios || 0);
     const ventasPrev = ventasMesAnterior ?? 0;
     const meta       = getMeta();
@@ -1140,8 +1140,8 @@ async function cargarDetalle(tipo) {
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
-                            <span class="bal-label">🎟️ Descuentos / refounds</span>
-                            <span class="bal-val rojo">− ${fmt(d.descuentos_personal || 0)}${pl(d.descuentos_personal || 0)}</span>
+                            <span class="bal-label">↩️ Refunds / devoluciones</span>
+                            <span class="bal-val rojo">− ${fmt(d.refunds || 0)}${pl(d.refunds || 0)}</span>
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
