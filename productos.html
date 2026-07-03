@@ -193,6 +193,22 @@
         }
         .cp-switch input:checked + .cp-slider { background: #4f46e5; }
         .cp-switch input:checked + .cp-slider:before { transform: translateX(18px); }
+        /* Tabla de referencia de costo del combo (solo lectura) */
+        .cc-tabla {
+            border-collapse: collapse; font-size: 12px; background: #f8f9fa;
+            border: 1px solid #eee; border-radius: 8px;
+        }
+        .cc-tabla th, .cc-tabla td { padding: 6px 10px; text-align: right; white-space: nowrap; }
+        .cc-tabla th {
+            color: #888; font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.4px; border-bottom: 1px solid #e2e8f0;
+        }
+        .cc-tabla .cc-nom {
+            text-align: left; max-width: 130px; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; color: #666;
+        }
+        .cc-tabla tfoot td { border-top: 1px solid #e2e8f0; font-weight: 700; color: #333; }
+        .cc-nota { font-size: 11px; color: #999; margin-top: 5px; max-width: 250px; }
         /* Modo solo-vista: oculta todos los controles de edición */
         /* La barra de acciones solo tiene botones de edición → ocultarla entera
            para que no quede una franja vacía entre las solapas y los filtros. */
@@ -604,7 +620,7 @@
 
 <!-- Modal combo -->
 <div class="modal-overlay" id="modal-combo">
-    <div class="modal" style="max-width:640px">
+    <div class="modal" style="max-width:820px">
         <h3 id="modal-combo-titulo">Nuevo combo</h3>
         <div class="form-row">
             <div class="form-group">
@@ -632,8 +648,14 @@
         </div>
         <div class="form-group">
             <label>Productos del combo</label>
-            <div id="combo-items-cont"></div>
-            <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="agregarComboItem()">+ Agregar producto</button>
+            <div style="display:flex;gap:14px;align-items:flex-start">
+                <div style="flex:1;min-width:0">
+                    <div id="combo-items-cont"></div>
+                    <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="agregarComboItem()">+ Agregar producto</button>
+                </div>
+                <!-- Referencia de costo (solo lectura): min/prom/max por grupo × cantidad -->
+                <div id="combo-costos" style="flex-shrink:0"></div>
+            </div>
         </div>
         <div class="checkbox-row" style="margin-top:8px">
             <label class="checkbox-item"><input type="checkbox" id="fc-disponible" checked> Disponible</label>
@@ -1799,13 +1821,49 @@ function agregarComboItem(item = null) {
     }
     row.dataset.pids = JSON.stringify(pids);
     row.innerHTML = `
-        <input type="text" class="ci-nombre" placeholder="Nombre del grupo (ej: Elegí tu burger)" value="${(nombre || '').replace(/"/g, '&quot;')}">
+        <input type="text" class="ci-nombre" placeholder="Nombre del grupo (ej: Elegí tu burger)" value="${(nombre || '').replace(/"/g, '&quot;')}" oninput="actualizarCostosCombo()">
         <button class="btn btn-secondary btn-sm ci-prods" onclick="abrirComboProds(this.parentElement)">Elegir productos (${pids.length})</button>
-        <input type="number" class="ci-cant" min="1" value="${cant}">
+        <input type="number" class="ci-cant" min="1" value="${cant}" oninput="actualizarCostosCombo()">
         <span style="font-size:12px;color:#888">opciones</span>
-        <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>
+        <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove();actualizarCostosCombo()">✕</button>
     `;
     cont.appendChild(row);
+    actualizarCostosCombo();
+}
+
+// ── Tabla de referencia de costo (solo lectura): por cada grupo, el precio del
+//    producto más barato / promedio / más caro de los seleccionados × cantidad
+//    elegible, y una fila final con los totales. Ayuda a decidir el precio. ──
+function actualizarCostosCombo() {
+    const cont = document.getElementById('combo-costos');
+    if (!cont) return;
+    const rows = Array.from(document.querySelectorAll('.combo-item-row'));
+    if (!rows.length) { cont.innerHTML = ''; return; }
+    const precioDe = new Map((_cartaCombo || []).map(p => [p.id, parseFloat(p.precio) || 0]));
+    const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let tMin = 0, tProm = 0, tMax = 0, filas = '';
+    for (const row of rows) {
+        const nombre  = row.querySelector('.ci-nombre').value.trim() || 'Grupo';
+        const cant    = parseInt(row.querySelector('.ci-cant').value) || 1;
+        const precios = JSON.parse(row.dataset.pids || '[]')
+                            .map(id => precioDe.get(id)).filter(v => v != null);
+        let cMin = null, cProm = null, cMax = null;
+        if (precios.length) {
+            cMin  = Math.min(...precios) * cant;
+            cMax  = Math.max(...precios) * cant;
+            cProm = (precios.reduce((a, b) => a + b, 0) / precios.length) * cant;
+            tMin += cMin; tProm += cProm; tMax += cMax;
+        }
+        const f = v => v == null ? '—' : v.toFixed(2);
+        filas += `<tr><td class="cc-nom" title="${esc(nombre)}">${esc(nombre)}</td><td>${f(cMin)}</td><td>${f(cProm)}</td><td>${f(cMax)}</td></tr>`;
+    }
+    cont.innerHTML = `
+        <table class="cc-tabla">
+            <thead><tr><th></th><th>Mín</th><th>Prom</th><th>Máx</th></tr></thead>
+            <tbody>${filas}</tbody>
+            <tfoot><tr><td class="cc-nom">Total</td><td>${simboloMoneda()} ${tMin.toFixed(2)}</td><td>${simboloMoneda()} ${tProm.toFixed(2)}</td><td>${simboloMoneda()} ${tMax.toFixed(2)}</td></tr></tfoot>
+        </table>
+        <div class="cc-nota">Referencia: lo que valdrían los productos elegibles por separado (según la selección de cada grupo).</div>`;
 }
 
 // ── Selector de productos de un grupo (toggles On/Off agrupados por categoría) ──
@@ -1868,6 +1926,7 @@ function guardarComboProds() {
     _cpRow.dataset.pids = JSON.stringify(ids);
     _cpRow.querySelector('.ci-prods').textContent = `Elegir productos (${ids.length})`;
     cerrarModal('modal-combo-prods');
+    actualizarCostosCombo();
 }
 
 async function guardarCombo() {
