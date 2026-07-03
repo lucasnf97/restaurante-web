@@ -230,6 +230,11 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .hm-cell:hover { transform:scale(1.1); box-shadow:0 2px 8px rgba(0,0,0,.18); z-index:2; }
 .hm-cell.hm-sel { border-color:#4f46e5; box-shadow:0 0 0 1px #4f46e5; z-index:1; }
 .hm-cell-empty { background:#f9fafb; color:transparent; }
+.hm-gap {
+    grid-column:1/-1; height:12px; display:flex; align-items:center;
+    justify-content:center; color:#d1d5db; font-size:10px; letter-spacing:3px;
+    cursor:default;
+}
 .hm-legend {
     display:flex; align-items:center; gap:8px; margin-top:10px;
     font-size:10px; color:#9ca3af;
@@ -821,24 +826,26 @@ function renderCalor() {
     }
 
     const mapa = {};
-    let maxTotal = 0, maxDur = 0, horaMin = 23, horaMax = 0;
+    let maxTotal = 0, maxDur = 0;
     hmData.forEach(c => {
         if (!mapa[c.dia]) mapa[c.dia] = {};
         mapa[c.dia][c.hora] = c;
         if (c.total > maxTotal) maxTotal = c.total;
         if ((c.dur_prom || 0) > maxDur) maxDur = c.dur_prom;
-        if (c.hora < horaMin) horaMin = c.hora;
-        if (c.hora > horaMax) horaMax = c.hora;
     });
-    horaMin = Math.max(0, horaMin - 1);
-    horaMax = Math.min(23, horaMax + 1);
-    const HORAS = Array.from({length: horaMax - horaMin + 1}, (_, i) => horaMin + i);
+    // Solo horas con actividad en algún día del período (las horas en que el restaurante
+    // está cerrado no aparecen). Los saltos (p.ej. cierre de tarde) se marcan con ⋯.
+    const HORAS = [...new Set(hmData.map(c => c.hora))].sort((a, b) => a - b);
 
     const grid = (modo) => {   // modo: 'cierres' | 'tiempo'
         let h = `<div class="hm-grid" style="grid-template-columns:44px repeat(7,58px);">`;
         h += `<div class="hm-cell-hora"></div>`;
         HM_DIAS.forEach(d => h += `<div class="hm-cell-dia">${d}</div>`);
+        let prev = null;
         HORAS.forEach(hora => {
+            if (prev !== null && hora - prev > 1)
+                h += `<div class="hm-gap" title="Sin actividad entre ${String(prev+1).padStart(2,'0')}:00 y ${String(hora).padStart(2,'0')}:00">⋯</div>`;
+            prev = hora;
             h += `<div class="hm-cell-hora">${String(hora).padStart(2,'0')}:00</div>`;
             for (let dia = 0; dia < 7; dia++) {
                 const c = mapa[dia]?.[hora];
