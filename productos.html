@@ -667,6 +667,8 @@
         <p style="font-size:13px;color:#666;margin-bottom:10px">
             Activá los productos que se pueden elegir en este grupo del combo.
         </p>
+        <input type="text" id="cp-buscar" placeholder="🔍 Buscar producto..."
+               style="width:100%;margin-bottom:10px" oninput="filtrarComboProds()">
         <div id="cp-lista" style="max-height:50vh;overflow-y:auto;margin-bottom:8px"></div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-combo-prods')">Cancelar</button>
@@ -1826,10 +1828,10 @@ async function abrirComboProds(row) {
     for (const cat of porCat.keys()) if (!ordenCats.includes(cat)) ordenCats.push(cat);
     let html = '';
     for (const cat of ordenCats) {
-        html += `<div class="cp-cat-titulo">${cat}</div>`;
+        html += `<div class="cp-cat-bloque"><div class="cp-cat-titulo">${cat}</div>`;
         for (const p of porCat.get(cat)) {
             html += `
-            <div class="cp-prod-row">
+            <div class="cp-prod-row" data-nombre="${(p.nombre || '').toLowerCase().replace(/"/g, '&quot;')}">
                 <span style="font-size:14px">${p.nombre}</span>
                 <label class="cp-switch">
                     <input type="checkbox" class="cp-check" value="${p.id}" ${sel.has(p.id) ? 'checked' : ''}>
@@ -1837,9 +1839,27 @@ async function abrirComboProds(row) {
                 </label>
             </div>`;
         }
+        html += `</div>`;
     }
     document.getElementById('cp-lista').innerHTML = html || '<p style="color:#888;font-size:14px">No hay productos en carta.</p>';
+    const buscar = document.getElementById('cp-buscar');
+    buscar.value = '';
     document.getElementById('modal-combo-prods').classList.add('active');
+    buscar.focus();
+}
+
+function filtrarComboProds() {
+    const q = document.getElementById('cp-buscar').value.trim().toLowerCase();
+    for (const bloque of document.querySelectorAll('#cp-lista .cp-cat-bloque')) {
+        let visibles = 0;
+        for (const fila of bloque.querySelectorAll('.cp-prod-row')) {
+            const ok = !q || (fila.dataset.nombre || '').includes(q);
+            fila.style.display = ok ? '' : 'none';
+            if (ok) visibles++;
+        }
+        // Ocultar el título de la categoría si no quedó ningún producto visible
+        bloque.style.display = visibles ? '' : 'none';
+    }
 }
 
 function guardarComboProds() {
