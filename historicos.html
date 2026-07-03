@@ -173,6 +173,108 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     background:#f8f9fa; color:#1a1a2e;
 }
 .an-table tbody tr.an-row-total td:first-child { color:#4f46e5; }
+
+/* ── Mapa de Calor de Mesas (doble mapa + análisis) ─────────── */
+.hm-controls {
+    display:flex; align-items:center; gap:10px; padding:10px 0 12px;
+    flex-wrap:wrap;
+}
+.hm-scale-btns { display:flex; gap:4px; }
+.hm-scale-btn {
+    padding:4px 12px; border-radius:20px; border:1.5px solid #e0e0e0;
+    background:white; font-size:12px; font-weight:600; color:#6b7280;
+    cursor:pointer; transition:all .15s; white-space:nowrap;
+}
+.hm-scale-btn:hover { border-color:#a5b4fc; color:#4f46e5; }
+.hm-scale-btn.active { background:#4f46e5; color:white; border-color:#4f46e5; }
+.hm-sep { color:#e0e0e0; font-size:16px; }
+.hm-date-row { display:flex; align-items:center; gap:6px; }
+.hm-date-row input[type=date] {
+    padding:4px 8px; border:1.5px solid #e0e0e0; border-radius:7px;
+    font-size:12px; font-family:inherit; color:#374151;
+}
+.hm-date-row input[type=date]:focus { outline:none; border-color:#4f46e5; }
+.hm-btn-buscar {
+    padding:5px 14px; border-radius:20px; border:none;
+    background:#4f46e5; color:white; font-size:12px; font-weight:700;
+    cursor:pointer; transition:background .15s;
+}
+.hm-btn-buscar:hover { background:#4338ca; }
+.hm-btn-buscar:disabled { background:#9ca3af; cursor:not-allowed; }
+.hm-hint { font-size:11px; color:#9ca3af; }
+
+.hm-layout { display:flex; gap:22px; flex-wrap:wrap; align-items:flex-start; }
+.hm-mapa { flex-shrink:0; }
+.hm-mapa-titulo {
+    font-size:12px; font-weight:700; color:#374151; margin-bottom:8px;
+    display:flex; align-items:center; gap:6px;
+}
+.hm-grid { display:grid; gap:2px; width:max-content; }
+.hm-cell-hora {
+    font-size:10px; font-weight:600; color:#9ca3af;
+    display:flex; align-items:center; justify-content:flex-end;
+    padding-right:8px; white-space:nowrap; height:26px;
+}
+.hm-cell-dia {
+    font-size:10px; font-weight:700; color:#6b7280;
+    text-align:center; padding-bottom:4px;
+    display:flex; align-items:flex-end; justify-content:center;
+}
+.hm-cell {
+    width:58px; height:26px; border-radius:4px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:600; cursor:pointer;
+    transition:transform .1s, box-shadow .1s;
+    position:relative; border:2px solid transparent;
+}
+.hm-cell:hover { transform:scale(1.1); box-shadow:0 2px 8px rgba(0,0,0,.18); z-index:2; }
+.hm-cell.hm-sel { border-color:#4f46e5; box-shadow:0 0 0 1px #4f46e5; z-index:1; }
+.hm-cell-empty { background:#f9fafb; color:transparent; }
+.hm-legend {
+    display:flex; align-items:center; gap:8px; margin-top:10px;
+    font-size:10px; color:#9ca3af;
+}
+.hm-legend-bar {
+    height:8px; width:110px; border-radius:4px;
+    background:linear-gradient(90deg,#fef9c3,#fbbf24,#f97316,#dc2626);
+}
+.hm-legend-bar-azul {
+    background:linear-gradient(90deg,#e0f2fe,#7dd3fc,#3b82f6,#1e3a8a);
+}
+.hm-loading {
+    text-align:center; padding:40px 16px; color:#9ca3af; font-size:13px;
+}
+.hm-sin-datos { text-align:center; padding:40px 16px; color:#9ca3af; font-size:13px; }
+
+/* Panel de análisis */
+.hm-panel {
+    flex:1; min-width:280px; max-width:420px;
+    background:#f8f9fa; border:1px solid #eee; border-radius:12px;
+    padding:16px 18px;
+}
+.hm-panel-titulo {
+    font-size:12px; font-weight:800; color:#1a1a2e; margin-bottom:2px;
+    display:flex; align-items:center; gap:8px;
+}
+.hm-panel-sub { font-size:11px; color:#9ca3af; margin-bottom:12px; }
+.hm-panel-limpiar {
+    margin-left:auto; padding:2px 10px; border-radius:14px; border:1px solid #c7d2fe;
+    background:#eef2ff; color:#4f46e5; font-size:11px; font-weight:700; cursor:pointer;
+}
+.hm-panel-limpiar:hover { background:#c7d2fe; }
+.hm-stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.hm-stat {
+    background:white; border:1px solid #eee; border-radius:10px; padding:10px 12px;
+}
+.hm-stat-lbl { font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.4px; }
+.hm-stat-val { font-size:19px; font-weight:800; color:#1a1a2e; margin-top:2px; }
+.hm-stat-det { font-size:10px; color:#9ca3af; margin-top:1px; }
+.hm-destacados { margin-top:12px; display:flex; flex-direction:column; gap:6px; }
+.hm-destacado {
+    display:flex; align-items:center; gap:8px; font-size:12px; color:#374151;
+    background:white; border:1px solid #eee; border-radius:8px; padding:7px 10px;
+}
+.hm-destacado b { color:#1a1a2e; }
 </style>
 </head>
 <body>
@@ -246,6 +348,29 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     </div>
     </div>
 
+    </div>
+
+    <!-- ═══════ MAPA DE CALOR DE MESAS (cierres + tiempo en mesa + análisis) ═══════ -->
+    <div class="chart-col">
+    <div class="chart-card">
+        <div class="chart-top">
+            <span class="section-title" style="font-size:15px;">🌡️ Mapa de calor de mesas</span>
+            <span class="hm-hint">💡 Clic en las celdas (de cualquiera de los dos mapas) para filtrar el análisis</span>
+        </div>
+        <div class="hm-controls">
+            <div class="hm-scale-btns" id="hm-scale-btns"></div>
+            <span class="hm-sep">|</span>
+            <div class="hm-date-row">
+                <input type="date" id="hm-desde">
+                <span style="font-size:12px;color:#9ca3af;">→</span>
+                <input type="date" id="hm-hasta">
+                <button class="hm-btn-buscar" id="hm-buscar-btn" onclick="buscarCalor()">🔍 Buscar</button>
+            </div>
+        </div>
+        <div id="hm-body">
+            <div class="hm-loading">Cargando…</div>
+        </div>
+    </div>
     </div>
 
     <!-- ═══════ ANÁLISIS DE VENTAS ═══════ -->
@@ -602,10 +727,239 @@ async function cargarCalendarioAnual() {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// ── Mapa de Calor de Mesas: cierres + tiempo en mesa + análisis ──
+// ═══════════════════════════════════════════════════════════════════
+
+const HM_DIAS    = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+const HM_ESCALAS = [
+    { key:'semana',   label:'Semana',    dias:7   },
+    { key:'2semanas', label:'2 Semanas', dias:14  },
+    { key:'mes',      label:'Mes',       dias:30  },
+    { key:'semestre', label:'Semestre',  dias:180 },
+    { key:'anio',     label:'Año',       dias:365 },
+];
+
+let hmData = [];              // celdas del backend
+let hmSel  = new Set();       // selección: "dia-hora"
+
+function _hmISO(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function _hmDesdeFromEscala(escala) {
+    const d = new Date();
+    const dias = HM_ESCALAS.find(e => e.key === escala)?.dias || 30;
+    d.setDate(d.getDate() - dias + 1);
+    return _hmISO(d);
+}
+
+function initCalor() {
+    document.getElementById('hm-scale-btns').innerHTML = HM_ESCALAS.map(e => `
+        <button class="hm-scale-btn${e.key==='mes'?' active':''}" data-escala="${e.key}"
+                onclick="hmSetEscala(this)">${e.label}</button>`).join('');
+    document.getElementById('hm-desde').value = _hmDesdeFromEscala('mes');
+    document.getElementById('hm-hasta').value = _hmISO(new Date());
+    buscarCalor();
+}
+
+function hmSetEscala(btn) {
+    document.querySelectorAll('.hm-scale-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('hm-desde').value = _hmDesdeFromEscala(btn.dataset.escala);
+    document.getElementById('hm-hasta').value = _hmISO(new Date());
+    buscarCalor();
+}
+
+async function buscarCalor() {
+    const btn  = document.getElementById('hm-buscar-btn');
+    const body = document.getElementById('hm-body');
+    if (!body) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
+    body.innerHTML = `<div class="hm-loading">Cargando…</div>`;
+    const desde = document.getElementById('hm-desde').value;
+    const hasta = document.getElementById('hm-hasta').value;
+    const tz    = -new Date().getTimezoneOffset();   // el backend guarda en UTC
+    try {
+        hmData = await api.get(`/ventas/calor-mesas?desde=${desde}&hasta=${hasta}&tz_offset_min=${tz}`);
+        hmSel  = new Set();   // nueva búsqueda → limpiar selección
+        renderCalor();
+    } catch(e) {
+        body.innerHTML = `<div class="hm-sin-datos">⚠️ Error: ${e.message || ''}</div>`;
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔍 Buscar'; }
+    }
+}
+
+// 0 → pálido; 1 → intenso. Cálida (cierres): amarillo→naranja→rojo. Fría (tiempo): celeste→azul.
+function _hmColor(ratio, fria) {
+    if (ratio === 0) return { bg:'#f9fafb', text:'transparent' };
+    let r, g, b;
+    if (!fria) {
+        if (ratio < 0.5) { const t = ratio*2;       r=Math.round(251+(249-251)*t); g=Math.round(191+(115-191)*t); b=Math.round(36+(22-36)*t); }
+        else             { const t = (ratio-0.5)*2; r=Math.round(249+(220-249)*t); g=Math.round(115+(38-115)*t);  b=Math.round(22+(38-22)*t); }
+    } else {
+        if (ratio < 0.5) { const t = ratio*2;       r=Math.round(224+(125-224)*t); g=Math.round(242+(211-242)*t); b=Math.round(254+(252-254)*t); }
+        else             { const t = (ratio-0.5)*2; r=Math.round(125+(30-125)*t);  g=Math.round(211+(58-211)*t);  b=Math.round(252+(138-252)*t); }
+    }
+    const text = ratio > 0.55 ? 'rgba(255,255,255,.92)' : '#374151';
+    return { bg:`rgb(${r},${g},${b})`, text };
+}
+
+function fmtDur(min) {
+    if (min == null) return '—';
+    min = Math.round(min);
+    if (min < 60) return `${min} min`;
+    return `${Math.floor(min/60)} h ${String(min%60).padStart(2,'0')} min`;
+}
+
+function renderCalor() {
+    const body = document.getElementById('hm-body');
+    if (!body) return;
+    if (!hmData.length) {
+        body.innerHTML = `<div class="hm-sin-datos">📭 Sin datos de cierre de mesas en el período</div>`;
+        return;
+    }
+
+    const mapa = {};
+    let maxTotal = 0, maxDur = 0, horaMin = 23, horaMax = 0;
+    hmData.forEach(c => {
+        if (!mapa[c.dia]) mapa[c.dia] = {};
+        mapa[c.dia][c.hora] = c;
+        if (c.total > maxTotal) maxTotal = c.total;
+        if ((c.dur_prom || 0) > maxDur) maxDur = c.dur_prom;
+        if (c.hora < horaMin) horaMin = c.hora;
+        if (c.hora > horaMax) horaMax = c.hora;
+    });
+    horaMin = Math.max(0, horaMin - 1);
+    horaMax = Math.min(23, horaMax + 1);
+    const HORAS = Array.from({length: horaMax - horaMin + 1}, (_, i) => horaMin + i);
+
+    const grid = (modo) => {   // modo: 'cierres' | 'tiempo'
+        let h = `<div class="hm-grid" style="grid-template-columns:44px repeat(7,58px);">`;
+        h += `<div class="hm-cell-hora"></div>`;
+        HM_DIAS.forEach(d => h += `<div class="hm-cell-dia">${d}</div>`);
+        HORAS.forEach(hora => {
+            h += `<div class="hm-cell-hora">${String(hora).padStart(2,'0')}:00</div>`;
+            for (let dia = 0; dia < 7; dia++) {
+                const c = mapa[dia]?.[hora];
+                if (!c) { h += `<div class="hm-cell hm-cell-empty" style="cursor:default;"></div>`; continue; }
+                let ratio, label;
+                if (modo === 'cierres') {
+                    ratio = maxTotal > 0 ? c.total / maxTotal : 0;
+                    label = c.total;
+                } else {
+                    ratio = (c.dur_prom && maxDur > 0) ? c.dur_prom / maxDur : 0;
+                    label = c.dur_prom != null ? `${Math.round(c.dur_prom)}′` : '·';
+                }
+                const { bg, text } = _hmColor(ratio, modo === 'tiempo');
+                const sel = hmSel.has(`${dia}-${hora}`) ? ' hm-sel' : '';
+                const title = `${HM_DIAS[dia]} ${String(hora).padStart(2,'0')}:00\n`
+                    + `${c.total} cierre${c.total!==1?'s':''} · Ticket prom: ${fmt(c.ticket_prom)}\n`
+                    + `Tiempo prom en mesa: ${fmtDur(c.dur_prom)}`;
+                h += `<div class="hm-cell${sel}" data-cel="${dia}-${hora}"
+                           style="background:${bg};color:${c.dur_prom == null && modo==='tiempo' ? '#c4c4cc' : text};"
+                           title="${title}" onclick="hmToggleCel(${dia},${hora})">${label}</div>`;
+            }
+        });
+        return h + `</div>`;
+    };
+
+    body.innerHTML = `
+    <div class="hm-layout">
+        <div class="hm-mapa">
+            <div class="hm-mapa-titulo">🔒 Cierres de mesa por día y hora</div>
+            ${grid('cierres')}
+            <div class="hm-legend"><span>Menos</span><div class="hm-legend-bar"></div><span>Más</span>
+                <span style="margin-left:10px;">Máx: ${maxTotal}</span></div>
+        </div>
+        <div class="hm-mapa">
+            <div class="hm-mapa-titulo">⏱️ Tiempo promedio en mesa (minutos)</div>
+            ${grid('tiempo')}
+            <div class="hm-legend"><span>Menos</span><div class="hm-legend-bar hm-legend-bar-azul"></div><span>Más</span>
+                <span style="margin-left:10px;">Máx: ${fmtDur(maxDur || null)}</span></div>
+        </div>
+        <div class="hm-panel" id="hm-panel"></div>
+    </div>`;
+    renderPanelCalor();
+}
+
+function hmToggleCel(dia, hora) {
+    const key = `${dia}-${hora}`;
+    if (hmSel.has(key)) hmSel.delete(key); else hmSel.add(key);
+    // Reflejar la selección en AMBOS mapas sin re-renderizar todo
+    document.querySelectorAll(`.hm-cell[data-cel="${key}"]`)
+        .forEach(el => el.classList.toggle('hm-sel', hmSel.has(key)));
+    renderPanelCalor();
+}
+
+function hmLimpiarSel() {
+    hmSel = new Set();
+    document.querySelectorAll('.hm-cell.hm-sel').forEach(el => el.classList.remove('hm-sel'));
+    renderPanelCalor();
+}
+
+function renderPanelCalor() {
+    const panel = document.getElementById('hm-panel');
+    if (!panel) return;
+    const filtrado = hmSel.size > 0;
+    const celdas = filtrado ? hmData.filter(c => hmSel.has(`${c.dia}-${c.hora}`)) : hmData;
+
+    // Agregación ponderada (los promedios por celda se combinan por peso real)
+    const cierres   = celdas.reduce((a,c) => a + c.total, 0);
+    const facturado = celdas.reduce((a,c) => a + (c.facturado || 0), 0);
+    const nDur      = celdas.reduce((a,c) => a + (c.n_dur || 0), 0);
+    const sumDur    = celdas.reduce((a,c) => a + (c.dur_prom || 0) * (c.n_dur || 0), 0);
+    const ticketProm = cierres > 0 ? facturado / cierres : 0;
+    const durProm    = nDur > 0 ? sumDur / nDur : null;
+
+    const celLbl = c => `${HM_DIAS[c.dia]} ${String(c.hora).padStart(2,'0')}h`;
+
+    // Destacados (solo en la vista general, con un mínimo de cierres para no destacar ruido)
+    let destacados = '';
+    if (!filtrado && celdas.length) {
+        const pico = [...celdas].sort((a,b) => b.total - a.total)[0];
+        const conVolumen = celdas.filter(c => c.total >= 3);
+        const mejorTicket = [...(conVolumen.length ? conVolumen : celdas)].sort((a,b) => b.ticket_prom - a.ticket_prom)[0];
+        const conDur = celdas.filter(c => c.dur_prom != null && (c.n_dur || 0) >= 3);
+        const masLenta = conDur.length ? [...conDur].sort((a,b) => b.dur_prom - a.dur_prom)[0] : null;
+        const masRapida = conDur.length ? [...conDur].sort((a,b) => a.dur_prom - b.dur_prom)[0] : null;
+        destacados = `
+        <div class="hm-destacados">
+            <div class="hm-destacado">🔥 Hora pico: <b>${celLbl(pico)}</b> (${pico.total} cierres)</div>
+            <div class="hm-destacado">💰 Mejor ticket: <b>${celLbl(mejorTicket)}</b> (${fmt(mejorTicket.ticket_prom)} prom)</div>
+            ${masLenta ? `<div class="hm-destacado">🐢 Sobremesa más larga: <b>${celLbl(masLenta)}</b> (${fmtDur(masLenta.dur_prom)})</div>` : ''}
+            ${masRapida ? `<div class="hm-destacado">⚡ Rotación más rápida: <b>${celLbl(masRapida)}</b> (${fmtDur(masRapida.dur_prom)})</div>` : ''}
+        </div>`;
+    }
+
+    panel.innerHTML = `
+        <div class="hm-panel-titulo">
+            📊 ${filtrado ? `Análisis de la selección` : 'Análisis general del período'}
+            ${filtrado ? `<button class="hm-panel-limpiar" onclick="hmLimpiarSel()">✕ Limpiar (${hmSel.size})</button>` : ''}
+        </div>
+        <div class="hm-panel-sub">${filtrado
+            ? [...hmSel].map(k => { const [d,h] = k.split('-'); return `${HM_DIAS[+d]} ${String(+h).padStart(2,'0')}h`; }).join(' · ')
+            : 'Todo el rango buscado — clic en las celdas para filtrar'}</div>
+        <div class="hm-stats">
+            <div class="hm-stat"><div class="hm-stat-lbl">Mesas cerradas</div>
+                <div class="hm-stat-val">${cierres}</div></div>
+            <div class="hm-stat"><div class="hm-stat-lbl">Facturado</div>
+                <div class="hm-stat-val">${fmt(facturado)}</div></div>
+            <div class="hm-stat"><div class="hm-stat-lbl">Ticket promedio</div>
+                <div class="hm-stat-val">${fmt(ticketProm)}</div>
+                <div class="hm-stat-det">por mesa cerrada</div></div>
+            <div class="hm-stat"><div class="hm-stat-lbl">Tiempo en mesa</div>
+                <div class="hm-stat-val">${fmtDur(durProm)}</div>
+                <div class="hm-stat-det">${nDur ? `promedio de ${nDur} mesa${nDur!==1?'s':''}` : 'sin datos de duración'}</div></div>
+        </div>
+        ${destacados}`;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     requireAuth();
     cargarGrafico();
     cargarCalendarioAnual();
+    initCalor();
 
     // Defaults: diario = últimos 30 días; semanal = año anterior y actual
     const hoy    = new Date();
