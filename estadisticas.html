@@ -1431,7 +1431,7 @@ async function verResumenMesa(pid){
     try {
         const d = await apiFetch(`/reportes/mesa-resumen/${pid}`);
         bd.innerHTML = `
-            <div class="bill-sub" style="margin-bottom:8px;">Mesa ${d.mesa_numero != null ? d.mesa_numero : '—'}${d.ticket_personal ? ` · 🎟️ Ticket personal${d.ticket_personal_usuario ? (' (' + _escH(d.ticket_personal_usuario) + ')') : ''}` : ''}</div>
+            <div class="bill-sub" style="margin-bottom:8px;">Mesa ${d.mesa_numero != null ? d.mesa_numero : '—'}${d.ticket_personal ? ` · 🎟️ Ticket personal${d.ticket_personal_usuario ? (' (' + _escH(d.ticket_personal_usuario) + ')') : ''}` : ''}${(d.descuento_usuario && !d.ticket_personal && ((d.descuento_items_monto||0)>0 || (d.descuento_cuenta_monto||0)>0)) ? ` · Descuento por: ${_escH(d.descuento_usuario)}` : ''}</div>
             <table class="det-table">
                 <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">P. unit.</th><th class="num">Desc.%</th><th class="num">Subtotal</th></tr></thead>
                 <tbody>
