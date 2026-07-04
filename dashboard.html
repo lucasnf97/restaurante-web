@@ -434,6 +434,7 @@ let cajaDia        = null;
 let turnosData     = [];
 let salasMesa      = null;
 let coccinaData    = [];
+let pedidosAbiertos = [];   // pedidos estado=abierto (para el contador de Take Away activos)
 let ventasHistData = null;
 let resPag         = 0;
 let _monedaSim     = simboloMoneda();
@@ -499,6 +500,7 @@ async function cargarDatos() {
                 salasMesa = { salas: salas||[], mesas: mesasAll||[] };
             } catch(e) {}
         })(),
+        (async () => { try { pedidosAbiertos = (await api.get("/pedidos/?estado=abierto")) || []; } catch(e) {} })(),
         (async () => {
             try {
                 const areas = await api.get("/productos/areas");
@@ -977,19 +979,29 @@ function buildVistaOnline(b) {
         ${cajero && abierta ? `<div class="caja-sub" style="margin-top:6px">Abierta por ${cajero}</div>` : ""}`;
 
     // ── Salón ─────────────────────────────────────────────────
+    // Ocupación por mesas.estado ('ocupada'/'pendiente_pago' = con clientes;
+    // /mesas/ NO devuelve pedido_activo_id — el widget viejo filtraba por ese
+    // campo inexistente y todo figuraba libre).
+    const _mesaOcupada = m => m.estado === "ocupada" || m.estado === "pendiente_pago";
+    // Take Away activos: pedidos abiertos tipo takeaway (pagados y en preparación)
+    const taActivos = (pedidosAbiertos || []).filter(p => p.tipo_pedido === "takeaway").length;
+    const taChip = `<span class="vo-wait" style="background:${taActivos ? "#ede9fe" : "#f3f4f6"};color:${taActivos ? "#7c3aed" : "#9ca3af"}" title="Pedidos Take Away pagados y en preparación (gente esperando su pedido)">🥡 ${taActivos} Take Away</span>`;
     let salonHTML;
     let totOcup = 0, totMesas = 0;
     if (!salasMesa || !salasMesa.salas.length) {
-        salonHTML = `<div class="vo-sec-title"><a href="mesas.html">🗺️ Salón</a></div><div class="res-empty">Sin datos</div>`;
+        salonHTML = `<div class="vo-sec-title"><a href="mesas.html">🗺️ Salón</a></div>
+            <div class="res-empty">Sin datos</div>
+            <div style="margin-top:10px">${taChip}</div>`;
     } else {
         const { salas, mesas } = salasMesa;
         totMesas = mesas.length;
-        totOcup  = mesas.filter(m => m.pedido_activo_id).length;
+        totOcup  = mesas.filter(_mesaOcupada).length;
         const filas = salas.map(sala => {
             const ms   = mesas.filter(m => m.sala_id === sala.id);
-            const ocup = ms.filter(m => m.pedido_activo_id).length;
+            const ocup = ms.filter(_mesaOcupada).length;
+            const resv = ms.filter(m => m.estado === "reservada").length;
             const bloq = ms.filter(m => m.bloqueada_por).length;
-            const lib  = ms.filter(m => !m.pedido_activo_id && !m.bloqueada_por).length;
+            const lib  = ms.filter(m => m.estado === "libre" && !m.bloqueada_por).length;
             const pct  = ms.length ? Math.round(ocup / ms.length * 100) : 0;
             const barC = pct >= 80 ? "#dc2626" : pct >= 50 ? "#f59e0b" : "#16a34a";
             return `<div class="sala-row">
@@ -997,6 +1009,7 @@ function buildVistaOnline(b) {
                     <span class="sala-row-name">${sala.nombre}</span>
                     <span class="sala-row-stats">
                         <span style="color:${ocup ? "#dc2626" : "#9ca3af"};font-weight:700">${ocup} ocup.</span>
+                        ${resv ? `<span style="color:#0891b2"> · ${resv} reserv.</span>` : ""}
                         ${bloq ? `<span style="color:#f59e0b"> · ${bloq} bloq.</span>` : ""}
                         <span style="color:#16a34a"> · ${lib} libres</span>
                     </span>
@@ -1007,7 +1020,8 @@ function buildVistaOnline(b) {
         salonHTML = `
             <div class="vo-sec-title"><a href="mesas.html">🗺️ Salón</a>
                 <span class="vo-sub">${totOcup}/${totMesas} mesas</span></div>
-            ${filas}`;
+            ${filas}
+            <div style="margin-top:10px">${taChip}</div>`;
     }
 
     // ── Cocina por área + waiting time ────────────────────────
