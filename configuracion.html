@@ -292,6 +292,25 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .toggle-label { font-size:13px; font-weight:600; color:#374151; }
 .toggle-desc  { font-size:11px; color:#9ca3af; margin-top:2px; line-height:1.4; }
 
+/* Toggle Restaurante/Cliente (beneficiario del IVA reducido de take away) */
+.tam-toggle {
+    display:inline-flex; align-items:center; gap:10px; margin-top:4px;
+    cursor:pointer; user-select:none; padding:6px 10px; border-radius:10px;
+}
+.tam-toggle:hover { background:#f5f3ff; }
+.tam-switch {
+    position:relative; width:46px; height:24px; border-radius:12px;
+    background:#4f46e5; transition:background .2s; flex-shrink:0;
+}
+.tam-knob {
+    position:absolute; width:18px; height:18px; border-radius:50%;
+    background:white; left:3px; top:3px; transition:transform .2s;
+    box-shadow:0 1px 3px rgba(0,0,0,.25);
+}
+.tam-knob.cliente { transform:translateX(22px); }
+.tam-lbl { font-size:13px; font-weight:600; color:#9ca3af; transition:color .15s; }
+.tam-lbl.activo { color:#4f46e5; }
+
 /* ── Hora de corte de turno ────────────────────────────────── */
 .hora-corte-preview {
     display:inline-flex; align-items:center; gap:6px;
@@ -877,14 +896,16 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                                 </div>
                             </div>
                             <div class="cfg-field" style="grid-column:1/-1;margin-top:4px;">
-                                <label class="cfg-label">Modo Take Away (para llevar)</label>
-                                <select class="cfg-input" id="takeaway-modo" style="padding:7px 10px;width:100%;max-width:520px;">
-                                    <option value="beneficio_restaurante">Precio intacto — la diferencia queda como ganancia del restaurante (Modo 2)</option>
-                                    <option value="beneficio_cliente">Bajar el precio — el cliente paga menos por el IVA reducido (Modo 1)</option>
-                                </select>
-                                <div style="font-size:11px;color:#9ca3af;margin-top:4px;line-height:1.5;">
-                                    <b>Modo 1:</b> el precio de llevar baja según la relación entre el IVA de salón y el de take away (ej. lista 100 con salón 25% y llevar 15% → se cobra 92).<br>
-                                    <b>Modo 2:</b> el cliente paga el precio de lista completo y la diferencia impositiva se registra como mayor ganancia.
+                                <label class="cfg-label">Beneficiario del IVA reducido del Take Away</label>
+                                <input type="hidden" id="takeaway-modo" value="beneficio_restaurante">
+                                <div class="tam-toggle" onclick="tamAlternar()" title="Elegir quién se queda con la diferencia impositiva del para llevar">
+                                    <span class="tam-lbl" id="tam-lbl-rest">Restaurante</span>
+                                    <div class="tam-switch"><div class="tam-knob" id="tam-knob"></div></div>
+                                    <span class="tam-lbl" id="tam-lbl-cli">Cliente</span>
+                                </div>
+                                <div style="font-size:11px;color:#9ca3af;margin-top:6px;line-height:1.5;">
+                                    <b>Restaurante:</b> el cliente paga el precio de lista completo y la diferencia impositiva queda como mayor ganancia.<br>
+                                    <b>Cliente:</b> el precio de llevar baja según la relación entre el IVA de salón y el de take away (ej. lista 100 con salón 25% y llevar 15% → se cobra 92).
                                 </div>
                             </div>
                         </div>
@@ -1985,7 +2006,7 @@ async function cargarSeccionImpuestos() {
         if (cfg.imp_local_pct    != null) document.getElementById('imp-local').value    = cfg.imp_local_pct;
         if (cfg.imp_delivery_pct != null) document.getElementById('imp-delivery').value = cfg.imp_delivery_pct;
         if (cfg.imp_takeaway_pct != null) document.getElementById('imp-takeaway').value = cfg.imp_takeaway_pct;
-        document.getElementById('takeaway-modo').value = cfg.takeaway_modo || 'beneficio_restaurante';
+        setTakeawayModo(cfg.takeaway_modo || 'beneficio_restaurante');
 
         // Datos del negocio / ticket
         document.getElementById('neg-nombre').value          = cfg.neg_nombre || '';
@@ -2005,6 +2026,22 @@ async function cargarSeccionImpuestos() {
         document.getElementById('impuestos-actions').style.display = 'none';
     }
 }
+
+// ── Toggle Restaurante/Cliente del modo take away ────────────────
+// 'beneficio_restaurante' (Modo 2) = precio intacto, la diferencia queda al restaurante.
+// 'beneficio_cliente' (Modo 1) = el precio de llevar baja, el cliente paga menos.
+function setTakeawayModo(modo) {
+    const m = (modo === 'beneficio_cliente') ? 'beneficio_cliente' : 'beneficio_restaurante';
+    document.getElementById('takeaway-modo').value = m;
+    document.getElementById('tam-knob').classList.toggle('cliente', m === 'beneficio_cliente');
+    document.getElementById('tam-lbl-rest').classList.toggle('activo', m === 'beneficio_restaurante');
+    document.getElementById('tam-lbl-cli').classList.toggle('activo', m === 'beneficio_cliente');
+}
+function tamAlternar() {
+    const actual = document.getElementById('takeaway-modo').value;
+    setTakeawayModo(actual === 'beneficio_cliente' ? 'beneficio_restaurante' : 'beneficio_cliente');
+}
+setTakeawayModo(document.getElementById('takeaway-modo').value);   // estado visual inicial
 
 function actualizarBadgeImpuesto() {
     const modo   = document.querySelector('input[name="modo-impositivo"]:checked')?.value || 'predeterminado';

@@ -595,10 +595,51 @@
         if (e.key === "Escape") closeSidebar();
     });
 
+    // ── MARCA DEL NAVBAR (logo + nombre del restaurante) ─────────
+    // Si hay logo configurado (sistema_config.neg_logo_url) reemplaza el 🍽️; si hay
+    // nombre del negocio (neg_nombre) reemplaza "Gestión Restaurante". Sin config →
+    // se mantienen los defaults. Cache en localStorage para no flashear; se refresca
+    // desde /config/sistema en cada carga (contextos sin esquema quedan en default).
+    function aplicarMarca(marca) {
+        const brand = document.querySelector(".navbar-brand");
+        if (!brand) return;
+        const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                                  .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        if (!marca || (!marca.logo && !marca.nombre)) {
+            // Sin marca configurada → default (también restaura si se quitó la config)
+            if (brand.dataset.marcada) { brand.innerHTML = "🍽️ Gestión Restaurante"; delete brand.dataset.marcada; }
+            return;
+        }
+        brand.dataset.marcada = "1";
+        const icono = marca.logo
+            ? `<img src="${esc(marca.logo)}" alt="" style="height:30px;max-width:120px;object-fit:contain;border-radius:6px;">`
+            : `<span>🍽️</span>`;
+        brand.style.display = "flex";
+        brand.style.alignItems = "center";
+        brand.style.gap = "9px";
+        brand.style.whiteSpace = "nowrap";
+        brand.innerHTML = `${icono}<span>${esc(marca.nombre || "Gestión Restaurante")}</span>`;
+    }
+
+    async function initMarca() {
+        try { aplicarMarca(JSON.parse(localStorage.getItem("navbar_marca") || "null")); } catch {}
+        try {
+            if (typeof apiFetch !== "function" || !localStorage.getItem("token")) return;
+            const cfg = await apiFetch("/config/sistema");
+            const marca = { logo: cfg.neg_logo_url || null, nombre: (cfg.neg_nombre || "").trim() || null };
+            localStorage.setItem("navbar_marca", JSON.stringify(marca));
+            aplicarMarca(marca);
+        } catch { /* sin sesión / sin esquema (superadmin, cadena) → default */ }
+    }
+
     // ── INIT ─────────────────────────────────────────────────────
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", injectHamburger);
-    } else {
+    function _initSidebar() {
         injectHamburger();
+        initMarca();
+    }
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", _initSidebar);
+    } else {
+        _initSidebar();
     }
 })();
