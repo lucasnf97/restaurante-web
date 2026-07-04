@@ -182,8 +182,8 @@
 
     <div class="tabs-bar">
         <button class="tab-btn active" onclick="cambiarTab('reservas',this)">📋 Reservas</button>
-        <button class="tab-btn" onclick="cambiarTab('horarios',this)">🕐 Horarios</button>
-        <button class="tab-btn" onclick="cambiarTab('bloqueos',this)">🚫 Bloqueos</button>
+        <button class="tab-btn tab-solo-editor" onclick="cambiarTab('horarios',this)">🕐 Horarios</button>
+        <button class="tab-btn tab-solo-editor" onclick="cambiarTab('bloqueos',this)">🚫 Bloqueos</button>
     </div>
 
     <!-- TAB RESERVAS -->
@@ -423,25 +423,20 @@
 <script src="js/api.js"></script>
 <script>
 requireAuth();
-requirePermiso('gestion_reservas', 'ver_reservas');
+// Reservas = acceso universal (sin requirePermiso): todos ven y pueden AGREGAR reservas.
+// Editar (mover/redimensionar/estados/cancelar/lista de espera) exige gestion_reservas.
+const PUEDE_EDITAR_RES = hasPermiso('gestion_reservas');   // admin/gerente pasan solos
+// Solo lectura: sin solapas de Horarios/Bloqueos (modifican config del restaurante)
+if (!PUEDE_EDITAR_RES) {
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.tab-solo-editor').forEach(el => el.style.display = 'none');
+    });
+}
 // Mostrar "Ver historial" solo si el usuario tiene acceso a la base de clientes
 if (typeof hasAlgunPermiso === 'function' && hasAlgunPermiso('gestion_clientes', 'ver_clientes')) {
     const _bh = document.getElementById('ep-historial-btn');
     if (_bh) _bh.style.display = '';
 }
-
-// Ocultar acciones de edición si el usuario solo puede ver
-(function() {
-    if (!hasPermiso('gestion_reservas')) {
-        document.addEventListener('DOMContentLoaded', () => {
-            // Botón "Nueva reserva"
-            document.querySelectorAll('[onclick="abrirModalNuevo(null,null)"]').forEach(el => el.style.display = 'none');
-            // Context menu de edición/cancelación
-            const ctx = document.getElementById('ctx-menu');
-            if (ctx) ctx.style.display = 'none';
-        });
-    }
-})();
 
 // ── Constantes base ────────────────────────────────────────────
 const SLOT_MIN    = 15;
@@ -901,12 +896,17 @@ function mesaEnY(y){
 canvas.addEventListener('mousemove',e=>{
     const{x,y}=canvasPos(e);
     const onResize=hitResize(x,y);
-    canvas.style.cursor=onResize?'col-resize':'default';
+    canvas.style.cursor=(onResize&&PUEDE_EDITAR_RES)?'col-resize':'default';
 });
 
 canvasWrap.addEventListener('mousedown',e=>{
     if(e.button!==0)return;
     const{x,y}=canvasPos(e);
+    // Solo lectura: sin resize ni drag de reservas (el paneo de la grilla sí queda)
+    if(!PUEDE_EDITAR_RES){
+        isDragging=true;dragStartX=e.clientX;scrollStartX=canvasWrap.scrollLeft;dragMoved=false;
+        canvasWrap.classList.add('grabbing');e.preventDefault();return;
+    }
     // Prioridad 1: resize
     const onResize=hitResize(x,y);
     if(onResize&&onResize.r.estado!=='cancelada'&&onResize.r.estado!=='terminada'){
@@ -1181,7 +1181,10 @@ canvas.addEventListener('dblclick',e=>{
     if(dragMoved)return;
     const{x,y}=canvasPos(e);
     const hit=hitReserva(x,y);
-    if(hit){cerrarEstadoPopup();marcarVista(hit.r);abrirModalEditar(hit.r);return;}
+    if(hit){
+        if(!PUEDE_EDITAR_RES)return;   // solo lectura: no abrir edición
+        cerrarEstadoPopup();marcarVista(hit.r);abrirModalEditar(hit.r);return;
+    }
     const mesa=mesaEnY(y);
     if(mesa){
         cerrarEstadoPopup();
@@ -1194,6 +1197,7 @@ canvas.addEventListener('dblclick',e=>{
 
 // Reserva online "nueva": al interactuar (click/editar/estado) se quita el punteado.
 async function marcarVista(r){
+    if(!PUEDE_EDITAR_RES)return;   // solo lectura: no marcar (es un PATCH)
     if(!r||r.origen!=='online'||r.visto)return;
     r.visto=true; dibujar();                       // optimista: se ve sólida al instante
     try{ await api.patch('/reservas/'+r.id,{visto:true}); }catch(e){ /* reintenta al refrescar */ }
@@ -1201,6 +1205,7 @@ async function marcarVista(r){
 
 // ── Popup de estado ───────────────────────────────────────────
 function mostrarEstadoPopup(r,cx,cy){
+    if(!PUEDE_EDITAR_RES)return;   // solo lectura: sin cambios de estado/editar/cancelar
     epReserva=r;
     marcarVista(r);
     const popup=document.getElementById('estado-popup');
@@ -1292,7 +1297,7 @@ async function epCancelar(){
 }
 
 canvas.addEventListener('contextmenu',e=>{
-    e.preventDefault();if(dragMoved)return;
+    e.preventDefault();if(dragMoved||!PUEDE_EDITAR_RES)return;
     const{x,y}=canvasPos(e);const hit=hitReserva(x,y);if(!hit)return;
     ctxReserva=hit.r;
     const m=document.getElementById('ctx-menu');
@@ -1349,6 +1354,7 @@ function abrirModalNuevo(mesaId,hora){
     document.getElementById('modal-reserva').classList.add('active');
 }
 function abrirModalEditar(r){
+    if(!PUEDE_EDITAR_RES)return;   // solo lectura
     editandoId=r.id;
     document.getElementById('modal-titulo').textContent='Editar reserva';
     document.getElementById('fr-nombre').value=r.nombre_cliente;
@@ -1380,6 +1386,7 @@ async function guardarReserva(){
         alergeno:document.getElementById('fr-alergeno').value.trim()||null,
         notas:document.getElementById('fr-notas').value.trim()||null,
     };
+    if(editandoId&&!PUEDE_EDITAR_RES)return;   // solo lectura: crear sí, editar no
     if(editandoId) body.estado=document.getElementById('fr-estado').value||'programada';
     if(!body.nombre_cliente||!body.fecha||!body.hora_inicio){alert('Nombre, fecha y hora de inicio son obligatorios.');return;}
     const esProgramada = !editandoId || (body.estado||'programada')==='programada';
@@ -1638,6 +1645,7 @@ async function _confirmarColocacion(mesa){
 }
 
 async function volverALista(id){
+    if(!PUEDE_EDITAR_RES)return;   // cancela una reserva existente → edición
     const item=_waitingPasados.find(x=>x.id===id);
     if(!item)return;
     if(!confirm(`¿Volver a "${item.nombre}" a la lista de espera? Se cancelará la reserva creada.`))return;
@@ -1656,6 +1664,7 @@ async function volverALista(id){
 }
 
 async function quitarDeEspera(id){
+    if(!PUEDE_EDITAR_RES)return;   // elimina una entrada existente → edición
     if(!confirm('¿Quitar de la lista de espera?'))return;
     try{ await api.delete('/reservas/espera/'+id); }
     catch(err){ alert('Error: '+err.message); return; }
@@ -1685,7 +1694,7 @@ function _wlRender(){
                     <td class="wl-hora">🕐 ${item.hora}</td>
                     <td style="text-align:right;">
                         <button class="btn-wl-pasar" onclick="pasarAMesa(${item.id})">✓ A mesa</button>
-                        <button class="btn-wl-del" onclick="quitarDeEspera(${item.id})" title="Quitar">✕</button>
+                        ${PUEDE_EDITAR_RES?`<button class="btn-wl-del" onclick="quitarDeEspera(${item.id})" title="Quitar">✕</button>`:''}
                     </td>
                 </tr>`).join('')}
             </tbody>
@@ -1723,11 +1732,11 @@ function _wlRender(){
                         <td class="wl-hora">${item.hora}</td>
                         <td class="wl-hora" style="color:#16a34a;font-weight:700;">✓ ${item.hora_paso||''}</td>
                         <td style="text-align:right;">
-                            <button onclick="volverALista(${item.id})"
+                            ${PUEDE_EDITAR_RES?`<button onclick="volverALista(${item.id})"
                                 style="background:none;border:1.5px solid #e5e7eb;border-radius:6px;
                                     padding:4px 10px;font-size:11px;cursor:pointer;color:#374151;font-weight:600;">
                                 ↩ Volver
-                            </button>
+                            </button>`:''}
                         </td>
                     </tr>`).join('')}
                 </tbody>

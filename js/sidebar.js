@@ -10,7 +10,7 @@
             icon: "🍽️",
             label: "Restaurante",
             children: [
-                { href: "reservas.html",  icon: "📅", label: "Reservas",               mod: "reservas",  perm: ["gestion_reservas","ver_reservas"] },
+                { href: "reservas.html",  icon: "📅", label: "Reservas",               mod: "reservas" },
                 { href: "productos.html", icon: "🍽️", label: "Productos",              mod: "productos", perm: ["edicion_carta"] },
                 { href: "importar-ventas.html", icon: "📥", label: "Importar ventas",  mod: "importar",  perm: ["edicion_carta","acceso_estadisticas"] },
                 { href: "mesas.html",     icon: "🗺️", label: "Herramienta de Edición", mod: "mesas",    perm: "edicion_sala" },
@@ -364,7 +364,7 @@
 
     // Pantallas con CONTEXTO de restaurante (se abren entrando al local).
     const REST_PAGES = [
-        { href:"reservas.html",        icon:"📅", label:"Reservas",                mod:"reservas",     perm:["gestion_reservas","ver_reservas"] },
+        { href:"reservas.html",        icon:"📅", label:"Reservas",                mod:"reservas" },
         { href:"productos.html",       icon:"🍽️", label:"Productos",               mod:"productos",    perm:["edicion_carta"] },
         { href:"importar-ventas.html", icon:"📥", label:"Importar ventas",         mod:"importar",     perm:["edicion_carta","acceso_estadisticas"] },
         { href:"mesas.html",           icon:"🗺️", label:"Herramienta de Edición",  mod:"mesas",        perm:"edicion_sala" },
