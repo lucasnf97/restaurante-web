@@ -1,0 +1,57 @@
+# Deploy a GitHub Pages con REINTENTOS.
+#
+# El pipeline automático de Pages ("Deploy from a branch") venía fallando
+# intermitentemente con "Deployment failed, try again later" (error del backend
+# de GitHub, sin nada que arreglar del lado del repo) y había que re-disparar a
+# mano con commits vacíos. Con el sitio en modo "GitHub Actions" el deploy lo
+# hace este workflow, que ante ese fallo espera y reintenta solo (3 intentos).
+name: Deploy Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.d1.outputs.page_url || steps.d2.outputs.page_url || steps.d3.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy (intento 1)
+        id: d1
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Esperar 90s antes de reintentar
+        if: steps.d1.outcome == 'failure'
+        run: sleep 90
+      - name: Deploy (intento 2)
+        id: d2
+        if: steps.d1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Esperar 5 min antes del último intento
+        if: steps.d1.outcome == 'failure' && steps.d2.outcome == 'failure'
+        run: sleep 300
+      - name: Deploy (intento 3)
+        id: d3
+        if: steps.d1.outcome == 'failure' && steps.d2.outcome == 'failure'
+        uses: actions/deploy-pages@v4

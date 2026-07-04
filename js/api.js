@@ -211,9 +211,10 @@ async function apiFetch(endpoint, options = {}) {
 
             if (res.status === 401) { logout(); return; }
 
-            // Cold start de Railway: reintentar los idempotentes ante 502/503/504.
-            if (reintentable && [502, 503, 504].includes(res.status) && intento < maxIntentos - 1) {
-                await _sleep(400 * Math.pow(2, intento));
+            // Cold start de Railway (502/503/504) y 500 intermitentes del pooler
+            // (search_path perdido): reintentar los idempotentes con backoff.
+            if (reintentable && [500, 502, 503, 504].includes(res.status) && intento < maxIntentos - 1) {
+                await _sleep(700 * Math.pow(2, intento));   // 0.7s, 1.4s
                 continue;
             }
 
