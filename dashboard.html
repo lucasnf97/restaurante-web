@@ -330,6 +330,7 @@ function getMod(id) { return ALL_MODULES.find(m => m.id === id); }
 // ── Gateo por MÓDULO del restaurante (igual que el sidebar; admin/gerente NO lo saltean) ──
 const _MOD_BLOQUE = {
     'stats':'estadisticas', 'reservas':'reservas', 'stock':'stock',
+    'vista-online':'caja',
     'caja-estado':'caja', 'personal-turno':'personal', 'mesas-estado':'mesas',
     'ordenes-cocina':'caja', 'ventas-7dias':'estadisticas',
 };
@@ -521,7 +522,15 @@ async function cargarDatos() {
         })(),
     ]);
     renderDash();
+    // Reintento único: si alguna carga clave quedó vacía (cold start de Railway, corte
+    // de red), volver a pedir todo una vez a los 2.5s en vez de mostrar "—"/Sin datos
+    // hasta que el usuario refresque a mano.
+    if (!_retryDatos && (cajaData === null || salasMesa === null || periodos === null)) {
+        _retryDatos = true;
+        setTimeout(cargarDatos, 2500);
+    }
 }
+let _retryDatos = false;
 
 // ── PAGINACIÓN RESERVAS ──────────────────────────────────────
 // La paginación opera solo sobre reservas NO terminadas (ni canceladas).
@@ -561,7 +570,16 @@ function renderDash() {
         const el = document.createElement("div");
         el.className = `db-block span-${block.span}`;
         el.dataset.id = block.id;
-        el.innerHTML = buildBlock(block);
+        // Aislar cada widget: si un builder tira una excepción, ese bloque muestra un
+        // error puntual en vez de cortar el forEach y dejar el dashboard en blanco.
+        try {
+            el.innerHTML = buildBlock(block);
+        } catch (err) {
+            console.error(`[dashboard] widget "${block.id}" falló:`, err);
+            el.innerHTML = `${blockHeader("")}<div class="caja-card">
+                <span class="widget-title" style="cursor:default">⚠️ ${block.label || block.id}</span>
+                <div class="res-empty">Este widget falló al cargar (ver consola)</div></div>`;
+        }
         grid.appendChild(el);
     });
     initDrag();
