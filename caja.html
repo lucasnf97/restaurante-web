@@ -57,6 +57,17 @@
         .modal-footer { display: flex; justify-content: flex-end; margin-top: 24px; }
         .btn-libreta { background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; transition: background 0.15s; }
         .btn-libreta:hover { background: #f1f5f9; }
+        /* Modal de detalle (caja abierta / cierre): ancho para las columnas nuevas,
+           scroll SOLO en la tabla y footer fijo (el botón Cerrar no scrollea). */
+        #modal-detalle .modal {
+            max-width: 1180px; display: flex; flex-direction: column;
+            overflow: hidden; padding: 26px 26px 18px;
+        }
+        #modal-detalle .tabla-wrapper { overflow: auto; flex: 1; min-height: 0; }
+        #modal-detalle .modal-footer { flex-shrink: 0; margin-top: 16px; }
+        #modal-detalle th, #modal-detalle td { white-space: nowrap; padding: 10px 12px; }
+        #modal-detalle td { font-size: 13px; }
+        .det-sub { font-size: 11px; color: #9ca3af; }
         .rev-screen { display: none; }
         .rev-screen.active { display: block; }
 
@@ -155,7 +166,11 @@
                 <thead>
                     <tr>
                         <th>ID</th><th>Mesa</th><th>Comensales</th>
-                        <th>Total</th><th>Hora cobro</th><th></th>
+                        <th style="text-align:right;">Descuento</th>
+                        <th style="text-align:right;">Impuesto</th>
+                        <th style="text-align:right;">Total sin imp.</th>
+                        <th style="text-align:right;">Total</th>
+                        <th>Inicio</th><th>Cierre</th><th>Tiempo</th><th></th>
                     </tr>
                 </thead>
                 <tbody id="modal-tabla"></tbody>
@@ -652,6 +667,69 @@ function filaCajaAbierta(ab) {
     </tr>`;
 }
 
+// ── Fila del desglose de caja (compartida entre caja abierta y cierre) ──
+const NCOLS_DETALLE = 11;
+function fmtHora(ts) {
+    if (!ts) return '—';
+    return new Date(ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+}
+function fmtDuracion(desde, hasta) {
+    if (!desde || !hasta) return '—';
+    let min = Math.round((new Date(hasta) - new Date(desde)) / 60000);
+    if (isNaN(min) || min < 0) return '—';
+    if (min < 60) return `${min} min`;
+    return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
+}
+function filaDetalleCaja(d) {
+    const s = simboloMoneda();
+    const totalVal = parseFloat(d.total);
+    const totalStr = `<span style="color:${totalVal < 0 ? '#dc2626' : 'inherit'};font-weight:700;">${s} ${totalVal.toFixed(2)}</span>`;
+    const esRefund = d.tipo_pedido === 'refund' || !d.pedido_id;
+    if (esRefund) {
+        return `<tr style="background:#fff1f2;">
+            <td style="color:#9ca3af;">—</td>
+            <td style="color:#9ca3af;">—</td>
+            <td style="color:#dc2626;font-weight:600;">↩ Refound</td>
+            <td style="text-align:right;color:#9ca3af;">—</td>
+            <td style="text-align:right;color:#9ca3af;">—</td>
+            <td style="text-align:right;color:#9ca3af;">—</td>
+            <td style="text-align:right;">${totalStr}</td>
+            <td style="color:#9ca3af;">—</td>
+            <td>${fmtHora(d.ts_cobro)}</td>
+            <td style="color:#9ca3af;">—</td>
+            <td>${d.refund_ticket_id
+                ? `<button class="btn-libreta" onclick="verRefundTicket(${d.refund_ticket_id})" title="Ver detalle refund">📒</button>`
+                : ''}</td>
+        </tr>`;
+    }
+    const esTakeAway = d.tipo_pedido === 'takeaway' || !d.mesa_numero;
+    const mesaLabel  = d.mesa_numero ? `Mesa ${d.mesa_numero}` : '—';
+    const quien = esTakeAway
+        ? `<span style="color:#7c3aed;font-weight:600;">🥡 Take Away</span>`
+        : `${d.comensales} persona${d.comensales != 1 ? 's' : ''}`;
+    const desc = (parseFloat(d.descuento) || 0) > 0.005
+        ? `<span style="color:#dc2626;">-${s} ${parseFloat(d.descuento).toFixed(2)}</span>`
+        : `<span style="color:#c4c4cc;">—</span>`;
+    const impPct = d.impuesto_pct != null ? parseFloat(d.impuesto_pct) : null;
+    const imp = d.impuesto != null
+        ? `${s} ${parseFloat(d.impuesto).toFixed(2)} <span class="det-sub">(${(impPct || 0).toFixed(1)}%)</span>`
+        : '—';
+    const sinImp = d.total_sin_imp != null ? `${s} ${parseFloat(d.total_sin_imp).toFixed(2)}` : '—';
+    return `<tr>
+        <td style="color:#666;font-size:12px;">#${d.pedido_id}</td>
+        <td>${mesaLabel}</td>
+        <td>${quien}</td>
+        <td style="text-align:right;">${desc}</td>
+        <td style="text-align:right;">${imp}</td>
+        <td style="text-align:right;">${sinImp}</td>
+        <td style="text-align:right;">${totalStr}</td>
+        <td title="${d.abierto_en || ''}">${fmtHora(d.abierto_en)}</td>
+        <td title="${d.ts_cobro || ''}">${fmtHora(d.ts_cobro)}</td>
+        <td>${esTakeAway ? '—' : fmtDuracion(d.abierto_en, d.ts_cobro)}</td>
+        <td><button class="btn-libreta" onclick="verItems(${d.pedido_id}, ${esTakeAway ? "'Take Away'" : d.mesa_numero})" title="Ver productos">📒</button></td>
+    </tr>`;
+}
+
 async function verDetalleAbierta() {
     try {
         const data = await api.get("/caja/abierta");
@@ -662,22 +740,9 @@ async function verDetalleAbierta() {
         const tbody = document.getElementById("modal-tabla");
         const det = data.detalle || [];
         if (!det.length) {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty">Todavía no se cobró ninguna mesa</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${NCOLS_DETALLE}" class="empty">Todavía no se cobró ninguna mesa</td></tr>`;
         } else {
-            tbody.innerHTML = det.map(d => {
-                const esTakeAway = !d.mesa_numero;
-                const mesaLabel = esTakeAway
-                    ? `<span style="color:#7c3aed;font-weight:600;">🥡 Take Away</span>`
-                    : `Mesa ${d.mesa_numero}`;
-                return `<tr>
-                    <td style="color:#666;font-size:12px;">#${d.pedido_id}</td>
-                    <td>${mesaLabel}</td>
-                    <td>${d.comensales} persona${d.comensales != 1 ? 's' : ''}</td>
-                    <td><strong>${simboloMoneda()} ${parseFloat(d.total).toFixed(2)}</strong></td>
-                    <td>${formatTs(d.ts_cobro)}</td>
-                    <td><button class="btn-libreta" onclick="verItems(${d.pedido_id}, ${esTakeAway ? "'Take Away'" : d.mesa_numero})" title="Ver productos">📒</button></td>
-                </tr>`;
-            }).join("");
+            tbody.innerHTML = det.map(filaDetalleCaja).join("");
         }
         document.getElementById("modal-detalle").classList.add("active");
     } catch(e) { alert("Error: " + e.message); }
@@ -703,40 +768,9 @@ async function verDetalle(id) {
         document.getElementById("modal-sub").textContent = "";
         const tbody = document.getElementById("modal-tabla");
         if (!data.detalle.length) {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty">Sin pedidos registrados</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${NCOLS_DETALLE}" class="empty">Sin pedidos registrados</td></tr>`;
         } else {
-            tbody.innerHTML = data.detalle.map(d => {
-                const esRefund = !d.pedido_id;
-                const totalVal = parseFloat(d.total);
-                const totalStr = `<span style="color:${totalVal < 0 ? '#dc2626' : 'inherit'};font-weight:700;">${simboloMoneda()} ${totalVal.toFixed(2)}</span>`;
-                if (esRefund) {
-                    return `<tr style="background:#fff1f2;">
-                        <td style="color:#9ca3af;">—</td>
-                        <td style="color:#dc2626;font-weight:600;" colspan="2">↩ Refund</td>
-                        <td>${totalStr}</td>
-                        <td>${formatTs(d.ts_cobro)}</td>
-                        <td>
-                            ${d.refund_ticket_id
-                                ? `<button class="btn-libreta" onclick="verRefundTicket(${d.refund_ticket_id})" title="Ver detalle refund">📒</button>`
-                                : ''}
-                        </td>
-                    </tr>`;
-                }
-                const esTakeAway = !d.mesa_numero;
-                const mesaLabel  = esTakeAway
-                    ? `<span style="color:#7c3aed;font-weight:600;">🥡 Take Away</span>`
-                    : `Mesa ${d.mesa_numero}`;
-                return `<tr>
-                    <td style="color:#666;font-size:12px;">#${d.pedido_id}</td>
-                    <td>${mesaLabel}</td>
-                    <td>${d.comensales} persona${d.comensales != 1 ? 's' : ''}</td>
-                    <td>${totalStr}</td>
-                    <td>${formatTs(d.ts_cobro)}</td>
-                    <td>
-                        <button class="btn-libreta" onclick="verItems(${d.pedido_id}, ${esTakeAway ? "'Take Away'" : d.mesa_numero})" title="Ver productos">📒</button>
-                    </td>
-                </tr>`;
-            }).join("");
+            tbody.innerHTML = data.detalle.map(filaDetalleCaja).join("");
         }
         document.getElementById("modal-detalle").classList.add("active");
     } catch(e) { alert("Error: " + e.message); }
