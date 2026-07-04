@@ -1090,7 +1090,25 @@ async function confirmarAuth() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Verificando...';
     try {
-        await login(u, p);
+        // Validación SIN efectos secundarios: no usar login() de api.js, que pisa el
+        // token/usuario de la sesión en localStorage (si el que verifica resolvía a otra
+        // identidad —p.ej. gerente por correo → gerente_cadena—, toda la sesión quedaba
+        // degradada). Se llama a /auth/login directo, con el Bearer actual para que el
+        // backend resuelva el esquema del token (acepta usuario o correo), y solo se
+        // inspecciona la respuesta.
+        const body = new URLSearchParams(); body.append('username', u); body.append('password', p);
+        const res = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'Usuario o contraseña incorrectos.');
+        const esGestor = data.rol === 'admin' || data.rol === 'gerente' || !!data.revision_salarios;
+        if (!esGestor) throw new Error('Ese usuario no tiene permiso para ver/editar salarios.');
         _unlocked = true;
         cerrarAuth();
         renderAll();
