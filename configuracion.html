@@ -1818,7 +1818,7 @@ function renderDashCfgRoles() {
     if (!roles.length) { cont.innerHTML = '<p class="cfg-hint">No hay roles.</p>'; return; }
     cont.innerHTML = roles.map(r => `
         <div class="dc-row">
-            <div class="dc-name">${r.nombre}</div>
+            <div class="dc-name">${esc(r.nombre)}</div>
             <span class="${r.dashboard_template_id ? 'dc-badge-cfg' : 'dc-badge-no'}">${r.dashboard_template_id ? 'Configurado' : 'Sin configurar'}</span>
             <button class="dc-btn" onclick="editarDashboardRol(${r.id})">✏️ Editar dashboard</button>
         </div>`).join('');
@@ -1841,7 +1841,7 @@ function renderDashCfgUsuarios() {
             : `<span class="dc-badge-no">Hereda del rol</span>`;
         return `
         <div class="dc-row">
-            <div class="dc-name">${u.username}<span class="dc-rol">${u.rol}</span></div>
+            <div class="dc-name">${esc(u.username)}<span class="dc-rol">${esc(u.rol)}</span></div>
             ${estado}
             <button class="dc-btn" onclick="editarDashboardUsuario(${u.id})">✏️ Editar</button>
         </div>`;
@@ -2471,7 +2471,7 @@ function renderTasas() {
     }
     tbody.innerHTML = _tasas.map((t, i) => `
         <tr>
-            <td><strong>${t.codigo}</strong> <span style="color:#9ca3af;font-size:12px;">— ${t.nombre}</span></td>
+            <td><strong>${t.codigo}</strong> <span style="color:#9ca3af;font-size:12px;">— ${esc(t.nombre)}</span></td>
             <td><span class="tasa-eq">1 ${codigoSistema} = ${t.tasa} ${t.codigo}</span></td>
             <td style="white-space:nowrap;text-align:right;">
                 <button class="btn-tasa-edit" onclick="editarTasa(${i})" title="Editar valor de la tasa">✏️</button>
@@ -2660,7 +2660,7 @@ function renderListaRoles() {
     }
     el.innerHTML = _roles.map(r => `
         <div class="role-item ${_rolSel?.id === r.id ? 'selected' : ''}" onclick="seleccionarRol(${r.id})">
-            <span class="role-item-name">${r.nombre}</span>
+            <span class="role-item-name">${esc(r.nombre)}</span>
             ${r.es_sistema ? '<span class="role-item-sys">sistema</span>' : ''}
         </div>
     `).join('');
@@ -2708,7 +2708,7 @@ function renderEditorRol() {
             <div style="display:flex;flex-direction:column;gap:10px;">
                 <div class="cfg-field">
                     <label class="cfg-label">Nombre del rol</label>
-                    <input class="cfg-input" id="re-nombre" value="${r.nombre}"
+                    <input class="cfg-input" id="re-nombre" value="${esc(r.nombre)}"
                            placeholder="Ej: Bartender" ${esSistema ? 'disabled' : ''}>
                 </div>
                 <div class="cfg-field">
@@ -2839,7 +2839,7 @@ function _permPanelHtml(esSistema) {
         const areaOpts = _areasCfg.map(a => {
             const val = `cocina_${a.nombre}`;
             const sel = pdLow === val.toLowerCase() ? 'selected' : '';   // compat con valores viejos (cocina_cocina/cocina_bar)
-            return `<option value="${val}" ${sel}>Recepción — ${a.nombre}</option>`;
+            return `<option value="${escAttr(val)}" ${sel}>Recepción — ${esc(a.nombre)}</option>`;
         }).join('');
         extra = `
             <div class="cfg-field" style="margin-bottom:14px;">

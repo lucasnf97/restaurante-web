@@ -610,7 +610,7 @@ async function cargarInsumos() {
             const uc    = _ultimasCompras[i.id] || {};
             const marca = uc.marca || '<span style="color:#d1d5db">—</span>';
             const provNombre = uc.proveedor_nombre
-                ? `<span class="prov-chip">🏢 ${uc.proveedor_nombre}</span>`
+                ? `<span class="prov-chip">🏢 ${esc(uc.proveedor_nombre)}</span>`
                 : '<span style="color:#d1d5db">—</span>';
             const btnHistorial = `<button class="btn btn-secondary btn-sm"
                 onclick="window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
@@ -621,7 +621,7 @@ async function cargarInsumos() {
             else if (i.ultimo_precio_compra != null) costoCell = `<span style="color:#9ca3af;" title="Último precio de compra">${(+i.ultimo_precio_compra).toFixed(2)} <small>(compra)</small></span>`;
             else costoCell = '<span style="color:#d1d5db">—</span>';
             return `<tr>
-                <td><span onclick="editarInsumo(${i.id})" title="Editar insumo" style="cursor:pointer;margin-right:6px;">✏️</span><strong>${i.nombre}</strong></td>
+                <td><span onclick="editarInsumo(${i.id})" title="Editar insumo" style="cursor:pointer;margin-right:6px;">✏️</span><strong>${esc(i.nombre)}</strong></td>
                 <td>${i.unidad}</td>
                 <td><div style="display:flex;align-items:center;gap:8px;">
                     <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
@@ -932,14 +932,14 @@ async function cargarHistorial() {
             // Nombre e ícono
             let nombreCell;
             if (esRevision) {
-                nombreCell = `<span style="font-size:11px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;font-weight:700;margin-right:5px;">REV</span><strong>${m.insumo_nombre}</strong>`;
+                nombreCell = `<span style="font-size:11px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;font-weight:700;margin-right:5px;">REV</span><strong>${esc(m.insumo_nombre)}</strong>`;
             } else {
-                nombreCell = `<strong>${m.insumo_nombre}</strong> <span style="color:#aaa;font-size:11px;">${m.unidad || ''}</span>`;
+                nombreCell = `<strong>${esc(m.insumo_nombre)}</strong> <span style="color:#aaa;font-size:11px;">${m.unidad || ''}</span>`;
             }
 
             // Proveedor
             const provCell = (!esProduccion && !esRevision && m.proveedor_nombre)
-                ? `<span class="prov-chip">🏢 ${m.proveedor_nombre}</span>`
+                ? `<span class="prov-chip">🏢 ${esc(m.proveedor_nombre)}</span>`
                 : "—";
 
             // Referencia
@@ -947,7 +947,7 @@ async function cargarHistorial() {
             if (esRevision) {
                 refCell = `<span style="font-size:12px;color:#92400e;font-weight:600;">Revisión de stock</span>`;
             } else if (esProduccion) {
-                refCell = `<button class="btn btn-secondary btn-sm" onclick="verReceta(${m.insumo_produccion_id},'${m.insumo_nombre.replace(/'/g,"\\'")}')">Ver receta</button>${m.referencia ? ` <span style="color:#9ca3af;font-size:11px;">${m.referencia}</span>` : ''}`;
+                refCell = `<button class="btn btn-secondary btn-sm" onclick="verReceta(${m.insumo_produccion_id},'${escAttr(m.insumo_nombre).replace(/'/g,"\\'")}')">Ver receta</button>${m.referencia ? ` <span style="color:#9ca3af;font-size:11px;">${esc(m.referencia)}</span>` : ''}`;
             } else {
                 refCell = `<span style="font-size:12px;color:#666;">${m.referencia || '—'}</span>`;
             }
@@ -1021,7 +1021,7 @@ async function cargarInsumosProduccion() {
             const uc    = _ultimasCompras[i.id] || {};
             const marca = uc.marca || '<span style="color:#d1d5db">—</span>';
             const provNombre = uc.proveedor_nombre
-                ? `<span class="prov-chip">🏢 ${uc.proveedor_nombre}</span>`
+                ? `<span class="prov-chip">🏢 ${esc(uc.proveedor_nombre)}</span>`
                 : '<span style="color:#d1d5db">—</span>';
             const btnHistorial = `<button class="btn btn-secondary btn-sm"
                 onclick="event.stopPropagation();window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
@@ -1037,7 +1037,7 @@ async function cargarInsumosProduccion() {
                 ? `<strong>${fmtCosto(cinfo.costo)}</strong>`
                 : `<span style="color:#9ca3af;font-style:italic;font-size:12px;">Sin receta</span>`;
             return `<tr ${rowAttrs}>
-                <td>${arrow}${lapiz}<strong>${i.nombre}</strong></td>
+                <td>${arrow}${lapiz}<strong>${esc(i.nombre)}</strong></td>
                 <td>${i.unidad}</td>
                 <td><div style="display:flex;align-items:center;gap:8px;">
                     <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
@@ -1096,7 +1096,7 @@ async function verReceta(ipId, nombre) {
                     : `<span style="color:#9ca3af;">—</span>`;
 
                 return `<tr>
-                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;"><strong>${r.insumo_nombre}</strong></td>
+                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;"><strong>${esc(r.insumo_nombre)}</strong></td>
                     <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;color:#555;">${fmtNum(cant)} ${r.unidad}</td>
                     <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;">${precioCell}</td>
                     <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;text-align:right;">${costoCell}</td>
@@ -1295,7 +1295,7 @@ function comboboxRenderLista(busq) {
             <div onmousedown="event.preventDefault()" onclick="comboboxSeleccionar(${i.id})"
                  style="padding:7px 12px;cursor:pointer;font-size:13px;"
                  onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background=''">
-                ${i.nombre} <span style="color:#9ca3af;font-size:12px;">(${i.unidad})</span>
+                ${esc(i.nombre)} <span style="color:#9ca3af;font-size:12px;">(${esc(i.unidad)})</span>
             </div>`).join("")
         : `<div style="padding:8px 12px;color:#9ca3af;font-size:13px;">Sin resultados</div>`;
 
@@ -1445,7 +1445,7 @@ async function cargarPreviewProduccion() {
         const aviso      = negativo
             ? ` <span style="color:#b45309;font-size:11px;">⚠ quedaría en ${fmtNum(disponible - necesario)} ${r.unidad}</span>`
             : "";
-        return `<div style="color:${color};">• ${r.insumo_nombre}: −${fmtNum(necesario)} ${r.unidad}${aviso}</div>`;
+        return `<div style="color:${color};">• ${esc(r.insumo_nombre)}: −${fmtNum(necesario)} ${r.unidad}${aviso}</div>`;
     }).join("");
 
     document.getElementById("rp-preview-lista").innerHTML = lineas;
@@ -1542,7 +1542,7 @@ function desechoFiltrar() {
         <div onmousedown="event.preventDefault()" onclick="desechoSeleccionar(${i.id})"
              style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6;"
              onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background=''">
-            <strong>${i.nombre}</strong>
+            <strong>${esc(i.nombre)}</strong>
             <span style="color:#9ca3af;font-size:11px;margin-left:4px;">(${i.unidad})</span>
         </div>`).join('');
     lista.style.display = '';

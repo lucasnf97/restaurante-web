@@ -500,7 +500,7 @@ function renderSalas() {
     if (!salas.length) { cont.innerHTML = '<div class="empty">No hay salas.</div>'; return; }
     cont.innerHTML = salas.map(s => `
         <div class="sala-item ${s.id === salaSelId ? 'activa' : ''}" onclick="seleccionarSala(${s.id})">
-            <div class="sala-nombre">${s.nombre}</div>
+            <div class="sala-nombre">${esc(s.nombre)}</div>
             <div class="sala-acciones">
                 <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();abrirModalSala(${s.id})">✏️</button>
                 <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarSala(${s.id})">🗑️</button>
@@ -904,7 +904,7 @@ function renderPaginas() {
                  onclick="seleccionarPagina(${p.id})"
                  style="border-color:${p.id === _menuPagId ? '#4f46e5' : '#f59e0b'};background:${p.id === _menuPagId ? '#f5f3ff' : '#fffbeb'};">
                 <span style="color:#f59e0b;margin-right:8px;font-size:14px;">⭐</span>
-                <div class="sala-nombre">${p.nombre}</div>
+                <div class="sala-nombre">${esc(p.nombre)}</div>
                 <span style="color:#9ca3af;font-size:12px;cursor:default;" title="Página fija - no se puede eliminar">🔒</span>
             </div>`;
         }
@@ -918,7 +918,7 @@ function renderPaginas() {
              ondrop="onDropPagina(event,${normIdx})"
              onclick="seleccionarPagina(${p.id})">
             <span style="cursor:grab;color:#9ca3af;margin-right:8px;font-size:16px;">≡</span>
-            <div class="sala-nombre">${p.nombre}</div>
+            <div class="sala-nombre">${esc(p.nombre)}</div>
             <div class="sala-acciones">
                 <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();abrirModalPagina(${p.id})">✏️</button>
                 <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarPagina(${p.id})">🗑️</button>
@@ -1065,7 +1065,7 @@ function renderMenuGrid() {
                     ondblclick="abrirGrupo(${f},${c})"
                     title="Doble click para editar los productos del grupo. Arrastrá productos acá para sumarlos.">
                     <div style="font-size:17px;line-height:1;">🗂️</div>
-                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${g.nombre}</div>
+                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${esc(g.nombre)}</div>
                     <div style="font-size:10px;font-weight:600;opacity:.75;">${g.miembros.length} ítem(s)</div>
                     <button onclick="event.stopPropagation();quitarDeCelda(${f},${c})"
                         style="position:absolute;top:3px;right:3px;background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;line-height:1;">✕</button>

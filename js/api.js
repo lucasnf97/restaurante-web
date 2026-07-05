@@ -1,5 +1,22 @@
 const API_URL = "https://restaurante-backend-production-459b.up.railway.app";
 
+// ── ESCAPE / XSS ──────────────────────────────────────────────
+// Helpers canónicos para insertar datos cargados por usuarios en HTML sin ejecutar
+// scripts. `esc` para texto dentro de HTML; `escAttr` para valores dentro de atributos
+// o strings de JS (onclick="fn('...')"). Globales: los usan todas las páginas.
+function esc(s) {
+    if (s === null || s === undefined) return "";
+    return String(s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function escAttr(s) {
+    // Igual que esc + neutraliza backtick y barra para contextos de atributo/JS-string.
+    return esc(s).replace(/`/g, "&#96;").replace(/\//g, "&#47;");
+}
+window.esc = esc;
+window.escAttr = escAttr;
+
 // ── TOKEN ─────────────────────────────────────────────────────
 function getToken() {
     return localStorage.getItem("token");

@@ -1401,7 +1401,7 @@ function abrirListadoPrint(){
     const sorted=[...reservas].sort((a,b)=>a.hora_inicio>b.hora_inicio?1:-1);
     const Th='padding:8px 10px;border:1px solid #cbd5e1;background:#f1f5f9;text-align:left;font-size:12px;';
     const Td='padding:8px 10px;border:1px solid #e2e8f0;font-size:12px;';
-    const filas=sorted.map(r=>`<tr><td style="${Td}">${r.hora_inicio.substring(0,5)}${r.hora_fin?' – '+r.hora_fin.substring(0,5):''}</td><td style="${Td}"><strong>${r.nombre_cliente}</strong>${r.telefono?'<br><small style="color:#888">'+r.telefono+'</small>':''}</td><td style="${Td};text-align:center;">${r.comensales}</td><td style="${Td}">${r.mesa_numero?'Mesa '+r.mesa_numero:'—'}</td><td style="${Td}">${r.alergeno?'<span style="color:#854d0e">⚠ '+r.alergeno+'</span>':'—'}</td><td style="${Td}">${r.estado}</td><td style="${Td};max-width:140px;font-size:11px;">${r.notas||''}</td></tr>`).join('');
+    const filas=sorted.map(r=>`<tr><td style="${Td}">${r.hora_inicio.substring(0,5)}${r.hora_fin?' – '+r.hora_fin.substring(0,5):''}</td><td style="${Td}"><strong>${esc(r.nombre_cliente)}</strong>${r.telefono?'<br><small style="color:#888">'+esc(r.telefono)+'</small>':''}</td><td style="${Td};text-align:center;">${r.comensales}</td><td style="${Td}">${r.mesa_numero?'Mesa '+r.mesa_numero:'—'}</td><td style="${Td}">${r.alergeno?'<span style="color:#854d0e">⚠ '+esc(r.alergeno)+'</span>':'—'}</td><td style="${Td}">${esc(r.estado)}</td><td style="${Td};max-width:140px;font-size:11px;">${esc(r.notas||'')}</td></tr>`).join('');
     const html=`<div style="text-align:center;margin-bottom:16px;"><div style="font-size:18px;font-weight:700;color:#1a1a2e;">🍽️ Reservas del día</div><div style="font-size:13px;color:#555;margin-top:4px;">${fecha}</div></div>${sorted.length?`<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="${Th}">Horario</th><th style="${Th}">Cliente</th><th style="${Th};text-align:center;">Pers.</th><th style="${Th}">Mesa</th><th style="${Th}">Alérgeno</th><th style="${Th}">Estado</th><th style="${Th}">Notas</th></tr></thead><tbody>${filas}</tbody></table><p style="font-size:11px;color:#888;margin-top:10px;">${sorted.length} reserva(s)</p>`:'<p style="text-align:center;color:#888;padding:24px;">Sin reservas para este día.</p>'}`;
     document.getElementById('print-preview').innerHTML=html;
     document.getElementById('print-section').innerHTML=html;
@@ -1689,7 +1689,7 @@ function _wlRender(){
             ${_waitingList.map((item,i)=>`
                 <tr>
                     <td class="wl-num">${i+1}</td>
-                    <td class="wl-nombre">${item.nombre}</td>
+                    <td class="wl-nombre">${esc(item.nombre)}</td>
                     <td class="wl-pers">👥 ${item.personas}</td>
                     <td class="wl-hora">🕐 ${item.hora}</td>
                     <td style="text-align:right;">
@@ -1726,7 +1726,7 @@ function _wlRender(){
                 ${_waitingPasados.map(item=>`
                     <tr>
                         <td class="wl-nombre" style="text-decoration:line-through;color:#94a3b8;">
-                            ${item.nombre}
+                            ${esc(item.nombre)}
                         </td>
                         <td class="wl-pers" style="color:#94a3b8;">👥 ${item.personas}</td>
                         <td class="wl-hora">${item.hora}</td>

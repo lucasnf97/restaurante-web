@@ -285,13 +285,13 @@
         }
         tbody.innerHTML = usuarios.map(u => `
             <tr>
-                <td><strong>${u.username}</strong></td>
+                <td><strong>${esc(u.username)}</strong></td>
                 <td style="text-align:center;">
                     <span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">
                         ${u.iniciales || u.username.substring(0,3).toUpperCase()}
                     </span>
                 </td>
-                <td><span class="badge ${rolBadge(u.rol)}">${u.rol}</span></td>
+                <td><span class="badge ${rolBadge(u.rol)}">${esc(u.rol)}</span></td>
                 <td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
                 <td>${formatFecha(u.creado_en)}</td>
                 <td>
@@ -301,7 +301,7 @@
                         <button class="btn btn-warning btn-sm" onclick="toggleActivo(${u.id}, ${u.activo})">
                             ${u.activo ? 'Desactivar' : 'Activar'}
                         </button>
-                        <button class="btn btn-danger btn-sm" onclick="eliminarUsuario(${u.id}, '${u.username}')">🗑</button>
+                        <button class="btn btn-danger btn-sm" onclick="eliminarUsuario(${u.id}, '${escAttr(u.username)}')">🗑</button>
                     </div>
                 </td>
             </tr>
@@ -349,7 +349,7 @@
         feRol.innerHTML = opcionesRolHTML;
         if (![...feRol.options].some(o => o.value === u.rol)) {
             // rol no asignable (p.ej. gerente): mostrarlo para no perder el valor actual
-            feRol.insertAdjacentHTML('afterbegin', `<option value="${u.rol}">${u.rol}</option>`);
+            feRol.insertAdjacentHTML('afterbegin', `<option value="${escAttr(u.rol)}">${esc(u.rol)}</option>`);
         }
         feRol.value = u.rol;
         document.getElementById("fe-activo").value = u.activo ? "true" : "false";

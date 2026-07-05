@@ -361,10 +361,10 @@ function persHtml(it) {
     let out = '';
     (p.extras || []).forEach(e => {
         const q = (e.cantidad && e.cantidad > 1) ? ' ×' + e.cantidad : '';
-        out += `<div style="margin-left:26px;font-size:13px;color:#16a34a;font-weight:600;">+ ${e.nombre || 'Extra'}${q}</div>`;
+        out += `<div style="margin-left:26px;font-size:13px;color:#16a34a;font-weight:600;">+ ${esc(e.nombre) || 'Extra'}${q}</div>`;
     });
     (p.quitados || []).forEach(q => {
-        out += `<div style="margin-left:26px;font-size:13px;color:#dc2626;font-weight:600;">− sin ${q.nombre || ''}</div>`;
+        out += `<div style="margin-left:26px;font-size:13px;color:#dc2626;font-weight:600;">− sin ${esc(q.nombre) || ''}</div>`;
     });
     return out;
 }
@@ -377,8 +377,8 @@ function cardOrden(o) {
     const itemsHtml = items.map(it => `
         <div class="item-row">
             <span class="item-cant">${it.cantidad}×</span>
-            <span class="item-nombre">${it.nombre || '—'}</span>
-            ${it.notas ? `<span class="item-nota">⚑ ${it.notas}</span>` : ''}
+            <span class="item-nombre">${esc(it.nombre) || '—'}</span>
+            ${it.notas ? `<span class="item-nota">⚑ ${esc(it.notas)}</span>` : ''}
         </div>
         ${persHtml(it)}
     `).join('');

@@ -1015,9 +1015,9 @@ function poblarSelects() {
     const selCat = document.getElementById('filtro-cat');
     const selArea = document.getElementById('filtro-area');
     categorias.forEach(c => {
-        selCat.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
-        document.getElementById('fp-categoria').innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
-        document.getElementById('fc-categoria').innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+        selCat.innerHTML += `<option value="${c.id}">${esc(c.nombre)}</option>`;
+        document.getElementById('fp-categoria').innerHTML += `<option value="${c.id}">${esc(c.nombre)}</option>`;
+        document.getElementById('fc-categoria').innerHTML += `<option value="${c.id}">${esc(c.nombre)}</option>`;
     });
     areas.forEach(a => {
         selArea.innerHTML += `<option value="${a.id}">${a.nombre}</option>`;
@@ -1141,9 +1141,9 @@ function pmRenderTabla(lista) {
     const fmt = v => (v != null && v !== '') ? parseFloat(v).toFixed(2) : '';
     tbody.innerHTML = lista.map(p => `
         <tr>
-            <td title="${(p.categoria || '')}">
-                ${p.nombre}
-                ${p.categoria ? `<br><small style="color:#9ca3af;font-weight:400;">${p.categoria}</small>` : ''}
+            <td title="${esc(p.categoria || '')}">
+                ${esc(p.nombre)}
+                ${p.categoria ? `<br><small style="color:#9ca3af;font-weight:400;">${esc(p.categoria)}</small>` : ''}
             </td>
             <td><input type="number" class="pm-inp" data-id="${p.id}" data-col="1"
                        value="${fmt(p.precio_1 != null ? p.precio_1 : p.precio)}" min="0" step="0.01" placeholder="—"></td>
@@ -1210,7 +1210,7 @@ function renderProductos(lista) {
             <td><span class="fav-star ${p.favorito ? 'gold' : 'gray'}${starEditable}"
                       title="${modoEdicion ? (p.favorito ? 'Quitar favorito' : 'Marcar como favorito') : (p.favorito ? 'Favorito' : '')}"
                       ${starOnClick}>★</span></td>
-            <td>${pencil}<strong>${p.nombre}</strong>${p.es_extra ? ' <span class="badge badge-purple" title="Extra generado desde un insumo">Extra</span>' : ''}${p.descripcion ? `<br><small style="color:#888">${p.descripcion}</small>` : ''}</td>
+            <td>${pencil}<strong>${esc(p.nombre)}</strong>${p.es_extra ? ' <span class="badge badge-purple" title="Extra generado desde un insumo">Extra</span>' : ''}${p.descripcion ? `<br><small style="color:#888">${esc(p.descripcion)}</small>` : ''}</td>
             <td>${p.categoria || '—'}</td>
             <td>${p.area || '—'}</td>
             <td><strong>${simboloMoneda()} ${parseFloat(p.precio).toFixed(2)}</strong>${p.descuento_pct > 0 ? ` <span class="badge badge-green">-${p.descuento_pct}%</span>` : ''}</td>
@@ -1749,7 +1749,7 @@ function renderCombos() {
     tbody.innerHTML = combos.map(c => `
         <tr class="${comboSel && comboSel.id === c.id ? 'sel' : ''}" onclick="selCombo(${c.id})">
             <td>${c.favorito ? '<span class="fav-star">★</span>' : ''}</td>
-            <td>${pencil(c)}<strong>${c.nombre}</strong>${c.descripcion ? `<br><small style="color:#888">${c.descripcion}</small>` : ''}</td>
+            <td>${pencil(c)}<strong>${esc(c.nombre)}</strong>${c.descripcion ? `<br><small style="color:#888">${esc(c.descripcion)}</small>` : ''}</td>
             <td><strong>${simboloMoneda()} ${parseFloat(c.precio).toFixed(2)}</strong></td>
             <td>${c.categoria || '—'}</td>
             <td>${c.items.map(i => `${i.cantidad}x ${i.nombre || i.categoria_nombre}`).join(', ')}</td>
@@ -1890,7 +1890,7 @@ async function abrirComboProds(row) {
         for (const p of porCat.get(cat)) {
             html += `
             <div class="cp-prod-row" data-nombre="${(p.nombre || '').toLowerCase().replace(/"/g, '&quot;')}">
-                <span style="font-size:14px">${p.nombre}</span>
+                <span style="font-size:14px">${esc(p.nombre)}</span>
                 <label class="cp-switch">
                     <input type="checkbox" class="cp-check" value="${p.id}" ${sel.has(p.id) ? 'checked' : ''}>
                     <span class="cp-slider"></span>
@@ -1969,7 +1969,7 @@ function renderCategorias() {
     const tbody = document.getElementById('tbody-cats');
     tbody.innerHTML = categorias.map(c => `
         <tr>
-            <td><strong>${c.nombre}</strong></td>
+            <td><strong>${esc(c.nombre)}</strong></td>
             <td>
                 <button class="btn btn-secondary btn-sm" onclick="abrirModalCategoria(${c.id})">Editar</button>
                 <button class="btn btn-danger btn-sm" onclick="eliminarCategoria(${c.id})">Eliminar</button>
@@ -2114,7 +2114,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
                  data-tipo="${i.tipo}" data-id="${i.id}"
                  style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;"
                  onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
-                <span style="flex:1;font-size:13px;">${i.nombre} <span style="color:#9ca3af;font-size:12px;">(${i.unidad})</span></span>
+                <span style="flex:1;font-size:13px;">${esc(i.nombre)} <span style="color:#9ca3af;font-size:12px;">(${i.unidad})</span></span>
                 <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;
                              background:${i.tipo==='prod'?'#ede9fe':'#dbeafe'};
                              color:${i.tipo==='prod'?'#6d28d9':'#1d4ed8'};">
@@ -2196,7 +2196,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
             const sel = document.getElementById('rec-filtro-cat');
             if (sel) {
                 sel.innerHTML = '<option value="">Todas las categorías</option>' +
-                    categorias.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+                    categorias.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
             }
             filtrarRecetasDoc();
         } catch(e) { console.error('Error cargando recetas:', e); }
@@ -2240,7 +2240,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
                                       onclick="abrirEditorReceta(${p.id},'${safe(p.nombre)}')">+ Escribir receta</button>`}
                    </td>`;
             return `<tr>
-                <td><strong>${p.nombre}</strong>${p.descripcion ? `<br><small style="color:#888">${p.descripcion}</small>` : ''}</td>
+                <td><strong>${esc(p.nombre)}</strong>${p.descripcion ? `<br><small style="color:#888">${esc(p.descripcion)}</small>` : ''}</td>
                 <td>${p.categoria || '—'}</td>
                 <td>${p.area || '—'}</td>
                 ${celda}
@@ -2368,8 +2368,8 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
         cont.innerHTML = categorias.map(c => `
             <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;
                         background:#f9fafb;border-radius:8px;margin-bottom:6px;border:1px solid #f0f0f0;">
-                <span id="gc-sp-${c.id}" style="flex:1;font-size:14px;font-weight:600;">${c.nombre}</span>
-                <input type="text" id="gc-in-${c.id}" value="${c.nombre}"
+                <span id="gc-sp-${c.id}" style="flex:1;font-size:14px;font-weight:600;">${esc(c.nombre)}</span>
+                <input type="text" id="gc-in-${c.id}" value="${esc(c.nombre)}"
                        style="flex:1;display:none;padding:5px 8px;border:1.5px solid #4f46e5;border-radius:6px;font-size:13px;outline:none;"
                        onkeydown="if(event.key==='Enter')gcGuardarEdicion(${c.id})">
                 <button class="btn btn-secondary btn-sm" id="gc-eb-${c.id}" onclick="gcIniciarEdicion(${c.id})">✏️</button>
@@ -2421,7 +2421,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
     }
 
     function _actualizarSelectsCategorias() {
-        const opts = categorias.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+        const opts = categorias.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
         document.getElementById('filtro-cat').innerHTML    = `<option value="">Todas las categorías</option>${opts}`;
         document.getElementById('fp-categoria').innerHTML  = `<option value="">Sin categoría</option>${opts}`;
         document.getElementById('fc-categoria').innerHTML  = `<option value="">Sin categoría</option>${opts}`;
@@ -2512,7 +2512,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
         const areaNom = (areas.find(a => a.id === id) || {}).nombre || '';
         document.getElementById('ma-msg').textContent =
             `El área "${areaNom}" tiene ${enUso.length} producto(s) asignado(s). Para eliminarla, movelos a otra área:`;
-        document.getElementById('ma-lista').innerHTML = enUso.map(p => `<div>• ${p.nombre}</div>`).join('');
+        document.getElementById('ma-lista').innerHTML = enUso.map(p => `<div>• ${esc(p.nombre)}</div>`).join('');
         document.getElementById('ma-destino').innerHTML =
             otras.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
         document.getElementById('modal-mover-area').classList.add('active');
@@ -2547,10 +2547,10 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
         const fila = document.createElement("div");
         fila.style.cssText = "display:flex;gap:8px;align-items:center;";
         const optsStock = _insumos.map(i =>
-            `<option value="stock_${i.id}" ${`stock_${i.id}` === val ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`
+            `<option value="stock_${i.id}" ${`stock_${i.id}` === val ? 'selected' : ''}>${esc(i.nombre)} (${esc(i.unidad)})</option>`
         ).join("");
         const optsProd = _insumosProduccion.map(i =>
-            `<option value="prod_${i.id}" ${`prod_${i.id}` === val ? 'selected' : ''}>${i.nombre} (${i.unidad})</option>`
+            `<option value="prod_${i.id}" ${`prod_${i.id}` === val ? 'selected' : ''}>${esc(i.nombre)} (${esc(i.unidad)})</option>`
         ).join("");
         fila.innerHTML = `
             <select style="flex:1;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;">

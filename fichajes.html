@@ -461,7 +461,7 @@ async function cargarActivos() {
                 : "";
             return `<div class="globo">
                 <div class="globo-circle" style="background:${color};">${iniciales}</div>
-                <div class="globo-name">${t.username}</div>
+                <div class="globo-name">${esc(t.username)}</div>
                 <div class="globo-time">desde ${formatHoraTs(t.ts_entrada)}</div>
                 ${btnForzar}
             </div>`;
@@ -506,7 +506,7 @@ async function cargarUsuariosFiltro() {
         const usuarios = await api.get("/auth/usuarios");
         const sel = document.getElementById("filtro-usuario");
         usuarios.forEach(u => {
-            sel.innerHTML += `<option value="${u.username}">${u.username}</option>`;
+            sel.innerHTML += `<option value="${escAttr(u.username)}">${esc(u.username)}</option>`;
         });
     } catch(e) {}
 }
@@ -661,7 +661,7 @@ function renderUserCard(g) {
             <div class="user-summary-name">
                 <div class="user-avatar" style="background:${color};">${iniciales}</div>
                 <div>
-                    <div class="user-name-text">${g.username}</div>
+                    <div class="user-name-text">${esc(g.username)}</div>
                     <div class="user-rol-badge">${subLabel}</div>
                 </div>
             </div>
@@ -783,7 +783,7 @@ function renderDayGroup(dg, usuarioId) {
                   title="${f.notas ? 'Ver/editar nota' : 'Agregar nota'}">📝</button>`
             : "";
         const notaTxt = f.notas
-            ? `<span class="sub-nota-txt" title="${f.notas.replace(/"/g,'&quot;')}">${f.notas}</span>`
+            ? `<span class="sub-nota-txt" title="${f.notas.replace(/"/g,'&quot;')}">${esc(f.notas)}</span>`
             : "";
         return `<div class="sub-fichaje-row" id="sub-fich-${f.id}">
             <span class="sub-arrow">↳</span>
@@ -1033,7 +1033,7 @@ function cancelarNotaSubrow(fichajeId) {
     if (!areaEl) return;
     const f = _fichajesData[fichajeId];
     const notaTxt = (f && f.notas)
-        ? `<span class="sub-nota-txt" title="${f.notas.replace(/"/g,'&quot;')}">${f.notas}</span>`
+        ? `<span class="sub-nota-txt" title="${f.notas.replace(/"/g,'&quot;')}">${esc(f.notas)}</span>`
         : "";
     areaEl.innerHTML = notaTxt;
 }
@@ -1055,7 +1055,7 @@ async function guardarNotaSubrow(fichajeId) {
         const areaEl = document.getElementById(`nota-sub-${fichajeId}`);
         if (areaEl) {
             const notaTxt = notas
-                ? `<span class="sub-nota-txt" title="${notas.replace(/"/g,'&quot;')}">${notas}</span>`
+                ? `<span class="sub-nota-txt" title="${notas.replace(/"/g,'&quot;')}">${esc(notas)}</span>`
                 : "";
             areaEl.innerHTML = notaTxt;
         }

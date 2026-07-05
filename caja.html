@@ -353,7 +353,7 @@ function revRenderItems() {
     cont.innerHTML = _revItems.map((it, idx) => {
         if (it.eliminado) {
             return `<div class="rev-item-row" style="opacity:.45;">
-                <span style="text-decoration:line-through;color:#9ca3af;">${it.nombre}</span>
+                <span style="text-decoration:line-through;color:#9ca3af;">${esc(it.nombre)}</span>
                 <span style="text-align:right;color:#9ca3af;">—</span>
                 <span style="text-align:right;color:#9ca3af;">—</span>
                 <span style="text-align:right;color:#9ca3af;">—</span>
@@ -362,8 +362,8 @@ function revRenderItems() {
         }
         const prepTag = it.prepagado ? `<span style="font-size:10px;color:#16a34a;margin-left:4px;">✓ prepago</span>` : '';
         return `<div class="rev-item-row">
-            <span>${it.es_nuevo ? `<input class="rev-input" style="text-align:left;" value="${it.nombre}"
-                oninput="_revItems[${idx}].nombre=this.value">` : it.nombre + prepTag}</span>
+            <span>${it.es_nuevo ? `<input class="rev-input" style="text-align:left;" value="${esc(it.nombre)}"
+                oninput="_revItems[${idx}].nombre=this.value">` : esc(it.nombre) + prepTag}</span>
             <input class="rev-input ${it.prepagado ? 'readonly' : ''}" type="number" min="0"
                 value="${it.cantidad}" ${it.prepagado ? 'readonly' : ''}
                 oninput="_revItems[${idx}].cantidad=parseFloat(this.value)||0;revActualizarDiff()">
@@ -811,7 +811,7 @@ async function verItems(pedidoId, mesaNumero) {
                 ex.forEach(e => {
                     const q  = (e.cantidad && e.cantidad > 1) ? ' ×' + e.cantidad : '';
                     const pr = (parseFloat(e.precio) || 0) * (e.cantidad || 1);
-                    out += `<br><small style="color:#16a34a;">&nbsp;&nbsp;+ ${e.nombre || 'Extra'}${q} · ${simboloMoneda()} ${pr.toFixed(2)}</small>`;
+                    out += `<br><small style="color:#16a34a;">&nbsp;&nbsp;+ ${esc(e.nombre) || 'Extra'}${q} · ${simboloMoneda()} ${pr.toFixed(2)}</small>`;
                 });
                 return out;
             };
@@ -822,7 +822,7 @@ async function verItems(pedidoId, mesaNumero) {
                 const parcialBadge = i._cant_el > 0
                     ? `<br><small style="color:#b45309;">(${i._cant_el} elim.)</small>` : '';
                 return `<tr>
-                    <td>${i.nombre}${i.notas ? `<br><small style="color:#888">📝 ${i.notas}</small>` : ''}${parcialBadge}${persCaja(i)}</td>
+                    <td>${esc(i.nombre)}${i.notas ? `<br><small style="color:#888">📝 ${esc(i.notas)}</small>` : ''}${parcialBadge}${persCaja(i)}</td>
                     <td style="text-align:center;">${i._cant_ef}</td>
                     <td style="text-align:right;">${simboloMoneda()} ${parseFloat(i.precio_unit).toFixed(2)}</td>
                     <td style="text-align:center;color:#16a34a;">${descuento > 0 ? descuento.toFixed(1) + '%' : '—'}</td>
@@ -837,7 +837,7 @@ async function verItems(pedidoId, mesaNumero) {
                     </td>
                    </tr>` +
                   eliminados.map(i => `<tr style="opacity:.6;">
-                    <td style="text-decoration:line-through;color:#9ca3af;">${i.nombre}</td>
+                    <td style="text-decoration:line-through;color:#9ca3af;">${esc(i.nombre)}</td>
                     <td style="text-align:center;color:#9ca3af;">${i.cantidad}</td>
                     <td style="text-align:right;color:#9ca3af;">${simboloMoneda()} ${parseFloat(i.precio_unit).toFixed(2)}</td>
                     <td style="text-align:center;color:#9ca3af;">—</td>

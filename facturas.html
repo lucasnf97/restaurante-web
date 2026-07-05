@@ -762,7 +762,7 @@ function optsBienes(selId) {
     return _bienesFactura.map(b => `<option value="${b.id}" ${b.id === selId ? 'selected' : ''}>${b.nombre} (${b.unidad})</option>`).join("");
 }
 function optsServicios(selId) {
-    return _servicios.map(s => `<option value="${s.id}" ${s.id === selId ? 'selected' : ''}>${s.nombre}${s.categoria ? ' — '+s.categoria : ''}</option>`).join("");
+    return _servicios.map(s => `<option value="${s.id}" ${s.id === selId ? 'selected' : ''}>${esc(s.nombre)}${s.categoria ? ' — '+esc(s.categoria) : ''}</option>`).join("");
 }
 // Refrescan TODOS los desplegables de insumo/servicio del modal de confirmación conservando
 // la selección de cada fila; en la fila que creó el ítem nuevo (forzarIdx) selecciona el nuevo.
@@ -1096,7 +1096,7 @@ function abrirModalConfirmacion(datos) {
 
     const selProv = document.getElementById("conf-prov-existente");
     selProv.innerHTML = `<option value="">— O seleccioná uno ya registrado —</option>` +
-        _proveedores.map(p => `<option value="${p.id}" data-nombre="${p.nombre}" data-cuit="${p.cuit || ''}">${p.nombre}${p.cuit ? ' ('+p.cuit+')' : ''}</option>`).join("");
+        _proveedores.map(p => `<option value="${p.id}" data-nombre="${esc(p.nombre)}" data-cuit="${esc(p.cuit || '')}">${esc(p.nombre)}${p.cuit ? ' ('+esc(p.cuit)+')' : ''}</option>`).join("");
 
     const items = datos.items || [];
     // Impuesto: % por defecto = el que la IA detectó en la factura; si no lo detectó,
@@ -2041,7 +2041,7 @@ async function cargarServicios() {
         const tbody = document.getElementById("tbody-servicios");
         if (!_servicios.length) { tbody.innerHTML = `<tr><td colspan="4" class="empty">Sin servicios. Agregá los gastos fijos del local.</td></tr>`; return; }
         tbody.innerHTML = _servicios.map(s => `<tr>
-            <td><strong>${s.nombre}</strong></td>
+            <td><strong>${esc(s.nombre)}</strong></td>
             <td>${s.categoria ? `<span class="cat-chip">${s.categoria}</span>` : '—'}</td>
             <td style="font-size:13px;color:#666;">${s.descripcion || '—'}</td>
             <td><div style="display:flex;gap:6px;">
@@ -2109,7 +2109,7 @@ async function cargarProveedores() {
         if (!tbody) return;
         if (!_proveedores.length) { tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin proveedores</td></tr>`; return; }
         tbody.innerHTML = _proveedores.map(p => `<tr>
-            <td><strong>${p.nombre}</strong></td>
+            <td><strong>${esc(p.nombre)}</strong></td>
             <td>${p.cuit || '—'}</td>
             <td>${p.telefono || '—'}</td>
             <td>${p.email || '—'}</td>
