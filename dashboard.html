@@ -454,6 +454,15 @@ function _semanaActual() {
     return { lunes: fmt(lunes), domingo: fmt(domingo), lunesDate: lunes, fmt };
 }
 
+// Ventana de 7 días a partir de HOY (widget "Mis horarios"): hoy en la primera casilla
+// y los próximos 6 días; cada día avanza una casilla.
+function _rango7DesdeHoy() {
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const fin = new Date(hoy); fin.setDate(hoy.getDate() + 6);
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return { desde: fmt(hoy), hasta: fmt(fin), hoyDate: hoy, fmt };
+}
+
 async function cargarDatos() {
     // Mientras carga todo, mostrar tarjetas "skeleton" para que no se vea vacío/colgado.
     window.UI && UI.skeletonCards(document.getElementById("dash-grid"), 6);
@@ -516,8 +525,8 @@ async function cargarDatos() {
         (async () => { try { socialGruposData = (await api.get("/social/grupos")) || { grupos: [] }; } catch(e) {} })(),
         (async () => {
             try {
-                const { lunes, domingo } = _semanaActual();
-                const hp  = await api.get(`/horarios-personal?desde=${lunes}&hasta=${domingo}`);
+                const { desde, hasta } = _rango7DesdeHoy();
+                const hp  = await api.get(`/horarios-personal?desde=${desde}&hasta=${hasta}`);
                 const uid = (typeof user !== 'undefined' && user) ? user.id : null;
                 horariosSemanaData = (hp || []).filter(h => h.usuario_id == uid);
             } catch(e) {}
@@ -708,14 +717,15 @@ function buildMensajes(b) {
 
 // ── WIDGET: mis horarios de la semana (general, barra de 7 días) ──
 function buildHorariosSemana(b) {
-    const { lunesDate, fmt } = _semanaActual();
-    const dias = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+    // Desde HOY (primera casilla) y los próximos 6 días.
+    const { hoyDate, fmt } = _rango7DesdeHoy();
+    const dias = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];   // indexado por getDay()
     const byFecha = {};
     (horariosSemanaData || []).forEach(h => { byFecha[h.fecha] = h; });
-    const hoyStr = fmt(new Date());
+    const hoyStr = fmt(hoyDate);
     let celdas = "";
     for (let i = 0; i < 7; i++) {
-        const d = new Date(lunesDate); d.setDate(lunesDate.getDate() + i);
+        const d = new Date(hoyDate); d.setDate(hoyDate.getDate() + i);
         const key = fmt(d);
         const h = byFecha[key];
         const franjas = (h && Array.isArray(h.franjas)) ? h.franjas : [];
@@ -723,7 +733,7 @@ function buildHorariosSemana(b) {
             ? franjas.map(f => `<div class="hs-turno">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</div>`).join("")
             : `<div class="hs-libre">Libre</div>`;
         celdas += `<div class="hs-dia ${key === hoyStr ? 'hs-hoy' : ''}">
-            <div class="hs-dia-lbl">${dias[i]} ${d.getDate()}</div>
+            <div class="hs-dia-lbl">${dias[d.getDay()]} ${d.getDate()}</div>
             <div class="hs-turnos">${turnos}</div>
         </div>`;
     }
