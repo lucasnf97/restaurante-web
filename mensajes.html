@@ -24,6 +24,14 @@
         .tab-btn.active { background: #4f46e5; color: white; }
         .tab-badge { background: #dc2626; color: white; border-radius: 10px; font-size: 10px; font-weight: 800; padding: 1px 6px; min-width: 18px; text-align: center; }
         .tab-btn.active .tab-badge { background: rgba(255,255,255,0.3); }
+        /* Filtro por categoría (chips) */
+        .cat-filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px; }
+        .cat-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; border: 1.5px solid #e5e7eb; background: white; color: #6b7280; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all .12s; }
+        .cat-chip:hover { border-color: #c7d2fe; color: #4f46e5; }
+        .cat-chip.active { background: #4f46e5; border-color: #4f46e5; color: white; }
+        .cat-chip .cat-count { background: #dc2626; color: white; border-radius: 10px; font-size: 10px; font-weight: 800; padding: 0 6px; min-width: 16px; text-align: center; }
+        .cat-chip.active .cat-count { background: rgba(255,255,255,0.35); }
+        .msg-cat-badge { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 700; white-space: nowrap; margin-top: 4px; }
 
         /* ── Mensaje lista ── */
         .mensajes-lista { display: flex; flex-direction: column; gap: 8px; }
@@ -154,6 +162,9 @@
         </button>
     </div>
 
+    <!-- Filtro por categoría (solo en recibidos) -->
+    <div class="cat-filtros" id="cat-filtros" style="display:none;"></div>
+
     <!-- Lista -->
     <div class="mensajes-lista" id="mensajes-lista">
         <div class="loading">Cargando...</div>
@@ -240,6 +251,16 @@ let _tabActual   = "recibidos";
 let _cadena      = false;   // ver recibidos de todos mis locales
 let _misLocales  = [];
 let _mensajes    = [];
+let _catFiltro   = "todos";   // filtro por categoría del servicio de origen
+
+// Metadata de categorías (según de qué servicio parte el mensaje).
+const _CAT_INFO = {
+    horarios:   { label: "Horarios",   icono: "📅", bg: "#dbeafe", fg: "#1e40af" },
+    social:     { label: "Social",     icono: "📣", bg: "#ede9fe", fg: "#6d28d9" },
+    personal:   { label: "Personal",   icono: "👥", bg: "#f3f4f6", fg: "#4b5563" },
+    documentos: { label: "Documentos", icono: "📁", bg: "#fef3c7", fg: "#92400e" },
+};
+function _catDe(m) { return _CAT_INFO[m.categoria] ? m.categoria : "personal"; }
 let _usuariosMap = {};   // id → {id, username, rol}
 let _msgActual   = null; // mensaje abierto actualmente en el modal-ver
 
@@ -311,17 +332,63 @@ async function cargarMensajes() {
     }
 }
 
+// El filtro por categoría solo aplica en la bandeja de recibidos (propios o de cadena).
+function _mostrarFiltroCat() {
+    return _tabActual === "recibidos";
+}
+
+function renderChipsCat() {
+    const cont = document.getElementById("cat-filtros");
+    if (!cont) return;
+    if (!_mostrarFiltroCat()) { cont.style.display = "none"; return; }
+    // Contar NO leídos por categoría (para el badge del chip)
+    const noLeidos = {};
+    let totalNoLeidos = 0;
+    _mensajes.forEach(m => {
+        if (m.leido) return;
+        const c = _catDe(m);
+        noLeidos[c] = (noLeidos[c] || 0) + 1;
+        totalNoLeidos++;
+    });
+    // Categorías a mostrar: siempre Horarios/Social/Personal; Documentos solo si hay alguno.
+    const cats = ["horarios", "social", "personal"];
+    if (_mensajes.some(m => _catDe(m) === "documentos")) cats.push("documentos");
+    const chip = (key, label, icono, count) => {
+        const cnt = count ? `<span class="cat-count">${count}</span>` : "";
+        return `<button class="cat-chip ${_catFiltro === key ? "active" : ""}" onclick="filtrarCat('${key}')">${icono ? icono + " " : ""}${label}${cnt}</button>`;
+    };
+    let html = chip("todos", "Todos", "", totalNoLeidos);
+    cats.forEach(c => { const i = _CAT_INFO[c]; html += chip(c, i.label, i.icono, noLeidos[c] || 0); });
+    cont.innerHTML = html;
+    cont.style.display = "flex";
+}
+
+function filtrarCat(cat) {
+    _catFiltro = cat;
+    renderLista();
+}
+
 function renderLista() {
+    renderChipsCat();
     const lista = document.getElementById("mensajes-lista");
-    if (!_mensajes.length) {
+    // Filtrar por categoría (solo en recibidos)
+    const visibles = (_mostrarFiltroCat() && _catFiltro !== "todos")
+        ? _mensajes.filter(m => _catDe(m) === _catFiltro)
+        : _mensajes;
+
+    if (!visibles.length) {
+        const filtrando = _mostrarFiltroCat() && _catFiltro !== "todos";
         lista.innerHTML = `<div class="empty-state">
             <div class="empty-icon">${_tabActual === "recibidos" ? "📭" : "📤"}</div>
-            No tenés ${_tabActual === "recibidos" ? "mensajes recibidos" : "mensajes enviados"}
+            ${filtrando
+                ? `No tenés mensajes de ${_CAT_INFO[_catFiltro]?.label || _catFiltro}`
+                : `No tenés ${_tabActual === "recibidos" ? "mensajes recibidos" : "mensajes enviados"}`}
         </div>`;
         return;
     }
 
-    lista.innerHTML = _mensajes.map((m, i) => {
+    lista.innerHTML = visibles.map(m => {
+        const i       = _mensajes.indexOf(m);   // índice real en _mensajes (para verMensaje)
         const esCC    = _tabActual === "recibidos" && (m.asunto || "").startsWith("[CC] ");
         const noLeido = _tabActual === "recibidos" && !m.leido;
         const nombre  = _tabActual === "recibidos"
@@ -331,12 +398,19 @@ function renderLista() {
         const fecha   = _formatFecha(m.creado_en);
         const asuntoMostrar = esCC ? (m.asunto || "").slice(5) : (m.asunto || "(sin asunto)");
         const preview = (m.cuerpo || "").replace(/\n/g, " ").slice(0, 80);
+        // Badge de categoría (solo en recibidos)
+        let catBadge = "";
+        if (_tabActual === "recibidos") {
+            const ci = _CAT_INFO[_catDe(m)];
+            catBadge = `<div><span class="msg-cat-badge" style="background:${ci.bg};color:${ci.fg};">${ci.icono} ${ci.label}</span></div>`;
+        }
 
         return `<div class="msg-card ${noLeido ? "no-leido" : ""} ${esCC ? "es-cc" : ""}" onclick="verMensaje(${i})">
             <div style="min-width:0;">
                 <div class="msg-from">${prefijo}: <strong>${_esc(nombre)}</strong>${esCC ? ' <span class="badge-cc">CC</span>' : ""}${_cadena && m.restaurante ? ` <span style="background:#eef2ff;color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${_esc(m.restaurante)}</span>` : ""}</div>
                 <div class="msg-asunto">${_esc(asuntoMostrar)}</div>
                 <div class="msg-preview">${_esc(preview)}</div>
+                ${catBadge}
             </div>
             <div class="msg-meta">
                 <span class="msg-fecha">${fecha}</span>
@@ -544,6 +618,7 @@ function responderMensaje() {
 function setTab(tab) {
     _cadena = false;
     _tabActual = tab;
+    _catFiltro = "todos";   // al cambiar de bandeja, mostrar todas las categorías
     const tc = document.getElementById("tab-cadena"); if (tc) tc.classList.remove("active");
     document.getElementById("tab-recibidos").classList.toggle("active", tab === "recibidos");
     document.getElementById("tab-enviados").classList.toggle("active",  tab === "enviados");
