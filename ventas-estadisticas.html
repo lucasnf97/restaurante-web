@@ -395,7 +395,7 @@ requireAuth();
 requirePermiso('acceso_estadisticas', 'acceso_facturacion');
 
 // ── Definición de widgets ────────────────────────────────────────
-const CFG_KEY  = 'vest_cfg_v2';
+const CFG_KEY  = claveRest('vest_cfg_v2');   // por restaurante
 // (El "Mapa de Calor — Mesas" se movió a historicos.html, junto al análisis de
 //  ticket promedio y tiempo en mesa. cargarCfg ya filtra la key vieja del localStorage.)
 const WGT_DEFS = [
@@ -428,7 +428,7 @@ const barState = {
 let demData    = null;
 let demFiltros = { cat:'', estado:'', soloActivos:true, conDatos:false };
 let demSort    = { col:'unid_actual', dir:'desc' };
-const DEM_UMB_KEY = 'vest_dem_umbrales_v1';
+const DEM_UMB_KEY = claveRest('vest_dem_umbrales_v1');   // por restaurante
 function cargarUmbrales() {
     try { return JSON.parse(localStorage.getItem(DEM_UMB_KEY)||'null') || {alta:25,baja:-20,caida:-40}; }
     catch { return {alta:25,baja:-20,caida:-40}; }

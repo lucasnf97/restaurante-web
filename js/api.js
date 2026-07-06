@@ -22,8 +22,39 @@ function getToken() {
     return localStorage.getItem("token");
 }
 
+// Identidad del contexto del token: esquema del restaurante (claim "schema") o, para
+// tokens sin esquema (superadmin / gerente_cadena / empleado), el rol.
+function _ctxDeToken(token) {
+    try {
+        const p = JSON.parse(atob(String(token).split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+        return p.schema || p.rol || "anon";
+    } catch { return "anon"; }
+}
+
+// Caches de datos POR RESTAURANTE guardadas con clave global: al cambiar de restaurante
+// en el mismo navegador (login / entrar como admin / entrar desde cadena) hay que
+// purgarlas o se muestra la moneda/marca/config del restaurante anterior.
+const _CACHES_POR_RESTAURANTE = ["sistema_moneda", "moneda_simbolo", "navbar_marca", "edit_mode"];
+
 function setToken(token) {
+    const ctx = _ctxDeToken(token);
+    if (localStorage.getItem("ctx_rest") !== ctx) {
+        _CACHES_POR_RESTAURANTE.forEach(k => localStorage.removeItem(k));
+        localStorage.setItem("ctx_rest", ctx);
+    }
     localStorage.setItem("token", token);
+}
+
+// Clave de localStorage con ámbito por restaurante (para preferencias locales que son
+// propias de cada restaurante: metas, umbrales, plantillas de horarios, etc.).
+function claveRest(base) {
+    return base + "::" + (localStorage.getItem("ctx_rest") || "anon");
+}
+window.claveRest = claveRest;
+
+// Sesiones existentes (de antes de este cambio): fijar el contexto sin purgar.
+if (!localStorage.getItem("ctx_rest") && localStorage.getItem("token")) {
+    localStorage.setItem("ctx_rest", _ctxDeToken(localStorage.getItem("token")));
 }
 
 function getUser() {

@@ -1355,8 +1355,9 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 requireAuth();
 requirePermiso('acceso_configuracion');
 
-const CFG_REST_KEY  = 'restaurante_cfg';
-const CFG_LEGAL_KEY = 'legal_cfg';
+// Restaurante/Legal viven en el SERVIDOR (sistema_config, per-restaurante) vía
+// PUT /config/negocio. Antes se guardaban solo en localStorage con clave global y se
+// "compartían" entre restaurantes abiertos en el mismo navegador.
 const EDIT_MODE_KEY = 'edit_mode';
 
 // Coalescing de /config/sistema: las cargas concurrentes al abrir la página
@@ -1552,23 +1553,18 @@ function _currentUser() {
 }
 
 // ── Carga inicial de datos ──────────────────────────────────
-function cargarDatos() {
-    // Restaurante
+async function cargarDatos() {
+    // Restaurante + Legal: del servidor (per-restaurante)
     try {
-        const r = JSON.parse(localStorage.getItem(CFG_REST_KEY) || '{}');
-        if (r.nombre) document.getElementById('r-nombre').value = r.nombre;
-        if (r.logo)   setLogoPreview(r.logo);
-    } catch {}
-
-    // Legal
-    try {
-        const l = JSON.parse(localStorage.getItem(CFG_LEGAL_KEY) || '{}');
-        if (l.razon)      document.getElementById('l-razon').value      = l.razon;
-        if (l.cuit)       document.getElementById('l-cuit').value       = l.cuit;
-        if (l.dirLegal)   document.getElementById('l-dir-legal').value  = l.dirLegal;
-        if (l.dirFactura) document.getElementById('l-dir-factura').value = l.dirFactura;
-        if (l.telefono)   document.getElementById('l-telefono').value   = l.telefono;
-        if (l.email)      document.getElementById('l-email').value      = l.email;
+        const cfg = await getCfg();
+        document.getElementById('r-nombre').value = cfg.neg_nombre || '';
+        if (cfg.neg_logo_url) setLogoPreview(cfg.neg_logo_url);
+        document.getElementById('l-razon').value       = cfg.legal_razon || '';
+        document.getElementById('l-cuit').value        = cfg.legal_cuit || '';
+        document.getElementById('l-dir-legal').value   = cfg.legal_dir_legal || '';
+        document.getElementById('l-dir-factura').value = cfg.legal_dir_factura || '';
+        document.getElementById('l-telefono').value    = cfg.legal_telefono || '';
+        document.getElementById('l-email').value       = cfg.legal_email || '';
     } catch {}
 
     // Modo edición
@@ -1582,20 +1578,34 @@ function cargarDatos() {
 }
 
 // ── Guardar Restaurante ─────────────────────────────────────
-function guardarRestaurante() {
-    const logo = document.getElementById('logo-preview').dataset.logo || null;
-    const data = {
-        nombre: document.getElementById('r-nombre').value.trim(),
-        logo,
-    };
-    localStorage.setItem(CFG_REST_KEY, JSON.stringify(data));
-    mostrarOk('ok-restaurante');
+let _logoFilePend = null;    // archivo elegido pendiente de subir (al guardar)
+let _logoQuitar   = false;   // el usuario quitó el logo (al guardar se borra del server)
+
+async function guardarRestaurante() {
+    try {
+        await apiFetch('/config/negocio', { method: 'PUT', body: JSON.stringify({
+            neg_nombre: document.getElementById('r-nombre').value.trim(),
+        }) });
+        if (_logoFilePend) {
+            const fd = new FormData();
+            fd.append('file', _logoFilePend);
+            await apiFetch('/config/logo', { method: 'POST', body: fd });
+            _logoFilePend = null; _logoQuitar = false;
+        } else if (_logoQuitar) {
+            await apiFetch('/config/negocio', { method: 'PUT', body: JSON.stringify({ neg_logo_url: '' }) });
+            _logoQuitar = false;
+        }
+        localStorage.removeItem('navbar_marca');   // que la navbar refresque la marca nueva
+        mostrarOk('ok-restaurante');
+    } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
 }
 
 // ── Logo ────────────────────────────────────────────────────
 function previsualizarLogo(input) {
     const file = input.files[0];
     if (!file) return;
+    _logoFilePend = file;      // se sube al servidor al tocar Guardar
+    _logoQuitar = false;
     const reader = new FileReader();
     reader.onload = e => setLogoPreview(e.target.result);
     reader.readAsDataURL(file);
@@ -1614,20 +1624,24 @@ function eliminarLogo() {
     delete preview.dataset.logo;
     document.getElementById('logo-file').value = '';
     document.getElementById('btn-remove-logo').classList.remove('visible');
+    _logoFilePend = null;
+    _logoQuitar = true;        // se borra del servidor al tocar Guardar
 }
 
 // ── Guardar Legal ───────────────────────────────────────────
-function guardarLegal() {
+async function guardarLegal() {
     const data = {
-        razon:      document.getElementById('l-razon').value.trim(),
-        cuit:       document.getElementById('l-cuit').value.trim(),
-        dirLegal:   document.getElementById('l-dir-legal').value.trim(),
-        dirFactura: document.getElementById('l-dir-factura').value.trim(),
-        telefono:   document.getElementById('l-telefono').value.trim(),
-        email:      document.getElementById('l-email').value.trim(),
+        legal_razon:       document.getElementById('l-razon').value.trim(),
+        legal_cuit:        document.getElementById('l-cuit').value.trim(),
+        legal_dir_legal:   document.getElementById('l-dir-legal').value.trim(),
+        legal_dir_factura: document.getElementById('l-dir-factura').value.trim(),
+        legal_telefono:    document.getElementById('l-telefono').value.trim(),
+        legal_email:       document.getElementById('l-email').value.trim(),
     };
-    localStorage.setItem(CFG_LEGAL_KEY, JSON.stringify(data));
-    mostrarOk('ok-legal');
+    try {
+        await apiFetch('/config/negocio', { method: 'PUT', body: JSON.stringify(data) });
+        mostrarOk('ok-legal');
+    } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
 }
 
 // ── Modo Edición ────────────────────────────────────────────
@@ -1732,12 +1746,17 @@ function desactivarEdicion() {
 }
 
 // ── Base de datos ───────────────────────────────────────────
-function descargarBackup() {
-    const keys = [CFG_REST_KEY, CFG_LEGAL_KEY];
-    const backup = { version: 1, fecha: new Date().toISOString(), datos: {} };
-    keys.forEach(k => {
-        try { backup.datos[k] = JSON.parse(localStorage.getItem(k) || 'null'); } catch {}
-    });
+const _CAMPOS_NEGOCIO = ['neg_nombre', 'neg_direccion', 'neg_cuit', 'neg_telefono', 'neg_logo_url',
+                         'legal_razon', 'legal_cuit', 'legal_dir_legal', 'legal_dir_factura',
+                         'legal_telefono', 'legal_email'];
+
+async function descargarBackup() {
+    let datos = {};
+    try {
+        const cfg = await getCfg();
+        _CAMPOS_NEGOCIO.forEach(k => { datos[k] = cfg[k] || null; });
+    } catch (e) { alert('No se pudo leer la configuración del servidor.'); return; }
+    const backup = { version: 2, fecha: new Date().toISOString(), datos };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -1758,18 +1777,31 @@ function restaurarBackup() {
     if (!confirm('⚠️ Esto reemplazará la configuración actual. ¿Continuás?')) return;
 
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async e => {
         try {
             const backup = JSON.parse(e.target.result);
             if (!backup.datos) throw new Error('Formato inválido');
-            Object.entries(backup.datos).forEach(([k, v]) => {
-                if (v !== null) localStorage.setItem(k, JSON.stringify(v));
-                else localStorage.removeItem(k);
-            });
-            alert('✓ Configuración restaurada correctamente.');
+            let datos = backup.datos;
+            // Backups v1 (legacy, localStorage): mapear restaurante_cfg/legal_cfg
+            if (datos.restaurante_cfg !== undefined || datos.legal_cfg !== undefined) {
+                const r = datos.restaurante_cfg || {}, l = datos.legal_cfg || {};
+                datos = {
+                    neg_nombre:        r.nombre || '',
+                    legal_razon:       l.razon || '',
+                    legal_cuit:        l.cuit || '',
+                    legal_dir_legal:   l.dirLegal || '',
+                    legal_dir_factura: l.dirFactura || '',
+                    legal_telefono:    l.telefono || '',
+                    legal_email:       l.email || '',
+                };
+            }
+            const body = {};
+            _CAMPOS_NEGOCIO.forEach(k => { if (k in datos) body[k] = datos[k] || ''; });
+            await apiFetch('/config/negocio', { method: 'PUT', body: JSON.stringify(body) });
+            alert('✓ Configuración restaurada en ESTE restaurante.');
             cargarDatos();
-        } catch {
-            alert('El archivo no es válido o está corrupto.');
+        } catch (err) {
+            alert('No se pudo restaurar: ' + (err.message || 'archivo inválido'));
         }
     };
     reader.readAsText(input.files[0]);
