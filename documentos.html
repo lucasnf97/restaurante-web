@@ -74,6 +74,27 @@
         .btn-sec { padding: 9px 16px; border: 1px solid #d1d5db; background: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; }
         .grp-chip-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: #fff; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.05); margin-bottom: 8px; }
         .grp-chip-row .gn { flex: 1; font-size: 14px; font-weight: 600; color: #1f2937; }
+
+        /* Capacitaciones */
+        .cap-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 16px 18px; margin-bottom: 12px; border-left: 4px solid transparent; }
+        .cap-card.pendiente { border-left-color: #f59e0b; background: #fffdf6; }
+        .cap-card.firmada { border-left-color: #16a34a; }
+        .cap-tit { font-size: 15px; font-weight: 800; color: #1a1a2e; }
+        .cap-desc { font-size: 13px; color: #6b7280; margin-top: 4px; white-space: pre-wrap; }
+        .cap-meta { font-size: 12px; color: #9ca3af; margin-top: 6px; }
+        .cap-acciones { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+        .cap-chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 5px 13px; font-size: 12.5px; font-weight: 700; }
+        .cap-chip.ok { background: #dcfce7; color: #166534; }
+        .cap-chip.pend { background: #fef3c7; color: #92400e; }
+        .btn-firmar { background: #16a34a; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 800; cursor: pointer; }
+        .btn-firmar:hover { background: #15803d; }
+        .cap-dest-lista { margin-top: 10px; border-top: 1px dashed #e5e7eb; padding-top: 8px; display: none; }
+        .cap-dest-lista.open { display: block; }
+        .cap-dest-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; padding: 4px 0; }
+        .cap-dest-row .quien { flex: 1; font-weight: 600; }
+        .cap-toggle { background: none; border: none; color: #4f46e5; font-size: 12.5px; font-weight: 700; cursor: pointer; padding: 0; }
+        .modal textarea.txt { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; font-size: 14px; font-family: inherit; min-height: 70px; resize: vertical; }
+        .firma-aviso { background: #fef9c3; border: 1px solid #fde68a; color: #713f12; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -102,6 +123,45 @@
             <button class="btn-primary btn" onclick="guardarGrupo()">Guardar</button>
             <button class="btn-sec" onclick="cerrarModal('modal-grupo')">Cancelar</button>
             <button class="btn-del" id="grupo-del" style="display:none" onclick="eliminarGrupo()">🗑 Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva capacitación -->
+<div class="modal-ov" id="modal-cap">
+    <div class="modal">
+        <h3>🎓 Nueva capacitación</h3>
+        <label class="lbl">Título</label>
+        <input type="text" class="txt" id="cap-titulo" placeholder="Ej: Manipulación de alimentos" maxlength="200">
+        <label class="lbl">Descripción (opcional)</label>
+        <textarea class="txt" id="cap-desc" placeholder="Indicaciones para el personal…"></textarea>
+        <label class="lbl">Documento</label>
+        <input type="file" id="cap-file" style="font-size:13px;">
+        <label class="lbl">Destinatarios — quién debe firmarla</label>
+        <div class="checks" id="cap-dest"></div>
+        <div class="modal-acc">
+            <button class="btn-primary btn" id="cap-guardar" onclick="guardarCap()">Crear capacitación</button>
+            <button class="btn-sec" onclick="cerrarModal('modal-cap')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Firmar recepción y lectura -->
+<div class="modal-ov" id="modal-firmar">
+    <div class="modal" style="width:420px;">
+        <h3>✍️ Firmar recepción y lectura</h3>
+        <div style="font-size:14px;color:#374151;font-weight:700;" id="firma-titulo">—</div>
+        <div class="firma-aviso">Al firmar declarás que <b>recibiste y leíste</b> el documento de esta
+            capacitación. Se generará un comprobante con fecha y hora en tu carpeta <b>Personal</b>.</div>
+        <label class="lbl">Usuario</label>
+        <input type="text" class="txt" id="firma-user" disabled>
+        <label class="lbl">Contraseña</label>
+        <input type="password" class="txt" id="firma-pass" placeholder="Tu contraseña"
+               onkeydown="if(event.key==='Enter')firmarCap()">
+        <div class="err" id="firma-err" style="color:#dc2626;font-size:12px;min-height:16px;margin-top:8px;"></div>
+        <div class="modal-acc">
+            <button class="btn-firmar" id="firma-btn" onclick="firmarCap()">✍️ Firmar</button>
+            <button class="btn-sec" onclick="cerrarModal('modal-firmar')">Cancelar</button>
         </div>
     </div>
 </div>
@@ -145,7 +205,8 @@ function _icono(a) {
 function renderTabs() {
     // El empleado (sin restaurante) solo ve la categoría General (cadena); grupos/personal son por local.
     const cats = _emp ? [['general','📂 General']]
-                      : [['general','📂 General'], ['grupos','👥 Grupos'], ['personal','🔒 Personal']];
+                      : [['general','📂 General'], ['grupos','👥 Grupos'],
+                         ['capacitaciones','🎓 Capacitaciones'], ['personal','🔒 Personal']];
     document.getElementById('cat-tabs').innerHTML = cats.map(([c, l]) =>
         `<div class="cat-tab ${_cat === c ? 'active' : ''}" onclick="seleccionarCat('${c}')">${l}</div>`).join('');
 }
@@ -157,6 +218,8 @@ function seleccionarCat(cat) {
         cargarContenido(null);
     } else if (cat === 'grupos') {
         cargarGrupos();
+    } else if (cat === 'capacitaciones') {
+        cargarCapacitaciones();
     } else { // personal
         if (canEdit) { cargarUsuariosPersonal(); }
         else if (_personalDesbloqueado) { cargarContenido(null); }
@@ -406,6 +469,155 @@ async function eliminarArchivo(id) {
     if (!confirm('¿Eliminar este archivo?')) return;
     const url = _cat === 'general' ? `/documentos/cadena/archivos/${id}` : `/documentos/archivos/${id}`;
     try { await apiFetch(url, { method: 'DELETE' }); cargarContenido(_carpetaId); }
+    catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+
+// ── Capacitaciones ───────────────────────────────────────────
+let _caps = [], _capsPuedeEditar = false, _capFirmaId = null;
+
+function fmtFechaHora(ts) {
+    if (!ts) return '';
+    const d = new Date(ts), p = n => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+async function cargarCapacitaciones() {
+    const body = document.getElementById('doc-body');
+    body.innerHTML = '<div class="doc-empty">Cargando…</div>';
+    try {
+        const r = await api.get('/documentos/capacitaciones');
+        _caps = r.capacitaciones || [];
+        _capsPuedeEditar = !!r.puede_editar;
+    } catch (e) { body.innerHTML = '<div class="doc-empty">No se pudo cargar.</div>'; return; }
+    renderCapacitaciones();
+}
+
+function renderCapacitaciones() {
+    const body = document.getElementById('doc-body');
+    let html = '';
+    if (_capsPuedeEditar) {
+        html += `<div class="doc-toolbar"><span class="doc-bread"><span class="cur">Capacitaciones</span></span>
+            <button class="btn-primary btn" onclick="abrirCapModal()">🎓 Nueva capacitación</button></div>`;
+    } else {
+        html += '<div class="doc-sec-title">Tus capacitaciones — firmá la recepción y lectura de las pendientes</div>';
+    }
+    if (!_caps.length) {
+        html += `<div class="doc-empty">${_capsPuedeEditar
+            ? 'Todavía no hay capacitaciones. Creá una con “🎓 Nueva capacitación”.'
+            : 'No tenés capacitaciones asignadas.'}</div>`;
+        body.innerHTML = html;
+        return;
+    }
+    html += _caps.map(c => {
+        const pendienteMia = c.soy_destinatario && !c.mi_firmado_en;
+        const clase = pendienteMia ? 'pendiente' : (c.soy_destinatario && c.mi_firmado_en ? 'firmada' : '');
+        const verDoc = `<a class="dl" href="${esc(c.url)}" target="_blank" rel="noopener">📄 ${c.resource_type === 'image' ? 'Ver' : 'Abrir'} documento</a>`;
+        let estado = '';
+        if (c.soy_destinatario) {
+            estado = c.mi_firmado_en
+                ? `<span class="cap-chip ok">✓ Firmada el ${fmtFechaHora(c.mi_firmado_en)}</span>` +
+                  (c.mi_comprobante_url ? ` <a class="dl" href="${esc(c.mi_comprobante_url)}" target="_blank" rel="noopener">Ver comprobante</a>` : '')
+                : `<button class="btn-firmar" onclick="abrirFirma(${c.id})">✍️ Firmar recepción y lectura</button>`;
+        }
+        // Panel del editor: progreso + listado de destinatarios con estado
+        let editorHtml = '';
+        if (_capsPuedeEditar) {
+            const dest = c.destinatarios || [];
+            const firmados = dest.filter(d => d.firmado_en).length;
+            editorHtml = `
+                <span class="cap-chip ${firmados === dest.length ? 'ok' : 'pend'}">${firmados}/${dest.length} firmaron</span>
+                <button class="cap-toggle" onclick="document.getElementById('cap-dest-${c.id}').classList.toggle('open')">▾ Destinatarios</button>
+                <button class="del" onclick="eliminarCap(${c.id}, '${esc(c.titulo).replace(/'/g,'')}')">🗑</button>`;
+        }
+        const destLista = _capsPuedeEditar ? `<div class="cap-dest-lista" id="cap-dest-${c.id}">` +
+            (c.destinatarios || []).map(d => `<div class="cap-dest-row">
+                <span class="quien">${esc(d.username)}</span>
+                ${d.firmado_en
+                    ? `<span class="cap-chip ok">✓ ${fmtFechaHora(d.firmado_en)}</span>` +
+                      (d.comprobante_url ? ` <a class="dl" href="${esc(d.comprobante_url)}" target="_blank" rel="noopener">Comprobante</a>` : '')
+                    : '<span class="cap-chip pend">⏳ Pendiente</span>'}
+            </div>`).join('') + '</div>' : '';
+        return `<div class="cap-card ${clase}">
+            <div class="cap-tit">🎓 ${esc(c.titulo)}</div>
+            ${c.descripcion ? `<div class="cap-desc">${esc(c.descripcion)}</div>` : ''}
+            <div class="cap-meta">${esc(c.nombre_archivo || '')} · ${fmtFecha(c.creado_en)}${c.creador ? ` · por ${esc(c.creador)}` : ''}</div>
+            <div class="cap-acciones">${verDoc}${estado}${editorHtml}</div>
+            ${destLista}
+        </div>`;
+    }).join('');
+    body.innerHTML = html;
+}
+
+async function abrirCapModal() {
+    await _cargarRolesUsuarios();
+    document.getElementById('cap-titulo').value = '';
+    document.getElementById('cap-desc').value = '';
+    document.getElementById('cap-file').value = '';
+    document.getElementById('cap-dest').innerHTML = _usuariosDisp.map(u =>
+        `<label class="check-row"><input type="checkbox" value="${u.id}"> ${esc(u.username)} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`
+    ).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
+    document.getElementById('modal-cap').classList.add('open');
+}
+
+async function guardarCap() {
+    const titulo = document.getElementById('cap-titulo').value.trim();
+    const file = document.getElementById('cap-file').files[0];
+    const dest = [...document.querySelectorAll('#cap-dest input:checked')].map(c => Number(c.value));
+    if (!titulo) { alert('Poné un título.'); return; }
+    if (!file) { alert('Adjuntá el documento de la capacitación.'); return; }
+    if (!dest.length) { alert('Elegí al menos un destinatario.'); return; }
+    const btn = document.getElementById('cap-guardar');
+    btn.disabled = true; btn.textContent = 'Creando…';
+    try {
+        const fd = new FormData();
+        fd.append('titulo', titulo);
+        fd.append('descripcion', document.getElementById('cap-desc').value.trim());
+        fd.append('destinatarios', JSON.stringify(dest));
+        fd.append('file', file);
+        await apiFetch('/documentos/capacitaciones', { method: 'POST', body: fd });
+        cerrarModal('modal-cap');
+        cargarCapacitaciones();
+    } catch (e) { alert('No se pudo crear: ' + (e.message || e)); }
+    finally { btn.disabled = false; btn.textContent = 'Crear capacitación'; }
+}
+
+function abrirFirma(id) {
+    const c = _caps.find(x => x.id === id);
+    if (!c) return;
+    _capFirmaId = id;
+    document.getElementById('firma-titulo').textContent = `🎓 ${c.titulo}`;
+    document.getElementById('firma-user').value = _user.username || '';
+    document.getElementById('firma-pass').value = '';
+    document.getElementById('firma-err').textContent = '';
+    document.getElementById('modal-firmar').classList.add('open');
+    setTimeout(() => document.getElementById('firma-pass').focus(), 60);
+}
+
+async function firmarCap() {
+    const pass = document.getElementById('firma-pass').value;
+    const err = document.getElementById('firma-err');
+    if (!pass) { err.textContent = 'Ingresá tu contraseña.'; return; }
+    const btn = document.getElementById('firma-btn');
+    btn.disabled = true; btn.textContent = 'Firmando…';
+    // Hora LOCAL del cliente para el comprobante (el server corre en UTC).
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    const fechaLocal = `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    try {
+        const r = await apiFetch(`/documentos/capacitaciones/${_capFirmaId}/firmar`, {
+            method: 'POST',
+            body: JSON.stringify({ password: pass, fecha_local: fechaLocal }),
+        });
+        cerrarModal('modal-firmar');
+        alert(r.mensaje || 'Firma registrada ✓ — el comprobante quedó en tu carpeta Personal.');
+        cargarCapacitaciones();
+    } catch (e) {
+        err.textContent = /401|contraseña/i.test(String(e.message || e)) ? 'Contraseña incorrecta.' : (e.message || 'Error al firmar.');
+    } finally { btn.disabled = false; btn.textContent = '✍️ Firmar'; }
+}
+
+async function eliminarCap(id, titulo) {
+    if (!confirm(`¿Eliminar la capacitación "${titulo}"?\nLos comprobantes ya firmados quedan en las carpetas personales.`)) return;
+    try { await apiFetch(`/documentos/capacitaciones/${id}`, { method: 'DELETE' }); cargarCapacitaciones(); }
     catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
 }
 
