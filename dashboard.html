@@ -524,7 +524,7 @@ async function cargarDatos() {
             } catch(e) {}
         })(),
         (async () => { try { ventasHistData = await api.get("/reportes/ventas-diarias"); } catch(e) {} })(),
-        (async () => { try { mensajesData = (await api.get("/mensajes/recibidos")) || []; } catch(e) {} })(),
+        (async () => { try { mensajesData = ((await api.get("/mensajes/recibidos")) || []).filter(m => !m.archivado); } catch(e) {} })(),
         (async () => { try { socialData = (await api.get("/social/feed?limit=6")) || []; } catch(e) {} })(),
         (async () => { try { socialGruposData = (await api.get("/social/grupos")) || { grupos: [] }; } catch(e) {} })(),
         (async () => {
