@@ -237,7 +237,11 @@ async function apiFetch(endpoint, options = {}) {
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
-                throw new Error(err.detail || "Error en la API");
+                // detail puede ser un array/objeto (422 de FastAPI) → legible, no "[object Object]"
+                let msg = err.detail;
+                if (Array.isArray(msg)) msg = msg.map(x => (x && x.msg) || JSON.stringify(x)).join(" · ");
+                else if (msg && typeof msg === "object") msg = JSON.stringify(msg);
+                throw new Error(msg || "Error en la API");
             }
 
             if (res.status === 204) return null;

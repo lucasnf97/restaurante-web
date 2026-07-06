@@ -446,12 +446,16 @@ async function eliminarCarpeta(id, nombre) {
 }
 async function onFileSel(files) {
     if (!files || !files.length) return;
+    // Capturar el File ANTES de resetear el input: el FileList es VIVO en Chrome —
+    // al limpiar el value, files[0] pasa a undefined y el backend recibía el string
+    // "undefined" (422). Roto desde bab6d35 (2026-06-29).
+    const file = files[0];
     document.getElementById('file-input').value = '';
     try {
         if (_cat === 'general') {
             const fd = new FormData();
             if (_carpetaId) fd.append('parent_id', String(_carpetaId));
-            fd.append('file', files[0]);
+            fd.append('file', file);
             await apiFetch('/documentos/cadena/archivos', { method: 'POST', body: fd });
         } else {
             const fd = new FormData();
@@ -459,7 +463,7 @@ async function onFileSel(files) {
             if (_cat === 'grupos' && _grupoSel) fd.append('grupo_id', String(_grupoSel));
             if (_cat === 'personal' && _usuarioSel) fd.append('usuario_id', String(_usuarioSel));
             if (_carpetaId) fd.append('carpeta_id', String(_carpetaId));
-            fd.append('file', files[0]);
+            fd.append('file', file);
             await apiFetch('/documentos/archivos', { method: 'POST', body: fd });
         }
         cargarContenido(_carpetaId);
