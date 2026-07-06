@@ -826,12 +826,13 @@ function renderCalor() {
     }
 
     const mapa = {};
-    let maxTotal = 0, maxDur = 0;
+    let maxTotal = 0, maxDur = 0, maxEsp = 0;
     hmData.forEach(c => {
         if (!mapa[c.dia]) mapa[c.dia] = {};
         mapa[c.dia][c.hora] = c;
         if (c.total > maxTotal) maxTotal = c.total;
         if ((c.dur_prom || 0) > maxDur) maxDur = c.dur_prom;
+        if ((c.espera_prom || 0) > maxEsp) maxEsp = c.espera_prom;
     });
     // Solo horas con actividad en algún día del período (las horas en que el restaurante
     // está cerrado no aparecen). Los saltos (p.ej. cierre de tarde) se marcan con ⋯.
@@ -854,17 +855,22 @@ function renderCalor() {
                 if (modo === 'cierres') {
                     ratio = maxTotal > 0 ? c.total / maxTotal : 0;
                     label = c.total;
+                } else if (modo === 'espera') {
+                    ratio = (c.espera_prom && maxEsp > 0) ? c.espera_prom / maxEsp : 0;
+                    label = c.espera_prom != null ? `${Math.round(c.espera_prom)}′` : '·';
                 } else {
                     ratio = (c.dur_prom && maxDur > 0) ? c.dur_prom / maxDur : 0;
                     label = c.dur_prom != null ? `${Math.round(c.dur_prom)}′` : '·';
                 }
                 const { bg, text } = _hmColor(ratio, modo === 'tiempo');
                 const sel = hmSel.has(`${dia}-${hora}`) ? ' hm-sel' : '';
+                const sinDato = (modo === 'tiempo' && c.dur_prom == null) || (modo === 'espera' && c.espera_prom == null);
                 const title = `${HM_DIAS[dia]} ${String(hora).padStart(2,'0')}:00\n`
                     + `${c.total} cierre${c.total!==1?'s':''} · Ticket prom: ${fmt(c.ticket_prom)}\n`
-                    + `Tiempo prom en mesa: ${fmtDur(c.dur_prom)}`;
+                    + `Tiempo prom en mesa: ${fmtDur(c.dur_prom)}\n`
+                    + `Espera cocina: ${c.espera_prom != null ? `prom ${fmtDur(c.espera_prom)} · máx ${fmtDur(c.espera_max)} (${c.n_esp} órd.)` : 'sin datos'}`;
                 h += `<div class="hm-cell${sel}" data-cel="${dia}-${hora}"
-                           style="background:${bg};color:${c.dur_prom == null && modo==='tiempo' ? '#c4c4cc' : text};"
+                           style="background:${bg};color:${sinDato ? '#c4c4cc' : text};"
                            title="${title}" onclick="hmToggleCel(${dia},${hora})">${label}</div>`;
             }
         });
@@ -884,6 +890,12 @@ function renderCalor() {
             ${grid('tiempo')}
             <div class="hm-legend"><span>Menos</span><div class="hm-legend-bar hm-legend-bar-azul"></div><span>Más</span>
                 <span style="margin-left:10px;">Máx: ${fmtDur(maxDur || null)}</span></div>
+        </div>
+        <div class="hm-mapa">
+            <div class="hm-mapa-titulo">🍳 Espera en cocina (minutos promedio)</div>
+            ${grid('espera')}
+            <div class="hm-legend"><span>Menos</span><div class="hm-legend-bar"></div><span>Más</span>
+                <span style="margin-left:10px;">Máx prom: ${fmtDur(maxEsp || null)}</span></div>
         </div>
         <div class="hm-panel" id="hm-panel"></div>
     </div>`;
@@ -918,6 +930,10 @@ function renderPanelCalor() {
     const sumDur    = celdas.reduce((a,c) => a + (c.dur_prom || 0) * (c.n_dur || 0), 0);
     const ticketProm = cierres > 0 ? facturado / cierres : 0;
     const durProm    = nDur > 0 ? sumDur / nDur : null;
+    const nEsp      = celdas.reduce((a,c) => a + (c.n_esp || 0), 0);
+    const sumEsp    = celdas.reduce((a,c) => a + (c.espera_prom || 0) * (c.n_esp || 0), 0);
+    const espProm   = nEsp > 0 ? sumEsp / nEsp : null;
+    const espMax    = celdas.reduce((a,c) => Math.max(a, c.espera_max || 0), 0) || null;
 
     const celLbl = c => `${HM_DIAS[c.dia]} ${String(c.hora).padStart(2,'0')}h`;
 
@@ -936,6 +952,12 @@ function renderPanelCalor() {
             <div class="hm-destacado">💰 Mejor ticket: <b>${celLbl(mejorTicket)}</b> (${fmt(mejorTicket.ticket_prom)} prom)</div>
             ${masLenta ? `<div class="hm-destacado">🐢 Sobremesa más larga: <b>${celLbl(masLenta)}</b> (${fmtDur(masLenta.dur_prom)})</div>` : ''}
             ${masRapida ? `<div class="hm-destacado">⚡ Rotación más rápida: <b>${celLbl(masRapida)}</b> (${fmtDur(masRapida.dur_prom)})</div>` : ''}
+            ${(() => {
+                const conEsp = celdas.filter(c => c.espera_prom != null && (c.n_esp || 0) >= 3);
+                if (!conEsp.length) return '';
+                const peor = [...conEsp].sort((a,b) => b.espera_prom - a.espera_prom)[0];
+                return `<div class="hm-destacado">🍳 Cocina más exigida: <b>${celLbl(peor)}</b> (${fmtDur(peor.espera_prom)} prom · máx ${fmtDur(peor.espera_max)})</div>`;
+            })()}
         </div>`;
     }
 
@@ -958,6 +980,9 @@ function renderPanelCalor() {
             <div class="hm-stat"><div class="hm-stat-lbl">Tiempo en mesa</div>
                 <div class="hm-stat-val">${fmtDur(durProm)}</div>
                 <div class="hm-stat-det">${nDur ? `promedio de ${nDur} mesa${nDur!==1?'s':''}` : 'sin datos de duración'}</div></div>
+            <div class="hm-stat"><div class="hm-stat-lbl">🍳 Espera en cocina</div>
+                <div class="hm-stat-val">${fmtDur(espProm)}</div>
+                <div class="hm-stat-det">${nEsp ? `prom de ${nEsp} órden${nEsp!==1?'es':''} · máx ${fmtDur(espMax)}` : 'sin datos de cocina'}</div></div>
         </div>
         ${destacados}`;
 }
