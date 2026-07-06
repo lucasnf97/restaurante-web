@@ -148,7 +148,7 @@
         <span style="font-size:20px;">🕐</span>
         <h1>Horarios de la cadena</h1>
         <span class="who" id="who"></span>
-        <button onclick="window.location.href='cadena.html'">← Volver</button>
+        <button id="btn-nav-volver" onclick="window.location.href='cadena.html'">← Volver</button>
         <button onclick="logout()">Salir</button>
     </div>
 
@@ -232,6 +232,26 @@
 
     <script src="js/api.js"></script>
     <script>
+    // Menú lateral (hamburguesa + acceso al panel): para usuarios de restaurante
+    // y empleados de cadena. sidebar.js se engancha a <nav class="navbar">, así
+    // que convertimos el div — EXCEPTO para el gerente de cadena, cuya vista
+    // conserva su navbar propia ("← Volver" a cadena.html) sin menú lateral.
+    (function () {
+        const u = JSON.parse(localStorage.getItem('user') || 'null');
+        if (u && u.rol === 'gerente_cadena') return;
+        const div = document.querySelector('div.navbar');
+        if (!div) return;
+        const nav = document.createElement('nav');
+        nav.className = div.className;
+        while (div.firstChild) nav.appendChild(div.firstChild);
+        div.replaceWith(nav);
+        // Fuera del contexto cadena, "← Volver" va al panel (no a cadena.html).
+        const volver = document.getElementById('btn-nav-volver');
+        if (volver) volver.setAttribute('onclick', "window.location.href='dashboard.html'");
+    })();
+    </script>
+    <script src="js/sidebar.js"></script>
+    <script>
     requireAuth();
     const _user = getUser() || {};
     document.getElementById('who').textContent = _user.nombre || _user.username || '';
@@ -256,7 +276,7 @@
     function _applyRO(){
         if(!_RO) return;
         const h1 = document.querySelector('.navbar h1'); if (h1) h1.textContent = 'Mis horarios';
-        const volver = document.querySelector('.navbar button'); if (volver) volver.setAttribute('onclick', "window.location.href='dashboard.html'");
+        const volver = document.getElementById('btn-nav-volver'); if (volver) volver.setAttribute('onclick', "window.location.href='dashboard.html'");
         const pub = document.querySelector('.btn-pub'); if (pub) pub.style.display = 'none';
         const tb = document.getElementById('templates-bar'); if (tb) tb.style.display = 'none';
         document.body.classList.add('solo-vista');

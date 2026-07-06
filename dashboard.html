@@ -152,6 +152,8 @@ body.config-open .block-drag { display:inline; }
 .hs-dia-lbl { font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.4px; text-align:center; }
 .hs-turnos { display:flex; flex-direction:column; gap:4px; align-items:center; }
 .hs-turno { font-size:12px; font-weight:700; color:#3730a3; background:#e0e7ff; border-radius:6px; padding:3px 6px; white-space:nowrap; }
+.hs-fichado { font-size:11px; font-weight:700; color:#166534; background:#dcfce7; border-radius:6px; padding:2px 6px; white-space:nowrap; margin-top:2px; }
+.hs-fichado-extra { color:#92400e; background:#fef3c7; }
 .hs-libre { font-size:11px; color:#cbd0d8; }
 @media (max-width:720px) { .hs-grid { grid-template-columns:repeat(7,minmax(64px,1fr)); overflow-x:auto; } }
 
@@ -440,6 +442,7 @@ let resPag         = 0;
 let _monedaSim     = simboloMoneda();
 let mensajesData       = [];   // últimos mensajes recibidos (widget general)
 let horariosSemanaData = [];   // horarios propios de la semana en curso (widget general)
+let fichadasSemana = {};       // fecha → horas fichadas propias (widget de horarios)
 let socialData         = [];   // publicaciones del feed activo del widget Social
 let socialGruposData   = { grupos: [] };   // grupos visibles (tabs del widget)
 let _socialWidgetGrupo = null; // tab activa del widget (null = General)
@@ -454,13 +457,14 @@ function _semanaActual() {
     return { lunes: fmt(lunes), domingo: fmt(domingo), lunesDate: lunes, fmt };
 }
 
-// Ventana de 7 días a partir de HOY (widget "Mis horarios"): hoy en la primera casilla
-// y los próximos 6 días; cada día avanza una casilla.
+// Ventana de 7 días del widget "Mis horarios": arranca AYER (para comparar lo
+// fichado de ayer contra lo programado) + hoy + los próximos 5 días.
 function _rango7DesdeHoy() {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    const fin = new Date(hoy); fin.setDate(hoy.getDate() + 6);
+    const ini = new Date(hoy); ini.setDate(hoy.getDate() - 1);
+    const fin = new Date(hoy); fin.setDate(hoy.getDate() + 5);
     const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    return { desde: fmt(hoy), hasta: fmt(fin), hoyDate: hoy, fmt };
+    return { desde: fmt(ini), hasta: fmt(fin), iniDate: ini, hoyDate: hoy, fmt };
 }
 
 async function cargarDatos() {
@@ -530,6 +534,21 @@ async function cargarDatos() {
                 const uid = (typeof user !== 'undefined' && user) ? user.id : null;
                 horariosSemanaData = (hp || []).filter(h => h.usuario_id == uid);
             } catch(e) {}
+        })(),
+        (async () => {
+            // Horas FICHADAS propias del mismo rango (ayuda visual: ¿hubo horas
+            // extra que ameriten pedir compensación?). /turnos/historial ya
+            // filtra por el usuario del token.
+            try {
+                const { desde, hasta } = _rango7DesdeHoy();
+                const fx = await api.get(`/turnos/historial?desde=${desde}&hasta=${hasta}`);
+                fichadasSemana = {};
+                for (const t of (fx || [])) {
+                    const f = String(t.ts_entrada || '').slice(0, 10);
+                    if (!f) continue;
+                    fichadasSemana[f] = (fichadasSemana[f] || 0) + (parseFloat(t.horas) || 0);
+                }
+            } catch(e) { fichadasSemana = {}; }
         })(),
     ]);
     renderDash();
@@ -716,25 +735,54 @@ function buildMensajes(b) {
 }
 
 // ── WIDGET: mis horarios de la semana (general, barra de 7 días) ──
+// Ventana: AYER + hoy + 5 días. Bajo cada turno, las horas FICHADAS del día
+// (verde si están dentro de lo programado; naranja si exceden en 15'+ →
+// posible pedido de compensación de horas extra).
 function buildHorariosSemana(b) {
-    // Desde HOY (primera casilla) y los próximos 6 días.
-    const { hoyDate, fmt } = _rango7DesdeHoy();
+    const { iniDate, hoyDate, fmt } = _rango7DesdeHoy();
     const dias = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];   // indexado por getDay()
     const byFecha = {};
     (horariosSemanaData || []).forEach(h => { byFecha[h.fecha] = h; });
     const hoyStr = fmt(hoyDate);
+
+    const fmtHs = (hs) => {
+        const m = Math.round(hs * 60);
+        return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+    };
+    const minutosFranjas = (franjas) => franjas.reduce((s, f) => {
+        const [hi, mi] = String(f.inicio || '0:0').split(':').map(Number);
+        const [hf, mf] = String(f.fin || '0:0').split(':').map(Number);
+        let min = (hf * 60 + (mf || 0)) - (hi * 60 + (mi || 0));
+        if (min < 0) min += 1440;   // turno que cruza medianoche
+        return s + min;
+    }, 0);
+
     let celdas = "";
     for (let i = 0; i < 7; i++) {
-        const d = new Date(hoyDate); d.setDate(hoyDate.getDate() + i);
+        const d = new Date(iniDate); d.setDate(iniDate.getDate() + i);
         const key = fmt(d);
         const h = byFecha[key];
         const franjas = (h && Array.isArray(h.franjas)) ? h.franjas : [];
         const turnos = franjas.length
             ? franjas.map(f => `<div class="hs-turno">${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}</div>`).join("")
             : `<div class="hs-libre">Libre</div>`;
+
+        // Horas fichadas del día (solo días ya transcurridos o en curso)
+        let fichado = "";
+        const hsFich = (typeof fichadasSemana !== 'undefined' && fichadasSemana) ? fichadasSemana[key] : null;
+        if (hsFich && key <= hoyStr) {
+            const progMin = minutosFranjas(franjas);
+            const fichMin = Math.round(hsFich * 60);
+            const extra = fichMin - progMin;
+            // Naranja: fichó 15'+ por encima de lo programado (o fichó sin turno).
+            const excedido = (progMin > 0 && extra > 15) || progMin === 0;
+            const tag = (progMin > 0 && extra > 15) ? ` <b>+${Math.floor(extra/60)}:${String(extra%60).padStart(2,'0')}</b>` : "";
+            fichado = `<div class="hs-fichado ${excedido ? 'hs-fichado-extra' : ''}" title="Horas fichadas${progMin ? ` (programadas: ${fmtHs(progMin/60)})` : ' (sin turno programado)'}">⏱ ${fmtHs(hsFich)}${tag}</div>`;
+        }
+
         celdas += `<div class="hs-dia ${key === hoyStr ? 'hs-hoy' : ''}">
             <div class="hs-dia-lbl">${dias[d.getDay()]} ${d.getDate()}</div>
-            <div class="hs-turnos">${turnos}</div>
+            <div class="hs-turnos">${turnos}${fichado}</div>
         </div>`;
     }
     return `${blockHeader("")}
