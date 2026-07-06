@@ -549,4 +549,24 @@ async function abrirDocumento(url) {
         if (!getToken()) return;
         fetch(`${API_URL}/`, { method: "GET", cache: "no-store" }).catch(() => {});
     }, 210000);
+
+    // ── Refresh de permisos ───────────────────────────────────
+    // Los permisos viven en localStorage desde el LOGIN: si el admin edita el
+    // rol después, la sesión no se enteraba hasta re-loguear (los gates de las
+    // páginas leían un snapshot viejo). Al cargar cada página se refresca el
+    // usuario desde /auth/me (que ahora devuelve el set completo de flags) y
+    // los cambios de permisos aplican en la próxima navegación, sin re-login.
+    // Solo para usuarios de restaurante (las cuentas de cadena/superadmin usan
+    // tokens sintéticos con otro shape).
+    (async () => {
+        const u = getUser();
+        if (!getToken() || !u || ["empleado_cadena", "gerente_cadena", "superadmin"].includes(u.rol)) return;
+        try {
+            const me = await apiFetch("/auth/me", { silent: true });
+            if (me && me.username === u.username) {
+                // Merge: conserva campos que /me no devuelve (modulos, pantalla_default).
+                setUser({ ...u, ...me });
+            }
+        } catch (_) { /* silencioso: sin red o token vencido (el 401 ya desloguea) */ }
+    })();
 })();
