@@ -32,6 +32,62 @@
         .cat-chip .cat-count { background: #dc2626; color: white; border-radius: 10px; font-size: 10px; font-weight: 800; padding: 0 6px; min-width: 16px; text-align: center; }
         .cat-chip.active .cat-count { background: rgba(255,255,255,0.35); }
         .msg-cat-badge { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 700; white-space: nowrap; margin-top: 4px; }
+        .cat-chip.esp.active { background: #b45309; border-color: #b45309; }
+
+        /* ── Toolbar: búsqueda + cantidad ── */
+        .msg-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+        .msg-buscar-wrap { position: relative; flex: 1; min-width: 220px; }
+        .msg-buscar-wrap .lupa { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; color: #9ca3af; pointer-events: none; }
+        #msg-buscar { width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 9px 34px 9px 34px; font-size: 13px; outline: none; transition: border-color .15s; background: white; color: #1a1a2e; }
+        #msg-buscar:focus { border-color: #4f46e5; }
+        .msg-buscar-x { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #9ca3af; font-size: 13px; padding: 2px 4px; display: none; }
+        .msg-buscar-x:hover { color: #374151; }
+        .msg-max-wrap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; font-weight: 600; }
+        #msg-max { border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 8px 8px; font-size: 12.5px; background: white; color: #374151; cursor: pointer; outline: none; }
+
+        /* ── Acciones por tarjeta ── */
+        .msg-acciones { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+        .msg-card:hover .msg-acciones { opacity: 1; }
+        @media (hover: none) { .msg-acciones { opacity: 1; } }
+        .icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 3px 5px; border-radius: 6px; line-height: 1; filter: grayscale(1); opacity: .55; transition: all .12s; }
+        .icon-btn:hover { background: #f3f4f6; filter: none; opacity: 1; }
+        .icon-btn.fav-on { filter: none; opacity: 1; }
+        .msg-adj-ind { font-size: 11px; color: #6b7280; }
+
+        /* ── Botón "Mostrar más" ── */
+        .btn-mas { background: white; color: #4f46e5; border: 1.5px dashed #c7d2fe; padding: 10px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 700; transition: all .15s; }
+        .btn-mas:hover { background: #f0f0ff; border-style: solid; }
+
+        /* ── Adjuntos (compose) ── */
+        .adj-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .adj-chip { display: inline-flex; align-items: center; gap: 6px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 8px; font-size: 12px; color: #374151; max-width: 100%; }
+        .adj-chip .adj-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+        .adj-chip button { background: none; border: none; cursor: pointer; color: #9ca3af; font-size: 11px; padding: 0 1px; line-height: 1; }
+        .adj-chip button:hover { color: #dc2626; }
+        .btn-adjuntar { background: white; color: #6b7280; border: 1.5px dashed #d1d5db; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 12.5px; font-weight: 600; width: fit-content; transition: all .15s; }
+        .btn-adjuntar:hover { border-color: #4f46e5; color: #4f46e5; }
+
+        /* ── Adjuntos (ver mensaje) ── */
+        .adj-view { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #f0f0f0; padding-top: 12px; }
+        .adj-view-titulo { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; }
+        .adj-view img { max-width: 100%; max-height: 320px; border-radius: 8px; border: 1px solid #eee; object-fit: contain; align-self: flex-start; }
+        .adj-file { display: inline-flex; align-items: center; gap: 6px; background: #f8f8ff; border: 1px solid #e0e0f5; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #4f46e5; font-weight: 600; text-decoration: none; width: fit-content; max-width: 100%; }
+        .adj-file:hover { background: #ede9fe; }
+
+        /* ── Etiqueta y acciones en el modal ver ── */
+        .det-etiqueta-wrap { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+        .det-etiqueta-wrap label { font-size: 11.5px; color: #6b7280; font-weight: 700; }
+        #det-etiqueta { border: 1.5px solid #e0e0e0; border-radius: 7px; padding: 6px 8px; font-size: 12.5px; color: #374151; background: white; cursor: pointer; outline: none; }
+
+        /* ── Modal confirmación de eliminación (mensaje sin leer) ── */
+        .modal-alerta { background: white; border-radius: 14px; width: 420px; max-width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.25); overflow: hidden; }
+        .alerta-head { background: #fef2f2; padding: 18px 22px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #fecaca; }
+        .alerta-head .alerta-icono { font-size: 24px; }
+        .alerta-head h3 { font-size: 15px; font-weight: 800; color: #b91c1c; }
+        .alerta-body { padding: 18px 22px; font-size: 13.5px; color: #374151; line-height: 1.6; }
+        .alerta-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 14px 22px; border-top: 1px solid #f0f0f0; }
+        .btn-eliminar-rojo { background: #dc2626; color: white; border: none; padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+        .btn-eliminar-rojo:hover { background: #b91c1c; }
 
         /* ── Mensaje lista ── */
         .mensajes-lista { display: flex; flex-direction: column; gap: 8px; }
@@ -162,6 +218,25 @@
         </button>
     </div>
 
+    <!-- Búsqueda + cantidad máxima -->
+    <div class="msg-toolbar" id="msg-toolbar">
+        <div class="msg-buscar-wrap">
+            <span class="lupa">🔍</span>
+            <input type="text" id="msg-buscar" placeholder="Buscar por asunto, contenido o persona..."
+                   oninput="buscarMensajes(this.value)">
+            <button class="msg-buscar-x" id="msg-buscar-x" onclick="limpiarBusqueda()" title="Limpiar búsqueda">✕</button>
+        </div>
+        <div class="msg-max-wrap">
+            <span>Mostrar</span>
+            <select id="msg-max" onchange="cambiarMax(this.value)">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </div>
+
     <!-- Filtro por categoría (solo en recibidos) -->
     <div class="cat-filtros" id="cat-filtros" style="display:none;"></div>
 
@@ -184,8 +259,33 @@
         <div class="modal-body">
             <div class="modal-cuerpo" id="det-cuerpo">—</div>
         </div>
-        <div class="modal-foot" id="modal-ver-foot" style="display:none;">
+        <div class="modal-foot" id="modal-ver-foot" style="display:none; align-items:center; flex-wrap:wrap;">
             <button class="btn-responder" onclick="responderMensaje()">↩️ Responder</button>
+            <button class="icon-btn" id="det-fav" style="font-size:17px;" onclick="toggleFavoritoModal()" title="Favorito">☆</button>
+            <button class="icon-btn" id="det-arch" style="font-size:16px;" onclick="toggleArchivadoModal()" title="Archivar">🗂️</button>
+            <button class="icon-btn" style="font-size:16px;" onclick="eliminarDesdeModal()" title="Eliminar">🗑️</button>
+            <div class="det-etiqueta-wrap" id="det-etiqueta-wrap">
+                <label>🏷️ Etiqueta</label>
+                <select id="det-etiqueta" onchange="cambiarEtiqueta(this.value)"></select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: confirmar eliminación de mensaje SIN LEER -->
+<div class="modal-overlay" id="modal-confirm-del" onclick="if(event.target===this)cerrarConfirmDel()">
+    <div class="modal-alerta">
+        <div class="alerta-head">
+            <span class="alerta-icono">⚠️</span>
+            <h3>Mensaje sin leer</h3>
+        </div>
+        <div class="alerta-body">
+            Estás por eliminar un mensaje que <strong>todavía no leíste</strong>.<br>
+            ¿Querés eliminarlo de todas formas?
+        </div>
+        <div class="alerta-foot">
+            <button class="btn-cancel" onclick="cerrarConfirmDel()">Cancelar</button>
+            <button class="btn-eliminar-rojo" onclick="confirmarEliminacion()">🗑️ Eliminar igual</button>
         </div>
     </div>
 </div>
@@ -229,6 +329,14 @@
                 <label>Mensaje</label>
                 <textarea id="compose-cuerpo" placeholder="Escribí tu mensaje..."></textarea>
             </div>
+
+            <!-- Adjuntos (Cloudinary) -->
+            <div class="form-group">
+                <label>Adjuntos <span style="font-weight:400;color:#9ca3af;text-transform:none;font-size:11px;">— opcional, máx 15 MB c/u</span></label>
+                <input type="file" id="compose-files" multiple style="display:none;" onchange="filesElegidos(this)">
+                <div class="adj-chips" id="adj-chips" style="display:none;"></div>
+                <button type="button" class="btn-adjuntar" onclick="document.getElementById('compose-files').click()">📎 Adjuntar archivos</button>
+            </div>
         </div>
         <div class="compose-foot">
             <button class="btn-cancel" onclick="cerrarCompose()">Cancelar</button>
@@ -251,7 +359,12 @@ let _tabActual   = "recibidos";
 let _cadena      = false;   // ver recibidos de todos mis locales
 let _misLocales  = [];
 let _mensajes    = [];
-let _catFiltro   = "todos";   // filtro por categoría del servicio de origen
+let _catFiltro   = "todos";   // filtro por categoría ("_fav" = favoritos, "_arch" = archivados)
+let _busqueda    = "";        // filtro de búsqueda (asunto/cuerpo/persona)
+let _maxMostrar  = parseInt(localStorage.getItem("msg_max") || "25", 10) || 25;  // cantidad por página
+let _mostrando   = _maxMostrar;   // cuántos se están mostrando (crece con "Mostrar más")
+let _delPendiente = null;     // id del mensaje sin leer esperando confirmación de borrado
+let _archivosAdj  = [];       // File[] elegidos en el compose (se suben al enviar)
 
 // Metadata de categorías (según de qué servicio parte el mensaje).
 const _CAT_INFO = {
@@ -270,6 +383,8 @@ let _ccDests   = [];
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
+    const selMax = document.getElementById("msg-max");
+    if (selMax) selMax.value = String(_maxMostrar);
     if (_emp) {
         if (typeof volverACuenta === 'function') volverACuenta();
         const h2 = document.querySelector('.page-header h2'); if (h2) h2.textContent = '💬 Mis mensajes';
@@ -341,10 +456,12 @@ function renderChipsCat() {
     const cont = document.getElementById("cat-filtros");
     if (!cont) return;
     if (!_mostrarFiltroCat()) { cont.style.display = "none"; return; }
-    // Contar NO leídos por categoría (para el badge del chip)
+    // Contar NO leídos por categoría (sin archivados: no molestan en la bandeja)
     const noLeidos = {};
-    let totalNoLeidos = 0;
+    let totalNoLeidos = 0, nFav = 0, nArch = 0;
     _mensajes.forEach(m => {
+        if (m.favorito) nFav++;
+        if (m.archivado) { nArch++; return; }
         if (m.leido) return;
         const c = _catDe(m);
         noLeidos[c] = (noLeidos[c] || 0) + 1;
@@ -353,41 +470,99 @@ function renderChipsCat() {
     // Categorías a mostrar: siempre Horarios/Social/Personal; Documentos solo si hay alguno.
     const cats = ["horarios", "social", "personal"];
     if (_mensajes.some(m => _catDe(m) === "documentos")) cats.push("documentos");
-    const chip = (key, label, icono, count) => {
+    const chip = (key, label, icono, count, esp) => {
         const cnt = count ? `<span class="cat-count">${count}</span>` : "";
-        return `<button class="cat-chip ${_catFiltro === key ? "active" : ""}" onclick="filtrarCat('${key}')">${icono ? icono + " " : ""}${label}${cnt}</button>`;
+        return `<button class="cat-chip ${esp ? "esp" : ""} ${_catFiltro === key ? "active" : ""}" onclick="filtrarCat('${key}')">${icono ? icono + " " : ""}${label}${cnt}</button>`;
     };
     let html = chip("todos", "Todos", "", totalNoLeidos);
     cats.forEach(c => { const i = _CAT_INFO[c]; html += chip(c, i.label, i.icono, noLeidos[c] || 0); });
+    // Favoritos y Archivados (los flags viven en la copia del destinatario; no en modo empleado-cadena)
+    if (!_emp) {
+        html += chip("_fav", "Favoritos", "⭐", 0, true);
+        html += chip("_arch", `Archivados${nArch ? ` (${nArch})` : ""}`, "🗂️", 0, true);
+    }
     cont.innerHTML = html;
     cont.style.display = "flex";
 }
 
 function filtrarCat(cat) {
     _catFiltro = cat;
+    _mostrando = _maxMostrar;
     renderLista();
+}
+
+// ── Búsqueda / cantidad ───────────────────────────────────────
+function buscarMensajes(txt) {
+    _busqueda = (txt || "").trim().toLowerCase();
+    _mostrando = _maxMostrar;
+    const x = document.getElementById("msg-buscar-x");
+    if (x) x.style.display = _busqueda ? "block" : "none";
+    renderLista();
+}
+
+function limpiarBusqueda() {
+    const inp = document.getElementById("msg-buscar");
+    if (inp) inp.value = "";
+    buscarMensajes("");
+}
+
+function cambiarMax(v) {
+    _maxMostrar = parseInt(v, 10) || 25;
+    localStorage.setItem("msg_max", String(_maxMostrar));
+    _mostrando = _maxMostrar;
+    renderLista();
+}
+
+function mostrarMas() {
+    _mostrando += _maxMostrar;
+    renderLista();
+}
+
+function _porId(id) { return _mensajes.find(m => m.id === id); }
+
+function _mensajesFiltrados() {
+    let visibles = _mensajes;
+    if (_mostrarFiltroCat()) {
+        if (_catFiltro === "_arch")     visibles = visibles.filter(m => m.archivado);
+        else {
+            visibles = visibles.filter(m => !m.archivado);   // archivados fuera de la bandeja
+            if (_catFiltro === "_fav")           visibles = visibles.filter(m => m.favorito);
+            else if (_catFiltro !== "todos")     visibles = visibles.filter(m => _catDe(m) === _catFiltro);
+        }
+    }
+    if (_busqueda) {
+        visibles = visibles.filter(m => {
+            const nombre = _tabActual === "recibidos" ? (m.de_username || "Sistema") : (m.para_username || "");
+            return (m.asunto || "").toLowerCase().includes(_busqueda)
+                || (m.cuerpo || "").toLowerCase().includes(_busqueda)
+                || nombre.toLowerCase().includes(_busqueda)
+                || (m.restaurante || "").toLowerCase().includes(_busqueda);
+        });
+    }
+    return visibles;
 }
 
 function renderLista() {
     renderChipsCat();
     const lista = document.getElementById("mensajes-lista");
-    // Filtrar por categoría (solo en recibidos)
-    const visibles = (_mostrarFiltroCat() && _catFiltro !== "todos")
-        ? _mensajes.filter(m => _catDe(m) === _catFiltro)
-        : _mensajes;
+    const visibles = _mensajesFiltrados();
 
     if (!visibles.length) {
-        const filtrando = _mostrarFiltroCat() && _catFiltro !== "todos";
+        const filtrando = _busqueda || (_mostrarFiltroCat() && _catFiltro !== "todos");
+        const etq = { _fav: "favoritos", _arch: "archivados" }[_catFiltro] || (_CAT_INFO[_catFiltro]?.label);
         lista.innerHTML = `<div class="empty-state">
-            <div class="empty-icon">${_tabActual === "recibidos" ? "📭" : "📤"}</div>
-            ${filtrando
-                ? `No tenés mensajes de ${_CAT_INFO[_catFiltro]?.label || _catFiltro}`
-                : `No tenés ${_tabActual === "recibidos" ? "mensajes recibidos" : "mensajes enviados"}`}
+            <div class="empty-icon">${_busqueda ? "🔍" : (_catFiltro === "_arch" ? "🗂️" : (_tabActual === "recibidos" ? "📭" : "📤"))}</div>
+            ${_busqueda
+                ? `Sin resultados para "${_esc(_busqueda)}"`
+                : filtrando
+                    ? `No tenés mensajes ${_catFiltro === "_fav" || _catFiltro === "_arch" ? etq : "de " + etq}`
+                    : `No tenés ${_tabActual === "recibidos" ? "mensajes recibidos" : "mensajes enviados"}`}
         </div>`;
         return;
     }
 
-    lista.innerHTML = visibles.map(m => {
+    const recorte = visibles.slice(0, _mostrando);
+    let html = recorte.map(m => {
         const i       = _mensajes.indexOf(m);   // índice real en _mensajes (para verMensaje)
         const esCC    = _tabActual === "recibidos" && (m.asunto || "").startsWith("[CC] ");
         const noLeido = _tabActual === "recibidos" && !m.leido;
@@ -398,26 +573,140 @@ function renderLista() {
         const fecha   = _formatFecha(m.creado_en);
         const asuntoMostrar = esCC ? (m.asunto || "").slice(5) : (m.asunto || "(sin asunto)");
         const preview = (m.cuerpo || "").replace(/\n/g, " ").slice(0, 80);
+        const tieneAdj = (m.adjuntos && m.adjuntos.length) ? ' <span class="msg-adj-ind" title="Con adjuntos">📎</span>' : "";
         // Badge de categoría (solo en recibidos)
         let catBadge = "";
         if (_tabActual === "recibidos") {
             const ci = _CAT_INFO[_catDe(m)];
-            catBadge = `<div><span class="msg-cat-badge" style="background:${ci.bg};color:${ci.fg};">${ci.icono} ${ci.label}</span></div>`;
+            catBadge = `<div><span class="msg-cat-badge" style="background:${ci.bg};color:${ci.fg};">${ci.icono} ${ci.label}</span>${m.archivado && _catFiltro !== "_arch" ? ' <span class="msg-cat-badge" style="background:#fef3c7;color:#92400e;">🗂️ Archivado</span>' : ""}</div>`;
+        }
+        // Acciones (no en vista de cadena / modo empleado: solo lectura)
+        let acciones = "";
+        if (!_cadena && !_emp) {
+            acciones = _tabActual === "recibidos"
+                ? `<div class="msg-acciones">
+                       <button class="icon-btn ${m.favorito ? "fav-on" : ""}" title="${m.favorito ? "Quitar de favoritos" : "Marcar favorito"}" onclick="event.stopPropagation();toggleFavorito(${m.id})">${m.favorito ? "⭐" : "☆"}</button>
+                       <button class="icon-btn" title="${m.archivado ? "Desarchivar" : "Archivar"}" onclick="event.stopPropagation();toggleArchivado(${m.id})">${m.archivado ? "📥" : "🗂️"}</button>
+                       <button class="icon-btn" title="Eliminar" onclick="event.stopPropagation();eliminarMensaje(${m.id})">🗑️</button>
+                   </div>`
+                : `<div class="msg-acciones">
+                       <button class="icon-btn" title="Eliminar de enviados" onclick="event.stopPropagation();eliminarMensaje(${m.id})">🗑️</button>
+                   </div>`;
         }
 
         return `<div class="msg-card ${noLeido ? "no-leido" : ""} ${esCC ? "es-cc" : ""}" onclick="verMensaje(${i})">
             <div style="min-width:0;">
-                <div class="msg-from">${prefijo}: <strong>${_esc(nombre)}</strong>${esCC ? ' <span class="badge-cc">CC</span>' : ""}${_cadena && m.restaurante ? ` <span style="background:#eef2ff;color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${_esc(m.restaurante)}</span>` : ""}</div>
-                <div class="msg-asunto">${_esc(asuntoMostrar)}</div>
+                <div class="msg-from">${prefijo}: <strong>${_esc(nombre)}</strong>${esCC ? ' <span class="badge-cc">CC</span>' : ""}${m.favorito && _tabActual === "recibidos" ? " ⭐" : ""}${_cadena && m.restaurante ? ` <span style="background:#eef2ff;color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${_esc(m.restaurante)}</span>` : ""}</div>
+                <div class="msg-asunto">${_esc(asuntoMostrar)}${tieneAdj}</div>
                 <div class="msg-preview">${_esc(preview)}</div>
                 ${catBadge}
             </div>
             <div class="msg-meta">
                 <span class="msg-fecha">${fecha}</span>
                 ${noLeido ? '<span class="msg-dot"></span>' : ""}
+                ${acciones}
             </div>
         </div>`;
     }).join("");
+
+    if (visibles.length > _mostrando) {
+        html += `<button class="btn-mas" onclick="mostrarMas()">▼ Mostrar más (${visibles.length - _mostrando} restantes)</button>`;
+    }
+    lista.innerHTML = html;
+}
+
+// ── Favorito / Archivar / Eliminar ────────────────────────────
+async function toggleFavorito(id) {
+    const m = _porId(id);
+    if (!m) return;
+    const nuevo = !m.favorito;
+    try {
+        await apiFetch(`/mensajes/${id}`, { method: "PATCH", body: JSON.stringify({ favorito: nuevo }) });
+        m.favorito = nuevo;
+        renderLista();
+        if (_msgActual && _msgActual.id === id) _syncFootModal();
+    } catch (e) { alert("Error: " + (e.message || e)); }
+}
+
+async function toggleArchivado(id) {
+    const m = _porId(id);
+    if (!m) return;
+    const nuevo = !m.archivado;
+    try {
+        await apiFetch(`/mensajes/${id}`, { method: "PATCH", body: JSON.stringify({ archivado: nuevo }) });
+        m.archivado = nuevo;
+        renderLista();
+        actualizarBadge();
+        _toast(nuevo ? "Mensaje archivado 🗂️" : "Mensaje devuelto a la bandeja");
+        if (_msgActual && _msgActual.id === id) _syncFootModal();
+    } catch (e) { alert("Error: " + (e.message || e)); }
+}
+
+function eliminarMensaje(id) {
+    const m = _porId(id);
+    if (!m) return;
+    // Alarma SOLO si es un recibido sin leer; los leídos (y los enviados) van directo.
+    if (_tabActual === "recibidos" && !m.leido) {
+        _delPendiente = id;
+        document.getElementById("modal-confirm-del").classList.add("open");
+        return;
+    }
+    _eliminarConfirmado(id);
+}
+
+function cerrarConfirmDel() {
+    _delPendiente = null;
+    document.getElementById("modal-confirm-del").classList.remove("open");
+}
+
+function confirmarEliminacion() {
+    const id = _delPendiente;
+    cerrarConfirmDel();
+    if (id != null) _eliminarConfirmado(id);
+}
+
+async function _eliminarConfirmado(id) {
+    const lado = _tabActual === "recibidos" ? "recibido" : "enviado";
+    try {
+        await apiFetch(`/mensajes/${id}?lado=${lado}`, { method: "DELETE" });
+        const idx = _mensajes.findIndex(m => m.id === id);
+        if (idx !== -1) _mensajes.splice(idx, 1);
+        if (_msgActual && _msgActual.id === id) cerrarVer();
+        renderLista();
+        actualizarBadge();
+        _toast("Mensaje eliminado 🗑️");
+    } catch (e) { alert("Error al eliminar: " + (e.message || e)); }
+}
+
+// Acciones desde el modal de lectura
+function toggleFavoritoModal()  { if (_msgActual) toggleFavorito(_msgActual.id); }
+function toggleArchivadoModal() { if (_msgActual) toggleArchivado(_msgActual.id); }
+function eliminarDesdeModal()   { if (_msgActual) eliminarMensaje(_msgActual.id); }
+
+async function cambiarEtiqueta(cat) {
+    if (!_msgActual || !_CAT_INFO[cat]) return;
+    const m = _msgActual;
+    try {
+        await apiFetch(`/mensajes/${m.id}`, { method: "PATCH", body: JSON.stringify({ categoria: cat }) });
+        m.categoria = cat;
+        renderLista();
+        _toast(`Movido a ${_CAT_INFO[cat].icono} ${_CAT_INFO[cat].label}`);
+    } catch (e) { alert("Error: " + (e.message || e)); }
+}
+
+// Refresca los botones del pie del modal según el estado actual del mensaje
+function _syncFootModal() {
+    const m = _msgActual;
+    if (!m) return;
+    const fav = document.getElementById("det-fav");
+    const arc = document.getElementById("det-arch");
+    if (fav) { fav.textContent = m.favorito ? "⭐" : "☆"; fav.classList.toggle("fav-on", !!m.favorito); fav.title = m.favorito ? "Quitar de favoritos" : "Marcar favorito"; }
+    if (arc) { arc.textContent = m.archivado ? "📥" : "🗂️"; arc.title = m.archivado ? "Desarchivar" : "Archivar"; }
+    const sel = document.getElementById("det-etiqueta");
+    if (sel) {
+        sel.innerHTML = Object.entries(_CAT_INFO)
+            .map(([k, i]) => `<option value="${k}" ${_catDe(m) === k ? "selected" : ""}>${i.icono} ${i.label}</option>`).join("");
+    }
 }
 
 async function verMensaje(idx) {
@@ -461,9 +750,21 @@ async function verMensaje(idx) {
     }
     if (m.solicitud_id) { cuerpoEl.innerHTML += _tarjetaSolicitud(m); _rellenarInfoSolicitud(m); }
 
-    // Mostrar botón Responder solo en mensajes recibidos (no en propios enviados)
+    // Adjuntos: imágenes inline, el resto como link de descarga (URLs absolutas de Cloudinary)
+    if (m.adjuntos && m.adjuntos.length) {
+        cuerpoEl.innerHTML += `<div class="adj-view">
+            <div class="adj-view-titulo">📎 Adjuntos (${m.adjuntos.length})</div>
+            ${m.adjuntos.map(a => a.tipo === "imagen"
+                ? `<a href="${_esc(a.url)}" target="_blank" rel="noopener"><img src="${_esc(a.url)}" alt="${_esc(a.nombre)}" loading="lazy"></a>`
+                : `<a class="adj-file" href="${_esc(a.url)}" target="_blank" rel="noopener">📎 ${_esc(a.nombre || "archivo")}</a>`
+            ).join("")}
+        </div>`;
+    }
+
+    // Pie con acciones solo en recibidos propios (no en vista cadena / enviados)
     const foot = document.getElementById("modal-ver-foot");
-    foot.style.display = (!_cadena && _tabActual === "recibidos") ? "" : "none";
+    foot.style.display = (!_cadena && _tabActual === "recibidos") ? "flex" : "none";
+    _syncFootModal();
 
     document.getElementById("modal-ver").classList.add("open");
 
@@ -619,6 +920,7 @@ function setTab(tab) {
     _cadena = false;
     _tabActual = tab;
     _catFiltro = "todos";   // al cambiar de bandeja, mostrar todas las categorías
+    _mostrando = _maxMostrar;
     const tc = document.getElementById("tab-cadena"); if (tc) tc.classList.remove("active");
     document.getElementById("tab-recibidos").classList.toggle("active", tab === "recibidos");
     document.getElementById("tab-enviados").classList.toggle("active",  tab === "enviados");
@@ -628,6 +930,7 @@ function setTab(tab) {
 function toggleCadena() {
     _cadena = !_cadena;
     if (_cadena) _tabActual = "recibidos";
+    _mostrando = _maxMostrar;
     document.getElementById("tab-cadena").classList.toggle("active", _cadena);
     document.getElementById("tab-recibidos").classList.toggle("active", !_cadena && _tabActual === "recibidos");
     document.getElementById("tab-enviados").classList.toggle("active", !_cadena && _tabActual === "enviados");
@@ -637,7 +940,8 @@ function toggleCadena() {
 // ── Badge no leídos ───────────────────────────────────────────
 async function actualizarBadge() {
     try {
-        const noLeidos = _mensajes.filter(m => !m.leido).length;
+        // Sin archivados: mismo criterio que /mensajes/no-leidos/count (sidebar)
+        const noLeidos = _mensajes.filter(m => !m.leido && !m.archivado).length;
         const show  = noLeidos > 0 ? "inline-block" : "none";
         const txt   = noLeidos > 0 ? String(noLeidos) : "";
 
@@ -772,6 +1076,40 @@ function cerrarCompose() {
     _ccDests   = [];
     renderDestTags("para");
     renderDestTags("cc");
+    _archivosAdj = [];
+    renderAdjChips();
+}
+
+// ── Compose: adjuntos ─────────────────────────────────────────
+function filesElegidos(input) {
+    const MAX_MB = 15, MAX_FILES = 10;
+    for (const f of input.files || []) {
+        if (_archivosAdj.length >= MAX_FILES) { alert(`Máximo ${MAX_FILES} adjuntos por mensaje`); break; }
+        if (f.size > MAX_MB * 1024 * 1024)    { alert(`"${f.name}" supera los ${MAX_MB} MB`); continue; }
+        if (_archivosAdj.some(x => x.name === f.name && x.size === f.size)) continue;   // repetido
+        _archivosAdj.push(f);
+    }
+    input.value = "";   // permitir volver a elegir el mismo archivo
+    renderAdjChips();
+}
+
+function quitarArchivo(idx) {
+    _archivosAdj.splice(idx, 1);
+    renderAdjChips();
+}
+
+function renderAdjChips() {
+    const cont = document.getElementById("adj-chips");
+    if (!cont) return;
+    if (!_archivosAdj.length) { cont.style.display = "none"; cont.innerHTML = ""; return; }
+    cont.style.display = "flex";
+    cont.innerHTML = _archivosAdj.map((f, i) => {
+        const esImg = (f.type || "").startsWith("image/");
+        const kb = f.size > 1024 * 1024 ? (f.size / 1048576).toFixed(1) + " MB" : Math.ceil(f.size / 1024) + " KB";
+        return `<span class="adj-chip">${esImg ? "🖼️" : "📄"} <span class="adj-nombre">${_esc(f.name)}</span>
+                <span style="color:#9ca3af;">${kb}</span>
+                <button type="button" onclick="quitarArchivo(${i})" title="Quitar">✕</button></span>`;
+    }).join("");
 }
 
 // ── Enviar ────────────────────────────────────────────────────
@@ -789,9 +1127,17 @@ async function enviarMensaje() {
 
     const btn = document.getElementById("btn-enviar");
     btn.disabled    = true;
-    btn.textContent = "Enviando...";
 
     try {
+        // 1) Subir adjuntos a Cloudinary (si hay); 2) enviar el mensaje con las URLs
+        let adjuntos = [];
+        if (_archivosAdj.length) {
+            btn.textContent = `Subiendo adjuntos (${_archivosAdj.length})...`;
+            const fd = new FormData();
+            _archivosAdj.forEach(f => fd.append("files", f));
+            adjuntos = await apiFetch("/mensajes/adjuntos", { method: "POST", body: fd });
+        }
+        btn.textContent = "Enviando...";
         await apiFetch("/mensajes/", {
             method: "POST",
             body: JSON.stringify({
@@ -799,6 +1145,7 @@ async function enviarMensaje() {
                 cc_usuario_ids:   _ccDests.map(u => u.id),
                 asunto,
                 cuerpo,
+                adjuntos,
             }),
         });
         cerrarCompose();
@@ -848,9 +1195,13 @@ function _toast(msg) {
     setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 400); }, 2200);
 }
 
-// Cerrar modales con Escape
+// Cerrar modales con Escape (la alarma de borrado primero, sin arrastrar los demás)
 document.addEventListener("keydown", e => {
     if (e.key === "Escape") {
+        if (document.getElementById("modal-confirm-del").classList.contains("open")) {
+            cerrarConfirmDel();
+            return;
+        }
         cerrarVer();
         cerrarCompose();
     }
