@@ -457,7 +457,8 @@ function cargarCfg() {
 // ── Helpers ──────────────────────────────────────────────────────
 const fmt    = n => new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const fmtInt = n => new Intl.NumberFormat('es-ES').format(n||0);
-const esc    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// esc(): global de api.js (escapa &<>"' — superset del local que había acá y
+// chocaba con la declaración global → SyntaxError → página en blanco).
 
 function getDesdeDefault() {
     const d = new Date();
