@@ -1116,6 +1116,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                     <option value="apertura_caja">Apertura de caja</option>
                     <option value="cierre_caja">Cierre de caja</option>
                 </select>
+                <select class="cfg-input" id="tar-f-emp" style="max-width:180px;" onchange="renderTareasCfg()"></select>
                 <button type="button" onclick="abrirAplicarPlantillas()"
                         style="padding:8px 14px;border:1px solid #c7d2fe;border-radius:8px;background:#eef2ff;cursor:pointer;font-size:13px;font-weight:700;color:#4f46e5;">
                     🗂 Plantillas…</button>
@@ -1414,8 +1415,13 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
             <!-- Base -->
             <div id="tar-m-base">
                 <div class="cfg-field">
-                    <label class="cfg-label">Rol</label>
+                    <label class="cfg-label">Destinatario</label>
+                    <div style="display:flex;gap:12px;font-size:13px;margin-bottom:6px;">
+                        <label><input type="radio" name="tar-m-b-dest" value="rol" checked onchange="_tarMBDestino()"> Un rol</label>
+                        <label><input type="radio" name="tar-m-b-dest" value="usuario" onchange="_tarMBDestino()"> Un empleado</label>
+                    </div>
                     <select class="cfg-input" id="tar-m-rol"></select>
+                    <select class="cfg-input" id="tar-m-usuario" style="display:none;"></select>
                 </div>
                 <div class="cfg-field">
                     <label class="cfg-label">Grupo</label>
@@ -1472,7 +1478,7 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                 <select class="cfg-input" id="tar-mr-rol"></select>
             </div>
             <label class="cfg-label">Plantillas</label>
-            <div class="checks" id="tar-mr-lista" style="max-height:220px;"></div>
+            <div id="tar-mr-lista" style="max-height:220px;overflow-y:auto;border:1px solid #f0f0f0;border-radius:8px;padding:8px;"></div>
             <div class="modal-error" id="tar-mr-error"></div>
         </div>
         <div class="modal-foot">
@@ -2044,11 +2050,15 @@ async function cargarSeccionTareas() {
             `<div style="color:#9ca3af;font-size:13px;">No se pudo cargar: ${esc(e.message || e)}</div>`;
         return;
     }
-    // Filtro de rol
+    // Filtros de rol y empleado
     const fRol = document.getElementById('tar-f-rol');
     const sel = fRol.value;
     fRol.innerHTML = '<option value="">Todos los roles</option>' +
         _tarRoles.map(r => `<option value="${escAttr(r)}" ${r === sel ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    const fEmp = document.getElementById('tar-f-emp');
+    const selE = fEmp.value;
+    fEmp.innerHTML = '<option value="">Todos los empleados</option>' +
+        _tarUsuarios.map(u => `<option value="${u.id}" ${String(u.id) === selE ? 'selected' : ''}>${esc(u.username)}</option>`).join('');
     renderTareasCfg();
     renderPuntualesCfg();
     renderPlantillasCfg();
@@ -2060,7 +2070,8 @@ function renderTareasCfg() {
     const cont = document.getElementById('tar-lista');
     const fRol = document.getElementById('tar-f-rol').value;
     const fMom = document.getElementById('tar-f-mom').value;
-    const filtrando = !!(fRol || fMom);
+    const fEmp = document.getElementById('tar-f-emp').value;
+    const filtrando = !!(fRol || fMom || fEmp);
     const base = _tarCfg.tareas.filter(t => !t.puntual);
     const grupos = [..._tarCfg.grupos, { id: null, nombre: 'General' }];
     let html = '';
@@ -2069,6 +2080,7 @@ function renderTareasCfg() {
         const totalGrupo = ts.length;
         if (fRol) ts = ts.filter(t => t.rol === fRol);
         if (fMom) ts = ts.filter(t => (t.momentos || []).includes(fMom));
+        if (fEmp) ts = ts.filter(t => String(t.puntual_usuario_id || '') === fEmp);
         if (g.id === null && !totalGrupo) return;     // "General" solo si tiene tareas
         const flechasG = (g.id !== null && !filtrando) ? `
             <button class="tar-mini" title="Subir" ${gi === 0 ? 'disabled' : ''} onclick="moverGrupo(${g.id},-1)">↑</button>
@@ -2090,11 +2102,14 @@ function renderTareasCfg() {
                 const flechas = filtrando ? '' : `
                     <button class="tar-mini" ${i === 0 ? 'disabled' : ''} onclick="moverTarea(${t.id},${g.id === null ? 'null' : g.id},-1)">↑</button>
                     <button class="tar-mini" ${i === ts.length - 1 ? 'disabled' : ''} onclick="moverTarea(${t.id},${g.id === null ? 'null' : g.id},1)">↓</button>`;
+                const dest = t.puntual_usuario_id
+                    ? `👤 ${esc((_tarUsuarios.find(u => u.id === t.puntual_usuario_id) || {}).username || '#' + t.puntual_usuario_id)}`
+                    : esc(t.rol || '—');
                 html += `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f3f4f6;">
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:13px;color:#1f2937;">${esc(t.texto)}</div>
                         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;">
-                            <span style="font-size:10px;background:#f3f4f6;color:#4b5563;border-radius:10px;padding:1px 7px;font-weight:700;">${esc(t.rol || '—')}</span>${badges}
+                            <span style="font-size:10px;background:#f3f4f6;color:#4b5563;border-radius:10px;padding:1px 7px;font-weight:700;">${dest}</span>${badges}
                         </div>
                     </div>
                     ${flechas}
@@ -2182,6 +2197,11 @@ async function moverTarea(id, grupoId, delta) {
 }
 
 // ── Modal tarea ──
+function _tarMBDestino() {
+    const esRol = document.querySelector('input[name="tar-m-b-dest"]:checked').value === 'rol';
+    document.getElementById('tar-m-rol').style.display = esRol ? '' : 'none';
+    document.getElementById('tar-m-usuario').style.display = esRol ? 'none' : '';
+}
 function _tarMDestino() {
     const esRol = document.querySelector('input[name="tar-m-dest"]:checked').value === 'rol';
     document.getElementById('tar-m-p-rol').style.display = esRol ? '' : 'none';
@@ -2204,9 +2224,15 @@ function abrirTareaModal(id, puntual) {
     document.getElementById('tar-m-base').style.display = puntual ? 'none' : '';
     document.getElementById('tar-m-puntual').style.display = puntual ? '' : 'none';
     const opciones = _tarRoles.map(r => `<option value="${escAttr(r)}">${esc(r)}</option>`).join('');
+    const opcionesU = _tarUsuarios.map(u => `<option value="${u.id}">${esc(u.username)} (${esc(u.rol)})</option>`).join('');
     if (!puntual) {
         document.getElementById('tar-m-rol').innerHTML = opciones;
         if (t && t.rol) document.getElementById('tar-m-rol').value = t.rol;
+        document.getElementById('tar-m-usuario').innerHTML = opcionesU;
+        const esUsuarioB = !!(t && t.puntual_usuario_id);
+        document.querySelector(`input[name="tar-m-b-dest"][value="${esUsuarioB ? 'usuario' : 'rol'}"]`).checked = true;
+        if (esUsuarioB) document.getElementById('tar-m-usuario').value = String(t.puntual_usuario_id);
+        _tarMBDestino();
         document.getElementById('tar-m-grupo').innerHTML =
             _tarCfg.grupos.map(g => `<option value="${g.id}">${esc(g.nombre)}</option>`).join('') +
             '<option value="">General (sin grupo)</option>';
@@ -2238,9 +2264,15 @@ async function guardarTareaModal() {
     if (!momentos.length) { err.textContent = 'Elegí al menos un momento.'; return; }
     const body = { texto, momentos, puntual: _tarModalPuntual };
     if (!_tarModalPuntual) {
-        body.rol = document.getElementById('tar-m-rol').value;
+        const esRolB = document.querySelector('input[name="tar-m-b-dest"]:checked').value === 'rol';
+        if (esRolB) {
+            body.rol = document.getElementById('tar-m-rol').value;
+            if (!body.rol) { err.textContent = 'Elegí un rol.'; return; }
+        } else {
+            body.puntual_usuario_id = parseInt(document.getElementById('tar-m-usuario').value, 10) || null;
+            if (!body.puntual_usuario_id) { err.textContent = 'Elegí un empleado.'; return; }
+        }
         body.grupo_id = document.getElementById('tar-m-grupo').value ? parseInt(document.getElementById('tar-m-grupo').value, 10) : null;
-        if (!body.rol) { err.textContent = 'Elegí un rol.'; return; }
     } else {
         const esRol = document.querySelector('input[name="tar-m-dest"]:checked').value === 'rol';
         if (esRol) body.rol = document.getElementById('tar-m-p-rol').value;
@@ -2288,10 +2320,13 @@ function abrirAplicarPlantillas() {
     document.getElementById('tar-mr-rol').innerHTML =
         '<option value="">— Elegí un rol —</option>' +
         _tarRoles.map(r => `<option value="${escAttr(r)}" ${r === rolFiltro ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    // Un renglón por plantilla (las clases .checks/.check-row no existen en esta página)
     document.getElementById('tar-mr-lista').innerHTML = (_tarPlantillas.propias || []).map(p => {
         const n = (p.contenido && p.contenido.grupos || []).reduce((s, g) => s + (g.tareas || []).length, 0);
-        return `<label class="check-row"><input type="checkbox" value="${p.id}">
-            🗂 ${esc(p.nombre)} <span style="color:#9ca3af;">(${n} tarea${n === 1 ? '' : 's'})</span></label>`;
+        return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13px;color:#374151;cursor:pointer;">
+            <input type="checkbox" value="${p.id}" style="width:16px;height:16px;flex-shrink:0;">
+            <span>🗂 ${esc(p.nombre)} <span style="color:#9ca3af;">(${n} tarea${n === 1 ? '' : 's'})</span></span>
+        </label>`;
     }).join('');
     document.getElementById('tar-modal-rol').classList.add('open');
 }
