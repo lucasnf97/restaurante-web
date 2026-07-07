@@ -1116,6 +1116,9 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                     <option value="apertura_caja">Apertura de caja</option>
                     <option value="cierre_caja">Cierre de caja</option>
                 </select>
+                <button type="button" onclick="abrirAplicarPlantillas()"
+                        style="padding:8px 14px;border:1px solid #c7d2fe;border-radius:8px;background:#eef2ff;cursor:pointer;font-size:13px;font-weight:700;color:#4f46e5;">
+                    🗂 Plantillas…</button>
                 <span style="font-size:11.5px;color:#9ca3af;">El orden se edita sin filtros (↑↓).</span>
             </div>
 
@@ -1142,9 +1145,9 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
             <div style="margin-top:22px;border-top:1px solid #f0f0f0;padding-top:14px;">
                 <div style="font-size:14px;font-weight:700;">🗂 Plantillas</div>
                 <div style="font-size:12px;color:#9ca3af;margin:2px 0 10px;">
-                    Sets de tareas reutilizables: crealas desde cero, guardá la configuración
-                    actual, editalas o borralas (incluidos los ejemplos). Aplicar AGREGA sus
-                    tareas a las actuales.
+                    Sets GENÉRICOS de tareas (sin rol): acá se crean y editan; se aplican a un
+                    rol con el botón "🗂 Plantillas…" de arriba (se pueden aplicar varias a un
+                    mismo rol — siempre se suman, nunca reemplazan).
                 </div>
                 <div id="tar-plantillas"></div>
                 <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
@@ -1454,24 +1457,27 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     </div>
 </div>
 
-<!-- ═══ MODAL APLICAR PLANTILLA (rol destino opcional) ════════ -->
+<!-- ═══ MODAL APLICAR PLANTILLAS (varias, a un rol — siempre SUMAN) ═══ -->
 <div class="modal-overlay" id="tar-modal-rol" onclick="if(event.target===this)this.classList.remove('open')">
-    <div class="modal" style="width:400px;">
+    <div class="modal" style="width:440px;">
         <div class="modal-head">
-            <h3 id="tar-mr-titulo">Aplicar plantilla</h3>
+            <h3>🗂 Aplicar plantillas a un rol</h3>
             <button class="modal-close" onclick="document.getElementById('tar-modal-rol').classList.remove('open')">✕</button>
         </div>
         <div class="modal-body">
-            <p class="modal-desc">Las tareas de la plantilla se AGREGAN a la configuración actual.</p>
+            <p class="modal-desc">Las tareas de las plantillas elegidas se <strong>suman</strong> a las
+                que el rol ya tiene (un rol puede tener varias plantillas).</p>
             <div class="cfg-field">
-                <label class="cfg-label">Asignar a rol</label>
+                <label class="cfg-label">Rol</label>
                 <select class="cfg-input" id="tar-mr-rol"></select>
             </div>
+            <label class="cfg-label">Plantillas</label>
+            <div class="checks" id="tar-mr-lista" style="max-height:220px;"></div>
             <div class="modal-error" id="tar-mr-error"></div>
         </div>
         <div class="modal-foot">
             <button class="btn-modal-cancel" onclick="document.getElementById('tar-modal-rol').classList.remove('open')">Cancelar</button>
-            <button class="btn-modal-confirm" onclick="confirmarAplicarPlantilla()">Aplicar</button>
+            <button class="btn-modal-confirm" onclick="confirmarAplicarPlantilla()">Aplicar seleccionadas</button>
         </div>
     </div>
 </div>
@@ -1490,8 +1496,8 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
             </div>
             <label class="cfg-label" style="margin-top:6px;">Tareas</label>
             <div style="font-size:11.5px;color:#9ca3af;margin-bottom:8px;">
-                El rol es opcional: si una tarea queda sin rol, al aplicar la plantilla se
-                pedirá elegir uno para todas.
+                Las plantillas son genéricas (sin rol): el rol se elige al aplicarlas con el
+                botón "🗂 Plantillas…".
             </div>
             <div id="tar-pl-filas"></div>
             <button type="button" onclick="agregarFilaPlantilla()"
@@ -2131,7 +2137,6 @@ function renderPlantillasCfg() {
         const n = (p.contenido && p.contenido.grupos || []).reduce((s, g) => s + (g.tareas || []).length, 0);
         return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f3f4f6;">
             <span style="flex:1;font-size:13px;">🗂 ${esc(p.nombre)} <span style="font-size:11px;color:#9ca3af;">(${n} tarea${n === 1 ? '' : 's'})</span></span>
-            <button class="tar-mini" onclick="aplicarPlantillaTareas(${p.id})">Aplicar</button>
             <button class="tar-mini" title="Editar" onclick="abrirEditorPlantilla(${p.id})">✏️</button>
             <button class="tar-mini" style="color:#dc2626;" title="Eliminar" onclick="eliminarPlantillaTareas(${p.id}, '${escAttr(p.nombre)}')">🗑</button>
         </div>`;
@@ -2274,28 +2279,33 @@ async function guardarPlantillaTareas() {
     } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
 }
 
-// Aplicar: rol destino OPCIONAL (sin elegir, cada tarea usa su propio rol; si la
-// plantilla tiene tareas sin rol, el backend exige elegir uno).
-let _tarAplicarId = null;
-function aplicarPlantillaTareas(id) {
-    _tarAplicarId = id;
-    const p = (_tarPlantillas.propias || []).find(x => x.id === id);
-    document.getElementById('tar-mr-titulo').textContent = `Aplicar "${p ? p.nombre : 'plantilla'}"`;
+// Aplicar plantillas: botón junto a los filtros → modal con checkboxes. Las
+// plantillas son genéricas; se eligen una o varias y el ROL al que se suman.
+function abrirAplicarPlantillas() {
+    if (!(_tarPlantillas.propias || []).length) { alert('No hay plantillas creadas todavía.'); return; }
     document.getElementById('tar-mr-error').textContent = '';
+    const rolFiltro = document.getElementById('tar-f-rol').value;   // pre-selección desde el filtro
     document.getElementById('tar-mr-rol').innerHTML =
-        '<option value="">(usar el rol de cada tarea)</option>' +
-        _tarRoles.map(r => `<option value="${escAttr(r)}">${esc(r)}</option>`).join('');
+        '<option value="">— Elegí un rol —</option>' +
+        _tarRoles.map(r => `<option value="${escAttr(r)}" ${r === rolFiltro ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    document.getElementById('tar-mr-lista').innerHTML = (_tarPlantillas.propias || []).map(p => {
+        const n = (p.contenido && p.contenido.grupos || []).reduce((s, g) => s + (g.tareas || []).length, 0);
+        return `<label class="check-row"><input type="checkbox" value="${p.id}">
+            🗂 ${esc(p.nombre)} <span style="color:#9ca3af;">(${n} tarea${n === 1 ? '' : 's'})</span></label>`;
+    }).join('');
     document.getElementById('tar-modal-rol').classList.add('open');
 }
 async function confirmarAplicarPlantilla() {
-    const rol = document.getElementById('tar-mr-rol').value;
     const err = document.getElementById('tar-mr-error');
+    const rol = document.getElementById('tar-mr-rol').value;
+    const ids = [...document.querySelectorAll('#tar-mr-lista input:checked')].map(c => Number(c.value));
+    if (!rol) { err.textContent = 'Elegí el rol.'; return; }
+    if (!ids.length) { err.textContent = 'Elegí al menos una plantilla.'; return; }
     try {
-        const body = { plantilla_id: _tarAplicarId };
-        if (rol) body.rol_destino = rol;
-        const r = await apiFetch('/tareas/plantillas/aplicar', { method: 'POST', body: JSON.stringify(body) });
+        const r = await apiFetch('/tareas/plantillas/aplicar', { method: 'POST',
+            body: JSON.stringify({ plantilla_ids: ids, rol_destino: rol }) });
         document.getElementById('tar-modal-rol').classList.remove('open');
-        alert(r.mensaje || 'Plantilla aplicada.');
+        alert(r.mensaje || 'Plantillas aplicadas.');
         _tarReload();
     } catch (e) {
         err.textContent = e.message || 'No se pudo aplicar.';
@@ -2311,9 +2321,7 @@ async function eliminarPlantillaTareas(id, nombre) {
 let _tarPlEditId = null;
 
 function _filaPlantillaHtml(f) {
-    f = f || { grupo: '', texto: '', rol: '', momentos: [] };
-    const roles = '<option value="">(sin rol)</option>' +
-        _tarRoles.map(r => `<option value="${escAttr(r)}" ${f.rol === r ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    f = f || { grupo: '', texto: '', momentos: [] };
     const moms = [['checkin', 'Entrada'], ['checkout', 'Salida'], ['apertura_caja', 'Ap. caja'], ['cierre_caja', 'Ci. caja']]
         .map(([v, l]) => `<label style="font-size:11.5px;display:flex;align-items:center;gap:3px;">
             <input type="checkbox" class="tar-pl-mom" value="${v}" ${(f.momentos || []).includes(v) ? 'checked' : ''}>${l}</label>`).join('');
@@ -2323,7 +2331,6 @@ function _filaPlantillaHtml(f) {
             <input class="cfg-input" data-texto placeholder="Tarea…" value="${escAttr(f.texto || '')}" style="flex:1;">
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <select class="cfg-input" data-rol style="max-width:150px;">${roles}</select>
             ${moms}
             <button type="button" class="tar-mini" style="color:#dc2626;margin-left:auto;"
                     onclick="this.closest('.tar-pl-fila').remove()">🗑</button>
@@ -2345,7 +2352,7 @@ function abrirEditorPlantilla(id) {
     cont.innerHTML = '';
     if (p && p.contenido && p.contenido.grupos) {
         p.contenido.grupos.forEach(g => (g.tareas || []).forEach(t =>
-            agregarFilaPlantilla({ grupo: g.nombre, texto: t.texto, rol: t.rol || '', momentos: t.momentos || [] })));
+            agregarFilaPlantilla({ grupo: g.nombre, texto: t.texto, momentos: t.momentos || [] })));
     }
     if (!cont.children.length) agregarFilaPlantilla();
     document.getElementById('tar-modal-pl').classList.add('open');
@@ -2367,7 +2374,7 @@ async function guardarEditorPlantilla() {
         if (!texto || !momentos.length) { invalidas++; return; }
         const g = fila.querySelector('[data-grupo]').value.trim() || 'General';
         if (!(g in idx)) { idx[g] = grupos.length; grupos.push({ nombre: g, tareas: [] }); }
-        grupos[idx[g]].tareas.push({ texto, momentos, rol: fila.querySelector('[data-rol]').value || null });
+        grupos[idx[g]].tareas.push({ texto, momentos });
     });
     if (invalidas) { err.textContent = `Hay ${invalidas} tarea(s) incompletas (falta texto o momento).`; return; }
     try {
