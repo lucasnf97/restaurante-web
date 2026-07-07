@@ -107,6 +107,10 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     font-weight:700; cursor:pointer; transition:background .15s;
 }
 .btn-save:hover { background:#4338ca; }
+/* Tareas y procedimientos */
+.tar-mini { border:1px solid #e5e7eb; background:#fff; border-radius:6px; cursor:pointer; font-size:12px; padding:3px 7px; color:#4b5563; flex-shrink:0; }
+.tar-mini:hover:not(:disabled) { background:#f3f4f6; }
+.tar-mini:disabled { opacity:.3; cursor:default; }
 .save-ok {
     font-size:12px; color:#16a34a; font-weight:600;
     display:none; align-items:center; gap:4px;
@@ -1088,6 +1092,63 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
+    <!-- ═══ TAREAS Y PROCEDIMIENTOS (checklists declarativos) ═══ -->
+    <div class="cfg-section" id="sec-tareas" style="display:none;">
+        <div class="cfg-section-head" onclick="toggleSection('tareas')">
+            <span class="cfg-section-icon">📋</span>
+            <span class="cfg-section-title">Tareas y procedimientos</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
+                Checklists que cada empleado <strong>declara</strong> (no bloqueante) al fichar
+                entrada/salida y al abrir/cerrar caja, según su rol. El empleado firma con su
+                contraseña y queda registro de qué se le mostró, qué tildó y sus comentarios.
+            </p>
+
+            <!-- Filtros -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center;">
+                <select class="cfg-input" id="tar-f-rol" style="max-width:180px;" onchange="renderTareasCfg()"></select>
+                <select class="cfg-input" id="tar-f-mom" style="max-width:200px;" onchange="renderTareasCfg()">
+                    <option value="">Todos los momentos</option>
+                    <option value="checkin">Entrada de turno</option>
+                    <option value="checkout">Salida de turno</option>
+                    <option value="apertura_caja">Apertura de caja</option>
+                    <option value="cierre_caja">Cierre de caja</option>
+                </select>
+                <span style="font-size:11.5px;color:#9ca3af;">El orden se edita sin filtros (↑↓).</span>
+            </div>
+
+            <!-- Tareas base agrupadas -->
+            <div id="tar-lista" style="margin-top:12px;"></div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+                <button class="btn-save" style="padding:8px 16px;" onclick="abrirTareaModal(null,false)">＋ Tarea</button>
+                <button type="button" onclick="crearGrupoTareas()"
+                        style="padding:8px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;">＋ Grupo</button>
+            </div>
+
+            <!-- Puntuales -->
+            <div style="margin-top:22px;">
+                <div style="font-size:14px;font-weight:700;">📌 Tareas puntuales</div>
+                <div style="font-size:12px;color:#9ca3af;margin:2px 0 10px;">
+                    Adicionales a las base: a un rol o a un empleado, para una fecha o un día
+                    de semana. Aparecen resaltadas como "Tareas del día" en el checklist.
+                </div>
+                <div id="tar-puntuales"></div>
+                <button class="btn-save" style="padding:8px 16px;margin-top:8px;background:#b45309;" onclick="abrirTareaModal(null,true)">＋ Tarea puntual</button>
+            </div>
+
+            <!-- Plantillas -->
+            <div style="margin-top:22px;border-top:1px solid #f0f0f0;padding-top:14px;">
+                <div style="font-size:14px;font-weight:700;margin-bottom:8px;">🗂 Plantillas</div>
+                <div id="tar-plantillas"></div>
+                <button type="button" onclick="guardarPlantillaTareas()"
+                        style="padding:8px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;margin-top:8px;">
+                    💾 Guardar configuración actual como plantilla</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ 5. MODO EDICIÓN ══════════════════════════════════════ -->
     <div class="cfg-section" id="sec-edicion">
         <div class="cfg-section-head" onclick="toggleSection('edicion')">
@@ -1317,6 +1378,95 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
 </div>
 
+<!-- ═══ MODAL TAREA (base y puntual) ══════════════════════════ -->
+<div class="modal-overlay" id="tar-modal" onclick="if(event.target===this)cerrarTareaModal()">
+    <div class="modal" style="width:480px;max-width:94vw;max-height:90vh;overflow-y:auto;">
+        <div class="modal-head">
+            <h3 id="tar-m-titulo">Nueva tarea</h3>
+            <button class="modal-close" onclick="cerrarTareaModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="cfg-field">
+                <label class="cfg-label">Tarea</label>
+                <input class="cfg-input" type="text" id="tar-m-texto" maxlength="300"
+                       placeholder="Ej: Limpiar la plancha y superficies">
+            </div>
+            <div class="cfg-field">
+                <label class="cfg-label">Momentos en que se muestra</label>
+                <div id="tar-m-momentos" style="display:flex;flex-wrap:wrap;gap:10px;font-size:13px;">
+                    <label><input type="checkbox" value="checkin"> Entrada de turno</label>
+                    <label><input type="checkbox" value="checkout"> Salida de turno</label>
+                    <label><input type="checkbox" value="apertura_caja"> Apertura de caja</label>
+                    <label><input type="checkbox" value="cierre_caja"> Cierre de caja</label>
+                </div>
+            </div>
+            <!-- Base -->
+            <div id="tar-m-base">
+                <div class="cfg-field">
+                    <label class="cfg-label">Rol</label>
+                    <select class="cfg-input" id="tar-m-rol"></select>
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Grupo</label>
+                    <select class="cfg-input" id="tar-m-grupo"></select>
+                </div>
+            </div>
+            <!-- Puntual -->
+            <div id="tar-m-puntual" style="display:none;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Destinatario</label>
+                    <div style="display:flex;gap:12px;font-size:13px;margin-bottom:6px;">
+                        <label><input type="radio" name="tar-m-dest" value="rol" checked onchange="_tarMDestino()"> Un rol</label>
+                        <label><input type="radio" name="tar-m-dest" value="usuario" onchange="_tarMDestino()"> Un empleado</label>
+                    </div>
+                    <select class="cfg-input" id="tar-m-p-rol"></select>
+                    <select class="cfg-input" id="tar-m-p-usuario" style="display:none;"></select>
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Cuándo</label>
+                    <div style="display:flex;gap:12px;font-size:13px;margin-bottom:6px;">
+                        <label><input type="radio" name="tar-m-cuando" value="fecha" checked onchange="_tarMCuando()"> Fecha concreta</label>
+                        <label><input type="radio" name="tar-m-cuando" value="dia" onchange="_tarMCuando()"> Día de la semana</label>
+                    </div>
+                    <input class="cfg-input" type="date" id="tar-m-fecha">
+                    <select class="cfg-input" id="tar-m-dia" style="display:none;">
+                        <option value="1">Lunes</option><option value="2">Martes</option>
+                        <option value="3">Miércoles</option><option value="4">Jueves</option>
+                        <option value="5">Viernes</option><option value="6">Sábado</option>
+                        <option value="7">Domingo</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-error" id="tar-m-error"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-modal-cancel" onclick="cerrarTareaModal()">Cancelar</button>
+            <button class="btn-modal-confirm" id="tar-m-guardar" onclick="guardarTareaModal()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODAL ROL DESTINO (aplicar plantilla predefinida) ═════ -->
+<div class="modal-overlay" id="tar-modal-rol" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="modal" style="width:380px;">
+        <div class="modal-head">
+            <h3>Aplicar plantilla</h3>
+            <button class="modal-close" onclick="document.getElementById('tar-modal-rol').classList.remove('open')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-desc" id="tar-mr-desc">¿A qué rol se asignan las tareas de esta plantilla?</p>
+            <div class="cfg-field">
+                <label class="cfg-label">Rol</label>
+                <select class="cfg-input" id="tar-mr-rol"></select>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-modal-cancel" onclick="document.getElementById('tar-modal-rol').classList.remove('open')">Cancelar</button>
+            <button class="btn-modal-confirm" onclick="confirmarAplicarPlantilla()">Aplicar</button>
+        </div>
+    </div>
+</div>
+
 <!-- ═══ MODAL VERIFICACIÓN ════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
@@ -1353,7 +1503,15 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 <script src="js/moneda.js"></script>
 <script>
 requireAuth();
-requirePermiso('acceso_configuracion');
+requirePermiso('acceso_configuracion', 'gestion_tareas');
+// Tareas y procedimientos: visible con gestion_tareas (admin/gerente siempre). Si el
+// usuario SOLO tiene gestion_tareas, ve únicamente esa sección.
+if (hasPermiso('gestion_tareas')) document.getElementById('sec-tareas').style.display = '';
+if (!hasPermiso('acceso_configuracion')) {
+    document.querySelectorAll('#cfg-acordeon .cfg-section').forEach(s => {
+        if (s.id !== 'sec-tareas') s.style.display = 'none';
+    });
+}
 
 // Restaurante/Legal viven en el SERVIDOR (sistema_config, per-restaurante) vía
 // PUT /config/negocio. Antes se guardaban solo en localStorage con clave global y se
@@ -1378,6 +1536,7 @@ function _cargarSeccionLazy(id) {
     if (id === 'roles')            cargarPermisosDef().then(cargarRoles);
     else if (id === 'dashboard')   cargarDashboardCfg();
     else if (id === 'descpersonal') cargarSeccionDescuentoPersonal();
+    else if (id === 'tareas')      cargarSeccionTareas();
 }
 // ── Advertencia al navegar con cambios de rol sin guardar ─────
 let _navOkCfg = false;
@@ -1812,6 +1971,300 @@ function mostrarOk(id) {
     const el = document.getElementById(id);
     el.classList.add('visible');
     setTimeout(() => el.classList.remove('visible'), 2500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Tareas y procedimientos (checklists declarativos) ────────
+// ═══════════════════════════════════════════════════════════════
+const MOM_LABELS = { checkin: '🟢 Entrada', checkout: '🔴 Salida', apertura_caja: '🔓 Apertura caja', cierre_caja: '🔒 Cierre caja' };
+const DIAS_ISO = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' };
+let _tarCfg = { grupos: [], tareas: [] };
+let _tarRoles = [], _tarUsuarios = [], _tarPlantillas = { propias: [], predefinidas: [] };
+let _tarEditId = null, _tarModalPuntual = false, _tarAplicarKey = null;
+
+async function cargarSeccionTareas() {
+    try {
+        const [cfg, roles, usuarios, plantillas] = await Promise.all([
+            apiFetch('/tareas/config'),
+            apiFetch('/roles').catch(() => []),
+            apiFetch('/auth/usuarios').catch(() => []),
+            apiFetch('/tareas/plantillas').catch(() => ({ propias: [], predefinidas: [] })),
+        ]);
+        _tarCfg = cfg;
+        _tarRoles = (roles || []).map(r => r.nombre).filter(n => n && n !== 'admin');
+        _tarUsuarios = (usuarios || []).filter(u => u.rol !== 'admin');
+        _tarPlantillas = plantillas;
+    } catch (e) {
+        document.getElementById('tar-lista').innerHTML =
+            `<div style="color:#9ca3af;font-size:13px;">No se pudo cargar: ${esc(e.message || e)}</div>`;
+        return;
+    }
+    // Filtro de rol
+    const fRol = document.getElementById('tar-f-rol');
+    const sel = fRol.value;
+    fRol.innerHTML = '<option value="">Todos los roles</option>' +
+        _tarRoles.map(r => `<option value="${escAttr(r)}" ${r === sel ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    renderTareasCfg();
+    renderPuntualesCfg();
+    renderPlantillasCfg();
+}
+
+async function _tarReload() { await cargarSeccionTareas(); }
+
+function renderTareasCfg() {
+    const cont = document.getElementById('tar-lista');
+    const fRol = document.getElementById('tar-f-rol').value;
+    const fMom = document.getElementById('tar-f-mom').value;
+    const filtrando = !!(fRol || fMom);
+    const base = _tarCfg.tareas.filter(t => !t.puntual);
+    const grupos = [..._tarCfg.grupos, { id: null, nombre: 'General' }];
+    let html = '';
+    grupos.forEach((g, gi) => {
+        let ts = base.filter(t => (t.grupo_id ?? null) === g.id);
+        const totalGrupo = ts.length;
+        if (fRol) ts = ts.filter(t => t.rol === fRol);
+        if (fMom) ts = ts.filter(t => (t.momentos || []).includes(fMom));
+        if (g.id === null && !totalGrupo) return;     // "General" solo si tiene tareas
+        const flechasG = (g.id !== null && !filtrando) ? `
+            <button class="tar-mini" title="Subir" ${gi === 0 ? 'disabled' : ''} onclick="moverGrupo(${g.id},-1)">↑</button>
+            <button class="tar-mini" title="Bajar" ${gi >= _tarCfg.grupos.length - 1 ? 'disabled' : ''} onclick="moverGrupo(${g.id},1)">↓</button>` : '';
+        const accG = g.id !== null ? `
+            <button class="tar-mini" title="Renombrar" onclick="renombrarGrupoTareas(${g.id})">✏️</button>
+            ${flechasG}
+            <button class="tar-mini" title="Eliminar grupo" style="color:#dc2626;" onclick="eliminarGrupoTareas(${g.id}, '${escAttr(g.nombre)}')">🗑</button>` : '';
+        html += `<div style="margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:6px;background:#f3f4f6;border-radius:8px;padding:6px 10px;">
+                <span style="font-size:13px;font-weight:800;color:#374151;flex:1;">📁 ${esc(g.nombre)}</span>${accG}
+            </div>`;
+        if (!ts.length) {
+            html += `<div style="font-size:12px;color:#c4c9d4;padding:6px 12px;">Sin tareas${filtrando ? ' con este filtro' : ''}.</div>`;
+        } else {
+            ts.forEach((t, i) => {
+                const badges = (t.momentos || []).map(m =>
+                    `<span style="font-size:10px;background:#eef2ff;color:#4338ca;border-radius:10px;padding:1px 7px;font-weight:700;white-space:nowrap;">${MOM_LABELS[m] || m}</span>`).join(' ');
+                const flechas = filtrando ? '' : `
+                    <button class="tar-mini" ${i === 0 ? 'disabled' : ''} onclick="moverTarea(${t.id},${g.id === null ? 'null' : g.id},-1)">↑</button>
+                    <button class="tar-mini" ${i === ts.length - 1 ? 'disabled' : ''} onclick="moverTarea(${t.id},${g.id === null ? 'null' : g.id},1)">↓</button>`;
+                html += `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f3f4f6;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:13px;color:#1f2937;">${esc(t.texto)}</div>
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;">
+                            <span style="font-size:10px;background:#f3f4f6;color:#4b5563;border-radius:10px;padding:1px 7px;font-weight:700;">${esc(t.rol || '—')}</span>${badges}
+                        </div>
+                    </div>
+                    ${flechas}
+                    <button class="tar-mini" title="Editar" onclick="abrirTareaModal(${t.id},false)">✏️</button>
+                    <button class="tar-mini" title="Eliminar" style="color:#dc2626;" onclick="eliminarTareaCfg(${t.id})">🗑</button>
+                </div>`;
+            });
+        }
+        html += `</div>`;
+    });
+    cont.innerHTML = html || '<div style="color:#9ca3af;font-size:13px;">Todavía no hay tareas. Creá la primera o aplicá una plantilla.</div>';
+}
+
+function renderPuntualesCfg() {
+    const cont = document.getElementById('tar-puntuales');
+    const ps = _tarCfg.tareas.filter(t => t.puntual);
+    if (!ps.length) { cont.innerHTML = '<div style="color:#c4c9d4;font-size:12px;">Sin tareas puntuales activas.</div>'; return; }
+    cont.innerHTML = ps.map(t => {
+        const dest = t.puntual_usuario_id
+            ? '👤 ' + esc((_tarUsuarios.find(u => u.id === t.puntual_usuario_id) || {}).username || `Empleado #${t.puntual_usuario_id}`)
+            : '🎭 ' + esc(t.rol || '—');
+        const cuando = t.puntual_fecha
+            ? '📅 ' + t.puntual_fecha.split('-').reverse().join('/')
+            : '🔁 Todos los ' + (DIAS_ISO[t.puntual_dia_semana] || '—');
+        const badges = (t.momentos || []).map(m => MOM_LABELS[m] || m).join(' · ');
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#fffdf6;border:1px solid #fde68a;border-radius:8px;margin-bottom:6px;">
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;color:#1f2937;">📌 ${esc(t.texto)}</div>
+                <div style="font-size:11px;color:#92400e;margin-top:2px;">${dest} &nbsp;·&nbsp; ${cuando} &nbsp;·&nbsp; ${badges}</div>
+            </div>
+            <button class="tar-mini" title="Editar" onclick="abrirTareaModal(${t.id},true)">✏️</button>
+            <button class="tar-mini" title="Eliminar" style="color:#dc2626;" onclick="eliminarTareaCfg(${t.id})">🗑</button>
+        </div>`;
+    }).join('');
+}
+
+function renderPlantillasCfg() {
+    const cont = document.getElementById('tar-plantillas');
+    let html = '';
+    (_tarPlantillas.propias || []).forEach(p => {
+        html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f3f4f6;">
+            <span style="flex:1;font-size:13px;">💾 ${esc(p.nombre)}</span>
+            <button class="tar-mini" onclick="aplicarPlantillaTareas(${p.id}, null)">Aplicar</button>
+            <button class="tar-mini" style="color:#dc2626;" onclick="eliminarPlantillaTareas(${p.id}, '${escAttr(p.nombre)}')">🗑</button>
+        </div>`;
+    });
+    (_tarPlantillas.predefinidas || []).forEach(p => {
+        html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f3f4f6;">
+            <span style="flex:1;font-size:13px;color:#6b7280;">⭐ ${esc(p.nombre)} <span style="font-size:11px;color:#c4c9d4;">(ejemplo)</span></span>
+            <button class="tar-mini" onclick="aplicarPlantillaTareas(null, '${escAttr(p.key)}')">Aplicar…</button>
+        </div>`;
+    });
+    cont.innerHTML = html || '<div style="color:#c4c9d4;font-size:12px;">Sin plantillas guardadas.</div>';
+}
+
+// ── Grupos ──
+async function crearGrupoTareas() {
+    const nombre = prompt('Nombre del grupo (ej: Higiene, Equipamiento, Caja):');
+    if (!nombre || !nombre.trim()) return;
+    try { await apiFetch('/tareas/grupos', { method: 'POST', body: JSON.stringify({ nombre: nombre.trim() }) }); _tarReload(); }
+    catch (e) { alert('No se pudo crear: ' + (e.message || e)); }
+}
+async function renombrarGrupoTareas(id) {
+    const g = _tarCfg.grupos.find(x => x.id === id);
+    const nombre = prompt('Nuevo nombre del grupo:', g ? g.nombre : '');
+    if (!nombre || !nombre.trim()) return;
+    try { await apiFetch(`/tareas/grupos/${id}`, { method: 'PUT', body: JSON.stringify({ nombre: nombre.trim() }) }); _tarReload(); }
+    catch (e) { alert('No se pudo renombrar: ' + (e.message || e)); }
+}
+async function eliminarGrupoTareas(id, nombre) {
+    if (!confirm(`¿Eliminar el grupo "${nombre}"? Sus tareas quedan en "General".`)) return;
+    try { await apiFetch(`/tareas/grupos/${id}`, { method: 'DELETE' }); _tarReload(); }
+    catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+async function moverGrupo(id, delta) {
+    const ids = _tarCfg.grupos.map(g => g.id);
+    const i = ids.indexOf(id), j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    try { await apiFetch('/tareas/grupos/reorder', { method: 'PUT', body: JSON.stringify({ orden: ids }) }); _tarReload(); }
+    catch (e) { alert('Error: ' + (e.message || e)); }
+}
+async function moverTarea(id, grupoId, delta) {
+    const ts = _tarCfg.tareas.filter(t => !t.puntual && (t.grupo_id ?? null) === grupoId);
+    const ids = ts.map(t => t.id);
+    const i = ids.indexOf(id), j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    try { await apiFetch('/tareas/reorder', { method: 'PUT', body: JSON.stringify({ orden: ids }) }); _tarReload(); }
+    catch (e) { alert('Error: ' + (e.message || e)); }
+}
+
+// ── Modal tarea ──
+function _tarMDestino() {
+    const esRol = document.querySelector('input[name="tar-m-dest"]:checked').value === 'rol';
+    document.getElementById('tar-m-p-rol').style.display = esRol ? '' : 'none';
+    document.getElementById('tar-m-p-usuario').style.display = esRol ? 'none' : '';
+}
+function _tarMCuando() {
+    const esFecha = document.querySelector('input[name="tar-m-cuando"]:checked').value === 'fecha';
+    document.getElementById('tar-m-fecha').style.display = esFecha ? '' : 'none';
+    document.getElementById('tar-m-dia').style.display = esFecha ? 'none' : '';
+}
+function abrirTareaModal(id, puntual) {
+    _tarEditId = id; _tarModalPuntual = puntual;
+    const t = id ? _tarCfg.tareas.find(x => x.id === id) : null;
+    document.getElementById('tar-m-titulo').textContent =
+        (id ? 'Editar' : 'Nueva') + (puntual ? ' tarea puntual 📌' : ' tarea');
+    document.getElementById('tar-m-texto').value = t ? t.texto : '';
+    document.getElementById('tar-m-error').textContent = '';
+    document.querySelectorAll('#tar-m-momentos input').forEach(c =>
+        c.checked = !!(t && (t.momentos || []).includes(c.value)));
+    document.getElementById('tar-m-base').style.display = puntual ? 'none' : '';
+    document.getElementById('tar-m-puntual').style.display = puntual ? '' : 'none';
+    const opciones = _tarRoles.map(r => `<option value="${escAttr(r)}">${esc(r)}</option>`).join('');
+    if (!puntual) {
+        document.getElementById('tar-m-rol').innerHTML = opciones;
+        if (t && t.rol) document.getElementById('tar-m-rol').value = t.rol;
+        document.getElementById('tar-m-grupo').innerHTML =
+            _tarCfg.grupos.map(g => `<option value="${g.id}">${esc(g.nombre)}</option>`).join('') +
+            '<option value="">General (sin grupo)</option>';
+        document.getElementById('tar-m-grupo').value = t && t.grupo_id ? String(t.grupo_id) : '';
+    } else {
+        document.getElementById('tar-m-p-rol').innerHTML = opciones;
+        document.getElementById('tar-m-p-usuario').innerHTML =
+            _tarUsuarios.map(u => `<option value="${u.id}">${esc(u.username)} (${esc(u.rol)})</option>`).join('');
+        const esUsuario = !!(t && t.puntual_usuario_id);
+        document.querySelector(`input[name="tar-m-dest"][value="${esUsuario ? 'usuario' : 'rol'}"]`).checked = true;
+        if (t && t.rol) document.getElementById('tar-m-p-rol').value = t.rol;
+        if (esUsuario) document.getElementById('tar-m-p-usuario').value = String(t.puntual_usuario_id);
+        const esDia = !!(t && t.puntual_dia_semana);
+        document.querySelector(`input[name="tar-m-cuando"][value="${esDia ? 'dia' : 'fecha'}"]`).checked = true;
+        document.getElementById('tar-m-fecha').value = (t && t.puntual_fecha) || '';
+        if (esDia) document.getElementById('tar-m-dia').value = String(t.puntual_dia_semana);
+        _tarMDestino(); _tarMCuando();
+    }
+    document.getElementById('tar-modal').classList.add('open');
+    setTimeout(() => document.getElementById('tar-m-texto').focus(), 60);
+}
+function cerrarTareaModal() { document.getElementById('tar-modal').classList.remove('open'); }
+
+async function guardarTareaModal() {
+    const err = document.getElementById('tar-m-error');
+    const texto = document.getElementById('tar-m-texto').value.trim();
+    const momentos = [...document.querySelectorAll('#tar-m-momentos input:checked')].map(c => c.value);
+    if (!texto) { err.textContent = 'Escribí la tarea.'; return; }
+    if (!momentos.length) { err.textContent = 'Elegí al menos un momento.'; return; }
+    const body = { texto, momentos, puntual: _tarModalPuntual };
+    if (!_tarModalPuntual) {
+        body.rol = document.getElementById('tar-m-rol').value;
+        body.grupo_id = document.getElementById('tar-m-grupo').value ? parseInt(document.getElementById('tar-m-grupo').value, 10) : null;
+        if (!body.rol) { err.textContent = 'Elegí un rol.'; return; }
+    } else {
+        const esRol = document.querySelector('input[name="tar-m-dest"]:checked').value === 'rol';
+        if (esRol) body.rol = document.getElementById('tar-m-p-rol').value;
+        else body.puntual_usuario_id = parseInt(document.getElementById('tar-m-p-usuario').value, 10);
+        const esFecha = document.querySelector('input[name="tar-m-cuando"]:checked').value === 'fecha';
+        if (esFecha) {
+            body.puntual_fecha = document.getElementById('tar-m-fecha').value || null;
+            if (!body.puntual_fecha) { err.textContent = 'Elegí la fecha.'; return; }
+        } else {
+            body.puntual_dia_semana = parseInt(document.getElementById('tar-m-dia').value, 10);
+        }
+        if (!(body.rol || body.puntual_usuario_id)) { err.textContent = 'Elegí el destinatario.'; return; }
+    }
+    try {
+        if (_tarEditId) await apiFetch(`/tareas/${_tarEditId}`, { method: 'PUT', body: JSON.stringify(body) });
+        else await apiFetch('/tareas', { method: 'POST', body: JSON.stringify(body) });
+        cerrarTareaModal();
+        _tarReload();
+    } catch (e) { err.textContent = e.message || 'No se pudo guardar.'; }
+}
+
+async function eliminarTareaCfg(id) {
+    if (!confirm('¿Eliminar esta tarea? El historial ya declarado no se altera.')) return;
+    try { await apiFetch(`/tareas/${id}`, { method: 'DELETE' }); _tarReload(); }
+    catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+
+// ── Plantillas ──
+async function guardarPlantillaTareas() {
+    const nombre = prompt('Nombre de la plantilla (guarda los grupos y tareas base actuales):');
+    if (!nombre || !nombre.trim()) return;
+    try { await apiFetch('/tareas/plantillas', { method: 'POST', body: JSON.stringify({ nombre: nombre.trim() }) }); _tarReload(); }
+    catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
+}
+function aplicarPlantillaTareas(plantillaId, predefinidaKey) {
+    if (plantillaId) {
+        if (!confirm('¿Aplicar la plantilla? Las tareas se AGREGAN a las actuales (después podés editarlas).')) return;
+        _postAplicarPlantilla({ plantilla_id: plantillaId });
+        return;
+    }
+    // Predefinida: pide a qué rol asignar las tareas
+    _tarAplicarKey = predefinidaKey;
+    document.getElementById('tar-mr-rol').innerHTML =
+        _tarRoles.map(r => `<option value="${escAttr(r)}">${esc(r)}</option>`).join('');
+    document.getElementById('tar-modal-rol').classList.add('open');
+}
+function confirmarAplicarPlantilla() {
+    const rol = document.getElementById('tar-mr-rol').value;
+    if (!rol) return;
+    document.getElementById('tar-modal-rol').classList.remove('open');
+    _postAplicarPlantilla({ predefinida_key: _tarAplicarKey, rol_destino: rol });
+}
+async function _postAplicarPlantilla(body) {
+    try {
+        const r = await apiFetch('/tareas/plantillas/aplicar', { method: 'POST', body: JSON.stringify(body) });
+        alert(r.mensaje || 'Plantilla aplicada.');
+        _tarReload();
+    } catch (e) { alert('No se pudo aplicar: ' + (e.message || e)); }
+}
+async function eliminarPlantillaTareas(id, nombre) {
+    if (!confirm(`¿Eliminar la plantilla "${nombre}"?`)) return;
+    try { await apiFetch(`/tareas/plantillas/${id}`, { method: 'DELETE' }); _tarReload(); }
+    catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
 }
 
 // ═══════════════════════════════════════════════════════════════

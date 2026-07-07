@@ -372,6 +372,7 @@ const _CAT_INFO = {
     social:     { label: "Social",     icono: "📣", bg: "#ede9fe", fg: "#6d28d9" },
     personal:   { label: "Personal",   icono: "👥", bg: "#f3f4f6", fg: "#4b5563" },
     documentos: { label: "Documentos", icono: "📁", bg: "#fef3c7", fg: "#92400e" },
+    tareas:     { label: "Tareas",     icono: "📋", bg: "#dcfce7", fg: "#166534" },
 };
 function _catDe(m) { return _CAT_INFO[m.categoria] ? m.categoria : "personal"; }
 let _usuariosMap = {};   // id → {id, username, rol}
@@ -467,9 +468,10 @@ function renderChipsCat() {
         noLeidos[c] = (noLeidos[c] || 0) + 1;
         totalNoLeidos++;
     });
-    // Categorías a mostrar: siempre Horarios/Social/Personal; Documentos solo si hay alguno.
+    // Categorías a mostrar: siempre Horarios/Social/Personal; Documentos/Tareas solo si hay.
     const cats = ["horarios", "social", "personal"];
     if (_mensajes.some(m => _catDe(m) === "documentos")) cats.push("documentos");
+    if (_mensajes.some(m => _catDe(m) === "tareas")) cats.push("tareas");
     const chip = (key, label, icono, count, esp) => {
         const cnt = count ? `<span class="cat-count">${count}</span>` : "";
         return `<button class="cat-chip ${esp ? "esp" : ""} ${_catFiltro === key ? "active" : ""}" onclick="filtrarCat('${key}')">${icono ? icono + " " : ""}${label}${cnt}</button>`;
