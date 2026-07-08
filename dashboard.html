@@ -525,7 +525,7 @@ async function cargarDatos() {
         })(),
         (async () => { try { ventasHistData = await api.get("/reportes/ventas-diarias"); } catch(e) {} })(),
         (async () => { try { mensajesData = ((await api.get("/mensajes/recibidos")) || []).filter(m => !m.archivado); } catch(e) {} })(),
-        (async () => { try { socialData = (await api.get("/social/feed?limit=6")) || []; } catch(e) {} })(),
+        (async () => { try { socialData = _socialAplanar(await api.get("/social/feed?limit=6")); } catch(e) {} })(),
         (async () => { try { socialGruposData = (await api.get("/social/grupos")) || { grupos: [] }; } catch(e) {} })(),
         (async () => {
             try {
@@ -659,6 +659,13 @@ function buildBlock(b) {
     return "";
 }
 
+// Tolerante a ambos shapes del feed: array viejo u objeto {fijados, posts} (fijados primero)
+function _socialAplanar(r) {
+    if (Array.isArray(r)) return r;
+    if (r && typeof r === 'object') return (r.fijados || []).concat(r.posts || []);
+    return [];
+}
+
 // ── WIDGET: preview de Social (tabs General/subgrupos, ~4 filas de alto) ──
 function buildSocial(b) {
     const esc = s => (s == null ? '' : String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
@@ -676,10 +683,12 @@ function buildSocial(b) {
             const img = (p.adjuntos || []).find(a => a.tipo === 'imagen');
             const imgHtml = img ? `<img class="social-item-img" src="${esc(img.url)}" alt="" loading="lazy">` : '';
             const txt = p.contenido ? `<div class="social-item-txt">${esc(p.contenido)}</div>` : '';
+            const badges = (p.fijado ? ' <span style="background:#fef3c7;color:#92400e;border-radius:5px;padding:0 5px;font-size:10px;font-weight:700;">📌</span>' : '')
+                + (p.prioritaria ? ' <span style="background:#fee2e2;color:#b91c1c;border-radius:5px;padding:0 5px;font-size:10px;font-weight:700;">🚨</span>' : '');
             return `<div class="social-item" style="cursor:pointer" onclick="location.href='social.html?post=${p.id}'">
                 <div class="social-item-top">
                     <div class="social-item-av">${esc(ini(p.username))}</div>
-                    <span class="social-item-user">${esc(p.username)}</span>
+                    <span class="social-item-user">${esc(p.username)}</span>${badges}
                 </div>
                 ${txt}${imgHtml}
             </div>`;
@@ -696,7 +705,7 @@ function buildSocial(b) {
 // Cambiar de feed dentro del widget (re-renderiza solo ese bloque)
 async function socialWidgetTab(gid) {
     _socialWidgetGrupo = gid;
-    try { socialData = (await api.get(`/social/feed?limit=6${gid ? '&grupo_id=' + gid : ''}`)) || []; }
+    try { socialData = _socialAplanar(await api.get(`/social/feed?limit=6${gid ? '&grupo_id=' + gid : ''}`)); }
     catch (e) { socialData = []; }
     const el = document.querySelector('.db-block[data-id="social"]');
     if (el) el.innerHTML = buildSocial({});

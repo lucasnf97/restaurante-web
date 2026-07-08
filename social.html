@@ -69,6 +69,53 @@
         .empty { text-align: center; color: #9ca3af; font-size: 14px; padding: 40px 0; }
         .btn-mas { display: block; margin: 0 auto; padding: 9px 24px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #4f46e5; cursor: pointer; }
 
+        /* Badges 📌 fijado / 🚨 prioritaria */
+        .badge-pin { background: #fef3c7; color: #92400e; border-radius: 6px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+        .badge-prio { background: #fee2e2; color: #b91c1c; border-radius: 6px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+        .post.fijado { border: 1px solid #fcd34d; }
+        .post.prio { border: 1px solid #fca5a5; }
+
+        /* Barra de acciones del post (reacciones, comentarios, vistas, acuses) */
+        .post-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid #f3f4f6; }
+        .react-chip { border: 1px solid #e5e7eb; background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: #4b5563; }
+        .react-chip:hover { background: #f3f4f6; }
+        .react-chip.mine { background: #eef2ff; border-color: #a5b4fc; color: #3730a3; font-weight: 700; }
+        .react-chip .rn { font-size: 12px; font-weight: 700; }
+        .act-chip { border: none; background: transparent; border-radius: 8px; padding: 5px 9px; font-size: 12.5px; font-weight: 600; color: #6b7280; cursor: pointer; }
+        .act-chip:hover { background: #f3f4f6; }
+        .act-chip.acuses { color: #b91c1c; }
+
+        /* Comentarios */
+        .post-comments { border-top: 1px solid #f3f4f6; padding: 10px 16px 14px; background: #fafafe; }
+        .coment { display: flex; gap: 9px; padding: 7px 0; align-items: flex-start; }
+        .coment-avatar { width: 28px; height: 28px; border-radius: 50%; background: #6366f1; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; flex-shrink: 0; }
+        .coment-body { flex: 1; min-width: 0; background: #fff; border: 1px solid #eef0f3; border-radius: 10px; padding: 7px 11px; }
+        .coment-user { font-size: 12px; font-weight: 700; color: #1a1a2e; }
+        .coment-user .cf { font-weight: 400; color: #9ca3af; font-size: 11px; margin-left: 6px; }
+        .coment-texto { font-size: 13px; color: #1f2937; white-space: pre-wrap; word-break: break-word; }
+        .coment-del { border: none; background: transparent; cursor: pointer; color: #9ca3af; font-size: 12px; padding: 2px 4px; }
+        .coment-del:hover { color: #dc2626; }
+        .coment-form { display: flex; gap: 8px; margin-top: 8px; }
+        .coment-form input { flex: 1; border: 1px solid #e5e7eb; border-radius: 999px; padding: 8px 14px; font-size: 13px; outline: none; }
+        .coment-form input:focus { border-color: #4f46e5; }
+        .coment-form button { border: none; background: #4f46e5; color: #fff; border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+        /* Toggles del composer (📌 / 🚨, solo edición) */
+        .comp-toggle { padding: 8px 13px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; }
+        .comp-toggle.on-pin { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+        .comp-toggle.on-prio { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+
+        /* Sección de fijados */
+        .fijados-titulo { font-size: 12px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: .5px; margin: 2px 0 10px; }
+
+        /* Listados en modal (acuses / vistas) */
+        .lista-det { max-height: 320px; overflow-y: auto; }
+        .lista-det .li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 4px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151; }
+        .lista-det .li .lf { color: #9ca3af; font-size: 12px; white-space: nowrap; }
+        .lista-sub { font-size: 12px; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; margin: 14px 0 4px; }
+        .lista-sub.ok { color: #059669; }
+        .lista-sub.falta { color: #b91c1c; }
+
         /* Modal grupo */
         .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 400; align-items: center; justify-content: center; }
         .modal-ov.open { display: flex; }
@@ -105,10 +152,13 @@
             <input type="text" class="comp-link" id="comp-link" placeholder="Enlace (opcional): https://…">
             <input type="file" id="comp-files" multiple style="display:none" onchange="onFilesSel(this.files)">
             <button class="btn-attach" onclick="document.getElementById('comp-files').click()">📎 Adjuntar</button>
+            <button class="comp-toggle" id="comp-fijar" style="display:none" title="Fijar arriba del muro" onclick="toggleCompFlag(this,'on-pin')">📌 Fijar</button>
+            <button class="comp-toggle" id="comp-prio" style="display:none" title="Todos deben aceptarla para seguir usando el sistema" onclick="toggleCompFlag(this,'on-prio')">🚨 Prioritaria</button>
             <button class="btn-publicar" id="btn-publicar" onclick="publicar()">Publicar</button>
         </div>
     </div>
 
+    <div id="feed-fijados"></div>
     <div id="feed"></div>
     <button class="btn-mas" id="btn-mas" style="display:none" onclick="cargarMas()">Cargar más</button>
 </div>
@@ -144,9 +194,27 @@
         <div class="checks" id="edit-adjuntos"></div>
         <label class="lbl">Agregar adjuntos</label>
         <input type="file" id="edit-files" multiple>
+        <div id="edit-flags" style="display:none">
+            <label class="lbl">Opciones</label>
+            <label class="check-row" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;padding:3px 4px;">
+                <input type="checkbox" id="edit-fijado"> 📌 Fijada arriba del muro</label>
+            <label class="check-row" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;padding:3px 4px;">
+                <input type="checkbox" id="edit-prio"> 🚨 Prioritaria (todos deben aceptarla)</label>
+        </div>
         <div class="modal-acc">
             <button class="btn-save" onclick="guardarEdicion()">Guardar cambios</button>
             <button class="btn-sec" onclick="cerrarModal('modal-editar')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal listado (vistas / acuses) -->
+<div class="modal-ov" id="modal-lista">
+    <div class="modal">
+        <h3 id="lista-title">Detalle</h3>
+        <div id="lista-body" class="lista-det"></div>
+        <div class="modal-acc">
+            <button class="btn-sec" onclick="cerrarModal('modal-lista')">Cerrar</button>
         </div>
     </div>
 </div>
@@ -272,18 +340,46 @@ function seleccionarFeed(grupoId) {
 // ── Feed ─────────────────────────────────────────────────────
 async function cargarFeed(reset) {
     const cont = document.getElementById('feed');
-    if (reset) { cont.innerHTML = '<div class="empty">Cargando…</div>'; _lastId = null; }
+    const contF = document.getElementById('feed-fijados');
+    if (reset) { cont.innerHTML = '<div class="empty">Cargando…</div>'; contF.innerHTML = ''; _lastId = null; }
     let url = `/social/feed?limit=20${_feedGrupoId ? '&grupo_id=' + _feedGrupoId : ''}`;
     if (!reset && _lastId) url += '&before_id=' + _lastId;
-    let posts = [];
-    try { posts = await api.get(url); } catch (e) { cont.innerHTML = '<div class="empty">No se pudo cargar el feed.</div>'; return; }
-    if (reset) cont.innerHTML = '';
-    if (reset && !posts.length) { cont.innerHTML = '<div class="empty">Todavía no hay publicaciones.</div>'; }
+    let r = null;
+    try { r = await api.get(url); } catch (e) { cont.innerHTML = '<div class="empty">No se pudo cargar el feed.</div>'; return; }
+    // Tolerante a ambos shapes: array viejo u objeto {fijados, posts}
+    const fijados = Array.isArray(r) ? [] : (r.fijados || []);
+    const posts = Array.isArray(r) ? r : (r.posts || []);
+    if (reset) {
+        cont.innerHTML = '';
+        if (fijados.length) {
+            contF.innerHTML = '<div class="fijados-titulo">📌 Fijadas</div>';
+            fijados.forEach(p => contF.insertAdjacentHTML('beforeend', renderPost(p)));
+        }
+        if (!posts.length && !fijados.length) cont.innerHTML = '<div class="empty">Todavía no hay publicaciones.</div>';
+    }
     posts.forEach(p => cont.insertAdjacentHTML('beforeend', renderPost(p)));
     if (posts.length) _lastId = posts[posts.length - 1].id;
     document.getElementById('btn-mas').style.display = posts.length === 20 ? 'block' : 'none';
+    _encolarVistas(fijados.concat(posts).map(p => p.id));
 }
 function cargarMas() { cargarFeed(false); }
+
+// ── Vistas (tracking pasivo, batch con debounce) ─────────────
+const _vistasEnviadas = new Set();
+let _vistasCola = [], _vistasTimer = null;
+function _encolarVistas(ids) {
+    if (_emp) return;   // el muro agregado del empleado de cadena no trackea vistas
+    (ids || []).forEach(id => {
+        if (!_vistasEnviadas.has(id)) { _vistasEnviadas.add(id); _vistasCola.push(id); }
+    });
+    if (!_vistasCola.length) return;
+    clearTimeout(_vistasTimer);
+    _vistasTimer = setTimeout(async () => {
+        const lote = _vistasCola.splice(0, 100);
+        try { await apiFetch('/social/vistas', { method: 'POST', body: JSON.stringify({ post_ids: lote }) }); }
+        catch (e) { /* best-effort */ }
+    }, 2000);
+}
 
 function renderPost(p) {
     _postsCache[p.id] = p;
@@ -313,24 +409,168 @@ function renderPost(p) {
             solBlock = `<div style="margin-top:8px;font-size:13px;font-weight:700;color:#6b7280;margin-bottom:6px;">📣 ${esc(lbl)}</div><div>${btnSec}</div>`;
         }
     }
-    const acc = p.can_edit ? `
-        <div class="post-acciones">
-            <button class="post-acc-btn" title="Editar" onclick="abrirEditar(${p.id})">✏️</button>
-            <button class="post-acc-btn" title="Eliminar" onclick="eliminarPost(${p.id})">🗑</button>
-        </div>` : '';
+    let accBtns = '';
+    if (!_emp && _canModerar)
+        accBtns += `<button class="post-acc-btn" title="${p.fijado ? 'Desfijar' : 'Fijar arriba'}" onclick="toggleFijar(${p.id})">📌</button>`;
+    if (p.can_edit)
+        accBtns += `<button class="post-acc-btn" title="Editar" onclick="abrirEditar(${p.id})">✏️</button>
+            <button class="post-acc-btn" title="Eliminar" onclick="eliminarPost(${p.id})">🗑</button>`;
+    const acc = accBtns ? `<div class="post-acciones">${accBtns}</div>` : '';
     const editado = p.editado_en ? ' · editado' : '';
+    const badges = (p.fijado ? ' <span class="badge-pin">📌 Fijada</span>' : '')
+        + (p.prioritaria ? ' <span class="badge-prio">🚨 Prioritaria</span>' : '')
+        + (p.prioritaria && p.aceptado_por_mi ? ' <span class="badge-pin" style="background:#d1fae5;color:#065f46;">✔ Aceptada</span>' : '');
     return `
-    <div class="post" id="post-${p.restaurante_id!=null?(p.restaurante_id+'-'):''}${p.id}">
+    <div class="post${p.fijado ? ' fijado' : ''}${p.prioritaria ? ' prio' : ''}" id="post-${p.restaurante_id!=null?(p.restaurante_id+'-'):''}${p.id}">
         <div class="post-head">
             <div class="post-avatar">${esc(iniciales(p.username))}</div>
             <div class="post-meta">
                 <div class="post-user">${esc(p.username)}${p.restaurante ? ` <span style="background:#eef2ff;color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${esc(p.restaurante)}</span>` : ''}</div>
-                <div class="post-fecha">${fmtFecha(p.creado_en)}${editado}</div>
+                <div class="post-fecha">${fmtFecha(p.creado_en)}${editado}${badges}</div>
             </div>
             ${acc}
         </div>
         ${texto}${solBlock}${imgs}${filesBlock}${enlace}
+        ${_barraAcciones(p)}
+        <div class="post-comments" id="coments-${p.id}" style="display:none"></div>
     </div>`;
+}
+
+// ── Barra de acciones (reacciones / comentarios / vistas / acuses) ──
+const _EMOJIS = ['👍', '❤️', '👏', '🎉'];
+function _barraAcciones(p) {
+    if (_emp || p.reacciones === undefined) return '';   // muro agregado o API vieja: sin barra
+    const chips = _EMOJIS.map(e => {
+        const r = (p.reacciones || []).find(x => x.emoji === e);
+        const n = r ? r.n : 0;
+        const mine = p.mi_reaccion === e ? ' mine' : '';
+        const title = r && r.usuarios && r.usuarios.length ? esc(r.usuarios.join(', ')) : '';
+        return `<button class="react-chip${mine}" title="${title}" onclick="reaccionar(${p.id}, '${e}')">${e}${n ? ` <span class="rn">${n}</span>` : ''}</button>`;
+    }).join('');
+    const coment = `<button class="act-chip" onclick="toggleComentarios(${p.id})">💬 <span id="coment-count-${p.id}">${p.comentarios_count || 0}</span></button>`;
+    const vistas = _canModerar
+        ? `<button class="act-chip" title="Quiénes la vieron" onclick="abrirVistas(${p.id})">👁 ${p.vistas_count || 0}</button>`
+        : `<span class="act-chip" style="cursor:default">👁 ${p.vistas_count || 0}</span>`;
+    const acuses = (p.prioritaria && _canModerar && p.audiencia_total !== undefined)
+        ? `<button class="act-chip acuses" onclick="abrirAcuses(${p.id})">✔ Aceptaron ${p.acuses_count || 0}/${p.audiencia_total} — Ver</button>`
+        : '';
+    return `<div class="post-actions" id="acciones-${p.id}">${chips}${coment}${vistas}${acuses}</div>`;
+}
+
+async function reaccionar(postId, emoji) {
+    const p = _postsCache[postId];
+    if (!p) return;
+    const nuevo = p.mi_reaccion === emoji ? null : emoji;   // toggle
+    try {
+        const r = await apiFetch(`/social/posts/${postId}/reaccion`, {
+            method: 'PUT', body: JSON.stringify({ emoji: nuevo }) });
+        p.reacciones = r.reacciones; p.mi_reaccion = r.mi_reaccion;
+        const bar = document.getElementById('acciones-' + postId);
+        if (bar) bar.outerHTML = _barraAcciones(p);
+    } catch (e) { alert('No se pudo reaccionar: ' + (e.message || e)); }
+}
+
+// ── Comentarios ──────────────────────────────────────────────
+async function toggleComentarios(postId) {
+    const box = document.getElementById('coments-' + postId);
+    if (!box) return;
+    if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    if (!box.dataset.cargado) await cargarComentarios(postId);
+}
+async function cargarComentarios(postId) {
+    const box = document.getElementById('coments-' + postId);
+    box.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:6px 0">Cargando…</div>';
+    let lista = [];
+    try { lista = await api.get(`/social/posts/${postId}/comentarios`); }
+    catch (e) { box.innerHTML = '<div style="font-size:12px;color:#9ca3af">No se pudieron cargar los comentarios.</div>'; return; }
+    box.dataset.cargado = '1';
+    box.innerHTML = `<div id="coments-lista-${postId}">${lista.map(c => _comentHtml(c)).join('')}</div>
+        <div class="coment-form">
+            <input type="text" id="coment-input-${postId}" maxlength="2000" placeholder="Escribí un comentario…"
+                   onkeydown="if(event.key==='Enter')comentar(${postId})">
+            <button onclick="comentar(${postId})">Enviar</button>
+        </div>`;
+    const cnt = document.getElementById('coment-count-' + postId);
+    if (cnt) cnt.textContent = lista.length;
+    if (_postsCache[postId]) _postsCache[postId].comentarios_count = lista.length;
+}
+function _comentHtml(c) {
+    const del = c.can_delete ? `<button class="coment-del" title="Eliminar" onclick="borrarComentario(${c.id}, this)">🗑</button>` : '';
+    return `<div class="coment" id="coment-${c.id}">
+        <div class="coment-avatar">${esc(iniciales(c.username))}</div>
+        <div class="coment-body">
+            <div class="coment-user">${esc(c.username)}<span class="cf">${fmtFecha(c.creado_en)}</span></div>
+            <div class="coment-texto">${esc(c.texto)}</div>
+        </div>${del}
+    </div>`;
+}
+async function comentar(postId) {
+    const input = document.getElementById('coment-input-' + postId);
+    const texto = (input.value || '').trim();
+    if (!texto) return;
+    try {
+        const c = await apiFetch(`/social/posts/${postId}/comentarios`, {
+            method: 'POST', body: JSON.stringify({ texto }) });
+        input.value = '';
+        document.getElementById('coments-lista-' + postId).insertAdjacentHTML('beforeend', _comentHtml(c));
+        const cnt = document.getElementById('coment-count-' + postId);
+        if (cnt) cnt.textContent = Number(cnt.textContent || 0) + 1;
+        if (_postsCache[postId]) _postsCache[postId].comentarios_count = Number(cnt ? cnt.textContent : 1);
+    } catch (e) { alert('No se pudo comentar: ' + (e.message || e)); }
+}
+async function borrarComentario(comentId, btn) {
+    if (!confirm('¿Eliminar este comentario?')) return;
+    try {
+        await apiFetch(`/social/comentarios/${comentId}`, { method: 'DELETE' });
+        const el = document.getElementById('coment-' + comentId);
+        const box = el?.closest('.post-comments');
+        el?.remove();
+        if (box) {
+            const pid = box.id.replace('coments-', '');
+            const cnt = document.getElementById('coment-count-' + pid);
+            if (cnt) cnt.textContent = Math.max(0, Number(cnt.textContent || 1) - 1);
+        }
+    } catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+
+// ── Fijar / desfijar (editores) ──────────────────────────────
+async function toggleFijar(postId) {
+    const p = _postsCache[postId];
+    if (!p) return;
+    try {
+        await apiFetch(`/social/posts/${postId}/fijar`, {
+            method: 'PATCH', body: JSON.stringify({ fijado: !p.fijado }) });
+        cargarFeed(true);   // el post cambia de sección (fijados ↔ stream)
+    } catch (e) { alert('No se pudo fijar: ' + (e.message || e)); }
+}
+
+// ── Modales de detalle (vistas / acuses) ─────────────────────
+function _abrirLista(titulo, html) {
+    document.getElementById('lista-title').textContent = titulo;
+    document.getElementById('lista-body').innerHTML = html;
+    document.getElementById('modal-lista').classList.add('open');
+}
+async function abrirVistas(postId) {
+    try {
+        const r = await api.get(`/social/posts/${postId}/vistas`);
+        const filas = (r.usuarios || []).map(u =>
+            `<div class="li"><span>${esc(u.username)}</span><span class="lf">${fmtFecha(u.creado_en)}</span></div>`).join('');
+        _abrirLista(`👁 Vista por ${r.total}`, filas || '<div class="empty" style="padding:16px 0">Nadie la vio todavía.</div>');
+    } catch (e) { alert('No se pudo cargar: ' + (e.message || e)); }
+}
+async function abrirAcuses(postId) {
+    try {
+        const r = await api.get(`/social/posts/${postId}/acuses`);
+        const ok = (r.aceptaron || []).map(a =>
+            `<div class="li"><span>✔ ${esc(a.username)}</span><span class="lf">${fmtFecha(a.creado_en)}</span></div>`).join('');
+        const falta = (r.pendientes || []).map(u => `<div class="li"><span>${esc(u.username)}</span></div>`).join('');
+        _abrirLista(`🚨 Acuses (${(r.aceptaron || []).length}/${r.audiencia_total})`,
+            `<div class="lista-sub ok">Aceptaron (${(r.aceptaron || []).length})</div>` +
+            (ok || '<div style="font-size:13px;color:#9ca3af;padding:4px">Nadie todavía.</div>') +
+            `<div class="lista-sub falta">Pendientes (${(r.pendientes || []).length})</div>` +
+            (falta || '<div style="font-size:13px;color:#9ca3af;padding:4px">Nadie pendiente 🎉</div>'));
+    } catch (e) { alert('No se pudo cargar: ' + (e.message || e)); }
 }
 
 // ── Composer ─────────────────────────────────────────────────
@@ -343,6 +583,14 @@ function renderComposerAdj() {
         `<span class="adj-chip">${esc(f.name)} <span class="x" onclick="quitarAdjComposer(${i})">✕</span></span>`).join('');
 }
 function quitarAdjComposer(i) { _composerFiles.splice(i, 1); renderComposerAdj(); }
+
+function toggleCompFlag(btn, clase) {
+    btn.classList.toggle(clase);
+    if (clase === 'on-prio' && btn.classList.contains(clase)
+        && !confirm('🚨 Una publicación PRIORITARIA aparece en primer plano al entrar al sistema y cada persona debe aceptarla para continuar. ¿Marcarla como prioritaria?')) {
+        btn.classList.remove(clase);
+    }
+}
 
 async function publicar() {
     const texto = document.getElementById('comp-texto').value.trim();
@@ -358,6 +606,10 @@ async function publicar() {
         const men = _mencionesEfectivas(_mencionSel, texto);
         fd.append('menciones_usuarios', JSON.stringify(men.usuarios));
         fd.append('menciones_roles', JSON.stringify(men.roles));
+        const esFijado = document.getElementById('comp-fijar').classList.contains('on-pin');
+        const esPrio = document.getElementById('comp-prio').classList.contains('on-prio');
+        fd.append('fijado', esFijado ? '1' : '');
+        fd.append('prioritaria', esPrio ? '1' : '');
         _composerFiles.forEach(f => fd.append('files', f));
         const p = await apiFetch('/social/posts', { method: 'POST', body: fd });
         // limpiar y mostrar arriba
@@ -366,9 +618,13 @@ async function publicar() {
         _composerFiles = []; renderComposerAdj();
         _mencionSel = [];
         document.getElementById('mention-box').style.display = 'none';
+        document.getElementById('comp-fijar').classList.remove('on-pin');
+        document.getElementById('comp-prio').classList.remove('on-prio');
+        if (esFijado) { cargarFeed(true); return; }   // entra a la sección de fijadas
         const feed = document.getElementById('feed');
         if (feed.querySelector('.empty')) feed.innerHTML = '';
         feed.insertAdjacentHTML('afterbegin', renderPost(p));
+        _encolarVistas([p.id]);
     } catch (e) {
         alert('No se pudo publicar: ' + (e.message || e));
     } finally { btn.disabled = false; }
@@ -399,6 +655,12 @@ async function abrirEditar(id) {
         : '<span style="font-size:12px;color:#9ca3af">Sin adjuntos</span>';
     _editMenciones = [];   // solo se notifican las menciones agregadas en esta edición
     document.getElementById('edit-mention-box').style.display = 'none';
+    // Flags 📌/🚨: solo editores los tocan (el autor común edita sin verlos)
+    document.getElementById('edit-flags').style.display = _canModerar ? '' : 'none';
+    if (_canModerar) {
+        document.getElementById('edit-fijado').checked = !!p.fijado;
+        document.getElementById('edit-prio').checked = !!p.prioritaria;
+    }
     document.getElementById('modal-editar').classList.add('open');
 }
 async function guardarEdicion() {
@@ -412,11 +674,20 @@ async function guardarEdicion() {
     const men = _mencionesEfectivas(_editMenciones, texto);
     fd.append('menciones_usuarios', JSON.stringify(men.usuarios));
     fd.append('menciones_roles', JSON.stringify(men.roles));
+    let cambioFijado = false;
+    if (_canModerar) {
+        const antes = _postsCache[_editId] || {};
+        const f = document.getElementById('edit-fijado').checked;
+        fd.append('fijado', f ? '1' : '0');
+        fd.append('prioritaria', document.getElementById('edit-prio').checked ? '1' : '0');
+        cambioFijado = f !== !!antes.fijado;
+    }
     const nuevos = document.getElementById('edit-files').files;
     Array.from(nuevos).forEach(f => fd.append('files', f));
     try {
         const p = await apiFetch(`/social/posts/${_editId}`, { method: 'PATCH', body: fd });
         cerrarModal('modal-editar');
+        if (cambioFijado) { _editId = null; cargarFeed(true); return; }   // cambia de sección
         const el = document.getElementById('post-' + _editId);
         if (el) el.outerHTML = renderPost(p);
         _postsCache[_editId] = p;
@@ -515,6 +786,10 @@ async function _cargarFeedEmpleado() {
             }
         }
         return;
+    }
+    if (_canModerar) {
+        document.getElementById('comp-fijar').style.display = '';
+        document.getElementById('comp-prio').style.display = '';
     }
     await cargarMenciones();
     await cargarGrupos();

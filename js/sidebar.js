@@ -633,10 +633,112 @@
         } catch { /* sin sesión / sin esquema (superadmin, cadena) → default */ }
     }
 
+    // ── PUBLICACIONES PRIORITARIAS (overlay bloqueante) ──────────
+    // Al entrar a CUALQUIER página con sesión de restaurante, si hay publicaciones
+    // prioritarias del muro Social que este usuario todavía no aceptó, se muestran
+    // en primer plano (una por una, la más antigua primero). Para continuar hay que
+    // tildar "Leí y entiendo" y Aceptar — sin botón cerrar, sin Escape. TODO el init
+    // es fail-silent: un error acá jamás debe bloquear la página.
+    async function _initPrioritarias() {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const empToken = localStorage.getItem("emp_token");
+            if (empToken && token === empToken) return;   // contexto cuenta (empleado de cadena)
+            let user = null;
+            try { user = JSON.parse(localStorage.getItem("user") || "null"); } catch (e) {}
+            if (!user || user.id == null) return;         // cuentas sintéticas (admin override)
+            if (["superadmin", "gerente_cadena", "empleado_cadena"].includes(user.rol)) return;
+            // Fetch crudo (patrón _cargarBadgeMensajes): sidebar.js puede cargar antes que api.js
+            const API_URL = window._API_URL || "https://restaurante-backend-production-459b.up.railway.app";
+            const headers = { Authorization: `Bearer ${token}` };
+            const res = await fetch(`${API_URL}/social/prioritarias-pendientes`, { headers });
+            if (!res.ok) return;
+            const posts = await res.json();
+            if (!Array.isArray(posts) || !posts.length) return;
+            _mostrarPrioritarias(posts, API_URL, headers);
+        } catch (e) { /* fail-silent */ }
+    }
+
+    function _mostrarPrioritarias(posts, API_URL, headers) {
+        let idx = 0;
+        const fmtF = ts => {
+            try {
+                const d = new Date(ts);
+                return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) + " " +
+                       d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+            } catch (e) { return ""; }
+        };
+        const ov = document.createElement("div");
+        ov.id = "prio-overlay";
+        ov.style.cssText = "position:fixed;inset:0;background:rgba(10,10,25,.78);z-index:5000;" +
+            "display:flex;align-items:center;justify-content:center;padding:16px;";
+        document.body.appendChild(ov);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        function render() {
+            if (idx >= posts.length) {
+                ov.remove();
+                document.body.style.overflow = prevOverflow;
+                return;
+            }
+            const p = posts[idx];
+            const imgs = (p.adjuntos || []).filter(a => a.tipo === "imagen").map(a =>
+                `<img src="${_escS(a.url)}" alt="" style="max-width:100%;border-radius:10px;margin-top:10px;display:block;">`).join("");
+            const files = (p.adjuntos || []).filter(a => a.tipo === "archivo").map(a =>
+                `<a href="${_escS(a.url)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:#4f46e5;font-weight:600;font-size:13px;text-decoration:none;">📄 ${_escS(a.nombre)}</a>`).join("");
+            const enlace = p.enlace ? `<a href="${_escS(p.enlace)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:#4f46e5;font-size:13px;word-break:break-all;">🔗 ${_escS(p.enlace)}</a>` : "";
+            const grupo = p.grupo_nombre ? ` · grupo ${_escS(p.grupo_nombre)}` : "";
+            ov.innerHTML = `
+              <div style="background:#fff;border-radius:16px;width:560px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.4);">
+                <div style="background:#b91c1c;color:#fff;padding:13px 20px;display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-weight:800;font-size:15px;">🚨 Publicación prioritaria</span>
+                  <span style="font-size:12px;font-weight:700;opacity:.9;">${idx + 1} de ${posts.length}</span>
+                </div>
+                <div style="padding:16px 20px;overflow-y:auto;flex:1;">
+                  <div style="font-size:12px;color:#6b7280;margin-bottom:10px;"><b style="color:#1a1a2e">${_escS(p.username)}</b> · ${fmtF(p.creado_en)}${grupo}</div>
+                  <div style="font-size:14px;color:#1f2937;white-space:pre-wrap;word-break:break-word;">${_escS(p.contenido || "")}</div>
+                  ${imgs}${files}${enlace}
+                  <div id="prio-err" style="display:none;color:#b91c1c;font-size:13px;font-weight:600;margin-top:12px;"></div>
+                </div>
+                <div style="border-top:1px solid #e5e7eb;padding:14px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fafafa;">
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer;">
+                    <input type="checkbox" id="prio-check" style="width:17px;height:17px;"> Leí y entiendo esta publicación
+                  </label>
+                  <button id="prio-aceptar" disabled style="margin-left:auto;background:#b91c1c;color:#fff;border:none;border-radius:8px;padding:9px 24px;font-size:14px;font-weight:700;cursor:pointer;opacity:.5;">Aceptar</button>
+                </div>
+              </div>`;
+            const chk = ov.querySelector("#prio-check");
+            const btn = ov.querySelector("#prio-aceptar");
+            chk.addEventListener("change", () => {
+                btn.disabled = !chk.checked;
+                btn.style.opacity = chk.checked ? "1" : ".5";
+            });
+            btn.addEventListener("click", async () => {
+                btn.disabled = true; btn.style.opacity = ".5";
+                try {
+                    await fetch(`${API_URL}/social/posts/${p.id}/aceptar`, { method: "POST", headers });
+                    // 2xx o 4xx → seguir (un 4xx acá no se arregla reintentando)
+                    idx++; render();
+                } catch (e) {
+                    // Error de RED: mantener el post y ofrecer reintentar
+                    const err = ov.querySelector("#prio-err");
+                    if (err) { err.style.display = "block"; err.textContent = "Sin conexión — no se pudo confirmar. Volvé a intentar."; }
+                    btn.textContent = "Reintentar";
+                    btn.disabled = !chk.checked;
+                    btn.style.opacity = chk.checked ? "1" : ".5";
+                }
+            });
+        }
+        render();
+    }
+
     // ── INIT ─────────────────────────────────────────────────────
     function _initSidebar() {
         injectHamburger();
         initMarca();
+        _initPrioritarias();
     }
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", _initSidebar);
