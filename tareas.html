@@ -39,6 +39,9 @@
         .grupo-head { display: flex; align-items: center; gap: 6px; background: #f3f4f6; padding: 7px 12px; }
         .grupo-head b { flex: 1; font-size: 13px; color: #374151; }
         .fila-tarea { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #f3f4f6; }
+        .fila-tarea[draggable="true"] { cursor: grab; user-select: none; }
+        .fila-tarea.sel { background: #ede9fe; box-shadow: inset 3px 0 0 #4f46e5; }
+        .card.drop-hover { outline: 2px dashed #4f46e5; outline-offset: -2px; background: #f5f3ff; }
         .fila-tarea .tx { flex: 1; min-width: 0; }
         .fila-tarea .tx .t { font-size: 13.5px; color: #1f2937; }
         .fila-tarea .tx .b { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
@@ -126,9 +129,9 @@
     <!-- ═══ PLANTILLAS ═══ -->
     <div id="tab-plantillas" style="display:none;">
         <p style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.6;">
-            Sets genéricos de tareas reutilizables. Se aplican desde la solapa Turno
-            ("🗂 Plantillas…") o desde acá; las de turno piden rol, las de caja no.
-            Aplicar siempre <strong>suma</strong>, nunca reemplaza.
+            Listados genéricos de tareas reutilizables (tocá una para ver su contenido).
+            Al aplicarlas elegís rol/empleado y entrada/salida de turno; entran al grupo
+            General y de ahí las movés. Aplicar siempre <strong>suma</strong>, nunca reemplaza.
         </p>
         <div class="card" id="lista-plantillas"></div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
@@ -212,15 +215,14 @@
             agregar más tareas sueltas).</p>
         <label class="lbl">Plantillas</label>
         <div id="ma-lista" style="max-height:180px;overflow-y:auto;border:1px solid #f0f0f0;border-radius:8px;padding:8px;"></div>
-        <label class="lbl">¿En qué momentos se realizan?</label>
+        <label class="lbl">¿En qué momento se realizan?</label>
         <div class="checksmom" id="ma-momentos">
-            <label><input type="checkbox" value="checkin" onchange="_maMomentos()"> 🟢 Entrada</label>
-            <label><input type="checkbox" value="checkout" onchange="_maMomentos()"> 🔴 Salida</label>
-            <label><input type="checkbox" value="apertura_caja" onchange="_maMomentos()"> 🔓 Apertura caja</label>
-            <label><input type="checkbox" value="cierre_caja" onchange="_maMomentos()"> 🔒 Cierre caja</label>
+            <label><input type="checkbox" value="checkin"> 🟢 Entrada de turno</label>
+            <label><input type="checkbox" value="checkout"> 🔴 Salida de turno</label>
         </div>
-        <div id="ma-quien" style="display:none;">
-            <label class="lbl">¿Quién? <span style="font-weight:400;text-transform:none;">(para los momentos de turno; caja queda para quien la opere)</span></label>
+        <div style="font-size:11.5px;color:#9ca3af;margin-top:4px;">Las tareas de caja se crean directo en la solapa 💰 Caja.</div>
+        <div id="ma-quien">
+            <label class="lbl">¿Quién debe hacerlas?</label>
             <div class="radios">
                 <label><input type="radio" name="ma-dest" value="rol" checked onchange="_maDestino()"> Un rol</label>
                 <label><input type="radio" name="ma-dest" value="usuario" onchange="_maDestino()"> Un empleado</label>
@@ -244,8 +246,8 @@
         <input class="inp" type="text" id="mp-nombre" maxlength="120" placeholder="Ej: Apertura de salón">
         <label class="lbl">Tareas</label>
         <div style="font-size:11.5px;color:#9ca3af;margin-bottom:8px;">
-            Solo el listado: a quién y en qué momento se realizan se elige al APLICAR la
-            plantilla. El grupo (opcional) aplica solo si se destina a turnos.
+            Solo el listado: a quién y en qué momento se realizan se elige al APLICAR.
+            Al aplicarse entran al grupo General y de ahí las movés a donde quieras.
         </div>
         <div id="mp-filas"></div>
         <button type="button" class="btn" style="border-style:dashed;margin-top:8px;" onclick="agregarFilaPlantilla()">＋ Agregar tarea</button>
@@ -310,6 +312,7 @@ function renderTabs() {
 }
 async function setTab(t) {
     _tab = t;
+    if (t !== 'turno') _sel.clear();   // la selección múltiple vive solo en Turno
     renderTabs();
     ['turno', 'caja', 'plantillas', 'historial'].forEach(k =>
         document.getElementById('tab-' + k).style.display = k === t ? '' : 'none');
@@ -356,6 +359,71 @@ async function _reload() {
 }
 
 // ══════════════ SOLAPA TURNO ══════════════
+// Selección múltiple con click + drag & drop entre grupos.
+let _sel = new Set();
+
+function toggleSel(id) {
+    if (_sel.has(id)) _sel.delete(id); else _sel.add(id);
+    renderTurno();
+}
+function limpiarSel() { _sel.clear(); renderTurno(); }
+
+function _barraSeleccionHtml() {
+    if (!_sel.size) return '';
+    const ops = '<option value="">General (sin grupo)</option>' +
+        _cfg.grupos.map(g => `<option value="${g.id}">${esc(g.nombre)}</option>`).join('');
+    return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#ede9fe;
+                border:1.5px solid #c7d2fe;border-radius:10px;padding:10px 14px;margin-bottom:10px;">
+        <b style="font-size:13px;color:#4338ca;">${_sel.size} seleccionada${_sel.size === 1 ? '' : 's'}</b>
+        <span style="font-size:12.5px;color:#6b7280;">Mover a:</span>
+        <select class="inp" id="sel-grupo" style="max-width:200px;">${ops}</select>
+        <button class="btn btn-primary" style="padding:6px 14px;" onclick="moverSeleccion()">Mover</button>
+        <button class="btn" style="padding:6px 14px;" onclick="limpiarSel()">✕ Cancelar</button>
+        <span style="font-size:11.5px;color:#9ca3af;">También podés arrastrarlas al grupo.</span>
+    </div>`;
+}
+
+async function moverSeleccion(grupoId) {
+    const gid = grupoId !== undefined ? grupoId
+        : (document.getElementById('sel-grupo').value ? parseInt(document.getElementById('sel-grupo').value, 10) : null);
+    const ids = [..._sel];
+    if (!ids.length) return;
+    try {
+        await apiFetch('/tareas/mover-grupo', { method: 'PUT',
+            body: JSON.stringify({ tarea_ids: ids, grupo_id: gid }) });
+        _sel.clear();
+        _reload();
+    } catch (e) { alert('No se pudo mover: ' + (e.message || e)); }
+}
+
+// Drag & drop: arrastrar una fila (o la selección, si la fila está seleccionada)
+// y soltarla sobre el card de un grupo.
+let _dragId = null;
+function dragTarea(ev, id) {
+    _dragId = id;
+    ev.dataTransfer.effectAllowed = 'move';
+    try { ev.dataTransfer.setData('text/plain', String(id)); } catch (_) {}
+}
+function dragSobreGrupo(ev) {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+    ev.currentTarget.classList.add('drop-hover');
+}
+function dragSaleGrupo(ev) { ev.currentTarget.classList.remove('drop-hover'); }
+async function dropEnGrupo(ev, grupoId) {
+    ev.preventDefault();
+    ev.currentTarget.classList.remove('drop-hover');
+    if (_dragId == null) return;
+    const ids = _sel.has(_dragId) ? [..._sel] : [_dragId];
+    _dragId = null;
+    try {
+        await apiFetch('/tareas/mover-grupo', { method: 'PUT',
+            body: JSON.stringify({ tarea_ids: ids, grupo_id: grupoId }) });
+        _sel.clear();
+        _reload();
+    } catch (e) { alert('No se pudo mover: ' + (e.message || e)); }
+}
+
 function renderTurno() {
     const cont = document.getElementById('lista-turno');
     const fRol = document.getElementById('f-rol').value;
@@ -364,24 +432,26 @@ function renderTurno() {
     const filtrando = !!(fRol || fEmp || fMom);
     const base = _cfg.tareas.filter(_esTurno);
     const grupos = [..._cfg.grupos, { id: null, nombre: 'General' }];
-    let html = '';
+    let html = _barraSeleccionHtml();
     grupos.forEach((g, gi) => {
         let ts = base.filter(t => (t.grupo_id ?? null) === g.id);
-        const totalGrupo = ts.length;
         if (fRol) ts = ts.filter(t => t.rol === fRol);
         if (fEmp) ts = ts.filter(t => String(t.puntual_usuario_id || '') === fEmp);
         if (fMom) ts = ts.filter(t => (t.momentos || []).includes(fMom));
-        if (g.id === null && !totalGrupo) return;
         const accG = g.id !== null ? `
             <button class="mini" title="Renombrar" onclick="renombrarGrupo(${g.id})">✏️</button>
             ${filtrando ? '' : `
             <button class="mini" ${gi === 0 ? 'disabled' : ''} onclick="moverGrupo(${g.id},-1)">↑</button>
             <button class="mini" ${gi >= _cfg.grupos.length - 1 ? 'disabled' : ''} onclick="moverGrupo(${g.id},1)">↓</button>`}
             <button class="mini rojo" title="Eliminar grupo" onclick="eliminarGrupo(${g.id}, '${escAttr(g.nombre)}')">🗑</button>` : '';
-        html += `<div class="card" style="margin-bottom:10px;">
+        const gidJs = g.id === null ? 'null' : g.id;
+        // El card entero es zona de drop del grupo (General siempre visible como destino)
+        html += `<div class="card" style="margin-bottom:10px;"
+                     ondragover="dragSobreGrupo(event)" ondragleave="dragSaleGrupo(event)"
+                     ondrop="dropEnGrupo(event, ${gidJs})">
             <div class="grupo-head"><b>📁 ${esc(g.nombre)}</b>${accG}</div>`;
         if (!ts.length) {
-            html += `<div class="vacio" style="padding:10px;">Sin tareas${filtrando ? ' con este filtro' : ''}.</div>`;
+            html += `<div class="vacio" style="padding:10px;">Sin tareas${filtrando ? ' con este filtro' : ''} — soltá acá para mover.</div>`;
         } else {
             ts.forEach((t, i) => {
                 const dest = t.puntual_usuario_id
@@ -390,22 +460,25 @@ function renderTurno() {
                 const moms = (t.momentos || []).filter(m => MUNDO_TURNO.includes(m))
                     .map(m => `<span class="chip mom">${MOM_LABELS[m]}</span>`).join('');
                 const flechas = filtrando ? '' : `
-                    <button class="mini" ${i === 0 ? 'disabled' : ''} onclick="moverTarea(${t.id},${g.id === null ? 'null' : g.id},-1)">↑</button>
-                    <button class="mini" ${i === ts.length - 1 ? 'disabled' : ''} onclick="moverTarea(${t.id},${g.id === null ? 'null' : g.id},1)">↓</button>`;
-                html += `<div class="fila-tarea">
+                    <button class="mini" ${i === 0 ? 'disabled' : ''} onclick="event.stopPropagation();moverTarea(${t.id},${gidJs},-1)">↑</button>
+                    <button class="mini" ${i === ts.length - 1 ? 'disabled' : ''} onclick="event.stopPropagation();moverTarea(${t.id},${gidJs},1)">↓</button>`;
+                html += `<div class="fila-tarea ${_sel.has(t.id) ? 'sel' : ''}" draggable="true"
+                              ondragstart="dragTarea(event, ${t.id})" onclick="toggleSel(${t.id})"
+                              title="Click: seleccionar · Arrastrar: mover de grupo">
+                    <span style="flex-shrink:0;font-size:13px;width:18px;text-align:center;">${_sel.has(t.id) ? '☑' : '⠿'}</span>
                     <div class="tx">
                         <div class="t">${esc(t.texto)}</div>
                         <div class="b"><span class="chip">${dest}</span>${moms}${_badgeFreq(t)}</div>
                     </div>
                     ${flechas}
-                    <button class="mini" title="Editar" onclick="abrirTareaModal(${t.id},'turno')">✏️</button>
-                    <button class="mini rojo" title="Eliminar" onclick="eliminarTarea(${t.id})">🗑</button>
+                    <button class="mini" title="Editar" onclick="event.stopPropagation();abrirTareaModal(${t.id},'turno')">✏️</button>
+                    <button class="mini rojo" title="Eliminar" onclick="event.stopPropagation();eliminarTarea(${t.id})">🗑</button>
                 </div>`;
             });
         }
         html += `</div>`;
     });
-    cont.innerHTML = html || '<div class="card"><div class="vacio">Todavía no hay tareas de turno. Creá la primera o aplicá una plantilla.</div></div>';
+    cont.innerHTML = html;
 }
 
 // ══════════════ SOLAPA CAJA ══════════════
@@ -575,15 +648,38 @@ function _plantillaResumen(p) {
     const n = (p.contenido && p.contenido.grupos || []).reduce((s, g) => s + (g.tareas || []).length, 0);
     return n ? `${n} tarea${n === 1 ? '' : 's'}` : 'vacía';
 }
+let _plExpandida = null;
+function _plantillaTextos(p) {
+    const out = [];
+    (p.contenido && p.contenido.grupos || []).forEach(g => (g.tareas || []).forEach(t => out.push(t.texto)));
+    return out;
+}
+function togglePlantilla(id) {
+    _plExpandida = _plExpandida === id ? null : id;
+    renderPlantillas();
+}
 function renderPlantillas() {
     const cont = document.getElementById('lista-plantillas');
-    cont.innerHTML = _plantillas.map(p => `
-        <div class="fila-tarea">
-            <div class="tx"><div class="t">🗂 ${esc(p.nombre)}</div>
-                <div class="b"><span class="chip">${_plantillaResumen(p)}</span></div></div>
-            <button class="mini" title="Editar" onclick="abrirEditorPlantilla(${p.id})">✏️</button>
-            <button class="mini rojo" title="Eliminar" onclick="eliminarPlantilla(${p.id}, '${escAttr(p.nombre)}')">🗑</button>
-        </div>`).join('') ||
+    cont.innerHTML = _plantillas.map(p => {
+        const abierta = _plExpandida === p.id;
+        const textos = _plantillaTextos(p);
+        const detalle = abierta ? `
+            <div style="background:#f8f9fb;border-bottom:1px solid #f3f4f6;padding:6px 14px 10px 34px;">
+                ${textos.length
+                    ? textos.map(t => `<div style="font-size:13px;color:#374151;padding:3px 0;">• ${esc(t)}</div>`).join('')
+                    : '<div style="font-size:12px;color:#9ca3af;">Plantilla vacía.</div>'}
+            </div>` : '';
+        return `<div>
+            <div class="fila-tarea" style="cursor:pointer;" onclick="togglePlantilla(${p.id})">
+                <span style="font-size:12px;color:#9ca3af;flex-shrink:0;">${abierta ? '▾' : '▸'}</span>
+                <div class="tx"><div class="t">🗂 ${esc(p.nombre)}</div>
+                    <div class="b"><span class="chip">${_plantillaResumen(p)}</span></div></div>
+                <button class="mini" title="Editar" onclick="event.stopPropagation();abrirEditorPlantilla(${p.id})">✏️</button>
+                <button class="mini rojo" title="Eliminar" onclick="event.stopPropagation();eliminarPlantilla(${p.id}, '${escAttr(p.nombre)}')">🗑</button>
+            </div>
+            ${detalle}
+        </div>`;
+    }).join('') ||
         '<div class="vacio">Sin plantillas. Creá una nueva o guardá la configuración actual.</div>';
 }
 async function guardarConfigComoPlantilla() {
@@ -603,11 +699,6 @@ async function eliminarPlantilla(id, nombre) {
 
 // ── Aplicar: acá se eligen los MOMENTOS y el DESTINATARIO (la plantilla es
 // solo el listado). Turno → rol o empleado; caja → queda para quien la opere.
-function _maMomentos() {
-    const moms = [...document.querySelectorAll('#ma-momentos input:checked')].map(c => c.value);
-    const hayTurno = moms.some(m => MUNDO_TURNO.includes(m));
-    document.getElementById('ma-quien').style.display = hayTurno ? '' : 'none';
-}
 function _maDestino() {
     const esRol = document.querySelector('input[name="ma-dest"]:checked').value === 'rol';
     document.getElementById('ma-rol').style.display = esRol ? '' : 'none';
@@ -624,7 +715,6 @@ function abrirAplicarPlantillas() {
         _usuarios.map(u => `<option value="${u.id}">${esc(u.username)} (${esc(u.rol)})</option>`).join('');
     document.querySelector('input[name="ma-dest"][value="rol"]').checked = true;
     _maDestino();
-    _maMomentos();
     document.getElementById('ma-lista').innerHTML = _plantillas.map(p => `
         <label style="display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13px;color:#374151;cursor:pointer;">
             <input type="checkbox" value="${p.id}" style="width:16px;height:16px;flex-shrink:0;">
@@ -637,17 +727,15 @@ async function confirmarAplicarPlantillas() {
     const ids = [...document.querySelectorAll('#ma-lista input:checked')].map(c => Number(c.value));
     const momentos = [...document.querySelectorAll('#ma-momentos input:checked')].map(c => c.value);
     if (!ids.length) { err.textContent = 'Elegí al menos una plantilla.'; return; }
-    if (!momentos.length) { err.textContent = 'Elegí en qué momento(s) se realizan.'; return; }
+    if (!momentos.length) { err.textContent = 'Elegí entrada y/o salida de turno.'; return; }
     const body = { plantilla_ids: ids, momentos };
-    if (momentos.some(m => MUNDO_TURNO.includes(m))) {
-        const esRol = document.querySelector('input[name="ma-dest"]:checked').value === 'rol';
-        if (esRol) {
-            body.rol_destino = document.getElementById('ma-rol').value;
-            if (!body.rol_destino) { err.textContent = 'Elegí el rol.'; return; }
-        } else {
-            body.usuario_destino = parseInt(document.getElementById('ma-usuario').value, 10) || null;
-            if (!body.usuario_destino) { err.textContent = 'Elegí el empleado.'; return; }
-        }
+    const esRol = document.querySelector('input[name="ma-dest"]:checked').value === 'rol';
+    if (esRol) {
+        body.rol_destino = document.getElementById('ma-rol').value;
+        if (!body.rol_destino) { err.textContent = 'Elegí el rol.'; return; }
+    } else {
+        body.usuario_destino = parseInt(document.getElementById('ma-usuario').value, 10) || null;
+        if (!body.usuario_destino) { err.textContent = 'Elegí el empleado.'; return; }
     }
     try {
         const r = await apiFetch('/tareas/plantillas/aplicar', { method: 'POST', body: JSON.stringify(body) });
@@ -659,16 +747,14 @@ async function confirmarAplicarPlantillas() {
 
 // ── Editor de plantilla ──
 let _mpEditId = null;
-function _filaPlantillaHtml(f) {
-    f = f || { grupo: '', texto: '' };
+function _filaPlantillaHtml(texto) {
     return `<div class="mp-fila" style="display:flex;gap:6px;margin-bottom:6px;">
-        <input class="inp" data-grupo placeholder="Grupo (opcional)" value="${escAttr(f.grupo || '')}" style="max-width:150px;">
-        <input class="inp" data-texto placeholder="Tarea…" value="${escAttr(f.texto || '')}" style="flex:1;">
+        <input class="inp" data-texto placeholder="Tarea…" value="${escAttr(texto || '')}" style="flex:1;">
         <button type="button" class="mini rojo" onclick="this.closest('.mp-fila').remove()">🗑</button>
     </div>`;
 }
-function agregarFilaPlantilla(f) {
-    document.getElementById('mp-filas').insertAdjacentHTML('beforeend', _filaPlantillaHtml(f));
+function agregarFilaPlantilla(texto) {
+    document.getElementById('mp-filas').insertAdjacentHTML('beforeend', _filaPlantillaHtml(texto));
 }
 function abrirEditorPlantilla(id) {
     _mpEditId = id;
@@ -678,10 +764,7 @@ function abrirEditorPlantilla(id) {
     document.getElementById('mp-error').textContent = '';
     const cont = document.getElementById('mp-filas');
     cont.innerHTML = '';
-    if (p && p.contenido && p.contenido.grupos) {
-        p.contenido.grupos.forEach(g => (g.tareas || []).forEach(t =>
-            agregarFilaPlantilla({ grupo: g.nombre === 'General' ? '' : g.nombre, texto: t.texto })));
-    }
+    if (p) _plantillaTextos(p).forEach(t => agregarFilaPlantilla(t));
     if (!cont.children.length) agregarFilaPlantilla();
     document.getElementById('m-plantilla').classList.add('open');
     setTimeout(() => document.getElementById('mp-nombre').focus(), 60);
@@ -691,16 +774,10 @@ async function guardarEditorPlantilla() {
     const err = document.getElementById('mp-error');
     const nombre = document.getElementById('mp-nombre').value.trim();
     if (!nombre) { err.textContent = 'Poné un nombre.'; return; }
-    const grupos = [], idx = {};
-    document.querySelectorAll('#mp-filas .mp-fila').forEach(fila => {
-        const texto = fila.querySelector('[data-texto]').value.trim();
-        if (!texto) return;   // fila vacía: ignorar
-        const g = fila.querySelector('[data-grupo]').value.trim() || 'General';
-        if (!(g in idx)) { idx[g] = grupos.length; grupos.push({ nombre: g, tareas: [] }); }
-        grupos[idx[g]].tareas.push({ texto });
-    });
+    const tareas = [...document.querySelectorAll('#mp-filas [data-texto]')]
+        .map(i => i.value.trim()).filter(Boolean).map(texto => ({ texto }));
     try {
-        const body = JSON.stringify({ nombre, contenido: { grupos } });
+        const body = JSON.stringify({ nombre, contenido: { grupos: [{ nombre: 'General', tareas }] } });
         if (_mpEditId) await apiFetch(`/tareas/plantillas/${_mpEditId}`, { method: 'PUT', body });
         else await apiFetch('/tareas/plantillas', { method: 'POST', body });
         cerrarEditorPlantilla();
