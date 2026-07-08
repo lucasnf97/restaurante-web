@@ -149,6 +149,7 @@
         <div class="mention-box" id="mention-box" style="display:none"></div>
         <div class="adj-preview" id="comp-adj"></div>
         <div class="composer-row">
+            <select id="comp-rest" class="comp-link" style="display:none;flex:0 0 auto;min-width:150px;max-width:210px" title="Publicar en"></select>
             <input type="text" class="comp-link" id="comp-link" placeholder="Enlace (opcional): https://…">
             <input type="file" id="comp-files" multiple style="display:none" onchange="onFilesSel(this.files)">
             <button class="btn-attach" onclick="document.getElementById('comp-files').click()">📎 Adjuntar</button>
@@ -382,7 +383,10 @@ function _encolarVistas(ids) {
 }
 
 function renderPost(p) {
-    _postsCache[p.id] = p;
+    // Clave de cache: en el muro agregado del portal los ids pueden repetirse
+    // entre restaurantes → se prefija el restaurante_id (igual que el id del DOM).
+    const k = (p.restaurante_id != null ? (p.restaurante_id + '-') : '') + p.id;
+    _postsCache[k] = p;
     const imgs = (p.adjuntos || []).filter(a => a.tipo === 'imagen')
         .map(a => `<img class="post-img" src="${esc(a.url)}" alt="" loading="lazy">`).join('');
     const files = (p.adjuntos || []).filter(a => a.tipo === 'archivo')
@@ -413,8 +417,8 @@ function renderPost(p) {
     if (!_emp && _canModerar)
         accBtns += `<button class="post-acc-btn" title="${p.fijado ? 'Desfijar' : 'Fijar arriba'}" onclick="toggleFijar(${p.id})">📌</button>`;
     if (p.can_edit)
-        accBtns += `<button class="post-acc-btn" title="Editar" onclick="abrirEditar(${p.id})">✏️</button>
-            <button class="post-acc-btn" title="Eliminar" onclick="eliminarPost(${p.id})">🗑</button>`;
+        accBtns += `<button class="post-acc-btn" title="Editar" onclick="abrirEditar('${k}')">✏️</button>
+            <button class="post-acc-btn" title="Eliminar" onclick="eliminarPost('${k}')">🗑</button>`;
     const acc = accBtns ? `<div class="post-acciones">${accBtns}</div>` : '';
     const editado = p.editado_en ? ' · editado' : '';
     const badges = (p.fijado ? ' <span class="badge-pin">📌 Fijada</span>' : '')
@@ -602,16 +606,26 @@ async function publicar() {
         const fd = new FormData();
         fd.append('contenido', texto);
         fd.append('enlace', link);
-        fd.append('grupo_id', _feedGrupoId ? String(_feedGrupoId) : '');
-        const men = _mencionesEfectivas(_mencionSel, texto);
-        fd.append('menciones_usuarios', JSON.stringify(men.usuarios));
-        fd.append('menciones_roles', JSON.stringify(men.roles));
-        const esFijado = document.getElementById('comp-fijar').classList.contains('on-pin');
-        const esPrio = document.getElementById('comp-prio').classList.contains('on-prio');
-        fd.append('fijado', esFijado ? '1' : '');
-        fd.append('prioritaria', esPrio ? '1' : '');
-        _composerFiles.forEach(f => fd.append('files', f));
-        const p = await apiFetch('/social/posts', { method: 'POST', body: fd });
+        let p, esFijado = false;
+        if (_emp) {
+            // Portal del empleado: publica al feed general del local elegido (sin flags ni menciones)
+            const rid = document.getElementById('comp-rest').value;
+            if (!rid) { alert('No estás asignado a ningún restaurante.'); return; }
+            fd.append('restaurante_id', rid);
+            _composerFiles.forEach(f => fd.append('files', f));
+            p = await apiFetch('/empleado/social/posts', { method: 'POST', body: fd, token: getEmpToken() });
+        } else {
+            fd.append('grupo_id', _feedGrupoId ? String(_feedGrupoId) : '');
+            const men = _mencionesEfectivas(_mencionSel, texto);
+            fd.append('menciones_usuarios', JSON.stringify(men.usuarios));
+            fd.append('menciones_roles', JSON.stringify(men.roles));
+            esFijado = document.getElementById('comp-fijar').classList.contains('on-pin');
+            const esPrio = document.getElementById('comp-prio').classList.contains('on-prio');
+            fd.append('fijado', esFijado ? '1' : '');
+            fd.append('prioritaria', esPrio ? '1' : '');
+            _composerFiles.forEach(f => fd.append('files', f));
+            p = await apiFetch('/social/posts', { method: 'POST', body: fd });
+        }
         // limpiar y mostrar arriba
         document.getElementById('comp-texto').value = '';
         document.getElementById('comp-link').value = '';
@@ -624,28 +638,31 @@ async function publicar() {
         const feed = document.getElementById('feed');
         if (feed.querySelector('.empty')) feed.innerHTML = '';
         feed.insertAdjacentHTML('afterbegin', renderPost(p));
-        _encolarVistas([p.id]);
+        if (!_emp) _encolarVistas([p.id]);
     } catch (e) {
         alert('No se pudo publicar: ' + (e.message || e));
     } finally { btn.disabled = false; }
 }
 
-async function eliminarPost(id) {
+async function eliminarPost(k) {
     if (!confirm('¿Eliminar esta publicación?')) return;
+    const p = _postsCache[k];
+    if (!p) return;
     try {
-        await apiFetch(`/social/posts/${id}`, { method: 'DELETE' });
-        document.getElementById('post-' + id)?.remove();
+        if (_emp) await apiFetch(`/empleado/social/posts/${p.restaurante_id}/${p.id}`, { method: 'DELETE', token: getEmpToken() });
+        else await apiFetch(`/social/posts/${p.id}`, { method: 'DELETE' });
+        document.getElementById('post-' + k)?.remove();
     } catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
 }
 
 // ── Editar publicación ───────────────────────────────────────
 let _editAdjuntos = [];
-async function abrirEditar(id) {
+async function abrirEditar(k) {
     // Traer el post desde el feed cargado no guarda adjuntos completos; recargamos el feed item simple:
     // usamos los datos ya renderizados pidiendo de nuevo el feed sería costoso → guardamos en memoria al render.
-    const p = _postsCache[id];
+    const p = _postsCache[k];
     if (!p) return;
-    _editId = id;
+    _editId = k;
     _editAdjuntos = (p.adjuntos || []).slice();
     document.getElementById('edit-texto').value = p.contenido || '';
     document.getElementById('edit-link').value = p.enlace || '';
@@ -685,12 +702,14 @@ async function guardarEdicion() {
     const nuevos = document.getElementById('edit-files').files;
     Array.from(nuevos).forEach(f => fd.append('files', f));
     try {
-        const p = await apiFetch(`/social/posts/${_editId}`, { method: 'PATCH', body: fd });
+        const antes = _postsCache[_editId] || {};
+        let p;
+        if (_emp) p = await apiFetch(`/empleado/social/posts/${antes.restaurante_id}/${antes.id}`, { method: 'PATCH', body: fd, token: getEmpToken() });
+        else p = await apiFetch(`/social/posts/${antes.id}`, { method: 'PATCH', body: fd });
         cerrarModal('modal-editar');
         if (cambioFijado) { _editId = null; cargarFeed(true); return; }   // cambia de sección
         const el = document.getElementById('post-' + _editId);
         if (el) el.outerHTML = renderPost(p);
-        _postsCache[_editId] = p;
         _editId = null;
     } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
 }
@@ -760,7 +779,7 @@ async function _cargarFeedEmpleado() {
     const cont = document.getElementById('feed');
     cont.innerHTML = '<div class="empty">Cargando…</div>';
     let posts = [];
-    try { posts = await apiFetch('/empleado/social', { token: getEmpToken() }); }
+    try { posts = await apiFetch('/empleado/social?limit=30', { token: getEmpToken() }); }
     catch (e) { cont.innerHTML = '<div class="empty">No se pudo cargar el muro.</div>'; return; }
     cont.innerHTML = posts.length ? '' : '<div class="empty">Todavía no hay publicaciones.</div>';
     posts.forEach(p => cont.insertAdjacentHTML('beforeend', renderPost(p)));
@@ -771,8 +790,16 @@ async function _cargarFeedEmpleado() {
 (async function () {
     if (_emp) {
         if (typeof volverACuenta === 'function') volverACuenta();
-        document.querySelector('.composer')?.style.setProperty('display', 'none');
         document.getElementById('feeds-bar')?.style.setProperty('display', 'none');
+        // El empleado publica desde el portal: elegir a qué local va la publicación
+        try {
+            const rests = await apiFetch('/empleado/mis-restaurantes', { token: getEmpToken() });
+            const sel = document.getElementById('comp-rest');
+            sel.innerHTML = (rests || []).map(r =>
+                `<option value="${r.restaurante_id}">🏠 ${esc(r.restaurante || r.codigo)}</option>`).join('');
+            if ((rests || []).length > 1) sel.style.display = '';
+            if (!(rests || []).length) document.querySelector('.composer')?.style.setProperty('display', 'none');
+        } catch (e) { document.querySelector('.composer')?.style.setProperty('display', 'none'); }
         await _cargarFeedEmpleado();
         const pe = new URLSearchParams(location.search);
         const postE = pe.get('post'), restE = pe.get('rest');

@@ -643,24 +643,33 @@
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
-            const empToken = localStorage.getItem("emp_token");
-            if (empToken && token === empToken) return;   // contexto cuenta (empleado de cadena)
-            let user = null;
-            try { user = JSON.parse(localStorage.getItem("user") || "null"); } catch (e) {}
-            if (!user || user.id == null) return;         // cuentas sintéticas (admin override)
-            if (["superadmin", "gerente_cadena", "empleado_cadena"].includes(user.rol)) return;
-            // Fetch crudo (patrón _cargarBadgeMensajes): sidebar.js puede cargar antes que api.js
             const API_URL = window._API_URL || "https://restaurante-backend-production-459b.up.railway.app";
             const headers = { Authorization: `Bearer ${token}` };
-            const res = await fetch(`${API_URL}/social/prioritarias-pendientes`, { headers });
+            const empToken = localStorage.getItem("emp_token");
+            const enCuentaEmp = empToken && token === empToken;   // portal del empleado (login por email)
+            let urlPend, urlAceptar;
+            if (enCuentaEmp) {
+                // Agregado de todos sus locales; acepta con su usuario proyectado en cada uno.
+                urlPend = `${API_URL}/empleado/prioritarias-pendientes`;
+                urlAceptar = p => `${API_URL}/empleado/aceptar/${p.restaurante_id}/${p.id}`;
+            } else {
+                let user = null;
+                try { user = JSON.parse(localStorage.getItem("user") || "null"); } catch (e) {}
+                if (!user || user.id == null) return;         // cuentas sintéticas (admin override)
+                if (["superadmin", "gerente_cadena", "empleado_cadena"].includes(user.rol)) return;
+                urlPend = `${API_URL}/social/prioritarias-pendientes`;
+                urlAceptar = p => `${API_URL}/social/posts/${p.id}/aceptar`;
+            }
+            // Fetch crudo (patrón _cargarBadgeMensajes): sidebar.js puede cargar antes que api.js
+            const res = await fetch(urlPend, { headers });
             if (!res.ok) return;
             const posts = await res.json();
             if (!Array.isArray(posts) || !posts.length) return;
-            _mostrarPrioritarias(posts, API_URL, headers);
+            _mostrarPrioritarias(posts, urlAceptar, headers);
         } catch (e) { /* fail-silent */ }
     }
 
-    function _mostrarPrioritarias(posts, API_URL, headers) {
+    function _mostrarPrioritarias(posts, urlAceptar, headers) {
         let idx = 0;
         const fmtF = ts => {
             try {
@@ -689,7 +698,8 @@
             const files = (p.adjuntos || []).filter(a => a.tipo === "archivo").map(a =>
                 `<a href="${_escS(a.url)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:#4f46e5;font-weight:600;font-size:13px;text-decoration:none;">📄 ${_escS(a.nombre)}</a>`).join("");
             const enlace = p.enlace ? `<a href="${_escS(p.enlace)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:#4f46e5;font-size:13px;word-break:break-all;">🔗 ${_escS(p.enlace)}</a>` : "";
-            const grupo = p.grupo_nombre ? ` · grupo ${_escS(p.grupo_nombre)}` : "";
+            const grupo = (p.grupo_nombre ? ` · grupo ${_escS(p.grupo_nombre)}` : "")
+                + (p.restaurante ? ` · 🏠 ${_escS(p.restaurante)}` : "");
             ov.innerHTML = `
               <div style="background:#fff;border-radius:16px;width:560px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.4);">
                 <div style="background:#b91c1c;color:#fff;padding:13px 20px;display:flex;justify-content:space-between;align-items:center;">
@@ -718,7 +728,7 @@
             btn.addEventListener("click", async () => {
                 btn.disabled = true; btn.style.opacity = ".5";
                 try {
-                    await fetch(`${API_URL}/social/posts/${p.id}/aceptar`, { method: "POST", headers });
+                    await fetch(urlAceptar(p), { method: "POST", headers });
                     // 2xx o 4xx → seguir (un 4xx acá no se arregla reintentando)
                     idx++; render();
                 } catch (e) {
