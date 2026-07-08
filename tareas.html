@@ -203,17 +203,31 @@
     </div>
 </div>
 
-<!-- ═══ MODAL APLICAR PLANTILLAS ═══ -->
+<!-- ═══ MODAL APLICAR PLANTILLAS (acá se eligen momentos y destinatario) ═══ -->
 <div class="modal-overlay" id="m-aplicar" onclick="if(event.target===this)this.classList.remove('open')">
-    <div class="modal" style="width:440px;">
+    <div class="modal" style="width:460px;">
         <h3>🗂 Aplicar plantillas</h3>
         <p style="font-size:12.5px;color:#6b7280;line-height:1.5;">Las tareas de las plantillas
-            elegidas se <strong>suman</strong> a las actuales. Las de turno van al rol elegido;
-            las de caja quedan para quien opere la caja.</p>
+            elegidas se <strong>suman</strong> a las actuales (podés aplicar varias y después
+            agregar más tareas sueltas).</p>
         <label class="lbl">Plantillas</label>
-        <div id="ma-lista" style="max-height:220px;overflow-y:auto;border:1px solid #f0f0f0;border-radius:8px;padding:8px;"></div>
-        <label class="lbl">Rol destino <span style="font-weight:400;text-transform:none;">(solo para tareas de turno)</span></label>
-        <select class="inp" id="ma-rol"></select>
+        <div id="ma-lista" style="max-height:180px;overflow-y:auto;border:1px solid #f0f0f0;border-radius:8px;padding:8px;"></div>
+        <label class="lbl">¿En qué momentos se realizan?</label>
+        <div class="checksmom" id="ma-momentos">
+            <label><input type="checkbox" value="checkin" onchange="_maMomentos()"> 🟢 Entrada</label>
+            <label><input type="checkbox" value="checkout" onchange="_maMomentos()"> 🔴 Salida</label>
+            <label><input type="checkbox" value="apertura_caja" onchange="_maMomentos()"> 🔓 Apertura caja</label>
+            <label><input type="checkbox" value="cierre_caja" onchange="_maMomentos()"> 🔒 Cierre caja</label>
+        </div>
+        <div id="ma-quien" style="display:none;">
+            <label class="lbl">¿Quién? <span style="font-weight:400;text-transform:none;">(para los momentos de turno; caja queda para quien la opere)</span></label>
+            <div class="radios">
+                <label><input type="radio" name="ma-dest" value="rol" checked onchange="_maDestino()"> Un rol</label>
+                <label><input type="radio" name="ma-dest" value="usuario" onchange="_maDestino()"> Un empleado</label>
+            </div>
+            <select class="inp" id="ma-rol"></select>
+            <select class="inp" id="ma-usuario" style="display:none;"></select>
+        </div>
         <div class="m-error" id="ma-error"></div>
         <div class="m-foot">
             <button class="btn" onclick="document.getElementById('m-aplicar').classList.remove('open')">Cancelar</button>
@@ -230,8 +244,8 @@
         <input class="inp" type="text" id="mp-nombre" maxlength="120" placeholder="Ej: Apertura de salón">
         <label class="lbl">Tareas</label>
         <div style="font-size:11.5px;color:#9ca3af;margin-bottom:8px;">
-            Genéricas (sin rol). El grupo aplica solo a las de turno. Una tarea no mezcla
-            momentos de turno con los de caja.
+            Solo el listado: a quién y en qué momento se realizan se elige al APLICAR la
+            plantilla. El grupo (opcional) aplica solo si se destina a turnos.
         </div>
         <div id="mp-filas"></div>
         <button type="button" class="btn" style="border-style:dashed;margin-top:8px;" onclick="agregarFilaPlantilla()">＋ Agregar tarea</button>
@@ -558,15 +572,8 @@ async function guardarTareaModal() {
 
 // ══════════════ SOLAPA PLANTILLAS ══════════════
 function _plantillaResumen(p) {
-    let turno = 0, caja = 0;
-    (p.contenido && p.contenido.grupos || []).forEach(g => (g.tareas || []).forEach(t => {
-        if ((t.momentos || []).some(m => MUNDO_TURNO.includes(m))) turno++;
-        if ((t.momentos || []).some(m => MUNDO_CAJA.includes(m))) caja++;
-    }));
-    const partes = [];
-    if (turno) partes.push(`${turno} de turno`);
-    if (caja) partes.push(`${caja} de caja`);
-    return partes.join(' + ') || 'vacía';
+    const n = (p.contenido && p.contenido.grupos || []).reduce((s, g) => s + (g.tareas || []).length, 0);
+    return n ? `${n} tarea${n === 1 ? '' : 's'}` : 'vacía';
 }
 function renderPlantillas() {
     const cont = document.getElementById('lista-plantillas');
@@ -594,14 +601,30 @@ async function eliminarPlantilla(id, nombre) {
     catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
 }
 
-// ── Aplicar (una o varias; rol solo si hay tareas de turno) ──
+// ── Aplicar: acá se eligen los MOMENTOS y el DESTINATARIO (la plantilla es
+// solo el listado). Turno → rol o empleado; caja → queda para quien la opere.
+function _maMomentos() {
+    const moms = [...document.querySelectorAll('#ma-momentos input:checked')].map(c => c.value);
+    const hayTurno = moms.some(m => MUNDO_TURNO.includes(m));
+    document.getElementById('ma-quien').style.display = hayTurno ? '' : 'none';
+}
+function _maDestino() {
+    const esRol = document.querySelector('input[name="ma-dest"]:checked').value === 'rol';
+    document.getElementById('ma-rol').style.display = esRol ? '' : 'none';
+    document.getElementById('ma-usuario').style.display = esRol ? 'none' : '';
+}
 function abrirAplicarPlantillas() {
     if (!_plantillas.length) { alert('No hay plantillas creadas todavía.'); return; }
     document.getElementById('ma-error').textContent = '';
+    document.querySelectorAll('#ma-momentos input').forEach(c => c.checked = false);
     const rolFiltro = document.getElementById('f-rol').value;
     document.getElementById('ma-rol').innerHTML =
-        '<option value="">— Sin rol (solo tareas de caja) —</option>' +
         _roles.map(r => `<option value="${escAttr(r)}" ${r === rolFiltro ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    document.getElementById('ma-usuario').innerHTML =
+        _usuarios.map(u => `<option value="${u.id}">${esc(u.username)} (${esc(u.rol)})</option>`).join('');
+    document.querySelector('input[name="ma-dest"][value="rol"]').checked = true;
+    _maDestino();
+    _maMomentos();
     document.getElementById('ma-lista').innerHTML = _plantillas.map(p => `
         <label style="display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13px;color:#374151;cursor:pointer;">
             <input type="checkbox" value="${p.id}" style="width:16px;height:16px;flex-shrink:0;">
@@ -611,17 +634,22 @@ function abrirAplicarPlantillas() {
 }
 async function confirmarAplicarPlantillas() {
     const err = document.getElementById('ma-error');
-    const rol = document.getElementById('ma-rol').value;
     const ids = [...document.querySelectorAll('#ma-lista input:checked')].map(c => Number(c.value));
+    const momentos = [...document.querySelectorAll('#ma-momentos input:checked')].map(c => c.value);
     if (!ids.length) { err.textContent = 'Elegí al menos una plantilla.'; return; }
-    // Aviso temprano: si la selección tiene tareas de turno, el rol es obligatorio
-    const conTurno = _plantillas.filter(p => ids.includes(p.id)).some(p =>
-        (p.contenido && p.contenido.grupos || []).some(g =>
-            (g.tareas || []).some(t => (t.momentos || []).some(m => MUNDO_TURNO.includes(m)))));
-    if (conTurno && !rol) { err.textContent = 'La selección incluye tareas de turno — elegí el rol.'; return; }
+    if (!momentos.length) { err.textContent = 'Elegí en qué momento(s) se realizan.'; return; }
+    const body = { plantilla_ids: ids, momentos };
+    if (momentos.some(m => MUNDO_TURNO.includes(m))) {
+        const esRol = document.querySelector('input[name="ma-dest"]:checked').value === 'rol';
+        if (esRol) {
+            body.rol_destino = document.getElementById('ma-rol').value;
+            if (!body.rol_destino) { err.textContent = 'Elegí el rol.'; return; }
+        } else {
+            body.usuario_destino = parseInt(document.getElementById('ma-usuario').value, 10) || null;
+            if (!body.usuario_destino) { err.textContent = 'Elegí el empleado.'; return; }
+        }
+    }
     try {
-        const body = { plantilla_ids: ids };
-        if (rol) body.rol_destino = rol;
         const r = await apiFetch('/tareas/plantillas/aplicar', { method: 'POST', body: JSON.stringify(body) });
         document.getElementById('m-aplicar').classList.remove('open');
         alert(r.mensaje || 'Plantillas aplicadas.');
@@ -632,40 +660,15 @@ async function confirmarAplicarPlantillas() {
 // ── Editor de plantilla ──
 let _mpEditId = null;
 function _filaPlantillaHtml(f) {
-    f = f || { grupo: '', texto: '', momentos: [] };
-    const moms = [['checkin', 'Entrada'], ['checkout', 'Salida'], ['apertura_caja', 'Ap. caja'], ['cierre_caja', 'Ci. caja']]
-        .map(([v, l]) => `<label style="font-size:11.5px;display:flex;align-items:center;gap:3px;">
-            <input type="checkbox" class="mp-mom" data-mundo="${MUNDO_TURNO.includes(v) ? 'turno' : 'caja'}" value="${v}"
-                   ${(f.momentos || []).includes(v) ? 'checked' : ''} onchange="_mpExcluirMundo(this)">${l}</label>`).join('');
-    return `<div class="mp-fila" style="border:1px solid #eef0f3;border-radius:8px;padding:8px;margin-bottom:6px;">
-        <div style="display:flex;gap:6px;margin-bottom:6px;">
-            <input class="inp" data-grupo placeholder="Grupo (solo turno)" value="${escAttr(f.grupo || '')}" style="max-width:150px;">
-            <input class="inp" data-texto placeholder="Tarea…" value="${escAttr(f.texto || '')}" style="flex:1;">
-        </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            ${moms}
-            <button type="button" class="mini rojo" style="margin-left:auto;"
-                    onclick="this.closest('.mp-fila').remove()">🗑</button>
-        </div>
+    f = f || { grupo: '', texto: '' };
+    return `<div class="mp-fila" style="display:flex;gap:6px;margin-bottom:6px;">
+        <input class="inp" data-grupo placeholder="Grupo (opcional)" value="${escAttr(f.grupo || '')}" style="max-width:150px;">
+        <input class="inp" data-texto placeholder="Tarea…" value="${escAttr(f.texto || '')}" style="flex:1;">
+        <button type="button" class="mini rojo" onclick="this.closest('.mp-fila').remove()">🗑</button>
     </div>`;
-}
-// Al tildar un momento de un mundo, se deshabilita el otro mundo en esa fila (una
-// tarea no mezcla; el contenido viejo mixto se tolera al abrir y el guardado separa).
-function _mpExcluirMundo(chk) {
-    const fila = chk.closest('.mp-fila');
-    const boxes = [...fila.querySelectorAll('.mp-mom')];
-    const hayT = boxes.some(b => b.dataset.mundo === 'turno' && b.checked);
-    const hayC = boxes.some(b => b.dataset.mundo === 'caja' && b.checked);
-    boxes.forEach(b => {
-        if (b.dataset.mundo === 'caja') b.disabled = hayT && !hayC;
-        else b.disabled = hayC && !hayT;
-    });
 }
 function agregarFilaPlantilla(f) {
     document.getElementById('mp-filas').insertAdjacentHTML('beforeend', _filaPlantillaHtml(f));
-    const fila = document.getElementById('mp-filas').lastElementChild;
-    const primero = fila.querySelector('.mp-mom');
-    if (primero) _mpExcluirMundo(primero);
 }
 function abrirEditorPlantilla(id) {
     _mpEditId = id;
@@ -677,7 +680,7 @@ function abrirEditorPlantilla(id) {
     cont.innerHTML = '';
     if (p && p.contenido && p.contenido.grupos) {
         p.contenido.grupos.forEach(g => (g.tareas || []).forEach(t =>
-            agregarFilaPlantilla({ grupo: g.nombre, texto: t.texto, momentos: t.momentos || [] })));
+            agregarFilaPlantilla({ grupo: g.nombre === 'General' ? '' : g.nombre, texto: t.texto })));
     }
     if (!cont.children.length) agregarFilaPlantilla();
     document.getElementById('m-plantilla').classList.add('open');
@@ -689,17 +692,13 @@ async function guardarEditorPlantilla() {
     const nombre = document.getElementById('mp-nombre').value.trim();
     if (!nombre) { err.textContent = 'Poné un nombre.'; return; }
     const grupos = [], idx = {};
-    let invalidas = 0;
     document.querySelectorAll('#mp-filas .mp-fila').forEach(fila => {
         const texto = fila.querySelector('[data-texto]').value.trim();
-        const momentos = [...fila.querySelectorAll('.mp-mom:checked')].map(c => c.value);
-        if (!texto && !momentos.length) return;
-        if (!texto || !momentos.length) { invalidas++; return; }
+        if (!texto) return;   // fila vacía: ignorar
         const g = fila.querySelector('[data-grupo]').value.trim() || 'General';
         if (!(g in idx)) { idx[g] = grupos.length; grupos.push({ nombre: g, tareas: [] }); }
-        grupos[idx[g]].tareas.push({ texto, momentos });
+        grupos[idx[g]].tareas.push({ texto });
     });
-    if (invalidas) { err.textContent = `Hay ${invalidas} tarea(s) incompletas (falta texto o momento).`; return; }
     try {
         const body = JSON.stringify({ nombre, contenido: { grupos } });
         if (_mpEditId) await apiFetch(`/tareas/plantillas/${_mpEditId}`, { method: 'PUT', body });
