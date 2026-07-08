@@ -28,6 +28,7 @@
             mod: "personal",
             children: [
                 { href: "fichajes.html",   icon: "🕐", label: "Fichajes" },
+                { href: "tareas.html",     icon: "✅", label: "Tareas",    perm: ["gestion_tareas","ver_tareas"] },
                 { href: "usuarios.html",   icon: "👤", label: "Usuarios",  perm: ["acceso_usuarios","ver_usuarios"] },
                 { href: "horarios.html",   icon: "📋", label: "Horarios" },
                 { href: "salarios.html",   icon: "💼", label: "Salarios",  perm: "revision_salarios" },

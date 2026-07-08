@@ -213,14 +213,7 @@
 </nav>
 
 <div class="content">
-    <div class="page-header"><h2 id="fich-titulo">🕐 Fichajes de turno</h2></div>
-
-    <!-- Barra de vistas: Fichajes (default) | Tareas (auditoría de checklists, con permiso) -->
-    <div id="vista-tabs" style="display:none;gap:6px;margin-bottom:16px;">
-        <button class="btn vt-tab" id="vt-fichajes" onclick="setVistaFich('fichajes')"
-                style="font-weight:700;">🕐 Fichajes</button>
-        <button class="btn vt-tab" id="vt-tareas" onclick="setVistaFich('tareas')">📋 Tareas</button>
-    </div>
+    <div class="page-header"><h2>🕐 Fichajes de turno</h2></div>
 
     <!-- Stats -->
     <div class="stats">
@@ -264,46 +257,6 @@
         <div class="empty">Cargando...</div>
     </div>
 
-    <!-- ═══ Vista TAREAS: auditoría de checklists declarados (ver_tareas) ═══ -->
-    <div id="vista-tareas" style="display:none;">
-        <div class="filtros">
-            <label>Empleado:</label>
-            <select id="ta-f-usuario" onchange="cargarConfirmaciones(0)"><option value="">Todos</option></select>
-            <label>Rol:</label>
-            <select id="ta-f-rol" onchange="cargarConfirmaciones(0)"><option value="">Todos</option></select>
-            <label>Momento:</label>
-            <select id="ta-f-momento" onchange="cargarConfirmaciones(0)">
-                <option value="">Todos</option>
-                <option value="checkin">Entrada de turno</option>
-                <option value="checkout">Salida de turno</option>
-                <option value="apertura_caja">Apertura de caja</option>
-                <option value="cierre_caja">Cierre de caja</option>
-            </select>
-            <label>Desde:</label><input type="date" id="ta-f-desde" onchange="cargarConfirmaciones(0)">
-            <label>Hasta:</label><input type="date" id="ta-f-hasta" onchange="cargarConfirmaciones(0)">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-                <input type="checkbox" id="ta-f-pend" onchange="cargarConfirmaciones(0)"> Solo con tareas sin tildar
-            </label>
-        </div>
-        <div id="ta-lista"><div class="empty">Cargando...</div></div>
-        <div id="ta-pag" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px;"></div>
-    </div>
-</div>
-
-<!-- ═══ Modal detalle de confirmación (solo lectura) ═══ -->
-<div class="modal-overlay" id="modal-conf" onclick="if(event.target===this)this.classList.remove('open')">
-    <div class="modal-rev" style="max-width:560px;max-height:88vh;overflow-y:auto;">
-        <div class="modal-rev-head">
-            <h3 id="mc-titulo" style="font-size:16px;">📋 Declaración</h3>
-            <button onclick="document.getElementById('modal-conf').classList.remove('open')"
-                    style="background:none;border:none;font-size:18px;cursor:pointer;color:#9ca3af;">✕</button>
-        </div>
-        <div id="mc-meta" style="font-size:12.5px;color:#6b7280;line-height:1.7;padding:0 4px 10px;"></div>
-        <div id="mc-items"></div>
-        <div style="font-size:11px;color:#9ca3af;padding:10px 4px 0;border-top:1px solid #f0f0f0;margin-top:10px;">
-            Registro inmutable: refleja exactamente lo que el empleado vio y declaró al firmar.
-        </div>
-    </div>
 </div>
 
 <!-- Modal revisión -->
@@ -1732,151 +1685,6 @@ function _empInjectFiltroFichajes(rests, rid) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ── Vista TAREAS: auditoría de checklists declarados ──────────
-// Registros INMUTABLES (sin editar/borrar desde acá): snapshot exacto de lo que
-// el empleado vio y declaró al firmar. Visible con ver_tareas / gestion_tareas.
-// ═══════════════════════════════════════════════════════════════
-const TA_MOM = { checkin: '🟢 Entrada', checkout: '🔴 Salida', apertura_caja: '🔓 Apertura caja', cierre_caja: '🔒 Cierre caja' };
-const TA_LIMIT = 50;
-let _taOffset = 0, _taCargada = false, _vistaFich = 'fichajes';
-
-function _puedeVerTareas() {
-    return (typeof hasPermiso === 'function') && (hasPermiso('ver_tareas') || hasPermiso('gestion_tareas'));
-}
-
-function _initVistaTabs() {
-    if (!_puedeVerTareas() || _empFichActivo()) return;   // empleado de cadena: solo fichajes
-    document.getElementById('vista-tabs').style.display = 'flex';
-    _marcarTab();
-}
-function _marcarTab() {
-    document.getElementById('vt-fichajes').style.cssText = _vistaFich === 'fichajes'
-        ? 'font-weight:700;background:#4f46e5;color:#fff;border-color:#4f46e5;' : 'font-weight:600;';
-    document.getElementById('vt-tareas').style.cssText = _vistaFich === 'tareas'
-        ? 'font-weight:700;background:#4f46e5;color:#fff;border-color:#4f46e5;' : 'font-weight:600;';
-}
-function setVistaFich(v) {
-    _vistaFich = v;
-    _marcarTab();
-    const fich = v === 'fichajes';
-    ['.stats', '.activos-section', '.filtros', '#fichajes-container'].forEach((s, i) => {
-        const e = i === 3 ? document.getElementById('fichajes-container')
-                          : document.querySelector('.content > ' + s);
-        if (e) e.style.display = fich ? '' : 'none';
-    });
-    document.getElementById('vista-tareas').style.display = fich ? 'none' : '';
-    document.getElementById('fich-titulo').textContent = fich ? '🕐 Fichajes de turno' : '📋 Tareas declaradas';
-    if (!fich && !_taCargada) { _taCargada = true; _initFiltrosTareas(); cargarConfirmaciones(0); }
-}
-
-async function _initFiltrosTareas() {
-    try {
-        const [usuarios, roles] = await Promise.all([
-            apiFetch('/auth/usuarios').catch(() => []),
-            apiFetch('/roles').catch(() => []),
-        ]);
-        document.getElementById('ta-f-usuario').innerHTML = '<option value="">Todos</option>' +
-            (usuarios || []).filter(u => u.rol !== 'admin')
-                .map(u => `<option value="${u.id}">${esc(u.username)}</option>`).join('');
-        document.getElementById('ta-f-rol').innerHTML = '<option value="">Todos</option>' +
-            (roles || []).map(r => r.nombre).filter(n => n && n !== 'admin')
-                .map(n => `<option value="${escAttr(n)}">${esc(n)}</option>`).join('');
-    } catch (_) {}
-}
-
-async function cargarConfirmaciones(offset) {
-    _taOffset = offset || 0;
-    const cont = document.getElementById('ta-lista');
-    cont.innerHTML = '<div class="empty">Cargando...</div>';
-    let q = `limit=${TA_LIMIT}&offset=${_taOffset}`;
-    const uid = document.getElementById('ta-f-usuario').value;
-    const rol = document.getElementById('ta-f-rol').value;
-    const mom = document.getElementById('ta-f-momento').value;
-    const desde = document.getElementById('ta-f-desde').value;
-    const hasta = document.getElementById('ta-f-hasta').value;
-    if (uid) q += `&usuario_id=${uid}`;
-    if (rol) q += `&rol=${encodeURIComponent(rol)}`;
-    if (mom) q += `&momento=${mom}`;
-    if (desde) q += `&desde=${desde}`;
-    if (hasta) q += `&hasta=${hasta}`;
-    if (document.getElementById('ta-f-pend').checked) q += `&solo_pendientes=true`;
-    let r;
-    try { r = await apiFetch('/tareas/confirmaciones?' + q); }
-    catch (e) { cont.innerHTML = `<div class="empty">⚠️ ${esc(e.message || 'Error al cargar')}</div>`; return; }
-    if (!r.items.length) {
-        cont.innerHTML = '<div class="empty">Sin declaraciones con estos filtros.</div>';
-        document.getElementById('ta-pag').innerHTML = '';
-        return;
-    }
-    cont.innerHTML = `<div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;">`
-        + r.items.map(c => {
-            const completa = c.tildadas >= c.total;
-            const fecha = c.fecha_local ? c.fecha_local.split('-').reverse().join('/') : '—';
-            const hora = c.creado_en ? new Date(/[+Zz]/.test(String(c.creado_en).slice(10)) ? c.creado_en : c.creado_en + 'Z')
-                .toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
-            return `<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #f3f4f6;flex-wrap:wrap;">
-                <div style="min-width:110px;font-size:12.5px;color:#6b7280;">${fecha}<br><span style="color:#9ca3af;">${hora}</span></div>
-                <div style="flex:1;min-width:150px;">
-                    <div style="font-size:14px;font-weight:700;color:#1a1a2e;">${esc(c.username)}</div>
-                    <div style="font-size:11.5px;color:#9ca3af;">${esc(c.rol || '—')}</div>
-                </div>
-                <div style="font-size:12px;font-weight:700;color:#4b5563;min-width:120px;">${TA_MOM[c.momento] || esc(c.momento)}</div>
-                <span style="font-size:12px;font-weight:800;border-radius:20px;padding:4px 12px;white-space:nowrap;
-                             background:${completa ? '#dcfce7' : '#fee2e2'};color:${completa ? '#166534' : '#b91c1c'};">
-                    ${c.tildadas}/${c.total} tildadas</span>
-                ${c.comentarios ? `<span style="font-size:12px;color:#b45309;font-weight:700;">💬 ${c.comentarios}</span>` : ''}
-                <button class="btn btn-secondary" style="padding:6px 14px;" onclick="verConfirmacion(${c.id})">Ver</button>
-            </div>`;
-        }).join('') + `</div>`;
-    // Paginación
-    const pag = document.getElementById('ta-pag');
-    const desde_n = _taOffset + 1, hasta_n = Math.min(_taOffset + TA_LIMIT, r.total);
-    pag.innerHTML = `
-        <button class="btn btn-secondary" ${_taOffset === 0 ? 'disabled' : ''}
-                onclick="cargarConfirmaciones(${Math.max(0, _taOffset - TA_LIMIT)})">‹ Anterior</button>
-        <span style="font-size:12.5px;color:#6b7280;">${desde_n}–${hasta_n} de ${r.total}</span>
-        <button class="btn btn-secondary" ${hasta_n >= r.total ? 'disabled' : ''}
-                onclick="cargarConfirmaciones(${_taOffset + TA_LIMIT})">Siguiente ›</button>`;
-}
-
-async function verConfirmacion(id) {
-    let c;
-    try { c = await apiFetch(`/tareas/confirmaciones/${id}`); }
-    catch (e) { alert('No se pudo cargar: ' + (e.message || e)); return; }
-    document.getElementById('mc-titulo').textContent =
-        `📋 ${TA_MOM[c.momento] || c.momento} — ${c.username}`;
-    const fecha = c.fecha_local ? c.fecha_local.split('-').reverse().join('/') : '—';
-    const hora = c.creado_en ? new Date(/[+Zz]/.test(String(c.creado_en).slice(10)) ? c.creado_en : c.creado_en + 'Z')
-        .toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-    const ref = c.ref_tipo ? ` &nbsp;·&nbsp; Ref: ${esc(c.ref_tipo)} #${c.ref_id}` : '';
-    document.getElementById('mc-meta').innerHTML =
-        `<strong>${esc(c.username)}</strong> (${esc(c.rol || '—')}) &nbsp;·&nbsp; Día ${fecha}` +
-        ` &nbsp;·&nbsp; Firmado: ${hora}${ref}<br>` +
-        `Declaró <strong>${c.tildadas}/${c.total}</strong> tareas realizadas` +
-        (c.comentarios ? ` &nbsp;·&nbsp; 💬 ${c.comentarios} comentario(s)` : '');
-    // Snapshot agrupado, exactamente lo que vio
-    const grupos = {}, orden = [];
-    (c.items || []).forEach(i => {
-        if (!grupos[i.grupo]) { grupos[i.grupo] = []; orden.push(i.grupo); }
-        grupos[i.grupo].push(i);
-    });
-    document.getElementById('mc-items').innerHTML = orden.map(g => `
-        <div style="margin-bottom:8px;">
-            <div style="font-size:12px;font-weight:800;color:${g.includes('📌') ? '#b45309' : '#1a1a2e'};
-                        padding:5px 4px;border-bottom:1px solid #eef0f3;">${esc(g)}</div>
-            ${grupos[g].map(i => `
-            <div style="padding:7px 4px;border-bottom:1px dashed #f3f4f6;">
-                <div style="display:flex;gap:8px;font-size:13.5px;color:#1f2937;">
-                    <span style="flex-shrink:0;">${i.tildada ? '✅' : '⬜'}</span>
-                    <span style="${i.tildada ? '' : 'color:#9ca3af;'}">${esc(i.texto)}${i.puntual ? ' <span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:8px;padding:1px 6px;font-weight:700;">📌 del día</span>' : ''}</span>
-                </div>
-                ${i.comentario ? `<div style="margin:4px 0 0 26px;font-size:12.5px;color:#b45309;background:#fffdf6;border-left:3px solid #fde68a;padding:5px 8px;border-radius:0 6px 6px 0;">💬 ${esc(i.comentario)}</div>` : ''}
-            </div>`).join('')}
-        </div>`).join('');
-    document.getElementById('modal-conf').classList.add('open');
-}
-
 (async () => {
     if (_empFichActivo()) {
         _empRests = await apiFetch("/empleado/mis-restaurantes", { token: getEmpToken() }).catch(() => []);
@@ -1893,7 +1701,6 @@ async function verConfirmacion(id) {
     }
     await init();
     if (_empMode && _empRests) _empInjectFiltroFichajes(_empRests, _empRid);
-    _initVistaTabs();
 })();
 </script>
 </body>

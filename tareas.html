@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Tareas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: #4f46e5; color: white; }
+        .content { margin-top: 60px; padding: 24px 32px 60px; max-width: 1100px; margin-left: auto; margin-right: auto; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 4px; background: white; border-radius: 10px; padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; width: fit-content; flex-wrap: wrap; }
+        .tab-btn { padding: 9px 20px; border: none; border-radius: 7px; background: transparent; color: #6b7280; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all .15s; }
+        .tab-btn:hover { background: #f3f4f6; color: #374151; }
+        .tab-btn.active { background: #4f46e5; color: white; }
+
+        /* Controles */
+        .barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+        .inp, select.inp, input.inp { border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 8px 12px; font-size: 13px; background: white; color: #1f2937; outline: none; }
+        .inp:focus { border-color: #4f46e5; }
+        .btn { padding: 8px 16px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; color: #4f46e5; }
+        .btn:hover { background: #eef2ff; }
+        .btn-primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-suave { background: #eef2ff; border-color: #c7d2fe; }
+        .mini { border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; padding: 3px 7px; color: #4b5563; flex-shrink: 0; }
+        .mini:hover:not(:disabled) { background: #f3f4f6; }
+        .mini:disabled { opacity: .3; cursor: default; }
+        .mini.rojo { color: #dc2626; }
+
+        /* Listas */
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); overflow: hidden; }
+        .grupo-head { display: flex; align-items: center; gap: 6px; background: #f3f4f6; padding: 7px 12px; }
+        .grupo-head b { flex: 1; font-size: 13px; color: #374151; }
+        .fila-tarea { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #f3f4f6; }
+        .fila-tarea .tx { flex: 1; min-width: 0; }
+        .fila-tarea .tx .t { font-size: 13.5px; color: #1f2937; }
+        .fila-tarea .tx .b { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+        .chip { font-size: 10px; border-radius: 10px; padding: 1px 7px; font-weight: 700; white-space: nowrap; background: #f3f4f6; color: #4b5563; }
+        .chip.mom { background: #eef2ff; color: #4338ca; }
+        .chip.freq { background: #fef3c7; color: #92400e; }
+        .vacio { color: #9ca3af; font-size: 13px; padding: 22px; text-align: center; }
+        .sec-title { font-size: 12px; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: .6px; margin: 4px 0 8px; }
+
+        /* Caja: dos columnas */
+        .caja-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 760px) { .caja-grid { grid-template-columns: 1fr; } }
+
+        /* Modales */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; padding: 16px; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: white; border-radius: 14px; width: 500px; max-width: 96vw; max-height: 92vh; overflow-y: auto; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .modal h3 { font-size: 17px; color: #1a1a2e; margin-bottom: 14px; }
+        .lbl { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; display: block; margin: 12px 0 6px; }
+        .modal .inp { width: 100%; }
+        .radios { display: flex; gap: 14px; font-size: 13px; flex-wrap: wrap; margin-bottom: 6px; }
+        .radios label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .checksmom { display: flex; gap: 14px; font-size: 13px; flex-wrap: wrap; }
+        .checksmom label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .m-error { color: #dc2626; font-size: 12.5px; min-height: 16px; margin-top: 10px; }
+        .m-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        .filtros-h { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 14px; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div><button class="btn-logout" onclick="logout()">Cerrar sesión</button></div>
+</nav>
+
+<div class="content">
+    <div class="page-header"><h2>✅ Tareas y procedimientos</h2></div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <!-- ═══ TURNO ═══ -->
+    <div id="tab-turno" style="display:none;">
+        <p style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.6;">
+            Checklists que el empleado <strong>declara</strong> al fichar entrada/salida, según su
+            rol (o asignadas a él). Firma con su contraseña; queda registro de todo.
+        </p>
+        <div class="barra">
+            <select class="inp" id="f-rol" onchange="renderTurno()"></select>
+            <select class="inp" id="f-emp" onchange="renderTurno()"></select>
+            <select class="inp" id="f-mom" onchange="renderTurno()">
+                <option value="">Entrada y salida</option>
+                <option value="checkin">🟢 Entrada de turno</option>
+                <option value="checkout">🔴 Salida de turno</option>
+            </select>
+            <button class="btn btn-suave" onclick="abrirAplicarPlantillas()">🗂 Plantillas…</button>
+            <span style="font-size:11.5px;color:#9ca3af;">El orden (↑↓) se edita sin filtros.</span>
+        </div>
+        <div id="lista-turno"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button class="btn btn-primary" onclick="abrirTareaModal(null,'turno')">＋ Nueva tarea</button>
+            <button class="btn" onclick="crearGrupo()">＋ Grupo</button>
+        </div>
+    </div>
+
+    <!-- ═══ CAJA ═══ -->
+    <div id="tab-caja" style="display:none;">
+        <p style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.6;">
+            Checklists de la <strong>acción</strong> de abrir/cerrar la caja: los completa
+            <strong>quien la opere</strong>, sin importar rol (la firma registra quién fue).
+        </p>
+        <div class="caja-grid">
+            <div>
+                <div class="sec-title">🔓 Al abrir la caja</div>
+                <div class="card" id="lista-caja-apertura"></div>
+            </div>
+            <div>
+                <div class="sec-title">🔒 Al cerrar la caja</div>
+                <div class="card" id="lista-caja-cierre"></div>
+            </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="abrirTareaModal(null,'caja')">＋ Nueva tarea de caja</button>
+    </div>
+
+    <!-- ═══ PLANTILLAS ═══ -->
+    <div id="tab-plantillas" style="display:none;">
+        <p style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.6;">
+            Sets genéricos de tareas reutilizables. Se aplican desde la solapa Turno
+            ("🗂 Plantillas…") o desde acá; las de turno piden rol, las de caja no.
+            Aplicar siempre <strong>suma</strong>, nunca reemplaza.
+        </p>
+        <div class="card" id="lista-plantillas"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="abrirEditorPlantilla(null)">＋ Nueva plantilla</button>
+            <button class="btn" onclick="guardarConfigComoPlantilla()">💾 Guardar configuración actual como plantilla</button>
+            <button class="btn btn-suave" onclick="abrirAplicarPlantillas()">Aplicar…</button>
+        </div>
+    </div>
+
+    <!-- ═══ HISTORIAL ═══ -->
+    <div id="tab-historial" style="display:none;">
+        <div class="filtros-h">
+            <label>Empleado:</label>
+            <select class="inp" id="ta-f-usuario" onchange="cargarConfirmaciones(0)"><option value="">Todos</option></select>
+            <label>Rol:</label>
+            <select class="inp" id="ta-f-rol" onchange="cargarConfirmaciones(0)"><option value="">Todos</option></select>
+            <label>Momento:</label>
+            <select class="inp" id="ta-f-momento" onchange="cargarConfirmaciones(0)">
+                <option value="">Todos</option>
+                <option value="checkin">Entrada de turno</option>
+                <option value="checkout">Salida de turno</option>
+                <option value="apertura_caja">Apertura de caja</option>
+                <option value="cierre_caja">Cierre de caja</option>
+            </select>
+            <label>Desde:</label><input class="inp" type="date" id="ta-f-desde" onchange="cargarConfirmaciones(0)">
+            <label>Hasta:</label><input class="inp" type="date" id="ta-f-hasta" onchange="cargarConfirmaciones(0)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" id="ta-f-pend" onchange="cargarConfirmaciones(0)"> Solo con tareas sin tildar
+            </label>
+        </div>
+        <div id="ta-lista"><div class="vacio">Cargando...</div></div>
+        <div id="ta-pag" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px;"></div>
+    </div>
+</div>
+
+<!-- ═══ MODAL TAREA (unificado turno/caja + frecuencia) ═══ -->
+<div class="modal-overlay" id="m-tarea" onclick="if(event.target===this)cerrarTareaModal()">
+    <div class="modal">
+        <h3 id="mt-titulo">Nueva tarea</h3>
+        <label class="lbl">Tarea</label>
+        <input class="inp" type="text" id="mt-texto" maxlength="300" placeholder="Ej: Limpiar la plancha y superficies">
+        <label class="lbl" id="mt-lbl-cuando">¿Cuándo se muestra?</label>
+        <div class="checksmom" id="mt-momentos"></div>
+        <div id="mt-quien">
+            <label class="lbl">¿Quién debe hacerla?</label>
+            <div class="radios">
+                <label><input type="radio" name="mt-dest" value="rol" checked onchange="_mtDestino()"> Un rol</label>
+                <label><input type="radio" name="mt-dest" value="usuario" onchange="_mtDestino()"> Un empleado</label>
+            </div>
+            <select class="inp" id="mt-rol"></select>
+            <select class="inp" id="mt-usuario" style="display:none;"></select>
+            <label class="lbl">Grupo</label>
+            <select class="inp" id="mt-grupo"></select>
+        </div>
+        <label class="lbl">¿Con qué frecuencia?</label>
+        <div class="radios">
+            <label><input type="radio" name="mt-freq" value="siempre" checked onchange="_mtFreq()"> Siempre</label>
+            <label><input type="radio" name="mt-freq" value="dia" onchange="_mtFreq()"> Un día de la semana</label>
+            <label><input type="radio" name="mt-freq" value="fecha" onchange="_mtFreq()"> Fecha única</label>
+        </div>
+        <select class="inp" id="mt-dia" style="display:none;">
+            <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option>
+            <option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option>
+            <option value="7">Domingo</option>
+        </select>
+        <input class="inp" type="date" id="mt-fecha" style="display:none;">
+        <div class="m-error" id="mt-error"></div>
+        <div class="m-foot">
+            <button class="btn" onclick="cerrarTareaModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarTareaModal()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODAL APLICAR PLANTILLAS ═══ -->
+<div class="modal-overlay" id="m-aplicar" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="modal" style="width:440px;">
+        <h3>🗂 Aplicar plantillas</h3>
+        <p style="font-size:12.5px;color:#6b7280;line-height:1.5;">Las tareas de las plantillas
+            elegidas se <strong>suman</strong> a las actuales. Las de turno van al rol elegido;
+            las de caja quedan para quien opere la caja.</p>
+        <label class="lbl">Plantillas</label>
+        <div id="ma-lista" style="max-height:220px;overflow-y:auto;border:1px solid #f0f0f0;border-radius:8px;padding:8px;"></div>
+        <label class="lbl">Rol destino <span style="font-weight:400;text-transform:none;">(solo para tareas de turno)</span></label>
+        <select class="inp" id="ma-rol"></select>
+        <div class="m-error" id="ma-error"></div>
+        <div class="m-foot">
+            <button class="btn" onclick="document.getElementById('m-aplicar').classList.remove('open')">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmarAplicarPlantillas()">Aplicar seleccionadas</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODAL EDITOR DE PLANTILLA ═══ -->
+<div class="modal-overlay" id="m-plantilla" onclick="if(event.target===this)cerrarEditorPlantilla()">
+    <div class="modal" style="width:660px;">
+        <h3 id="mp-titulo">Nueva plantilla</h3>
+        <label class="lbl">Nombre</label>
+        <input class="inp" type="text" id="mp-nombre" maxlength="120" placeholder="Ej: Apertura de salón">
+        <label class="lbl">Tareas</label>
+        <div style="font-size:11.5px;color:#9ca3af;margin-bottom:8px;">
+            Genéricas (sin rol). El grupo aplica solo a las de turno. Una tarea no mezcla
+            momentos de turno con los de caja.
+        </div>
+        <div id="mp-filas"></div>
+        <button type="button" class="btn" style="border-style:dashed;margin-top:8px;" onclick="agregarFilaPlantilla()">＋ Agregar tarea</button>
+        <div class="m-error" id="mp-error"></div>
+        <div class="m-foot">
+            <button class="btn" onclick="cerrarEditorPlantilla()">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEditorPlantilla()">Guardar plantilla</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODAL DETALLE DE CONFIRMACIÓN (solo lectura) ═══ -->
+<div class="modal-overlay" id="modal-conf" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="modal" style="width:560px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+            <h3 id="mc-titulo" style="margin-bottom:6px;">📋 Declaración</h3>
+            <button onclick="document.getElementById('modal-conf').classList.remove('open')"
+                    style="background:none;border:none;font-size:18px;cursor:pointer;color:#9ca3af;">✕</button>
+        </div>
+        <div id="mc-meta" style="font-size:12.5px;color:#6b7280;line-height:1.7;padding-bottom:10px;"></div>
+        <div id="mc-items"></div>
+        <div style="font-size:11px;color:#9ca3af;padding-top:10px;border-top:1px solid #f0f0f0;margin-top:10px;">
+            Registro inmutable: refleja exactamente lo que el empleado vio y declaró al firmar.
+        </div>
+    </div>
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script>
+requirePermiso('ver_tareas', 'gestion_tareas');
+const G = hasPermiso('gestion_tareas');            // configurar (admin/gerente siempre)
+const V = hasPermiso('ver_tareas') || G;           // historial
+
+const MUNDO_TURNO = ['checkin', 'checkout'];
+const MUNDO_CAJA = ['apertura_caja', 'cierre_caja'];
+const MOM_LABELS = { checkin: '🟢 Entrada', checkout: '🔴 Salida', apertura_caja: '🔓 Apertura', cierre_caja: '🔒 Cierre' };
+const DIAS_ISO = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' };
+
+let _cfg = { grupos: [], tareas: [] };
+let _roles = [], _usuarios = [], _plantillas = [];
+let _baseCargada = false, _tab = null;
+
+// ── Frecuencia (badge) ────────────────────────────────────────
+function _badgeFreq(t) {
+    if (!t.puntual) return '';
+    const txt = t.puntual_fecha
+        ? '📌 ' + t.puntual_fecha.split('-').reverse().join('/')
+        : '📌 ' + (DIAS_ISO[t.puntual_dia_semana] || '');
+    return `<span class="chip freq">${txt}</span>`;
+}
+function _esTurno(t) { return (t.momentos || []).some(m => MUNDO_TURNO.includes(m)); }
+function _esCaja(t) { return (t.momentos || []).some(m => MUNDO_CAJA.includes(m)); }
+
+// ── Tabs ──────────────────────────────────────────────────────
+function renderTabs() {
+    const tabs = [];
+    if (G) tabs.push(['turno', '📋 Turno'], ['caja', '💰 Caja'], ['plantillas', '🗂 Plantillas']);
+    if (V) tabs.push(['historial', '📜 Historial']);
+    document.getElementById('tabs').innerHTML = tabs.map(([k, l]) =>
+        `<button class="tab-btn ${_tab === k ? 'active' : ''}" onclick="setTab('${k}')">${l}</button>`).join('');
+}
+async function setTab(t) {
+    _tab = t;
+    renderTabs();
+    ['turno', 'caja', 'plantillas', 'historial'].forEach(k =>
+        document.getElementById('tab-' + k).style.display = k === t ? '' : 'none');
+    if (t === 'historial') {
+        if (!_histCargado) { _histCargado = true; _initFiltrosHistorial(); cargarConfirmaciones(0); }
+        return;
+    }
+    if (!_baseCargada) { _baseCargada = true; await cargarBase(); }
+    if (t === 'turno') renderTurno();
+    else if (t === 'caja') renderCaja();
+    else if (t === 'plantillas') renderPlantillas();
+}
+
+async function cargarBase() {
+    try {
+        const [cfg, roles, usuarios, pls] = await Promise.all([
+            apiFetch('/tareas/config'),
+            apiFetch('/roles').catch(() => []),
+            apiFetch('/auth/usuarios').catch(() => []),
+            apiFetch('/tareas/plantillas').catch(() => ({ propias: [] })),
+        ]);
+        _cfg = cfg;
+        _roles = (roles || []).map(r => r.nombre).filter(n => n && n !== 'admin');
+        _usuarios = (usuarios || []).filter(u => u.rol !== 'admin');
+        _plantillas = pls.propias || [];
+    } catch (e) {
+        document.getElementById('lista-turno').innerHTML = `<div class="vacio">⚠️ ${esc(e.message || e)}</div>`;
+        return;
+    }
+    // Filtros de turno
+    const fRol = document.getElementById('f-rol'), selR = fRol.value;
+    fRol.innerHTML = '<option value="">Todos los roles</option>' +
+        _roles.map(r => `<option value="${escAttr(r)}" ${r === selR ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    const fEmp = document.getElementById('f-emp'), selE = fEmp.value;
+    fEmp.innerHTML = '<option value="">Todos los empleados</option>' +
+        _usuarios.map(u => `<option value="${u.id}" ${String(u.id) === selE ? 'selected' : ''}>${esc(u.username)}</option>`).join('');
+}
+async function _reload() {
+    _baseCargada = true;
+    await cargarBase();
+    if (_tab === 'turno') renderTurno();
+    else if (_tab === 'caja') renderCaja();
+    else if (_tab === 'plantillas') renderPlantillas();
+}
+
+// ══════════════ SOLAPA TURNO ══════════════
+function renderTurno() {
+    const cont = document.getElementById('lista-turno');
+    const fRol = document.getElementById('f-rol').value;
+    const fEmp = document.getElementById('f-emp').value;
+    const fMom = document.getElementById('f-mom').value;
+    const filtrando = !!(fRol || fEmp || fMom);
+    const base = _cfg.tareas.filter(_esTurno);
+    const grupos = [..._cfg.grupos, { id: null, nombre: 'General' }];
+    let html = '';
+    grupos.forEach((g, gi) => {
+        let ts = base.filter(t => (t.grupo_id ?? null) === g.id);
+        const totalGrupo = ts.length;
+        if (fRol) ts = ts.filter(t => t.rol === fRol);
+        if (fEmp) ts = ts.filter(t => String(t.puntual_usuario_id || '') === fEmp);
+        if (fMom) ts = ts.filter(t => (t.momentos || []).includes(fMom));
+        if (g.id === null && !totalGrupo) return;
+        const accG = g.id !== null ? `
+            <button class="mini" title="Renombrar" onclick="renombrarGrupo(${g.id})">✏️</button>
+            ${filtrando ? '' : `
+            <button class="mini" ${gi === 0 ? 'disabled' : ''} onclick="moverGrupo(${g.id},-1)">↑</button>
+            <button class="mini" ${gi >= _cfg.grupos.length - 1 ? 'disabled' : ''} onclick="moverGrupo(${g.id},1)">↓</button>`}
+            <button class="mini rojo" title="Eliminar grupo" onclick="eliminarGrupo(${g.id}, '${escAttr(g.nombre)}')">🗑</button>` : '';
+        html += `<div class="card" style="margin-bottom:10px;">
+            <div class="grupo-head"><b>📁 ${esc(g.nombre)}</b>${accG}</div>`;
+        if (!ts.length) {
+            html += `<div class="vacio" style="padding:10px;">Sin tareas${filtrando ? ' con este filtro' : ''}.</div>`;
+        } else {
+            ts.forEach((t, i) => {
+                const dest = t.puntual_usuario_id
+                    ? '👤 ' + esc((_usuarios.find(u => u.id === t.puntual_usuario_id) || {}).username || '#' + t.puntual_usuario_id)
+                    : esc(t.rol || '—');
+                const moms = (t.momentos || []).filter(m => MUNDO_TURNO.includes(m))
+                    .map(m => `<span class="chip mom">${MOM_LABELS[m]}</span>`).join('');
+                const flechas = filtrando ? '' : `
+                    <button class="mini" ${i === 0 ? 'disabled' : ''} onclick="moverTarea(${t.id},${g.id === null ? 'null' : g.id},-1)">↑</button>
+                    <button class="mini" ${i === ts.length - 1 ? 'disabled' : ''} onclick="moverTarea(${t.id},${g.id === null ? 'null' : g.id},1)">↓</button>`;
+                html += `<div class="fila-tarea">
+                    <div class="tx">
+                        <div class="t">${esc(t.texto)}</div>
+                        <div class="b"><span class="chip">${dest}</span>${moms}${_badgeFreq(t)}</div>
+                    </div>
+                    ${flechas}
+                    <button class="mini" title="Editar" onclick="abrirTareaModal(${t.id},'turno')">✏️</button>
+                    <button class="mini rojo" title="Eliminar" onclick="eliminarTarea(${t.id})">🗑</button>
+                </div>`;
+            });
+        }
+        html += `</div>`;
+    });
+    cont.innerHTML = html || '<div class="card"><div class="vacio">Todavía no hay tareas de turno. Creá la primera o aplicá una plantilla.</div></div>';
+}
+
+// ══════════════ SOLAPA CAJA ══════════════
+function renderCaja() {
+    const caja = _cfg.tareas.filter(_esCaja);
+    [['apertura_caja', 'lista-caja-apertura'], ['cierre_caja', 'lista-caja-cierre']].forEach(([mom, contId]) => {
+        const cont = document.getElementById(contId);
+        const ts = caja.filter(t => (t.momentos || []).includes(mom));
+        if (!ts.length) { cont.innerHTML = '<div class="vacio">Sin tareas.</div>'; return; }
+        cont.innerHTML = ts.map((t, i) => {
+            const ambos = (t.momentos || []).length > 1 ? '<span class="chip mom">A+C</span>' : '';
+            return `<div class="fila-tarea">
+                <div class="tx">
+                    <div class="t">${esc(t.texto)}</div>
+                    <div class="b">${ambos}${_badgeFreq(t)}</div>
+                </div>
+                <button class="mini" ${i === 0 ? 'disabled' : ''} onclick="moverTareaCaja('${mom}',${t.id},-1)">↑</button>
+                <button class="mini" ${i === ts.length - 1 ? 'disabled' : ''} onclick="moverTareaCaja('${mom}',${t.id},1)">↓</button>
+                <button class="mini" title="Editar" onclick="abrirTareaModal(${t.id},'caja')">✏️</button>
+                <button class="mini rojo" title="Eliminar" onclick="eliminarTarea(${t.id})">🗑</button>
+            </div>`;
+        }).join('');
+    });
+}
+
+// ── Grupos (solo turno) ──
+async function crearGrupo() {
+    const nombre = prompt('Nombre del grupo (ej: Higiene, Equipamiento):');
+    if (!nombre || !nombre.trim()) return;
+    try { await apiFetch('/tareas/grupos', { method: 'POST', body: JSON.stringify({ nombre: nombre.trim() }) }); _reload(); }
+    catch (e) { alert('No se pudo crear: ' + (e.message || e)); }
+}
+async function renombrarGrupo(id) {
+    const g = _cfg.grupos.find(x => x.id === id);
+    const nombre = prompt('Nuevo nombre del grupo:', g ? g.nombre : '');
+    if (!nombre || !nombre.trim()) return;
+    try { await apiFetch(`/tareas/grupos/${id}`, { method: 'PUT', body: JSON.stringify({ nombre: nombre.trim() }) }); _reload(); }
+    catch (e) { alert('No se pudo renombrar: ' + (e.message || e)); }
+}
+async function eliminarGrupo(id, nombre) {
+    if (!confirm(`¿Eliminar el grupo "${nombre}"? Sus tareas quedan en "General".`)) return;
+    try { await apiFetch(`/tareas/grupos/${id}`, { method: 'DELETE' }); _reload(); }
+    catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+async function moverGrupo(id, delta) {
+    const ids = _cfg.grupos.map(g => g.id);
+    const i = ids.indexOf(id), j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    try { await apiFetch('/tareas/grupos/reorder', { method: 'PUT', body: JSON.stringify({ orden: ids }) }); _reload(); }
+    catch (e) { alert('Error: ' + (e.message || e)); }
+}
+async function moverTarea(id, grupoId, delta) {
+    const ts = _cfg.tareas.filter(t => _esTurno(t) && (t.grupo_id ?? null) === grupoId);
+    const ids = ts.map(t => t.id);
+    const i = ids.indexOf(id), j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    try { await apiFetch('/tareas/reorder', { method: 'PUT', body: JSON.stringify({ orden: ids }) }); _reload(); }
+    catch (e) { alert('Error: ' + (e.message || e)); }
+}
+async function moverTareaCaja(mom, id, delta) {
+    const ids = _cfg.tareas.filter(t => (t.momentos || []).includes(mom)).map(t => t.id);
+    const i = ids.indexOf(id), j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    try { await apiFetch('/tareas/reorder', { method: 'PUT', body: JSON.stringify({ orden: ids }) }); _reload(); }
+    catch (e) { alert('Error: ' + (e.message || e)); }
+}
+async function eliminarTarea(id) {
+    if (!confirm('¿Eliminar esta tarea? El historial ya declarado no se altera.')) return;
+    try { await apiFetch(`/tareas/${id}`, { method: 'DELETE' }); _reload(); }
+    catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+
+// ══════════════ MODAL TAREA (unificado) ══════════════
+let _mtEditId = null, _mtMundo = 'turno';
+
+function _mtDestino() {
+    const esRol = document.querySelector('input[name="mt-dest"]:checked').value === 'rol';
+    document.getElementById('mt-rol').style.display = esRol ? '' : 'none';
+    document.getElementById('mt-usuario').style.display = esRol ? 'none' : '';
+}
+function _mtFreq() {
+    const f = document.querySelector('input[name="mt-freq"]:checked').value;
+    document.getElementById('mt-dia').style.display = f === 'dia' ? '' : 'none';
+    document.getElementById('mt-fecha').style.display = f === 'fecha' ? '' : 'none';
+}
+function abrirTareaModal(id, mundo) {
+    _mtEditId = id; _mtMundo = mundo;
+    const t = id ? _cfg.tareas.find(x => x.id === id) : null;
+    const esTurno = mundo === 'turno';
+    document.getElementById('mt-titulo').textContent =
+        (id ? 'Editar' : 'Nueva') + (esTurno ? ' tarea de turno' : ' tarea de caja');
+    document.getElementById('mt-texto').value = t ? t.texto : '';
+    document.getElementById('mt-error').textContent = '';
+    // Momentos del mundo
+    const moms = esTurno
+        ? [['checkin', '🟢 Entrada de turno'], ['checkout', '🔴 Salida de turno']]
+        : [['apertura_caja', '🔓 Al abrir la caja'], ['cierre_caja', '🔒 Al cerrar la caja']];
+    document.getElementById('mt-momentos').innerHTML = moms.map(([v, l]) =>
+        `<label><input type="checkbox" value="${v}" ${t && (t.momentos || []).includes(v) ? 'checked' : ''}> ${l}</label>`).join('');
+    // Destinatario + grupo (solo turno)
+    document.getElementById('mt-quien').style.display = esTurno ? '' : 'none';
+    if (esTurno) {
+        document.getElementById('mt-rol').innerHTML =
+            _roles.map(r => `<option value="${escAttr(r)}">${esc(r)}</option>`).join('');
+        document.getElementById('mt-usuario').innerHTML =
+            _usuarios.map(u => `<option value="${u.id}">${esc(u.username)} (${esc(u.rol)})</option>`).join('');
+        const esUsuario = !!(t && t.puntual_usuario_id);
+        document.querySelector(`input[name="mt-dest"][value="${esUsuario ? 'usuario' : 'rol'}"]`).checked = true;
+        if (t && t.rol) document.getElementById('mt-rol').value = t.rol;
+        if (esUsuario) document.getElementById('mt-usuario').value = String(t.puntual_usuario_id);
+        _mtDestino();
+        document.getElementById('mt-grupo').innerHTML =
+            _cfg.grupos.map(g => `<option value="${g.id}">${esc(g.nombre)}</option>`).join('') +
+            '<option value="">General (sin grupo)</option>';
+        document.getElementById('mt-grupo').value = t && t.grupo_id ? String(t.grupo_id) : '';
+    }
+    // Frecuencia
+    const freq = !t || !t.puntual ? 'siempre' : (t.puntual_fecha ? 'fecha' : 'dia');
+    document.querySelector(`input[name="mt-freq"][value="${freq}"]`).checked = true;
+    document.getElementById('mt-dia').value = t && t.puntual_dia_semana ? String(t.puntual_dia_semana) : '1';
+    document.getElementById('mt-fecha').value = (t && t.puntual_fecha) || '';
+    _mtFreq();
+    document.getElementById('m-tarea').classList.add('open');
+    setTimeout(() => document.getElementById('mt-texto').focus(), 60);
+}
+function cerrarTareaModal() { document.getElementById('m-tarea').classList.remove('open'); }
+
+async function guardarTareaModal() {
+    const err = document.getElementById('mt-error');
+    const texto = document.getElementById('mt-texto').value.trim();
+    const momentos = [...document.querySelectorAll('#mt-momentos input:checked')].map(c => c.value);
+    if (!texto) { err.textContent = 'Escribí la tarea.'; return; }
+    if (!momentos.length) { err.textContent = 'Elegí al menos un momento.'; return; }
+    const body = { texto, momentos };
+    if (_mtMundo === 'turno') {
+        const esRol = document.querySelector('input[name="mt-dest"]:checked').value === 'rol';
+        if (esRol) {
+            body.rol = document.getElementById('mt-rol').value;
+            if (!body.rol) { err.textContent = 'Elegí un rol.'; return; }
+        } else {
+            body.puntual_usuario_id = parseInt(document.getElementById('mt-usuario').value, 10) || null;
+            if (!body.puntual_usuario_id) { err.textContent = 'Elegí un empleado.'; return; }
+        }
+        body.grupo_id = document.getElementById('mt-grupo').value ? parseInt(document.getElementById('mt-grupo').value, 10) : null;
+    }
+    // Frecuencia → puntual
+    const freq = document.querySelector('input[name="mt-freq"]:checked').value;
+    body.puntual = freq !== 'siempre';
+    if (freq === 'dia') body.puntual_dia_semana = parseInt(document.getElementById('mt-dia').value, 10);
+    if (freq === 'fecha') {
+        body.puntual_fecha = document.getElementById('mt-fecha').value || null;
+        if (!body.puntual_fecha) { err.textContent = 'Elegí la fecha.'; return; }
+    }
+    try {
+        if (_mtEditId) await apiFetch(`/tareas/${_mtEditId}`, { method: 'PUT', body: JSON.stringify(body) });
+        else await apiFetch('/tareas', { method: 'POST', body: JSON.stringify(body) });
+        cerrarTareaModal();
+        _reload();
+    } catch (e) { err.textContent = e.message || 'No se pudo guardar.'; }
+}
+
+// ══════════════ SOLAPA PLANTILLAS ══════════════
+function _plantillaResumen(p) {
+    let turno = 0, caja = 0;
+    (p.contenido && p.contenido.grupos || []).forEach(g => (g.tareas || []).forEach(t => {
+        if ((t.momentos || []).some(m => MUNDO_TURNO.includes(m))) turno++;
+        if ((t.momentos || []).some(m => MUNDO_CAJA.includes(m))) caja++;
+    }));
+    const partes = [];
+    if (turno) partes.push(`${turno} de turno`);
+    if (caja) partes.push(`${caja} de caja`);
+    return partes.join(' + ') || 'vacía';
+}
+function renderPlantillas() {
+    const cont = document.getElementById('lista-plantillas');
+    cont.innerHTML = _plantillas.map(p => `
+        <div class="fila-tarea">
+            <div class="tx"><div class="t">🗂 ${esc(p.nombre)}</div>
+                <div class="b"><span class="chip">${_plantillaResumen(p)}</span></div></div>
+            <button class="mini" title="Editar" onclick="abrirEditorPlantilla(${p.id})">✏️</button>
+            <button class="mini rojo" title="Eliminar" onclick="eliminarPlantilla(${p.id}, '${escAttr(p.nombre)}')">🗑</button>
+        </div>`).join('') ||
+        '<div class="vacio">Sin plantillas. Creá una nueva o guardá la configuración actual.</div>';
+}
+async function guardarConfigComoPlantilla() {
+    const nombre = prompt('Nombre de la plantilla (guarda los grupos y tareas actuales, de turno y de caja):');
+    if (!nombre || !nombre.trim()) return;
+    try {
+        await apiFetch('/tareas/plantillas', { method: 'POST',
+            body: JSON.stringify({ nombre: nombre.trim(), desde_config: true }) });
+        _reload();
+    } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
+}
+async function eliminarPlantilla(id, nombre) {
+    if (!confirm(`¿Eliminar la plantilla "${nombre}"? (no afecta a las tareas ya aplicadas)`)) return;
+    try { await apiFetch(`/tareas/plantillas/${id}`, { method: 'DELETE' }); _reload(); }
+    catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+
+// ── Aplicar (una o varias; rol solo si hay tareas de turno) ──
+function abrirAplicarPlantillas() {
+    if (!_plantillas.length) { alert('No hay plantillas creadas todavía.'); return; }
+    document.getElementById('ma-error').textContent = '';
+    const rolFiltro = document.getElementById('f-rol').value;
+    document.getElementById('ma-rol').innerHTML =
+        '<option value="">— Sin rol (solo tareas de caja) —</option>' +
+        _roles.map(r => `<option value="${escAttr(r)}" ${r === rolFiltro ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    document.getElementById('ma-lista').innerHTML = _plantillas.map(p => `
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13px;color:#374151;cursor:pointer;">
+            <input type="checkbox" value="${p.id}" style="width:16px;height:16px;flex-shrink:0;">
+            <span>🗂 ${esc(p.nombre)} <span style="color:#9ca3af;">(${_plantillaResumen(p)})</span></span>
+        </label>`).join('');
+    document.getElementById('m-aplicar').classList.add('open');
+}
+async function confirmarAplicarPlantillas() {
+    const err = document.getElementById('ma-error');
+    const rol = document.getElementById('ma-rol').value;
+    const ids = [...document.querySelectorAll('#ma-lista input:checked')].map(c => Number(c.value));
+    if (!ids.length) { err.textContent = 'Elegí al menos una plantilla.'; return; }
+    // Aviso temprano: si la selección tiene tareas de turno, el rol es obligatorio
+    const conTurno = _plantillas.filter(p => ids.includes(p.id)).some(p =>
+        (p.contenido && p.contenido.grupos || []).some(g =>
+            (g.tareas || []).some(t => (t.momentos || []).some(m => MUNDO_TURNO.includes(m)))));
+    if (conTurno && !rol) { err.textContent = 'La selección incluye tareas de turno — elegí el rol.'; return; }
+    try {
+        const body = { plantilla_ids: ids };
+        if (rol) body.rol_destino = rol;
+        const r = await apiFetch('/tareas/plantillas/aplicar', { method: 'POST', body: JSON.stringify(body) });
+        document.getElementById('m-aplicar').classList.remove('open');
+        alert(r.mensaje || 'Plantillas aplicadas.');
+        _reload();
+    } catch (e) { err.textContent = e.message || 'No se pudo aplicar.'; }
+}
+
+// ── Editor de plantilla ──
+let _mpEditId = null;
+function _filaPlantillaHtml(f) {
+    f = f || { grupo: '', texto: '', momentos: [] };
+    const moms = [['checkin', 'Entrada'], ['checkout', 'Salida'], ['apertura_caja', 'Ap. caja'], ['cierre_caja', 'Ci. caja']]
+        .map(([v, l]) => `<label style="font-size:11.5px;display:flex;align-items:center;gap:3px;">
+            <input type="checkbox" class="mp-mom" data-mundo="${MUNDO_TURNO.includes(v) ? 'turno' : 'caja'}" value="${v}"
+                   ${(f.momentos || []).includes(v) ? 'checked' : ''} onchange="_mpExcluirMundo(this)">${l}</label>`).join('');
+    return `<div class="mp-fila" style="border:1px solid #eef0f3;border-radius:8px;padding:8px;margin-bottom:6px;">
+        <div style="display:flex;gap:6px;margin-bottom:6px;">
+            <input class="inp" data-grupo placeholder="Grupo (solo turno)" value="${escAttr(f.grupo || '')}" style="max-width:150px;">
+            <input class="inp" data-texto placeholder="Tarea…" value="${escAttr(f.texto || '')}" style="flex:1;">
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            ${moms}
+            <button type="button" class="mini rojo" style="margin-left:auto;"
+                    onclick="this.closest('.mp-fila').remove()">🗑</button>
+        </div>
+    </div>`;
+}
+// Al tildar un momento de un mundo, se deshabilita el otro mundo en esa fila (una
+// tarea no mezcla; el contenido viejo mixto se tolera al abrir y el guardado separa).
+function _mpExcluirMundo(chk) {
+    const fila = chk.closest('.mp-fila');
+    const boxes = [...fila.querySelectorAll('.mp-mom')];
+    const hayT = boxes.some(b => b.dataset.mundo === 'turno' && b.checked);
+    const hayC = boxes.some(b => b.dataset.mundo === 'caja' && b.checked);
+    boxes.forEach(b => {
+        if (b.dataset.mundo === 'caja') b.disabled = hayT && !hayC;
+        else b.disabled = hayC && !hayT;
+    });
+}
+function agregarFilaPlantilla(f) {
+    document.getElementById('mp-filas').insertAdjacentHTML('beforeend', _filaPlantillaHtml(f));
+    const fila = document.getElementById('mp-filas').lastElementChild;
+    const primero = fila.querySelector('.mp-mom');
+    if (primero) _mpExcluirMundo(primero);
+}
+function abrirEditorPlantilla(id) {
+    _mpEditId = id;
+    const p = id ? _plantillas.find(x => x.id === id) : null;
+    document.getElementById('mp-titulo').textContent = p ? `Editar "${p.nombre}"` : 'Nueva plantilla';
+    document.getElementById('mp-nombre').value = p ? p.nombre : '';
+    document.getElementById('mp-error').textContent = '';
+    const cont = document.getElementById('mp-filas');
+    cont.innerHTML = '';
+    if (p && p.contenido && p.contenido.grupos) {
+        p.contenido.grupos.forEach(g => (g.tareas || []).forEach(t =>
+            agregarFilaPlantilla({ grupo: g.nombre, texto: t.texto, momentos: t.momentos || [] })));
+    }
+    if (!cont.children.length) agregarFilaPlantilla();
+    document.getElementById('m-plantilla').classList.add('open');
+    setTimeout(() => document.getElementById('mp-nombre').focus(), 60);
+}
+function cerrarEditorPlantilla() { document.getElementById('m-plantilla').classList.remove('open'); }
+async function guardarEditorPlantilla() {
+    const err = document.getElementById('mp-error');
+    const nombre = document.getElementById('mp-nombre').value.trim();
+    if (!nombre) { err.textContent = 'Poné un nombre.'; return; }
+    const grupos = [], idx = {};
+    let invalidas = 0;
+    document.querySelectorAll('#mp-filas .mp-fila').forEach(fila => {
+        const texto = fila.querySelector('[data-texto]').value.trim();
+        const momentos = [...fila.querySelectorAll('.mp-mom:checked')].map(c => c.value);
+        if (!texto && !momentos.length) return;
+        if (!texto || !momentos.length) { invalidas++; return; }
+        const g = fila.querySelector('[data-grupo]').value.trim() || 'General';
+        if (!(g in idx)) { idx[g] = grupos.length; grupos.push({ nombre: g, tareas: [] }); }
+        grupos[idx[g]].tareas.push({ texto, momentos });
+    });
+    if (invalidas) { err.textContent = `Hay ${invalidas} tarea(s) incompletas (falta texto o momento).`; return; }
+    try {
+        const body = JSON.stringify({ nombre, contenido: { grupos } });
+        if (_mpEditId) await apiFetch(`/tareas/plantillas/${_mpEditId}`, { method: 'PUT', body });
+        else await apiFetch('/tareas/plantillas', { method: 'POST', body });
+        cerrarEditorPlantilla();
+        _reload();
+    } catch (e) { err.textContent = e.message || 'No se pudo guardar.'; }
+}
+
+// ══════════════ SOLAPA HISTORIAL (auditoría — registros inmutables) ══════════════
+const TA_MOM = { checkin: '🟢 Entrada', checkout: '🔴 Salida', apertura_caja: '🔓 Apertura caja', cierre_caja: '🔒 Cierre caja' };
+const TA_LIMIT = 50;
+let _taOffset = 0, _histCargado = false;
+
+async function _initFiltrosHistorial() {
+    try {
+        const [usuarios, roles] = await Promise.all([
+            apiFetch('/auth/usuarios').catch(() => []),
+            apiFetch('/roles').catch(() => []),
+        ]);
+        document.getElementById('ta-f-usuario').innerHTML = '<option value="">Todos</option>' +
+            (usuarios || []).filter(u => u.rol !== 'admin')
+                .map(u => `<option value="${u.id}">${esc(u.username)}</option>`).join('');
+        document.getElementById('ta-f-rol').innerHTML = '<option value="">Todos</option>' +
+            (roles || []).map(r => r.nombre).filter(n => n && n !== 'admin')
+                .map(n => `<option value="${escAttr(n)}">${esc(n)}</option>`).join('');
+    } catch (_) {}
+}
+
+async function cargarConfirmaciones(offset) {
+    _taOffset = offset || 0;
+    const cont = document.getElementById('ta-lista');
+    cont.innerHTML = '<div class="vacio">Cargando...</div>';
+    let q = `limit=${TA_LIMIT}&offset=${_taOffset}`;
+    const uid = document.getElementById('ta-f-usuario').value;
+    const rol = document.getElementById('ta-f-rol').value;
+    const mom = document.getElementById('ta-f-momento').value;
+    const desde = document.getElementById('ta-f-desde').value;
+    const hasta = document.getElementById('ta-f-hasta').value;
+    if (uid) q += `&usuario_id=${uid}`;
+    if (rol) q += `&rol=${encodeURIComponent(rol)}`;
+    if (mom) q += `&momento=${mom}`;
+    if (desde) q += `&desde=${desde}`;
+    if (hasta) q += `&hasta=${hasta}`;
+    if (document.getElementById('ta-f-pend').checked) q += `&solo_pendientes=true`;
+    let r;
+    try { r = await apiFetch('/tareas/confirmaciones?' + q); }
+    catch (e) { cont.innerHTML = `<div class="vacio">⚠️ ${esc(e.message || 'Error al cargar')}</div>`; return; }
+    if (!r.items.length) {
+        cont.innerHTML = '<div class="card"><div class="vacio">Sin declaraciones con estos filtros.</div></div>';
+        document.getElementById('ta-pag').innerHTML = '';
+        return;
+    }
+    cont.innerHTML = `<div class="card">` + r.items.map(c => {
+        const completa = c.tildadas >= c.total;
+        const fecha = c.fecha_local ? c.fecha_local.split('-').reverse().join('/') : '—';
+        const hora = c.creado_en ? new Date(/[+Zz]/.test(String(c.creado_en).slice(10)) ? c.creado_en : c.creado_en + 'Z')
+            .toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `<div class="fila-tarea" style="flex-wrap:wrap;">
+            <div style="min-width:105px;font-size:12.5px;color:#6b7280;">${fecha}<br><span style="color:#9ca3af;">${hora}</span></div>
+            <div style="flex:1;min-width:140px;">
+                <div style="font-size:14px;font-weight:700;color:#1a1a2e;">${esc(c.username)}</div>
+                <div style="font-size:11.5px;color:#9ca3af;">${esc(c.rol || '—')}</div>
+            </div>
+            <div style="font-size:12px;font-weight:700;color:#4b5563;min-width:115px;">${TA_MOM[c.momento] || esc(c.momento)}</div>
+            <span style="font-size:12px;font-weight:800;border-radius:20px;padding:4px 12px;white-space:nowrap;
+                         background:${completa ? '#dcfce7' : '#fee2e2'};color:${completa ? '#166534' : '#b91c1c'};">
+                ${c.tildadas}/${c.total} tildadas</span>
+            ${c.comentarios ? `<span style="font-size:12px;color:#b45309;font-weight:700;">💬 ${c.comentarios}</span>` : ''}
+            <button class="btn" style="padding:6px 14px;" onclick="verConfirmacion(${c.id})">Ver</button>
+        </div>`;
+    }).join('') + `</div>`;
+    const pag = document.getElementById('ta-pag');
+    const d = _taOffset + 1, h = Math.min(_taOffset + TA_LIMIT, r.total);
+    pag.innerHTML = `
+        <button class="btn" ${_taOffset === 0 ? 'disabled' : ''}
+                onclick="cargarConfirmaciones(${Math.max(0, _taOffset - TA_LIMIT)})">‹ Anterior</button>
+        <span style="font-size:12.5px;color:#6b7280;">${d}–${h} de ${r.total}</span>
+        <button class="btn" ${h >= r.total ? 'disabled' : ''}
+                onclick="cargarConfirmaciones(${_taOffset + TA_LIMIT})">Siguiente ›</button>`;
+}
+
+async function verConfirmacion(id) {
+    let c;
+    try { c = await apiFetch(`/tareas/confirmaciones/${id}`); }
+    catch (e) { alert('No se pudo cargar: ' + (e.message || e)); return; }
+    document.getElementById('mc-titulo').textContent =
+        `📋 ${TA_MOM[c.momento] || c.momento} — ${c.username}`;
+    const fecha = c.fecha_local ? c.fecha_local.split('-').reverse().join('/') : '—';
+    const hora = c.creado_en ? new Date(/[+Zz]/.test(String(c.creado_en).slice(10)) ? c.creado_en : c.creado_en + 'Z')
+        .toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+    const ref = c.ref_tipo ? ` &nbsp;·&nbsp; Ref: ${esc(c.ref_tipo)} #${c.ref_id}` : '';
+    document.getElementById('mc-meta').innerHTML =
+        `<strong>${esc(c.username)}</strong> (${esc(c.rol || '—')}) &nbsp;·&nbsp; Día ${fecha}` +
+        ` &nbsp;·&nbsp; Firmado: ${hora}${ref}<br>` +
+        `Declaró <strong>${c.tildadas}/${c.total}</strong> tareas realizadas` +
+        (c.comentarios ? ` &nbsp;·&nbsp; 💬 ${c.comentarios} comentario(s)` : '');
+    const grupos = {}, orden = [];
+    (c.items || []).forEach(i => {
+        if (!grupos[i.grupo]) { grupos[i.grupo] = []; orden.push(i.grupo); }
+        grupos[i.grupo].push(i);
+    });
+    document.getElementById('mc-items').innerHTML = orden.map(g => `
+        <div style="margin-bottom:8px;">
+            <div style="font-size:12px;font-weight:800;color:${g.includes('📌') ? '#b45309' : '#1a1a2e'};
+                        padding:5px 4px;border-bottom:1px solid #eef0f3;">${esc(g)}</div>
+            ${grupos[g].map(i => `
+            <div style="padding:7px 4px;border-bottom:1px dashed #f3f4f6;">
+                <div style="display:flex;gap:8px;font-size:13.5px;color:#1f2937;">
+                    <span style="flex-shrink:0;">${i.tildada ? '✅' : '⬜'}</span>
+                    <span style="${i.tildada ? '' : 'color:#9ca3af;'}">${esc(i.texto)}${i.puntual ? ' <span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:8px;padding:1px 6px;font-weight:700;">📌 del día</span>' : ''}</span>
+                </div>
+                ${i.comentario ? `<div style="margin:4px 0 0 26px;font-size:12.5px;color:#b45309;background:#fffdf6;border-left:3px solid #fde68a;padding:5px 8px;border-radius:0 6px 6px 0;">💬 ${esc(i.comentario)}</div>` : ''}
+            </div>`).join('')}
+        </div>`).join('');
+    document.getElementById('modal-conf').classList.add('open');
+}
+
+// ── Init ─────────────────────────────────────────────────────
+setTab(G ? 'turno' : 'historial');
+</script>
+</body>
+</html>
