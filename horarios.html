@@ -781,6 +781,12 @@
         if(!key){ sel.innerHTML='<option value="">Elegí compañero primero…</option>'; return; }
         const usados=new Set(_ixRecibe.map(t=>t.id));
         const turnos=(_ixTurnosDe(_users[key], R)||[]).filter(t=>!usados.has(t.id));
+        // Sin edicion_agenda los horarios ajenos no son visibles (privacidad): la
+        // solicitud sale como cesión y el compañero propone sus turnos al responder.
+        if(!turnos.length && _RO){
+            sel.innerHTML='<option value="">(sus horarios no son visibles — podrá proponer los suyos al responder)</option>';
+            return;
+        }
         sel.innerHTML='<option value="">+ Agregar turno del compañero…</option>'
             + turnos.map(t=>`<option value="${t.id}">${t.date} · ${t.franjas||'sin franjas'}</option>`).join('')
             + '<option value="__grid__">📅 Ver grilla…</option>';
