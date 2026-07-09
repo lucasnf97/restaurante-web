@@ -86,17 +86,14 @@
     <!-- ═══ TURNO ═══ -->
     <div id="tab-turno" style="display:none;">
         <p style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.6;">
-            Checklists que el empleado <strong>declara</strong> al fichar entrada/salida, según su
-            rol (o asignadas a él). Firma con su contraseña; queda registro de todo.
+            La <strong>lista del día</strong> de cada empleado (por rol o asignadas a él):
+            la <strong>acepta al fichar</strong>, la va <strong>tildando durante el día</strong>
+            (queda la hora de cada tarea), puede agregar encargos o tachar lo que no aplique,
+            y la <strong>cierra firmada</strong> al terminar el turno.
         </p>
         <div class="barra">
             <select class="inp" id="f-rol" onchange="renderTurno()"></select>
             <select class="inp" id="f-emp" onchange="renderTurno()"></select>
-            <select class="inp" id="f-mom" onchange="renderTurno()">
-                <option value="">Entrada y salida</option>
-                <option value="checkin">🟢 Entrada de turno</option>
-                <option value="checkout">🔴 Salida de turno</option>
-            </select>
             <button class="btn btn-suave" onclick="abrirAplicarPlantillas()">🗂 Plantillas…</button>
             <span style="font-size:11.5px;color:#9ca3af;">El orden (↑↓) se edita sin filtros.</span>
         </div>
@@ -130,8 +127,8 @@
     <div id="tab-plantillas" style="display:none;">
         <p style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.6;">
             Listados genéricos de tareas reutilizables (tocá una para ver su contenido).
-            Al aplicarlas elegís rol/empleado y entrada/salida de turno; entran al grupo
-            General y de ahí las movés. Aplicar siempre <strong>suma</strong>, nunca reemplaza.
+            Al aplicarlas elegís rol/empleado; entran a la lista del día, al grupo
+            General, y de ahí las movés. Aplicar siempre <strong>suma</strong>, nunca reemplaza.
         </p>
         <div class="card" id="lista-plantillas"></div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
@@ -143,6 +140,25 @@
 
     <!-- ═══ HISTORIAL ═══ -->
     <div id="tab-historial" style="display:none;">
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button class="btn" id="th-btn-jornadas" onclick="setVistaHistorial('jornadas')">🗓 Jornadas del día</button>
+            <button class="btn" id="th-btn-registros" onclick="setVistaHistorial('registros')">💰 Caja y registros</button>
+        </div>
+
+        <!-- Jornadas (tareas del día): aceptación, tildes con hora, tachadas, agregadas -->
+        <div id="vista-jornadas" style="display:none;">
+            <div class="filtros-h">
+                <label>Empleado:</label>
+                <select class="inp" id="tj-usuario" onchange="cargarJornadas(0)"><option value="">Todos</option></select>
+                <label>Desde:</label><input class="inp" type="date" id="tj-desde" onchange="cargarJornadas(0)">
+                <label>Hasta:</label><input class="inp" type="date" id="tj-hasta" onchange="cargarJornadas(0)">
+            </div>
+            <div id="tj-lista"><div class="vacio">Cargando...</div></div>
+            <div id="tj-pag" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px;"></div>
+        </div>
+
+        <!-- Confirmaciones (caja + registros históricos de entrada/salida) -->
+        <div id="vista-registros" style="display:none;">
         <div class="filtros-h">
             <label>Empleado:</label>
             <select class="inp" id="ta-f-usuario" onchange="cargarConfirmaciones(0)"><option value="">Todos</option></select>
@@ -151,10 +167,10 @@
             <label>Momento:</label>
             <select class="inp" id="ta-f-momento" onchange="cargarConfirmaciones(0)">
                 <option value="">Todos</option>
-                <option value="checkin">Entrada de turno</option>
-                <option value="checkout">Salida de turno</option>
                 <option value="apertura_caja">Apertura de caja</option>
                 <option value="cierre_caja">Cierre de caja</option>
+                <option value="checkin">Entrada de turno (histórico)</option>
+                <option value="checkout">Salida de turno (histórico)</option>
             </select>
             <label>Desde:</label><input class="inp" type="date" id="ta-f-desde" onchange="cargarConfirmaciones(0)">
             <label>Hasta:</label><input class="inp" type="date" id="ta-f-hasta" onchange="cargarConfirmaciones(0)">
@@ -164,6 +180,7 @@
         </div>
         <div id="ta-lista"><div class="vacio">Cargando...</div></div>
         <div id="ta-pag" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px;"></div>
+        </div>
     </div>
 </div>
 
@@ -215,12 +232,8 @@
             agregar más tareas sueltas).</p>
         <label class="lbl">Plantillas</label>
         <div id="ma-lista" style="max-height:180px;overflow-y:auto;border:1px solid #f0f0f0;border-radius:8px;padding:8px;"></div>
-        <label class="lbl">¿En qué momento se realizan?</label>
-        <div class="checksmom" id="ma-momentos">
-            <label><input type="checkbox" value="checkin"> 🟢 Entrada de turno</label>
-            <label><input type="checkbox" value="checkout"> 🔴 Salida de turno</label>
-        </div>
-        <div style="font-size:11.5px;color:#9ca3af;margin-top:4px;">Las tareas de caja se crean directo en la solapa 💰 Caja.</div>
+        <div style="font-size:11.5px;color:#9ca3af;margin-top:8px;">Las tareas entran a la <b>lista del día</b> del destinatario
+            (se aceptan al fichar y se tildan durante la jornada). Las de caja se crean directo en la solapa 💰 Caja.</div>
         <div id="ma-quien">
             <label class="lbl">¿Quién debe hacerlas?</label>
             <div class="radios">
@@ -282,9 +295,9 @@ requirePermiso('ver_tareas', 'gestion_tareas');
 const G = hasPermiso('gestion_tareas');            // configurar (admin/gerente siempre)
 const V = hasPermiso('ver_tareas') || G;           // historial
 
-const MUNDO_TURNO = ['checkin', 'checkout'];
+const MUNDO_TURNO = ['dia', 'checkin', 'checkout'];   // checkin/checkout: legacy fusionado a 'dia'
 const MUNDO_CAJA = ['apertura_caja', 'cierre_caja'];
-const MOM_LABELS = { checkin: '🟢 Entrada', checkout: '🔴 Salida', apertura_caja: '🔓 Apertura', cierre_caja: '🔒 Cierre' };
+const MOM_LABELS = { dia: '📋 Del día', checkin: '🟢 Entrada', checkout: '🔴 Salida', apertura_caja: '🔓 Apertura', cierre_caja: '🔒 Cierre' };
 const DIAS_ISO = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' };
 
 let _cfg = { grupos: [], tareas: [] };
@@ -317,7 +330,7 @@ async function setTab(t) {
     ['turno', 'caja', 'plantillas', 'historial'].forEach(k =>
         document.getElementById('tab-' + k).style.display = k === t ? '' : 'none');
     if (t === 'historial') {
-        if (!_histCargado) { _histCargado = true; _initFiltrosHistorial(); cargarConfirmaciones(0); }
+        if (!_histCargado) { _histCargado = true; _initFiltrosHistorial(); setVistaHistorial('jornadas'); }
         return;
     }
     if (!_baseCargada) { _baseCargada = true; await cargarBase(); }
@@ -428,8 +441,7 @@ function renderTurno() {
     const cont = document.getElementById('lista-turno');
     const fRol = document.getElementById('f-rol').value;
     const fEmp = document.getElementById('f-emp').value;
-    const fMom = document.getElementById('f-mom').value;
-    const filtrando = !!(fRol || fEmp || fMom);
+    const filtrando = !!(fRol || fEmp);
     const base = _cfg.tareas.filter(_esTurno);
     const grupos = [..._cfg.grupos, { id: null, nombre: 'General' }];
     let html = _barraSeleccionHtml();
@@ -437,7 +449,6 @@ function renderTurno() {
         let ts = base.filter(t => (t.grupo_id ?? null) === g.id);
         if (fRol) ts = ts.filter(t => t.rol === fRol);
         if (fEmp) ts = ts.filter(t => String(t.puntual_usuario_id || '') === fEmp);
-        if (fMom) ts = ts.filter(t => (t.momentos || []).includes(fMom));
         const accG = g.id !== null ? `
             <button class="mini" title="Renombrar" onclick="renombrarGrupo(${g.id})">✏️</button>
             ${filtrando ? '' : `
@@ -575,12 +586,15 @@ function abrirTareaModal(id, mundo) {
         (id ? 'Editar' : 'Nueva') + (esTurno ? ' tarea de turno' : ' tarea de caja');
     document.getElementById('mt-texto').value = t ? t.texto : '';
     document.getElementById('mt-error').textContent = '';
-    // Momentos del mundo
-    const moms = esTurno
-        ? [['checkin', '🟢 Entrada de turno'], ['checkout', '🔴 Salida de turno']]
-        : [['apertura_caja', '🔓 Al abrir la caja'], ['cierre_caja', '🔒 Al cerrar la caja']];
-    document.getElementById('mt-momentos').innerHTML = moms.map(([v, l]) =>
-        `<label><input type="checkbox" value="${v}" ${t && (t.momentos || []).includes(v) ? 'checked' : ''}> ${l}</label>`).join('');
+    // Momentos: turno = siempre "tareas del día" (sin elección); caja mantiene apertura/cierre
+    if (esTurno) {
+        document.getElementById('mt-momentos').innerHTML =
+            '<span style="font-size:12px;color:#9ca3af;">Entra a la <b>lista del día</b> del empleado (se acepta al fichar y se tilda durante la jornada).</span>';
+    } else {
+        const moms = [['apertura_caja', '🔓 Al abrir la caja'], ['cierre_caja', '🔒 Al cerrar la caja']];
+        document.getElementById('mt-momentos').innerHTML = moms.map(([v, l]) =>
+            `<label><input type="checkbox" value="${v}" ${t && (t.momentos || []).includes(v) ? 'checked' : ''}> ${l}</label>`).join('');
+    }
     // Destinatario + grupo (solo turno)
     document.getElementById('mt-quien').style.display = esTurno ? '' : 'none';
     if (esTurno) {
@@ -612,7 +626,9 @@ function cerrarTareaModal() { document.getElementById('m-tarea').classList.remov
 async function guardarTareaModal() {
     const err = document.getElementById('mt-error');
     const texto = document.getElementById('mt-texto').value.trim();
-    const momentos = [...document.querySelectorAll('#mt-momentos input:checked')].map(c => c.value);
+    const momentos = _mtMundo === 'turno'
+        ? ['dia']
+        : [...document.querySelectorAll('#mt-momentos input:checked')].map(c => c.value);
     if (!texto) { err.textContent = 'Escribí la tarea.'; return; }
     if (!momentos.length) { err.textContent = 'Elegí al menos un momento.'; return; }
     const body = { texto, momentos };
@@ -725,10 +741,8 @@ function abrirAplicarPlantillas() {
 async function confirmarAplicarPlantillas() {
     const err = document.getElementById('ma-error');
     const ids = [...document.querySelectorAll('#ma-lista input:checked')].map(c => Number(c.value));
-    const momentos = [...document.querySelectorAll('#ma-momentos input:checked')].map(c => c.value);
     if (!ids.length) { err.textContent = 'Elegí al menos una plantilla.'; return; }
-    if (!momentos.length) { err.textContent = 'Elegí entrada y/o salida de turno.'; return; }
-    const body = { plantilla_ids: ids, momentos };
+    const body = { plantilla_ids: ids, momentos: ['dia'] };   // turno = lista del día
     const esRol = document.querySelector('input[name="ma-dest"]:checked').value === 'rol';
     if (esRol) {
         body.rol_destino = document.getElementById('ma-rol').value;
@@ -796,13 +810,100 @@ async function _initFiltrosHistorial() {
             apiFetch('/auth/usuarios').catch(() => []),
             apiFetch('/roles').catch(() => []),
         ]);
-        document.getElementById('ta-f-usuario').innerHTML = '<option value="">Todos</option>' +
-            (usuarios || []).filter(u => u.rol !== 'admin')
-                .map(u => `<option value="${u.id}">${esc(u.username)}</option>`).join('');
+        const optsU = (usuarios || []).filter(u => u.rol !== 'admin')
+            .map(u => `<option value="${u.id}">${esc(u.username)}</option>`).join('');
+        document.getElementById('ta-f-usuario').innerHTML = '<option value="">Todos</option>' + optsU;
+        document.getElementById('tj-usuario').innerHTML = '<option value="">Todos</option>' + optsU;
         document.getElementById('ta-f-rol').innerHTML = '<option value="">Todos</option>' +
             (roles || []).map(r => r.nombre).filter(n => n && n !== 'admin')
                 .map(n => `<option value="${escAttr(n)}">${esc(n)}</option>`).join('');
     } catch (_) {}
+}
+
+// ── Vistas del historial: Jornadas (tareas del día) / Caja y registros ──
+let _histVista = 'jornadas';
+function setVistaHistorial(v) {
+    _histVista = v;
+    document.getElementById('vista-jornadas').style.display = v === 'jornadas' ? '' : 'none';
+    document.getElementById('vista-registros').style.display = v === 'registros' ? '' : 'none';
+    document.getElementById('th-btn-jornadas').className = 'btn' + (v === 'jornadas' ? ' btn-primary' : '');
+    document.getElementById('th-btn-registros').className = 'btn' + (v === 'registros' ? ' btn-primary' : '');
+    if (v === 'jornadas') cargarJornadas(0);
+    else cargarConfirmaciones(0);
+}
+
+const _JOR_PAG = 25;
+let _jorExpandida = null;
+function _horaJ(iso) {
+    if (!iso) return '';
+    try { return new Date(iso.includes('+') || iso.endsWith('Z') ? iso : iso + 'Z')
+            .toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }); }
+    catch (_) { return ''; }
+}
+async function cargarJornadas(offset) {
+    const cont = document.getElementById('tj-lista');
+    cont.innerHTML = '<div class="vacio">Cargando...</div>';
+    const p = new URLSearchParams({ limit: _JOR_PAG, offset: offset || 0 });
+    const u = document.getElementById('tj-usuario').value;
+    const d = document.getElementById('tj-desde').value;
+    const h = document.getElementById('tj-hasta').value;
+    if (u) p.set('usuario_id', u);
+    if (d) p.set('desde', d);
+    if (h) p.set('hasta', h);
+    let r;
+    try { r = await apiFetch('/tareas/jornadas?' + p.toString()); }
+    catch (e) { cont.innerHTML = `<div class="vacio">⚠️ ${esc(e.message || e)}</div>`; return; }
+    if (!r.items.length) {
+        cont.innerHTML = '<div class="vacio">Sin jornadas en el período.</div>';
+        document.getElementById('tj-pag').innerHTML = '';
+        return;
+    }
+    cont.innerHTML = r.items.map(j => {
+        const items = j.items || [];
+        const hechas = items.filter(i => i.estado === 'hecha').length;
+        const tach = items.filter(i => i.estado === 'tachada').length;
+        const propias = items.filter(i => i.origen === 'propia').length;
+        const fecha = (j.fecha_local || '').split('-').reverse().join('/');
+        const abierta = !j.cerrada_en;
+        const exp = _jorExpandida === j.id;
+        const detalle = !exp ? '' : `<div style="padding:8px 12px 4px;border-top:1px dashed #e5e7eb;">
+            ${items.map(i => {
+                if (i.estado === 'tachada')
+                    return `<div style="padding:4px 0;font-size:13px;color:#9ca3af;"><span style="text-decoration:line-through;">✕ ${esc(i.texto)}</span> <span style="font-size:11px;">(no aplicaba)</span></div>`;
+                const ic = i.estado === 'hecha' ? '✅' : '⬜';
+                const hora = i.hecha_en ? ` <span style="color:#16a34a;font-size:11.5px;font-weight:700;">${_horaJ(i.hecha_en)}</span>` : '';
+                const prop = i.origen === 'propia' ? ' <span class="chip" style="background:#fef3c7;color:#92400e;">➕ agregada</span>' : '';
+                const nota = (i.nota || '').trim() ? `<div style="font-size:12px;color:#6b7280;margin-left:24px;">💬 ${esc(i.nota)}</div>` : '';
+                return `<div style="padding:4px 0;font-size:13px;color:#1f2937;">${ic} ${esc(i.texto)}${hora}${prop}${nota}</div>`;
+            }).join('')}
+        </div>`;
+        return `<div class="card" style="margin-bottom:8px;cursor:pointer;" onclick="_toggleJornada(${j.id})">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;flex-wrap:wrap;">
+                <b style="min-width:80px;">${fecha}</b>
+                <span style="font-weight:700;color:#1a1a2e;">${esc(j.username || '')}</span>
+                <span style="font-size:12px;color:#9ca3af;">${esc(j.rol || '')}</span>
+                <span style="font-size:12px;color:#6b7280;">Aceptó ${_horaJ(j.aceptada_en) || '—'}</span>
+                <span style="font-size:12px;color:${abierta ? '#d97706' : '#6b7280'};">
+                    ${abierta ? '⏳ jornada abierta' : 'Cerró ' + _horaJ(j.cerrada_en)}</span>
+                <span style="margin-left:auto;font-weight:700;color:${hechas === items.length - tach ? '#16a34a' : '#1a1a2e'};">
+                    ✓ ${hechas}/${items.length - tach}</span>
+                ${tach ? `<span style="font-size:12px;color:#9ca3af;">✕ ${tach}</span>` : ''}
+                ${propias ? `<span style="font-size:12px;color:#b45309;">➕ ${propias}</span>` : ''}
+                <span style="color:#9ca3af;">${exp ? '▾' : '▸'}</span>
+            </div>${detalle}
+        </div>`;
+    }).join('');
+    const pag = document.getElementById('tj-pag');
+    const desde0 = offset || 0;
+    pag.innerHTML = `
+        ${desde0 > 0 ? `<button class="btn" onclick="cargarJornadas(${desde0 - _JOR_PAG})">← Anteriores</button>` : ''}
+        <span style="font-size:12px;color:#9ca3af;">${desde0 + 1}–${Math.min(desde0 + _JOR_PAG, r.total)} de ${r.total}</span>
+        ${desde0 + _JOR_PAG < r.total ? `<button class="btn" onclick="cargarJornadas(${desde0 + _JOR_PAG})">Siguientes →</button>` : ''}`;
+    pag.dataset.offset = String(desde0);
+}
+function _toggleJornada(id) {
+    _jorExpandida = _jorExpandida === id ? null : id;
+    cargarJornadas(parseInt(document.getElementById('tj-pag').dataset.offset || '0', 10));
 }
 
 async function cargarConfirmaciones(offset) {
