@@ -1046,15 +1046,17 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
         <div class="cfg-section-body">
             <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
-                Permite que los empleados consuman con descuento usando su <strong>ticket personal</strong>.
-                Si está activo, en el resumen de la mesa (en el salón) aparece el botón <strong>Ticket personal</strong>:
-                pide usuario y contraseña, aplica el % configurado y la venta queda registrada bajo ese usuario.
-                La venta cuenta al 100% en facturación y el descuento se contabiliza como gasto.
+                Permite que los empleados consuman con su <strong>ticket personal</strong>. Si está activo,
+                al cobrar aparece el método de pago <strong>Ticket</strong> (junto a Efectivo y Tarjeta):
+                pide usuario y contraseña, los <strong>productos bonificados</strong> con cupo restante salen
+                <strong>$0</strong> y el resto recibe el % configurado. El saldo puede pagarse en efectivo o
+                cargarse a <strong>nómina</strong> (se descuenta del salario como "Comida"). La venta queda
+                registrada bajo ese usuario.
             </p>
 
             <label style="display:flex;align-items:center;gap:10px;margin-top:16px;font-size:14px;font-weight:600;cursor:pointer;">
                 <input type="checkbox" id="dp-activo" onchange="actualizarBadgeDescPersonal()">
-                Activar descuento personal (muestra el botón en el salón)
+                Activar descuento personal (muestra el método Ticket al cobrar)
             </label>
 
             <div class="cfg-grid" style="margin-top:18px;">
@@ -1078,6 +1080,20 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
                 <button class="btn-secondary" type="button" onclick="agregarReglaDP()"
                         style="margin-top:8px;padding:7px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;">
                     + Agregar línea
+                </button>
+            </div>
+
+            <div style="margin-top:24px;">
+                <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Productos bonificados (salen $0 con el ticket)</div>
+                <div style="font-size:12px;color:#9ca3af;margin-bottom:10px;">
+                    Cupo <strong>global</strong>: cada empleado puede consumir estas cantidades sin cargo,
+                    por día, semana o mes. También se pueden elegir <strong>Menús</strong>. Superado el cupo
+                    (o para productos fuera de la lista) se aplica el % de descuento de arriba.
+                </div>
+                <div id="dp-bonif"></div>
+                <button class="btn-secondary" type="button" onclick="agregarBonifDP()"
+                        style="margin-top:8px;padding:7px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;">
+                    + Agregar bonificado
                 </button>
             </div>
 
@@ -2248,21 +2264,30 @@ async function guardarNegocio() {
 // ═══════════════════════════════════════════════════════════════
 
 let _dpUsuarios = [], _dpRoles = [], _dpReglas = [];
+let _dpBonif = [], _dpProds = [], _dpCombos = [];
 function _dpEsc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 async function cargarSeccionDescuentoPersonal() {
     try {
-        const [cfg, usuarios, roles] = await Promise.all([
+        const [cfg, usuarios, roles, prods, combos] = await Promise.all([
             apiFetch('/config/sistema'),
             apiFetch('/auth/usuarios').catch(() => []),
             apiFetch('/roles').catch(() => []),
+            apiFetch('/productos/?en_carta=true').catch(() => []),
+            apiFetch('/productos/combos/lista').catch(() => []),
         ]);
         _dpUsuarios = (usuarios || []).map(u => u.username).filter(Boolean);
         _dpRoles    = [...new Set((roles || []).map(r => r.nombre).filter(Boolean))];
+        _dpProds    = (prods || []).map(p => ({ id: p.id, nombre: p.nombre }));
+        _dpCombos   = (combos || []).map(c => ({ id: c.id, nombre: c.nombre }));
         document.getElementById('dp-activo').checked = !!cfg.desc_personal_activo;
         if (cfg.desc_personal_default_pct) document.getElementById('dp-default').value = cfg.desc_personal_default_pct;
         _dpReglas = (cfg.desc_personal_reglas || []).map(r => ({ tipo: r.tipo || 'rol', ref: r.ref || '', pct: r.pct || 0 }));
+        _dpBonif = (cfg.desc_personal_bonificados || []).map(b => ({
+            tipo: b.tipo || 'producto', ref_id: b.ref_id, nombre: b.nombre || '',
+            cantidad: b.cantidad || 1, periodo: b.periodo || 'dia' }));
         renderReglasDP();
+        renderBonifDP();
         actualizarBadgeDescPersonal();
     } catch (e) {}
     const user = getUser();
@@ -2301,6 +2326,57 @@ function renderReglasDP() {
     }).join('');
 }
 
+// ── Bonificados (productos/menús con cupo por período) ──
+function agregarBonifDP() { _dpBonif.push({ tipo: 'producto', ref_id: null, nombre: '', cantidad: 1, periodo: 'dia' }); renderBonifDP(); }
+function quitarBonifDP(i) { _dpBonif.splice(i, 1); renderBonifDP(); }
+function _dpBonifSel(i, val) {
+    const [tipo, id] = val.split(':');
+    const cat = tipo === 'combo' ? _dpCombos : _dpProds;
+    const item = cat.find(x => x.id === Number(id));
+    _dpBonif[i].tipo = tipo;
+    _dpBonif[i].ref_id = Number(id) || null;
+    _dpBonif[i].nombre = item ? item.nombre : '';
+}
+
+function renderBonifDP() {
+    const cont = document.getElementById('dp-bonif');
+    if (!cont) return;
+    if (!_dpBonif.length) {
+        cont.innerHTML = '<div style="font-size:12px;color:#9ca3af;">Sin bonificados: el ticket solo aplica el % de descuento.</div>';
+        return;
+    }
+    const selStyle = 'padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;background:#fff;';
+    const optsProd = _dpProds.map(p =>
+        `<option value="producto:${p.id}">${_dpEsc(p.nombre)}</option>`).join('');
+    const optsCombo = _dpCombos.map(c =>
+        `<option value="combo:${c.id}">🍱 Menú: ${_dpEsc(c.nombre)}</option>`).join('');
+    cont.innerHTML = _dpBonif.map((b, i) => {
+        const val = b.ref_id ? `${b.tipo}:${b.ref_id}` : '';
+        let opciones = `<option value="">Elegir producto o menú…</option>`
+            + (optsCombo ? `<optgroup label="Menús">${optsCombo}</optgroup>` : '')
+            + `<optgroup label="Productos">${optsProd}</optgroup>`;
+        // Si la referencia guardada ya no está en la carta, mostrarla igual (no perderla)
+        const enCatalogo = (b.tipo === 'combo' ? _dpCombos : _dpProds).some(x => x.id === b.ref_id);
+        if (b.ref_id && !enCatalogo)
+            opciones += `<option value="${val}">${_dpEsc(b.nombre || ('#' + b.ref_id))} (fuera de carta)</option>`;
+        return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+            <select onchange="_dpBonifSel(${i}, this.value)" style="${selStyle}min-width:220px;max-width:340px;">
+                ${opciones.replace(`value="${val}">`, `value="${val}" selected>`)}
+            </select>
+            <input type="number" min="1" step="1" value="${b.cantidad}"
+                   oninput="_dpBonif[${i}].cantidad=Math.max(1,parseInt(this.value)||1)"
+                   style="width:70px;padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;text-align:right;" title="Cantidad">
+            <select onchange="_dpBonif[${i}].periodo=this.value" style="${selStyle}">
+                <option value="dia" ${b.periodo === 'dia' ? 'selected' : ''}>por día</option>
+                <option value="semana" ${b.periodo === 'semana' ? 'selected' : ''}>por semana</option>
+                <option value="mes" ${b.periodo === 'mes' ? 'selected' : ''}>por mes</option>
+            </select>
+            <button type="button" onclick="quitarBonifDP(${i})"
+                    style="margin-left:auto;background:#fee2e2;color:#b91c1c;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;font-weight:700;">✕</button>
+        </div>`;
+    }).join('');
+}
+
 function actualizarBadgeDescPersonal() {
     const b = document.getElementById('badge-descpersonal');
     if (!b) return;
@@ -2320,10 +2396,17 @@ async function guardarDescuentoPersonal() {
     const reglas = _dpReglas
         .filter(r => r.ref && String(r.ref).trim())
         .map(r => ({ tipo: r.tipo, ref: r.ref, pct: Math.max(0, Math.min(100, r.pct || 0)) }));
+    // Bonificados: solo líneas completas, sin duplicar (tipo+ref+período)
+    const vistos = new Set();
+    const bonificados = _dpBonif
+        .filter(b => b.ref_id)
+        .filter(b => { const k = `${b.tipo}:${b.ref_id}:${b.periodo}`; if (vistos.has(k)) return false; vistos.add(k); return true; })
+        .map(b => ({ tipo: b.tipo, ref_id: b.ref_id, nombre: b.nombre || '',
+                     cantidad: Math.max(1, parseInt(b.cantidad) || 1), periodo: b.periodo }));
     try {
         await apiFetch('/config/descuento-personal', {
             method: 'PUT',
-            body: JSON.stringify({ activo, default_pct: def, reglas }),
+            body: JSON.stringify({ activo, default_pct: def, reglas, bonificados }),
         });
         actualizarBadgeDescPersonal();
         mostrarOk('ok-descpersonal');

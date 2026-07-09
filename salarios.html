@@ -609,7 +609,7 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                         ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},${idxArg})" title="Ajustar horas fichadas">✏️</button>` : ''}
                     </div>
                 </td>
-                <td><strong>${fmt(u.salario_total)}</strong></td>
+                <td><strong>${fmt(u.salario_total)}</strong>${_cargosSubHTML(u, data)}</td>
                 <td class="${difHCls}">
                     <div class="dif-cell">
                         <div class="dif-cell-top">
@@ -867,6 +867,59 @@ function renderTabla() {
     tbody.innerHTML = _data.usuarios.map(u => buildRow(u)).join('');
 }
 
+// ── Cargos del período (ticket personal → nómina, concepto 'Comida') ──────────
+// Sub-línea bajo el salario: "− $X comida" (click → detalle con fechas y borrar).
+function _cargosSubHTML(u, data) {
+    const cargos = +(u.cargos || 0);
+    if (!cargos) return '';
+    const d = data || _data || {};
+    return `<div style="font-size:11px;color:#b91c1c;cursor:pointer;margin-top:2px;"
+                 title="Cargos del período (comidas cargadas a nómina) — clic para ver el detalle"
+                 onclick="verCargosEmpleado(${u.id}, '${u.username.replace(/'/g, "\\'")}', '${d.desde || ''}', '${d.hasta || ''}')">
+        − ${fmt(cargos)} comida 🍽</div>`;
+}
+
+async function verCargosEmpleado(uid, username, desde, hasta) {
+    if (!desde || !hasta) return;
+    let lista = [];
+    try { lista = await apiFetch(`/salarios/cargos?desde=${desde}&hasta=${hasta}&usuario_id=${uid}`); }
+    catch (e) { alert('No se pudo cargar el detalle: ' + (e.message || e)); return; }
+    const puedeBorrar = isManager && _unlocked;
+    const filas = (lista || []).map(c => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #f3f4f6;font-size:13px;">
+            <span>${c.fecha} — ${c.concepto}${c.pedido_id ? ` <span style="color:#9ca3af;">(mesa #${c.pedido_id})</span>` : ''}</span>
+            <span style="display:flex;align-items:center;gap:8px;">
+                <strong>− ${fmt(c.monto)}</strong>
+                ${puedeBorrar ? `<button onclick="borrarCargo(${c.id}, this)" title="Eliminar cargo"
+                    style="background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;">🗑</button>` : ''}
+            </span>
+        </div>`).join('') || '<div style="font-size:13px;color:#9ca3af;padding:10px 0;">Sin cargos en el período.</div>';
+    const ov = document.createElement('div');
+    ov.id = 'cargos-modal-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:600;display:flex;align-items:center;justify-content:center;';
+    ov.innerHTML = `
+        <div style="background:#fff;border-radius:14px;width:430px;max-width:94vw;max-height:80vh;overflow-y:auto;padding:22px;">
+            <h3 style="font-size:17px;margin-bottom:4px;">🍽 Cargos de ${username}</h3>
+            <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;">${desde} → ${hasta} · se restan del salario del período</div>
+            ${filas}
+            <div style="margin-top:16px;text-align:right;">
+                <button onclick="document.getElementById('cargos-modal-ov').remove()"
+                        style="padding:8px 18px;border:1px solid #d1d5db;background:#fff;border-radius:8px;cursor:pointer;font-size:13px;">Cerrar</button>
+            </div>
+        </div>`;
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+}
+
+async function borrarCargo(id, btn) {
+    if (!confirm('¿Eliminar este cargo? El importe dejará de restarse del salario.')) return;
+    try {
+        await apiFetch(`/salarios/cargos/${id}`, { method: 'DELETE' });
+        btn.closest('div[style*="border-bottom"]')?.remove();
+        cargar();   // refresca el resumen (salario_total cambia)
+    } catch (e) { alert('No se pudo eliminar: ' + (e.message || e)); }
+}
+
 function buildRow(u) {
     const ini     = (u.iniciales || u.username.substring(0,2)).toUpperCase();
     const difH    = u.diferencia_horas;
@@ -899,7 +952,7 @@ function buildRow(u) {
                     ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},null)" title="Ajustar horas fichadas">✏️</button>` : ''}
                 </div>
             </td>
-            <td><strong>${fmt(u.salario_total)}</strong></td>
+            <td><strong>${fmt(u.salario_total)}</strong>${_cargosSubHTML(u)}</td>
             <td class="${difHCls}">
                 <div class="dif-cell">
                     <div class="dif-cell-top">
@@ -1152,7 +1205,7 @@ async function guardarSueldo(uid) {
             const u = _data.usuarios.find(x => x.id === uid);
             if (u) {
                 u.sueldo_hora      = val;
-                u.salario_total    = +(val * u.horas_fichadas).toFixed(2);
+                u.salario_total    = +(val * u.horas_fichadas - (u.cargos || 0)).toFixed(2);
                 u.diferencia_saldo = +(val * u.diferencia_horas).toFixed(2);
                 _data.total_salarios = +(_data.usuarios.reduce((s,x) => s + x.salario_total, 0)).toFixed(2);
                 renderAll();
@@ -1312,7 +1365,7 @@ function confirmarAjuste() {
         u.horas_fichadas   = +((u.horas_fichadas + ajuste).toFixed(4));
         u.ajuste_delta     = +((u.ajuste_delta || 0) + ajuste).toFixed(4);
     }
-    u.salario_total    = +(u.sueldo_hora * u.horas_fichadas).toFixed(2);
+    u.salario_total    = +(u.sueldo_hora * u.horas_fichadas - (u.cargos || 0)).toFixed(2);
     u.diferencia_horas = +((u.horas_fichadas - u.horas_asignadas).toFixed(4));
     u.diferencia_saldo = +(u.sueldo_hora * u.diferencia_horas).toFixed(2);
     u.nota_ajuste      = nota || null;
