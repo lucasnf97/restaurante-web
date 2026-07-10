@@ -986,7 +986,7 @@ let _insumosProduccion = [];
 let _editandoIPId = null;
 let _recetaItems      = [];   // [{insumo_stock_id, cantidad, nombre, unidad}]
 let _comboInsumosDisp = [];   // insumos disponibles para el combobox
-let _comboSelId       = null; // id del insumo actualmente seleccionado en el combobox
+// (la selección de cada fila de agregado vive en su propio dataset.selId)
 
 async function cargarInsumosProduccion() {
     const nombre = document.getElementById("filtro-prod-nombre").value.trim();
@@ -1152,6 +1152,7 @@ async function abrirModalInsumoProduccion() {
     toggleExtraCats('ip', false);
     poblarSelectUbicacion("ip-ubicacion", null);
     try { _insumos = await api.get("/stock/insumos"); } catch(e) { console.error(e); }
+    _limpiarFilasAgregado();   // filas pendientes de una apertura anterior
     renderRecetaLista();
     document.getElementById("modal-insumo-produccion").classList.add("active");
 }
@@ -1185,19 +1186,23 @@ async function editarInsumoProduccion(id) {
             cantidad: r.cantidad,
         }));
     } catch { _recetaItems = []; }
+    _limpiarFilasAgregado();   // filas pendientes de una apertura anterior
     renderRecetaLista();
     document.getElementById("modal-insumo-produccion").classList.add("active");
+}
+
+function _limpiarFilasAgregado() {
+    document.querySelectorAll("#ip-receta-lista .receta-add-row").forEach(f => f.remove());
 }
 
 function renderRecetaLista() {
     const lista = document.getElementById("ip-receta-lista");
     const vacia = document.getElementById("ip-receta-vacia");
-    if (!_recetaItems.length) {
-        lista.innerHTML = "";
-        vacia.style.display = "";
-        return;
-    }
-    vacia.style.display = "none";
+    // Preservar las filas de agregado EN CURSO: el innerHTML de abajo las
+    // destruiría (confirmar una fila borraba las otras pendientes).
+    const pendientes = [...lista.querySelectorAll(".receta-add-row")];
+    pendientes.forEach(p => p.remove());
+    vacia.style.display = (_recetaItems.length || pendientes.length) ? "none" : "";
     lista.innerHTML = _recetaItems.map((item, idx) => `
         <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8f7ff;border-radius:8px;">
             <div style="flex:1;font-size:13px;font-weight:600;">${item.nombre} <span style="color:#9ca3af;font-weight:400;">(${item.unidad})</span></div>
@@ -1210,6 +1215,7 @@ function renderRecetaLista() {
                     style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;">✕</button>
         </div>
     `).join("");
+    pendientes.forEach(p => lista.appendChild(p));
 }
 
 async function agregarItemReceta() {
@@ -1219,48 +1225,61 @@ async function agregarItemReceta() {
     }
     _comboInsumosDisp = _insumos.filter(i => !_recetaItems.some(r => r.insumo_stock_id === i.id));
     if (!_comboInsumosDisp.length) { alert("Ya se agregaron todos los insumos disponibles."); return; }
-    _comboSelId = null;
 
+    // Fila de agregado SIN ids (puede haber varias a la vez): el estado vive en la
+    // propia fila (dataset.selId) y los handlers reciben el elemento (this).
     const fila = document.createElement("div");
+    fila.className = "receta-add-row";
     fila.style.cssText = "display:flex;gap:8px;align-items:center;padding:8px 10px;background:#ede9fe;border-radius:8px;";
     fila.innerHTML = `
         <div style="flex:1;display:flex;align-items:center;border:1.5px solid #c4b5fd;border-radius:6px;background:white;overflow:hidden;">
-            <input type="text" id="new-receta-input" autocomplete="off"
+            <input type="text" class="cb-input" autocomplete="off"
                    placeholder="Buscar insumo..."
-                   oninput="comboboxInput(event)"
-                   onkeydown="comboboxKeydown(event)"
-                   onfocus="comboboxMostrar()"
+                   oninput="comboboxInput(event, this)"
+                   onkeydown="comboboxKeydown(event, this)"
+                   onfocus="comboboxMostrar(this)"
                    onblur="setTimeout(()=>{const l=document.getElementById('combobox-lista');if(l)l.style.display='none'},150)"
                    style="flex:1;min-width:0;padding:6px 6px 6px 10px;border:none;font-size:13px;outline:none;background:transparent;">
-            <span id="new-receta-unit-lbl"
+            <span class="cb-unit"
                   style="font-size:11px;color:#9ca3af;padding:0 10px 0 2px;white-space:nowrap;display:none;"></span>
         </div>
-        <input type="number" id="new-receta-cant" step="0.001" min="0.001" placeholder="Cantidad"
+        <input type="number" class="cb-cant" step="0.001" min="0.001" placeholder="Cantidad"
                style="width:100px;padding:6px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;">
-        <button type="button" onclick="confirmarItemReceta()"
+        <button type="button" onclick="confirmarItemReceta(this)"
                 style="background:#7c3aed;color:white;border:none;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700;">✓</button>
-        <button type="button" onclick="this.parentNode.remove()"
+        <button type="button" onclick="cancelarItemReceta(this)"
                 style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;">✕</button>
     `;
     document.getElementById("ip-receta-lista").appendChild(fila);
     document.getElementById("ip-receta-vacia").style.display = "none";
     setTimeout(() => {
-        const inp = document.getElementById("new-receta-input");
-        if (inp) { inp.focus(); comboboxMostrar(); }
+        const inp = fila.querySelector(".cb-input");
+        if (inp) { inp.focus(); comboboxMostrar(inp); }
     }, 30);
 }
 
-// ── COMBOBOX con autocompletado inline ───────────────────────
+function cancelarItemReceta(btn) {
+    const fila = btn.closest(".receta-add-row");
+    if (fila) fila.remove();
+    const lista = document.getElementById("ip-receta-lista");
+    if (!_recetaItems.length && !lista.querySelector(".receta-add-row"))
+        document.getElementById("ip-receta-vacia").style.display = "";
+}
 
-function comboboxInput(e) {
-    const input   = document.getElementById("new-receta-input");
+// ── COMBOBOX con autocompletado inline ───────────────────────
+// El dropdown (#combobox-lista) es UNO solo, compartido: se ancla al input
+// activo (_comboActivo). El insumo elegido de cada fila va en fila.dataset.selId.
+let _comboActivo = null;
+
+function comboboxInput(e, input) {
     if (!input) return;
+    const fila = input.closest(".receta-add-row");
     // Al tipear, ocultar la unidad (el usuario está buscando de nuevo)
-    const unitLbl = document.getElementById("new-receta-unit-lbl");
+    const unitLbl = fila && fila.querySelector(".cb-unit");
     if (unitLbl) unitLbl.style.display = "none";
+    if (fila) fila.dataset.selId = "";
     const isDeleting = e && (e.inputType === "deleteContentBackward" || e.inputType === "deleteContentForward");
     const typed = input.value;
-    _comboSelId = null;
 
     // Autocompletar inline: completa con la primera coincidencia por prefijo
     if (!isDeleting && typed.length > 0) {
@@ -1273,18 +1292,17 @@ function comboboxInput(e) {
         }
     }
 
-    comboboxRenderLista(typed);
+    comboboxRenderLista(typed, input);
 }
 
-function comboboxMostrar() {
-    const input = document.getElementById("new-receta-input");
-    if (input) comboboxRenderLista(input.value);
+function comboboxMostrar(input) {
+    if (input) comboboxRenderLista(input.value, input);
 }
 
-function comboboxRenderLista(busq) {
-    const lista  = document.getElementById("combobox-lista");
-    const input  = document.getElementById("new-receta-input");
+function comboboxRenderLista(busq, input) {
+    const lista = document.getElementById("combobox-lista");
     if (!lista || !input) return;
+    _comboActivo = input;
 
     const filtrados = (busq || "").trim()
         ? _comboInsumosDisp.filter(i => i.nombre.toLowerCase().includes(busq.toLowerCase()))
@@ -1309,58 +1327,66 @@ function comboboxRenderLista(busq) {
 
 function comboboxSeleccionar(id) {
     const ins = _comboInsumosDisp.find(i => i.id === id);
-    if (!ins) return;
-    _comboSelId = id;
-    const input   = document.getElementById("new-receta-input");
+    if (!ins || !_comboActivo) return;
+    const fila    = _comboActivo.closest(".receta-add-row");
     const lista   = document.getElementById("combobox-lista");
-    const unitLbl = document.getElementById("new-receta-unit-lbl");
-    if (input) input.value = ins.nombre;
+    _comboActivo.value = ins.nombre;
+    if (fila) fila.dataset.selId = String(id);
     if (lista) lista.style.display = "none";
     // Mostrar unidad en gris junto al nombre
+    const unitLbl = fila && fila.querySelector(".cb-unit");
     if (unitLbl) {
         unitLbl.textContent = `(${ins.unidad})`;
         unitLbl.style.display = "";
     }
-    const cantEl = document.getElementById("new-receta-cant");
+    const cantEl = fila && fila.querySelector(".cb-cant");
     if (cantEl) cantEl.focus();
 }
 
-function comboboxKeydown(e) {
+function comboboxKeydown(e, input) {
     if (e.key === "Escape") {
         const lista = document.getElementById("combobox-lista");
         if (lista) lista.style.display = "none";
     } else if (e.key === "Enter" || e.key === "Tab") {
         if (e.key === "Enter") e.preventDefault();
         // Confirmar la sugerencia actual en el input
-        const input = document.getElementById("new-receta-input");
-        if (!input) return;
+        const fila = input && input.closest(".receta-add-row");
+        if (!fila || fila.dataset.selId) return; // ya seleccionado por clic
         const txt = input.value.trim();
-        if (_comboSelId) return; // ya seleccionado por clic
         const match = _comboInsumosDisp.find(i => i.nombre.toLowerCase() === txt.toLowerCase());
-        if (match) { _comboSelId = match.id; const lista = document.getElementById("combobox-lista"); if (lista) lista.style.display = "none"; }
+        if (match) {
+            fila.dataset.selId = String(match.id);
+            const lista = document.getElementById("combobox-lista");
+            if (lista) lista.style.display = "none";
+        }
     }
 }
 
-function confirmarItemReceta() {
-    const inputEl = document.getElementById("new-receta-input");
-    const cantEl  = document.getElementById("new-receta-cant");
-    if (!inputEl || !cantEl) return;
+function confirmarItemReceta(btn) {
+    const fila = btn.closest(".receta-add-row");
+    if (!fila) return;
+    const inputEl = fila.querySelector(".cb-input");
+    const cantEl  = fila.querySelector(".cb-cant");
 
     // Si no hay selección explícita, intentar resolver por nombre exacto
-    if (!_comboSelId) {
+    let selId = parseInt(fila.dataset.selId, 10) || null;
+    if (!selId) {
         const txt = inputEl.value.trim();
         const match = _comboInsumosDisp.find(i => i.nombre.toLowerCase() === txt.toLowerCase());
-        if (match) _comboSelId = match.id;
+        if (match) selId = match.id;
     }
 
-    if (!_comboSelId) { alert("Seleccioná un insumo de la lista."); inputEl.focus(); return; }
+    if (!selId) { alert("Seleccioná un insumo de la lista."); inputEl.focus(); return; }
+    if (_recetaItems.some(r => r.insumo_stock_id === selId)) {
+        alert("Ese insumo ya está en la receta."); inputEl.focus(); return;
+    }
     const cant = parseFloat(cantEl.value);
     if (!cant || cant <= 0) { alert("Ingresá una cantidad válida."); cantEl.focus(); return; }
 
-    const ins = _insumos.find(i => i.id === _comboSelId);
+    const ins = _insumos.find(i => i.id === selId);
     if (!ins) return;
-    _recetaItems.push({ insumo_stock_id: _comboSelId, nombre: ins.nombre, unidad: ins.unidad, cantidad: cant });
-    _comboSelId = null;
+    _recetaItems.push({ insumo_stock_id: selId, nombre: ins.nombre, unidad: ins.unidad, cantidad: cant });
+    fila.remove();
     renderRecetaLista();
 }
 
