@@ -426,7 +426,7 @@ function _poblarSelectsUsuarios() {
         for (const u of Object.values(_usuariosMap)) {
             const opt = document.createElement("option");
             opt.value       = u.id;
-            opt.textContent = u.username + (u.rol ? ` (${u.rol})` : "");
+            opt.textContent = displayName(u) + (u.rol ? ` (${u.rol})` : "");
             sel.appendChild(opt);
         }
     });
@@ -534,7 +534,7 @@ function _mensajesFiltrados() {
     }
     if (_busqueda) {
         visibles = visibles.filter(m => {
-            const nombre = _tabActual === "recibidos" ? (m.de_username || "Sistema") : (m.para_username || "");
+            const nombre = _tabActual === "recibidos" ? (m.de_nombre_display || m.de_username || "Sistema") : (m.para_nombre_display || m.para_username || "");
             return (m.asunto || "").toLowerCase().includes(_busqueda)
                 || (m.cuerpo || "").toLowerCase().includes(_busqueda)
                 || nombre.toLowerCase().includes(_busqueda)
@@ -569,8 +569,8 @@ function renderLista() {
         const esCC    = _tabActual === "recibidos" && (m.asunto || "").startsWith("[CC] ");
         const noLeido = _tabActual === "recibidos" && !m.leido;
         const nombre  = _tabActual === "recibidos"
-            ? (m.de_username || "Sistema")
-            : (m.para_username || "—");
+            ? (m.de_nombre_display || m.de_username || "Sistema")
+            : (m.para_nombre_display || m.para_username || "—");
         const prefijo = _tabActual === "recibidos" ? "De" : "Para";
         const fecha   = _formatFecha(m.creado_en);
         const asuntoMostrar = esCC ? (m.asunto || "").slice(5) : (m.asunto || "(sin asunto)");
@@ -718,8 +718,8 @@ async function verMensaje(idx) {
 
     const esCC    = _tabActual === "recibidos" && (m.asunto || "").startsWith("[CC] ");
     const nombre  = _tabActual === "recibidos"
-        ? (m.de_username || "Sistema")
-        : (m.para_username || "—");
+        ? (m.de_nombre_display || m.de_username || "Sistema")
+        : (m.para_nombre_display || m.para_username || "—");
     const prefijo = _tabActual === "recibidos" ? "De" : "Para";
     const asuntoMostrar = esCC ? (m.asunto || "").slice(5) : (m.asunto || "(sin asunto)");
 
@@ -911,7 +911,7 @@ function responderMensaje() {
     const asunto = asuntoBase.startsWith("Re: ") ? asuntoBase : `Re: ${asuntoBase}`;
 
     // Cuerpo: espacio para escribir + cita del original
-    const citaHeader = `Mensaje de ${m.de_username || "Sistema"} (${_formatFechaFull(m.creado_en)}):`;
+    const citaHeader = `Mensaje de ${m.de_nombre_display || m.de_username || "Sistema"} (${_formatFechaFull(m.creado_en)}):`;
     const cuerpoBase = `\n\n---\n${citaHeader}\n${m.cuerpo || ""}`;
 
     abrirCompose([m.de_usuario_id], asunto, cuerpoBase, /* cursorAlInicio */ true);
@@ -992,7 +992,7 @@ function addDest(tipo, sel) {
         renderDestTags(tipo === "para" ? "cc" : "para");
     }
 
-    arr.push({ id, username: u.username });
+    arr.push({ id, username: displayName(u) });
     renderDestTags(tipo);
     _actualizarSelectsDisponibles();
 }
@@ -1040,7 +1040,7 @@ function abrirCompose(paraIds = [], asunto = "", cuerpo = "", cursorAlInicio = f
     // Pre-poblar destinatarios
     for (const id of paraIds) {
         const u = _usuariosMap[id];
-        if (u) _paraDests.push({ id: u.id, username: u.username });
+        if (u) _paraDests.push({ id: u.id, username: displayName(u) });
     }
 
     renderDestTags("para");

@@ -33,6 +33,11 @@
     .asig-chip .rol { background:#c7d2fe; color:#312e81; border-radius:999px; padding:1px 8px; font-size:11px; }
     .asig-chip button { background:none; border:none; color:#6366f1; cursor:pointer; font-size:13px; line-height:1; padding:0 2px; }
     .asig-chip button:hover { color:#dc2626; }
+    /* De baja EN ese local (agregado pero sin acceso): chip gris */
+    .asig-chip.baja { background:#f1f5f9; color:#64748b; }
+    .asig-chip.baja .rol { background:#e2e8f0; color:#64748b; }
+    .asig-chip .estado-dot { width:8px; height:8px; border-radius:50%; background:#16a34a; flex-shrink:0; }
+    .asig-chip.baja .estado-dot { background:#94a3b8; }
     .asig-none { color:#cbd5e1; font-size:12.5px; }
     .asig-add { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding-top:12px; border-top:1px dashed #eef2f7; }
     .asig-add select { padding:7px 10px; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; }
@@ -69,7 +74,7 @@
             <button class="btn-sm" onclick="vincularExistentes()" title="Crear fichas maestras para los empleados que ya existen en tus locales">🔗 Vincular existentes</button>
             <button class="btn-primary" onclick="abrirModal(null)">＋ Nuevo empleado</button>
         </div>
-        <p class="hint">Cada empleado es una <b>ficha única</b> de la cadena (identidad, datos). Lo <b>asignás a uno o más locales</b> con un rol; su acceso (login + rol) se crea en cada local sin duplicar la persona.</p>
+        <p class="hint">Cada empleado es una <b>ficha única</b> de la cadena (identidad, datos). Lo <b>asignás a uno o más locales</b> con un rol; su acceso (login + rol) se crea en cada local sin duplicar la persona. El <b>rol y el estado (alta/baja) son POR local</b>: con ⏸ lo das de baja en un local sin quitarlo (queda agregado, sin acceso ahí).</p>
         <div id="lista"><div class="empty">Cargando…</div></div>
     </div>
 
@@ -126,7 +131,13 @@
             const nombre = [e.nombre, e.apellido].filter(Boolean).join(' ');
             const asigs = (e.asignaciones||[]);
             const chips = asigs.length
-                ? asigs.map(a => `<span class="asig-chip">${_esc(a.restaurante||a.codigo)} <span class="rol">${_esc(a.rol)}</span><button title="Quitar de este local" onclick="desasignar(${e.id}, ${a.restaurante_id})">✕</button></span>`).join('')
+                ? asigs.map(a => {
+                    const act = a.activo !== false;   // alta/baja EN ese local
+                    return `<span class="asig-chip${act?'':' baja'}" title="${act?'De alta en este local':'De baja en este local — no puede entrar ahí'}">
+                        <span class="estado-dot"></span>${_esc(a.restaurante||a.codigo)} <span class="rol">${_esc(a.rol)}</span>${act?'':' <span style="font-size:11px;">de baja</span>'}
+                        <button title="${act?'Dar de baja en este local (queda agregado, sin acceso)':'Dar de alta en este local'}" onclick="toggleEstado(${e.id}, ${a.restaurante_id}, ${act})">${act?'⏸':'▶'}</button>
+                        <button title="Quitar de este local" onclick="desasignar(${e.id}, ${a.restaurante_id})">✕</button></span>`;
+                  }).join('')
                 : '<span class="asig-none">Sin asignar a ningún local.</span>';
             const asignados = new Set(asigs.map(a=>a.restaurante_id));
             const disp = _rests.filter(r => !asignados.has(r.id));
@@ -165,11 +176,20 @@
         try { await api.delete('/cadena/empleados/'+empId+'/asignar/'+restId); await cargar(); }
         catch(e){ alert('No se pudo quitar: '+(e.message||e)); }
     }
+    async function toggleEstado(empId, restId, actual){
+        try { await api.patch('/cadena/empleados/'+empId+'/estado', { restaurante_id: restId, activo: !actual }); await cargar(); }
+        catch(e){ alert('No se pudo cambiar el estado: '+(e.message||e)); }
+    }
     async function vincularExistentes(){
         if (!confirm('¿Crear fichas maestras para los empleados que YA existen en tus locales (agrupados por usuario)? Es seguro e idempotente — podés repetirlo.')) return;
         try {
             const r = await api.post('/cadena/empleados/vincular-existentes', {});
-            alert('Vinculación lista.\nFichas nuevas: '+(r.empleados_creados||0)+'\nAsignaciones vinculadas: '+(r.asignaciones_vinculadas||0));
+            let txt = 'Vinculación lista.\nFichas nuevas: '+(r.empleados_creados||0)+'\nAsignaciones vinculadas: '+(r.asignaciones_vinculadas||0);
+            if ((r.ambiguos||[]).length) {
+                txt += '\n\n⚠ Usuarios con el mismo nombre en varios locales que NO parecen la misma persona (quedaron en fichas separadas — revisalos):\n' +
+                       r.ambiguos.map(a=>'· '+a.username+' ('+a.locales.join(', ')+')').join('\n');
+            }
+            alert(txt);
             await cargar();
         } catch(e){ alert('No se pudo vincular: '+(e.message||e)); }
     }

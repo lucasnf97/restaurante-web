@@ -17,6 +17,18 @@ function escAttr(s) {
 window.esc = esc;
 window.escAttr = escAttr;
 
+// ── DISPLAY NAME ──────────────────────────────────────────────
+// El programa nombra a las personas por "Nombre Apellido" (campo `nombre_display`
+// que devuelve el backend); el username queda como credencial corta de login.
+// Fallback en cadena para respuestas viejas o usuarios sin nombre cargado.
+function displayName(x) {
+    if (!x) return "";
+    return x.nombre_display
+        || [x.nombre, x.apellido].filter(Boolean).join(" ")
+        || x.username || "";
+}
+window.displayName = displayName;
+
 // ── TOKEN ─────────────────────────────────────────────────────
 function getToken() {
     return localStorage.getItem("token");

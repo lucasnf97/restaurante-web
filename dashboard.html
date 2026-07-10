@@ -310,8 +310,8 @@ input:checked + .tsl::before { transform:translateX(14px); }
 requireAuth();
 
 const user = getUser();
-document.getElementById("nav-username").textContent = user.username;
-document.getElementById("welcome-msg").textContent = `Bienvenido, ${user.username}`;
+document.getElementById("nav-username").textContent = displayName(user);
+document.getElementById("welcome-msg").textContent = `Bienvenido, ${displayName(user)}`;
 
 // ── MÓDULOS DISPONIBLES ──────────────────────────────────────
 const ALL_MODULES = [
@@ -687,8 +687,8 @@ function buildSocial(b) {
                 + (p.prioritaria ? ' <span style="background:#fee2e2;color:#b91c1c;border-radius:5px;padding:0 5px;font-size:10px;font-weight:700;">🚨</span>' : '');
             return `<div class="social-item" style="cursor:pointer" onclick="location.href='social.html?post=${p.id}'">
                 <div class="social-item-top">
-                    <div class="social-item-av">${esc(ini(p.username))}</div>
-                    <span class="social-item-user">${esc(p.username)}</span>${badges}
+                    <div class="social-item-av">${esc(ini(p.nombre_display || p.username))}</div>
+                    <span class="social-item-user">${esc(p.nombre_display || p.username)}</span>${badges}
                 </div>
                 ${txt}${imgHtml}
             </div>`;
@@ -1155,13 +1155,13 @@ function buildPersonalTurno(b) {
     const maxItems = b.span >= 6 ? 10 : b.span >= 3 ? 6 : 4;
     const COLS = ["#4f46e5","#16a34a","#dc2626","#ca8a04","#0891b2","#7c3aed","#be185d","#0f766e"];
     const rows = activos.slice(0, maxItems).map((t, i) => {
-        const ini  = t.iniciales || (t.username || t.nombre || "?").slice(0,2).toUpperCase();
+        const ini  = t.iniciales || (t.nombre_display || t.username || t.nombre || "?").slice(0,2).toUpperCase();
         const hora = (t.hora_entrada || t.inicio || t.entrada || "").slice(0,5);
         const rol  = t.rol || "";
         return `<div class="turno-row">
             <div class="turno-ini" style="background:${COLS[i % COLS.length]}">${ini}</div>
             <div class="turno-info">
-                <span class="turno-name">${t.username || t.nombre || "—"}</span>
+                <span class="turno-name">${t.nombre_display || t.username || t.nombre || "—"}</span>
                 ${rol ? `<span class="turno-rol">${rol}</span>` : ""}
             </div>
             ${hora ? `<span class="turno-hora">${hora}</span>` : ""}
@@ -1528,7 +1528,7 @@ function _empBuildMuro() {
         const txt = p.contenido ? `<div class="social-item-txt">${esc(p.contenido)}</div>` : '';
         const tag = p.restaurante ? `<span style="margin-left:auto;font-size:9px;font-weight:700;color:#4338ca;background:#eef2ff;border-radius:4px;padding:1px 5px;">${esc(p.restaurante)}</span>` : '';
         const href = `social.html?post=${p.id}${p.restaurante_id!=null?('&rest='+p.restaurante_id):''}`;
-        return `<div class="social-item" style="cursor:pointer" onclick="location.href='${href}'"><div class="social-item-top"><div class="social-item-av">${esc((p.username || '?').substring(0,2).toUpperCase())}</div><span class="social-item-user">${esc(p.username)}</span>${tag}</div>${txt}${imgHtml}</div>`;
+        return `<div class="social-item" style="cursor:pointer" onclick="location.href='${href}'"><div class="social-item-top"><div class="social-item-av">${esc(((p.nombre_display || p.username) || '?').substring(0,2).toUpperCase())}</div><span class="social-item-user">${esc(p.nombre_display || p.username)}</span>${tag}</div>${txt}${imgHtml}</div>`;
     }).join('') : '<div class="res-empty">Sin publicaciones</div>';
     return `${blockHeader("")}
     <div class="social-card">
@@ -1639,7 +1639,7 @@ async function initDashboard() {
         config = _mergeConfig(cfg);
         document.body.classList.add('modo-editor');
         const wm = document.getElementById('welcome-msg');
-        if (wm) wm.textContent = `Personalizando dashboard de: ${(data && data.username) || 'usuario'}`;
+        if (wm) wm.textContent = `Personalizando dashboard de: ${(data && (data.nombre_display || data.username)) || 'usuario'}`;
     } else if (editar) {
         // MODO EDITOR de plantilla (rol o del pool)
         _modoEditor = true; _canEditDash = true;

@@ -254,7 +254,7 @@
     <script>
     requireAuth();
     const _user = getUser() || {};
-    document.getElementById('who').textContent = _user.nombre || _user.username || '';
+    document.getElementById('who').textContent = displayName(_user) || _user.nombre || '';
 
     // Actor de la grilla:
     //   gerente_cadena → /cadena/* (edita)         empleado_cadena → /empleado/* (solo lectura)
@@ -971,7 +971,7 @@
             document.getElementById('asig-sub').textContent = posts.length
                 ? `Postulantes (${posts.length}): elegí a quién asignárselo.` : 'Todavía nadie se postuló a este turno.';
             document.getElementById('asig-lista').innerHTML = posts.length ? posts.map(p=>
-                `<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #eee;border-radius:7px;padding:7px 10px;margin:5px 0;font-size:13px;"><span><b>${_esc(p.username)}</b> <span style="color:#9ca3af;font-size:11px;">${String(p.postulado_en||'').slice(0,16).replace('T',' ')}</span></span><button class="ix-b prim" style="padding:5px 10px;" onclick="_asignarA(${id},${p.usuario_id},${R})">Asignar</button></div>`
+                `<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #eee;border-radius:7px;padding:7px 10px;margin:5px 0;font-size:13px;"><span><b>${_esc(p.nombre_display || p.username)}</b> <span style="color:#9ca3af;font-size:11px;">${String(p.postulado_en||'').slice(0,16).replace('T',' ')}</span></span><button class="ix-b prim" style="padding:5px 10px;" onclick="_asignarA(${id},${p.usuario_id},${R})">Asignar</button></div>`
             ).join('') : '<div class="ix-empty">Sin postulantes aún.</div>';
             document.getElementById('asignar-modal').style.display='flex';
         }catch(e){ alert('Error: '+(e.message||e)); }
@@ -1154,14 +1154,14 @@
         } else {
             const _verbo = d.tipo==='oferta' ? 'ofrece' : 'da';
             info = _da.length
-                ? `<div class="sw-row"><b>${_esc(d.creador_username||'—')}</b> ${_verbo}: ${_da.map(_fT).join('  |  ')}</div>`
-                : `<div class="sw-row"><b>${_esc(d.creador_username||'—')}</b> ${_verbo}: ${d.origen_fecha||'—'} · ${_swFmt(d.origen_franjas)||'—'}</div>`;
+                ? `<div class="sw-row"><b>${_esc(d.creador_display || d.creador_username || '—')}</b> ${_verbo}: ${_da.map(_fT).join('  |  ')}</div>`
+                : `<div class="sw-row"><b>${_esc(d.creador_display || d.creador_username || '—')}</b> ${_verbo}: ${d.origen_fecha||'—'} · ${_swFmt(d.origen_franjas)||'—'}</div>`;
             if(d.tipo!=='oferta'){
                 info += _re.length
-                    ? `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b> da: ${_re.map(_fT).join('  |  ')}</div>`
+                    ? `<div class="sw-row"><b>${_esc(d.destino_display || d.destino_username || '—')}</b> da: ${_re.map(_fT).join('  |  ')}</div>`
                     : (d.destino_horario_id
-                        ? `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b> da: ${d.destino_fecha||'—'} · ${_swFmt(d.destino_franjas)||'—'}</div>`
-                        : `<div class="sw-row"><b>${_esc(d.destino_username||'—')}</b>: sin turno a cambio</div>`);
+                        ? `<div class="sw-row"><b>${_esc(d.destino_display || d.destino_username || '—')}</b> da: ${d.destino_fecha||'—'} · ${_swFmt(d.destino_franjas)||'—'}</div>`
+                        : `<div class="sw-row"><b>${_esc(d.destino_display || d.destino_username || '—')}</b>: sin turno a cambio</div>`);
             }
             if(d.tipo==='oferta')
                 info += `<div class="sw-row">👤 ${(d.postulantes||[]).length} postulante(s)</div>`;

@@ -427,9 +427,9 @@ function renderPost(p) {
     return `
     <div class="post${p.fijado ? ' fijado' : ''}${p.prioritaria ? ' prio' : ''}" id="post-${p.restaurante_id!=null?(p.restaurante_id+'-'):''}${p.id}">
         <div class="post-head">
-            <div class="post-avatar">${esc(iniciales(p.username))}</div>
+            <div class="post-avatar">${esc(iniciales(p.nombre_display || p.username))}</div>
             <div class="post-meta">
-                <div class="post-user">${esc(p.username)}${p.restaurante ? ` <span style="background:#eef2ff;color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${esc(p.restaurante)}</span>` : ''}</div>
+                <div class="post-user">${esc(p.nombre_display || p.username)}${p.restaurante ? ` <span style="background:#eef2ff;color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${esc(p.restaurante)}</span>` : ''}</div>
                 <div class="post-fecha">${fmtFecha(p.creado_en)}${editado}${badges}</div>
             </div>
             ${acc}
@@ -502,9 +502,9 @@ async function cargarComentarios(postId) {
 function _comentHtml(c) {
     const del = c.can_delete ? `<button class="coment-del" title="Eliminar" onclick="borrarComentario(${c.id}, this)">🗑</button>` : '';
     return `<div class="coment" id="coment-${c.id}">
-        <div class="coment-avatar">${esc(iniciales(c.username))}</div>
+        <div class="coment-avatar">${esc(iniciales(c.nombre_display || c.username))}</div>
         <div class="coment-body">
-            <div class="coment-user">${esc(c.username)}<span class="cf">${fmtFecha(c.creado_en)}</span></div>
+            <div class="coment-user">${esc(c.nombre_display || c.username)}<span class="cf">${fmtFecha(c.creado_en)}</span></div>
             <div class="coment-texto">${esc(c.texto)}</div>
         </div>${del}
     </div>`;
@@ -734,7 +734,7 @@ async function abrirGrupoModal(grupoId) {
         `<label class="check-row"><input type="checkbox" value="${esc(r.nombre)}" ${rolesSel.has(r.nombre) ? 'checked' : ''}> ${esc(r.nombre)}</label>`).join('')
         || '<span style="font-size:12px;color:#9ca3af">Sin roles</span>';
     document.getElementById('grupo-usuarios').innerHTML = _usuariosDisp.map(u =>
-        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(u.username)} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`).join('')
+        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`).join('')
         || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
     document.getElementById('grupo-del').style.display = _grupoEdit ? '' : 'none';
     document.getElementById('modal-grupo').classList.add('open');

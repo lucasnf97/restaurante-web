@@ -454,15 +454,16 @@ async function cargarActivos() {
         }
         const puedeForzar = hasEdicionFichajes();
         wrap.innerHTML = activos.map((t, i) => {
-            const iniciales = t.iniciales || t.username.substring(0, 3).toUpperCase();
+            const nombreT = t.nombre_display || t.username;
+            const iniciales = t.iniciales || nombreT.substring(0, 3).toUpperCase();
             const color = COLORES[i % COLORES.length];
             const btnForzar = puedeForzar
                 ? `<button class="globo-forzar" title="Forzar fin de turno"
-                       onclick="forzarCierre(${t.id}, '${t.username.replace(/'/g, "\\'")}')">⏹ Forzar fin</button>`
+                       onclick="forzarCierre(${t.id}, '${nombreT.replace(/'/g, "\\'")}')">⏹ Forzar fin</button>`
                 : "";
             return `<div class="globo">
                 <div class="globo-circle" style="background:${color};">${iniciales}</div>
-                <div class="globo-name">${esc(t.username)}</div>
+                <div class="globo-name">${esc(nombreT)}</div>
                 <div class="globo-time">desde ${formatHoraTs(t.ts_entrada)}</div>
                 ${btnForzar}
             </div>`;
@@ -507,7 +508,7 @@ async function cargarUsuariosFiltro() {
         const usuarios = await api.get("/auth/usuarios");
         const sel = document.getElementById("filtro-usuario");
         usuarios.forEach(u => {
-            sel.innerHTML += `<option value="${escAttr(u.username)}">${esc(u.username)}</option>`;
+            sel.innerHTML += `<option value="${escAttr(u.username)}">${esc(displayName(u))}</option>`;
         });
     } catch(e) {}
 }
@@ -547,6 +548,7 @@ async function cargarHistorial() {
             if (!grupos[f.username]) {
                 grupos[f.username] = {
                     username:   f.username,
+                    nombre_display: f.nombre_display || f.username,
                     usuario_id: f.usuario_id,
                     fichajes:   [],
                     colorIdx:   Object.keys(grupos).length,
@@ -620,7 +622,7 @@ function agruparPorFecha(fichajes) {
 // ── Render card por usuario ───────────────────────────────────
 function renderUserCard(g) {
     const color     = COLORES[g.colorIdx % COLORES.length];
-    const iniciales = g.username.substring(0, 2).toUpperCase();
+    const iniciales = (g.nombre_display || g.username).substring(0, 2).toUpperCase();
 
     const dayGroups = agruparPorFecha(g.fichajes);
 
@@ -662,7 +664,7 @@ function renderUserCard(g) {
             <div class="user-summary-name">
                 <div class="user-avatar" style="background:${color};">${iniciales}</div>
                 <div>
-                    <div class="user-name-text">${esc(g.username)}</div>
+                    <div class="user-name-text">${esc(g.nombre_display || g.username)}</div>
                     <div class="user-rol-badge">${subLabel}</div>
                 </div>
             </div>
@@ -1107,7 +1109,7 @@ function abrirRevision(id) {
     _anularDif    = false;
 
     document.getElementById("rev-titulo").textContent =
-        `Revisión — ${f.username} · ${formatFechaShort(fecha)}`;
+        `Revisión — ${f.nombre_display || f.username} · ${formatFechaShort(fecha)}`;
 
     // Lista de fichajes (solo visible si hay más de 1)
     const listSection = document.getElementById("rev-fich-list-section");

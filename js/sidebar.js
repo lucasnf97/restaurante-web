@@ -707,7 +707,7 @@
                   <span style="font-size:12px;font-weight:700;opacity:.9;">${idx + 1} de ${posts.length}</span>
                 </div>
                 <div style="padding:16px 20px;overflow-y:auto;flex:1;">
-                  <div style="font-size:12px;color:#6b7280;margin-bottom:10px;"><b style="color:#1a1a2e">${_escS(p.username)}</b> · ${fmtF(p.creado_en)}${grupo}</div>
+                  <div style="font-size:12px;color:#6b7280;margin-bottom:10px;"><b style="color:#1a1a2e">${_escS(p.nombre_display || p.username)}</b> · ${fmtF(p.creado_en)}${grupo}</div>
                   <div style="font-size:14px;color:#1f2937;white-space:pre-wrap;word-break:break-word;">${_escS(p.contenido || "")}</div>
                   ${imgs}${files}${enlace}
                   <div id="prio-err" style="display:none;color:#b91c1c;font-size:13px;font-weight:600;margin-top:12px;"></div>

@@ -133,6 +133,7 @@
         <table>
             <thead>
                 <tr>
+                    <th>Nombre</th>
                     <th>Usuario</th>
                     <th>Siglas</th>
                     <th>Rol</th>
@@ -142,33 +143,60 @@
                 </tr>
             </thead>
             <tbody id="tabla-body">
-                <tr><td colspan="6" class="empty">Cargando...</td></tr>
+                <tr><td colspan="7" class="empty">Cargando...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- Modal nuevo usuario -->
+<!-- Modal nuevo usuario (ficha unificada: los mismos datos que en el panel de cadena) -->
 <div class="modal-overlay" id="modal-nuevo">
-    <div class="modal">
+    <div class="modal" style="max-width:520px;">
         <h3>Nuevo usuario</h3>
-        <div class="form-group">
-            <label>Usuario *</label>
-            <input type="text" id="fn-username" placeholder="Nombre de usuario">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="fn-nombre" placeholder="Nombre">
+            </div>
+            <div class="form-group">
+                <label>Apellido</label>
+                <input type="text" id="fn-apellido" placeholder="Apellido">
+            </div>
+            <div class="form-group">
+                <label>DNI</label>
+                <input type="text" id="fn-dni" placeholder="Documento">
+            </div>
+            <div class="form-group">
+                <label>Teléfono</label>
+                <input type="text" id="fn-telefono" placeholder="+54 ...">
+            </div>
         </div>
         <div class="form-group">
-            <label>Contraseña *</label>
-            <input type="password" id="fn-password" placeholder="Contraseña inicial">
+            <label>Correo *</label>
+            <input type="email" id="fn-email" placeholder="Único en el sistema — permite loguear por correo">
         </div>
-        <div class="form-group">
-            <label>Rol *</label>
-            <select id="fn-rol"></select>
-            <small style="color:#6b7280;font-size:11px;margin-top:4px;display:block;">Los permisos se asignan automáticamente según el rol</small>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
+            <div class="form-group">
+                <label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto)</span></label>
+                <input type="text" id="fn-username" placeholder="Único en la cadena">
+            </div>
+            <div class="form-group">
+                <label>Contraseña *</label>
+                <input type="password" id="fn-password" placeholder="Contraseña inicial">
+            </div>
+            <div class="form-group">
+                <label>Rol *</label>
+                <select id="fn-rol"></select>
+            </div>
+            <div class="form-group">
+                <label>Estado</label>
+                <select id="fn-activo">
+                    <option value="true">Activo</option>
+                    <option value="false">Inactivo</option>
+                </select>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Email <span style="color:#94a3b8;font-weight:400;">(opcional)</span></label>
-            <input type="email" id="fn-email" placeholder="Para avisos de mensajes nuevos">
-        </div>
+        <small style="color:#6b7280;font-size:11px;display:block;">El rol y el estado valen para ESTE restaurante. Los permisos se asignan automáticamente según el rol. El programa nombra a la persona por Nombre y Apellido; el usuario es solo la credencial de login.</small>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo')">Cancelar</button>
             <button class="btn btn-primary" onclick="crearUsuario()">Crear</button>
@@ -176,31 +204,55 @@
     </div>
 </div>
 
-<!-- Modal editar rol -->
+<!-- Modal editar usuario (ficha unificada) -->
 <div class="modal-overlay" id="modal-editar">
-    <div class="modal">
+    <div class="modal" style="max-width:520px;">
         <h3>Editar usuario</h3>
-        <div class="form-group">
-            <label>Iniciales <span style="color:#94a3b8;font-weight:400;">(máx 3 caracteres)</span></label>
-            <input type="text" id="fe-iniciales" maxlength="3" placeholder="Ej: LUC"
-                   style="text-transform:uppercase;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="fe-nombre">
+            </div>
+            <div class="form-group">
+                <label>Apellido</label>
+                <input type="text" id="fe-apellido">
+            </div>
+            <div class="form-group">
+                <label>DNI</label>
+                <input type="text" id="fe-dni">
+            </div>
+            <div class="form-group">
+                <label>Teléfono</label>
+                <input type="text" id="fe-telefono">
+            </div>
         </div>
         <div class="form-group">
-            <label>Rol</label>
-            <select id="fe-rol"></select>
-            <small style="color:#6b7280;font-size:11px;margin-top:4px;display:block;">Los permisos se asignan automáticamente según el rol</small>
+            <label>Correo</label>
+            <input type="email" id="fe-email" placeholder="Único en el sistema — permite loguear por correo">
         </div>
-        <div class="form-group">
-            <label>Estado</label>
-            <select id="fe-activo">
-                <option value="true">Activo</option>
-                <option value="false">Inactivo</option>
-            </select>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
+            <div class="form-group">
+                <label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto)</span></label>
+                <input type="text" id="fe-username" placeholder="Único en la cadena">
+            </div>
+            <div class="form-group">
+                <label>Iniciales <span style="color:#94a3b8;font-weight:400;">(máx 3)</span></label>
+                <input type="text" id="fe-iniciales" maxlength="3" placeholder="Ej: LUC"
+                       style="text-transform:uppercase;">
+            </div>
+            <div class="form-group">
+                <label>Rol</label>
+                <select id="fe-rol"></select>
+            </div>
+            <div class="form-group">
+                <label>Estado</label>
+                <select id="fe-activo">
+                    <option value="true">Activo</option>
+                    <option value="false">Inactivo</option>
+                </select>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Email <span style="color:#94a3b8;font-weight:400;">(opcional)</span></label>
-            <input type="email" id="fe-email" placeholder="Para avisos de mensajes nuevos">
-        </div>
+        <small style="color:#6b7280;font-size:11px;display:block;">Los datos personales editan la ficha única de la persona (aplican en todos sus restaurantes). El rol y el estado valen solo para ESTE restaurante.</small>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-editar')">Cancelar</button>
             <button class="btn btn-primary" onclick="guardarEdicion()">Guardar</button>
@@ -280,12 +332,13 @@
         usuarios = (await api.get("/auth/usuarios")).filter(u => u.rol !== 'admin');
         const tbody = document.getElementById("tabla-body");
         if (!usuarios.length) {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty">No hay usuarios</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="empty">No hay usuarios</td></tr>`;
             return;
         }
         tbody.innerHTML = usuarios.map(u => `
             <tr>
-                <td><strong>${esc(u.username)}</strong></td>
+                <td><strong>${esc(u.nombre_display || u.username)}</strong></td>
+                <td style="color:#6b7280;">${esc(u.username)}</td>
                 <td style="text-align:center;">
                     <span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">
                         ${u.iniciales || u.username.substring(0,3).toUpperCase()}
@@ -299,9 +352,9 @@
                         <button class="btn btn-secondary btn-sm" onclick="abrirModalEditar(${u.id})">Editar</button>
                         <button class="btn btn-secondary btn-sm" onclick="abrirModalClave(${u.id})">🔑 Clave</button>
                         <button class="btn btn-warning btn-sm" onclick="toggleActivo(${u.id}, ${u.activo})">
-                            ${u.activo ? 'Desactivar' : 'Activar'}
+                            ${u.activo ? 'Dar de baja' : 'Dar de alta'}
                         </button>
-                        <button class="btn btn-danger btn-sm" onclick="eliminarUsuario(${u.id}, '${escAttr(u.username)}')">🗑</button>
+                        <button class="btn btn-danger btn-sm" onclick="eliminarUsuario(${u.id}, '${escAttr(u.nombre_display || u.username)}')">🗑</button>
                     </div>
                 </td>
             </tr>
@@ -319,21 +372,28 @@
     }
 
     function abrirModalNuevo() {
-        document.getElementById("fn-username").value = "";
-        document.getElementById("fn-password").value = "";
+        for (const c of ["nombre", "apellido", "dni", "telefono", "email", "username", "password"])
+            document.getElementById("fn-" + c).value = "";
         document.getElementById("fn-rol").value = "empleado";
-        document.getElementById("fn-email").value = "";
+        document.getElementById("fn-activo").value = "true";
         document.getElementById("modal-nuevo").classList.add("active");
     }
 
     async function crearUsuario() {
+        const v = id => document.getElementById(id).value.trim();
         const body = {
-            username: document.getElementById("fn-username").value.trim(),
+            nombre: v("fn-nombre") || null,
+            apellido: v("fn-apellido") || null,
+            dni: v("fn-dni") || null,
+            telefono: v("fn-telefono") || null,
+            email: v("fn-email"),
+            username: v("fn-username") || null,
             password: document.getElementById("fn-password").value,
             rol: document.getElementById("fn-rol").value,
-            email: document.getElementById("fn-email").value.trim() || null
+            activo: document.getElementById("fn-activo").value === "true"
         };
-        if (!body.username || !body.password) { alert("Usuario y contraseña son obligatorios."); return; }
+        if (!body.email || !body.email.includes("@")) { alert("El correo es obligatorio (y debe ser válido)."); return; }
+        if (!body.password) { alert("La contraseña es obligatoria."); return; }
         try {
             await api.post("/auth/usuarios", body);
             cerrarModal("modal-nuevo");
@@ -344,6 +404,11 @@
     function abrirModalEditar(id) {
         editandoId = id;
         const u = usuarios.find(x => x.id === id);
+        document.getElementById("fe-nombre").value = u.nombre || "";
+        document.getElementById("fe-apellido").value = u.apellido || "";
+        document.getElementById("fe-dni").value = u.dni || "";
+        document.getElementById("fe-telefono").value = u.telefono || "";
+        document.getElementById("fe-username").value = u.username || "";
         document.getElementById("fe-iniciales").value = u.iniciales || "";
         const feRol = document.getElementById("fe-rol");
         feRol.innerHTML = opcionesRolHTML;
@@ -357,13 +422,28 @@
         document.getElementById("modal-editar").classList.add("active");
     }
     async function guardarEdicion() {
-        const iniciales = document.getElementById("fe-iniciales").value.trim().toUpperCase();
+        const u = usuarios.find(x => x.id === editandoId) || {};
+        const v = id => document.getElementById(id).value.trim();
+        const iniciales = v("fe-iniciales").toUpperCase();
         const body = {
             rol: document.getElementById("fe-rol").value,
             activo: document.getElementById("fe-activo").value === "true",
             iniciales: iniciales || null,
-            email: document.getElementById("fe-email").value.trim()
         };
+        // Datos personales: mandar solo lo que cambió (editan la ficha única de la
+        // persona — con ficha, aplican en todos sus restaurantes)
+        const pares = [["nombre", "fe-nombre"], ["apellido", "fe-apellido"], ["dni", "fe-dni"],
+                       ["telefono", "fe-telefono"], ["email", "fe-email"], ["username", "fe-username"]];
+        for (const [campo, inputId] of pares) {
+            const nuevo = v(inputId);
+            if (nuevo !== (u[campo] || "")) body[campo] = nuevo;
+        }
+        if ("email" in body && (!body.email || !body.email.includes("@"))) {
+            alert("El correo no puede quedar vacío."); return;
+        }
+        if ("username" in body && !body.username) {
+            alert("El usuario no puede quedar vacío."); return;
+        }
         try {
             await api.patch(`/auth/usuarios/${editandoId}`, body);
             cerrarModal("modal-editar");
@@ -378,12 +458,12 @@
         } catch (err) { alert("Error: " + err.message); }
     }
 
-    async function eliminarUsuario(id, username) {
-        if (!confirm(`¿Eliminar al usuario "${username}"? Esta acción no se puede deshacer.`)) return;
+    async function eliminarUsuario(id, nombre) {
+        if (!confirm(`¿Quitar a "${nombre}" de ESTE restaurante?\n\nSu ficha y su historial se conservan (y sigue en los demás restaurantes donde esté). La ficha completa solo se elimina desde el panel de cadena.`)) return;
         try {
             await api.delete(`/auth/usuarios/${id}`);
             await cargarUsuarios();
-        } catch (err) { alert("No se pudo eliminar: " + err.message); }
+        } catch (err) { alert("No se pudo quitar: " + err.message); }
     }
 
 
@@ -399,7 +479,7 @@
     function abrirModalClave(id) {
         editandoClaveId = id;
         const u = usuarios.find(x => x.id === id);
-        document.getElementById('mc-username').textContent = u.username;
+        document.getElementById('mc-username').textContent = u.nombre_display || u.username;
         document.getElementById('mc-actual').value    = '';
         document.getElementById('mc-nueva').value     = '';
         document.getElementById('mc-confirmar').value = '';

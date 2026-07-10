@@ -381,7 +381,7 @@ const user = JSON.parse(localStorage.getItem('user') || 'null');
 if (!user) location.href = 'index.html';
 const isManager = user.rol === 'admin' || user.rol === 'gerente';
 if (!isManager && !user.revision_salarios) location.href = 'dashboard.html';
-document.getElementById('usr-label').textContent = user.username;
+document.getElementById('usr-label').textContent = displayName(user);
 function logout() { localStorage.clear(); location.href = 'index.html'; }
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -589,7 +589,7 @@ function buildTablaHTML(data, canEdit, pendIdx) {
     if (!data || !data.usuarios.length) return '<p style="padding:20px;color:#888;">Sin datos</p>';
     const idxArg = (pendIdx !== undefined && pendIdx !== null) ? pendIdx : 'null';
     const rows = data.usuarios.map(u => {
-        const ini     = (u.iniciales || u.username.substring(0,2)).toUpperCase();
+        const ini     = (u.iniciales || (u.nombre_display || u.username).substring(0,2)).toUpperCase();
         const difH    = u.diferencia_horas;
         const difHCls = difH > 0 ? 'pos' : difH < 0 ? 'neg' : 'neu';
         const difHStr = (difH > 0 ? '+' : '') + fmtH(difH);
@@ -875,7 +875,7 @@ function _cargosSubHTML(u, data) {
     const d = data || _data || {};
     return `<div style="font-size:11px;color:#b91c1c;cursor:pointer;margin-top:2px;"
                  title="Cargos del período (comidas cargadas a nómina) — clic para ver el detalle"
-                 onclick="verCargosEmpleado(${u.id}, '${u.username.replace(/'/g, "\\'")}', '${d.desde || ''}', '${d.hasta || ''}')">
+                 onclick="verCargosEmpleado(${u.id}, '${(u.nombre_display || u.username).replace(/'/g, "\\'")}', '${d.desde || ''}', '${d.hasta || ''}')">
         − ${fmt(cargos)} comida 🍽</div>`;
 }
 
@@ -921,7 +921,7 @@ async function borrarCargo(id, btn) {
 }
 
 function buildRow(u) {
-    const ini     = (u.iniciales || u.username.substring(0,2)).toUpperCase();
+    const ini     = (u.iniciales || (u.nombre_display || u.username).substring(0,2)).toUpperCase();
     const difH    = u.diferencia_horas;
     const difHCls = difH > 0 ? 'pos' : difH < 0 ? 'neg' : 'neu';
     const difHStr = (difH > 0 ? '+' : '') + fmtH(difH);
@@ -992,7 +992,7 @@ function userCellHTML(u, ini) {
     return `<div class="user-cell">
         <div class="avatar">${ini}</div>
         <div class="user-info">
-            <span class="user-name">${u.username}</span>
+            <span class="user-name">${esc(u.nombre_display || u.username)}</span>
             <span class="user-rol">${u.rol}</span>
         </div>
     </div>`;
@@ -1230,7 +1230,7 @@ function _ajusteDataRef() {
 function _poblarModalAjuste(u) {
     const delta = u.ajuste_delta || 0;
     document.getElementById('ajuste-titulo').textContent =
-        _ajusteModo === 'edit' ? `✏️ Editar ajuste — ${u.username}` : `⏱️ Agregar ajuste — ${u.username}`;
+        _ajusteModo === 'edit' ? `✏️ Editar ajuste — ${u.nombre_display || u.username}` : `⏱️ Agregar ajuste — ${u.nombre_display || u.username}`;
     document.getElementById('aj-inp-label').textContent =
         _ajusteModo === 'edit' ? 'Horas ajuste (total)' : 'Horas a añadir';
     document.getElementById('aj-sueldo').textContent  = fmt(u.sueldo_hora) + '/h';
@@ -1290,7 +1290,7 @@ function switchToEditMode() {
     const u = _ajusteUid && dataRef && dataRef.usuarios.find(x => x.id === _ajusteUid);
     if (!u) return;
     _ajusteModo = 'edit';
-    document.getElementById('ajuste-titulo').textContent = `✏️ Editar ajuste — ${u.username}`;
+    document.getElementById('ajuste-titulo').textContent = `✏️ Editar ajuste — ${u.nombre_display || u.username}`;
     document.getElementById('aj-inp-label').textContent  = 'Horas ajuste (total)';
     const editBtn = document.getElementById('aj-previo-edit-btn');
     if (editBtn) editBtn.style.display = 'none';
