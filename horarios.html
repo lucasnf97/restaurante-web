@@ -583,14 +583,22 @@
                             : '<span class="sol-mk" title="En intercambio">🔁</span>') : '';
                         const _ofDisp = _sol && _sol.tipo==='oferta' && _sol.estado==='disponible';
                         const _ofId = (_ofDisp && esMio) ? _sol.id : 0;
-                        const _selRecibe = _ixSel && u.key===_ixSel.destKey && s.restaurante_id===_ixSel.R;
-                        const _selPropio = _ixOwnSel && u.key===_miKey && s.restaurante_id===_ixOwnSel.R;
+                        // Elegible para ofertar/intercambiar = PUBLICADO y de hoy en
+                        // adelante (misma regla que _ixTurnosDe). Antes se resaltaban
+                        // también los pasados/borrador pero el click no hacía nada.
+                        const _eleg = e.publicado && key>=_ixHoyISO();
+                        const _enModoSel = (_ixOwnSel && u.key===_miKey && s.restaurante_id===_ixOwnSel.R)
+                                        || (_ixSel && u.key===_ixSel.destKey && s.restaurante_id===_ixSel.R);
+                        const _selRecibe = _eleg && _ixSel && u.key===_ixSel.destKey && s.restaurante_id===_ixSel.R;
+                        const _selPropio = _eleg && _ixOwnSel && u.key===_miKey && s.restaurante_id===_ixOwnSel.R;
                         const _selable = _selRecibe || _selPropio;
                         const _seld = (_selRecibe && _ixRecibe.some(x=>x.id===e.id)) || (_selPropio && _ixOwnSel.turnos.some(x=>x.id===e.id));
                         const _solId = _sol ? _sol.id : 0;
                         let _handlers;
                         if(_selRecibe)            _handlers=`onclick="event.stopPropagation();_ixSeleccionarTurno(${e.id})"`;
                         else if(_selPropio)       _handlers=`onclick="event.stopPropagation();_ixTogglePropio(${e.id})"`;
+                        // En modo selección, los turnos NO elegibles (pasados/borrador) quedan inertes
+                        else if(_enModoSel)       _handlers=`onclick="event.stopPropagation();" title="Este turno no se puede ofrecer (pasado o sin publicar)"`;
                         else if(_ofDisp && !esMio)_handlers=`onclick="event.stopPropagation();_tomarOferta(${_sol.id},${s.restaurante_id})"`;
                         else if(esMio)            _handlers=`onclick="event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id},${_ofId})"`;
                         // Editor sobre turno ajeno: 1 click = gestionar solicitud, doble click = editar config.
@@ -883,7 +891,7 @@
         const nom=_ixSel?_ixSel.nom:''; const n=_ixRecibe.length;
         const b=document.createElement('div'); b.id='ix-banner';
         b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9600;background:#1d4ed8;color:#fff;padding:10px 16px;display:flex;justify-content:center;align-items:center;gap:14px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);';
-        b.innerHTML=`📅 Tocá los turnos de <b style="margin:0 4px;">${_esc(nom||'tu compañero')}</b> que querés recibir · <b>${n}</b> elegido(s) <button onclick="_ixListoSel()" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">✓ Listo</button> <button onclick="_ixCancelarSel()" title="Cancelar y volver al intercambio" style="background:#fff;color:#1d4ed8;border:0;border-radius:6px;padding:4px 11px;font-weight:700;cursor:pointer;">✕ Cancelar</button>`;
+        b.innerHTML=`📅 Tocá los turnos resaltados de <b style="margin:0 4px;">${_esc(nom||'tu compañero')}</b> que querés recibir <span style="opacity:.8;font-size:12px;">(solo publicados, de hoy en adelante)</span> · <b>${n}</b> elegido(s) <button onclick="_ixListoSel()" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">✓ Listo</button> <button onclick="_ixCancelarSel()" title="Cancelar y volver al intercambio" style="background:#fff;color:#1d4ed8;border:0;border-radius:6px;padding:4px 11px;font-weight:700;cursor:pointer;">✕ Cancelar</button>`;
         document.body.appendChild(b);
     }
     function _ixClearBanner(){ const b=document.getElementById('ix-banner'); if(b) b.remove(); }
@@ -898,9 +906,17 @@
     // ── Modo "seleccionar varios turnos míos" (antes de abrir el modal) ──
     function _ixIniciarSelPropio(R, hid){
         cerrarMenuTurno();
-        const t=(_ixTurnosDe(_users[_miKey], R)||[]).find(x=>x.id===hid);
+        // Solo valen turnos publicados de hoy en adelante. OJO: shiftsByDate tiene
+        // la semana CARGADA — el modo se abre igual aunque acá no haya elegibles
+        // (el banner invita a navegar de semana para elegir turnos futuros).
+        const eleg=_ixTurnosDe(_users[_miKey], R)||[];
+        const t=eleg.find(x=>x.id===hid);
         _ixOwnSel={ R, turnos: t?[t]:[] };
         _ixBannerPropio(); renderGrid();
+        if(!t && !eleg.length){
+            const b=document.getElementById('ix-banner');
+            if(b) b.style.background='#b45309';   // ámbar: en esta semana no hay elegibles
+        }
     }
     function _ixTogglePropio(hid){
         if(!_ixOwnSel) return;
@@ -914,15 +930,15 @@
         const n=_ixOwnSel?_ixOwnSel.turnos.length:0;
         const b=document.createElement('div'); b.id='ix-banner';
         b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9600;background:#0f766e;color:#fff;padding:10px 16px;display:flex;justify-content:center;align-items:center;gap:14px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);';
-        b.innerHTML=`✋ Tocá tus turnos para seleccionarlos · <b>${n}</b> seleccionado(s) — acciones: <button onclick="_ixAbrirConSeleccion()" style="background:#fff;color:#0f766e;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">🔁 Intercambiar</button> <button onclick="_ixOfrecerSel()" style="background:#fff;color:#0f766e;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">📣 Ofrecer</button> <button onclick="_ixCancelarPropio()" style="background:transparent;color:#fff;border:1px solid #fff;border-radius:6px;padding:4px 11px;font-weight:700;cursor:pointer;">✕ Cancelar</button>`;
+        b.innerHTML=`✋ Tocá tus turnos resaltados para seleccionarlos <span style="opacity:.8;font-size:12px;">(solo publicados, de hoy en adelante — navegá de semana si no ves ninguno)</span> · <b>${n}</b> seleccionado(s) — acciones: <button onclick="_ixAbrirConSeleccion()" style="background:#fff;color:#0f766e;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">🔁 Intercambiar</button> <button onclick="_ixOfrecerSel()" style="background:#fff;color:#0f766e;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">📣 Ofrecer</button> <button onclick="_ixCancelarPropio()" style="background:transparent;color:#fff;border:1px solid #fff;border-radius:6px;padding:4px 11px;font-weight:700;cursor:pointer;">✕ Cancelar</button>`;
         document.body.appendChild(b);
     }
     function _ixCancelarPropio(){ _ixOwnSel=null; _ixClearBanner(); renderGrid(); }
-    function _ixAbrirConSeleccion(){
+    async function _ixAbrirConSeleccion(){
         const sel=_ixOwnSel; if(!sel || !sel.turnos.length){ alert('Seleccioná al menos un turno tuyo.'); return; }
         _ixOwnSel=null; _ixClearBanner(); renderGrid();
         const first=sel.turnos[0];
-        abrirModalIntercambio(sel.R, first.date, first.id);
+        await abrirModalIntercambio(sel.R, first.date, first.id);   // async: carga compañeros si hace falta
         _ixDa = sel.turnos.slice();
         _ixRenderChips(); _ixRefreshDaAdder();
     }
