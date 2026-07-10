@@ -230,6 +230,15 @@
         </div>
     </div>
 
+    <!-- Modal elegir restaurante: plantilla sobre un empleado de varios locales sin filtro -->
+    <div class="overlay" id="tplrest-overlay" onclick="if(event.target===this) cerrarTplRest()">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-head"><div><div class="mt">¿En qué restaurante?</div><div class="ms" id="tr-sub"></div></div></div>
+            <div class="modal-body" id="tr-opts" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <div class="modal-foot"><div class="sp"></div><button class="btn-cancel" onclick="cerrarTplRest()">Cancelar</button></div>
+        </div>
+    </div>
+
     <script src="js/api.js"></script>
     <script>
     // Menú lateral (hamburguesa + acceso al panel): para usuarios de restaurante
@@ -419,13 +428,16 @@
         area.innerHTML='<div class="grid-loading">Cargando…</div>';
         try { _data = await _get(_epHorarios(`desde=${desde}&hasta=${hasta}`)); }
         catch(e){ area.innerHTML='<div class="grid-empty">Error cargando horarios.</div>'; return; }
-        // Deduplicar por username: un usuario = una fila, con N membresías y turnos por restaurante.
+        // Deduplicar por username (la identidad compartida entre locales; `nombre` ahora
+        // es el display "Nombre Apellido"): un usuario = una fila, con N membresías.
         _users={};
         _data.forEach(r=>(r.empleados||[]).forEach(e=>{
-            const k=(e.nombre||'').toLowerCase();
+            const k=((e.username||e.nombre)||'').toLowerCase();
             if(!k) return;
-            if(!_users[k]) _users[k]={ key:k, nombre:e.nombre||'', iniciales:e.iniciales||'', memberships:[], shiftsByDate:{} };
+            if(!_users[k]) _users[k]={ key:k, nombre:e.nombre||e.username||'', username:e.username||'', iniciales:e.iniciales||'', memberships:[], shiftsByDate:{} };
             const u=_users[k];
+            // Preferir el display real (distinto del username) si algún local lo tiene
+            if(e.nombre && e.nombre!==e.username && (!u.nombre || u.nombre===u.username)) u.nombre=e.nombre;
             if(!u.iniciales && e.iniciales) u.iniciales=e.iniciales;
             u.memberships.push({ restaurante_id:r.restaurante_id, restaurante:r.restaurante, usuario_id:e.usuario_id, rol:e.rol||'' });
             Object.entries(e.dias||{}).forEach(([date,entry])=>{
@@ -1294,9 +1306,33 @@
         const allowed=userRests(u);
         let restId = _selRest.size===1 ? [..._selRest][0] : (allowed.length===1 ? allowed[0].restaurante_id : null);
         const m = allowed.find(x=>x.restaurante_id===restId);
-        if(restId==null || !m){ alert('Este usuario pertenece a varios restaurantes.\nFiltrá por un restaurante (o usá el modal de la celda) para aplicar la plantilla.'); return; }
-        try{ await _saveTurno({ restaurante_id:restId, usuario_id:m.usuario_id, fecha, franjas:tpl.franjas, rol_turno:null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
+        if(restId==null || !m){
+            // Empleado en varios restaurantes y sin filtro: elegir a cuál va el turno
+            abrirTplRest(tpl, allowed, fecha, u);
+            return;
+        }
+        await _aplicarTpl(tpl, m, fecha);
+    }
+    async function _aplicarTpl(tpl, m, fecha){
+        try{ await _saveTurno({ restaurante_id:m.restaurante_id, usuario_id:m.usuario_id, fecha, franjas:tpl.franjas, rol_turno:null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
         catch(err){ alert('Error al aplicar plantilla: '+(err.message||err)); }
+    }
+
+    // ── Elegir restaurante al soltar una plantilla (empleado multi-local sin filtro) ──
+    let _tplRestCtx=null;   // { tpl, allowed, fecha }
+    function abrirTplRest(tpl, allowed, fecha, u){
+        _tplRestCtx={ tpl, allowed, fecha };
+        const tiempos=tpl.franjas.map(f=>`${f.inicio}–${f.fin}`).join(', ');
+        document.getElementById('tr-sub').textContent=`${u.nombre||u.username||''} · "${tpl.nombre}" (${tiempos}) · ${fecha}`;
+        document.getElementById('tr-opts').innerHTML=allowed.map(x=>
+            `<button class="btn-save" style="width:100%;text-align:left;justify-content:flex-start;" onclick="elegirTplRest(${x.restaurante_id})">🏠 ${_esc(x.restaurante)}${x.rol?` <span style="opacity:.75;font-size:11px;font-weight:400;">· ${_esc(x.rol)}</span>`:''}</button>`).join('');
+        document.getElementById('tplrest-overlay').classList.add('open');
+    }
+    function cerrarTplRest(){ document.getElementById('tplrest-overlay').classList.remove('open'); _tplRestCtx=null; }
+    async function elegirTplRest(restId){
+        const ctx=_tplRestCtx; cerrarTplRest(); if(!ctx) return;
+        const m=ctx.allowed.find(x=>x.restaurante_id===restId); if(!m) return;
+        await _aplicarTpl(ctx.tpl, m, ctx.fecha);
     }
     let _editingTplId=null;
     function abrirTplModal(id){
