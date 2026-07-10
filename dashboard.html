@@ -1595,9 +1595,11 @@ async function initDashboardEmpleado() {
 
     // 1) Panel general (datos del empleado, todos sus locales)
     try {
-        const wk = _semanaActual();
-        const dDom = new Date(wk.lunesDate); dDom.setDate(wk.lunesDate.getDate() + 6);
-        horariosSemanaData = await apiFetch(`/empleado/horarios?desde=${wk.fmt(wk.lunesDate)}&hasta=${wk.fmt(dDom)}`, { token: _emp }) || [];
+        // MISMA ventana que dibuja el widget (ayer + hoy + 5): con lunes-domingo
+        // los turnos de la semana próxima (o del lunes-miércoles pasados) caían
+        // fuera de la intersección y el widget quedaba vacío.
+        const { desde, hasta } = _rango7DesdeHoy();
+        horariosSemanaData = await apiFetch(`/empleado/horarios?desde=${desde}&hasta=${hasta}`, { token: _emp }) || [];
     } catch (e) { horariosSemanaData = []; }
     try { mensajesData = await apiFetch('/empleado/mensajes', { token: _emp }) || []; } catch (e) { mensajesData = []; }
     try { _empMuroData = await apiFetch('/empleado/social', { token: _emp }) || []; } catch (e) { _empMuroData = []; }

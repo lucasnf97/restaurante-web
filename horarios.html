@@ -754,17 +754,32 @@
     // Estado de la propuesta multi-turno
     let _ixDa = [];      // [{id,date,franjas}] turnos que doy
     let _ixRecibe = [];  // [{id,date,franjas}] turnos del compañero que pido (vacío = cesión)
-    function abrirModalIntercambio(R, fecha, origenHorarioId){
+    let _companeros = null;   // usuarios activos del local (privacidad de filas: la grilla ya no trae al resto)
+    async function _cargarCompaneros(){
+        if (_companeros) return _companeros;
+        try { _companeros = await apiFetch('/auth/usuarios'); } catch(e){ _companeros = []; }
+        return _companeros;
+    }
+    async function abrirModalIntercambio(R, fecha, origenHorarioId){
         cerrarMenuTurno(); _injectIntercambioUI();
         const ov=document.getElementById('modal-intercambio');
         ov.dataset.rest=R; ov.dataset.fecha=fecha; ov.dataset.origen=origenHorarioId;
         _ixDa=[]; _ixRecibe=[];
         (_ixTurnosDe(_users[_miKey], R)||[]).forEach(t=>{ if(t.id===origenHorarioId) _ixDa.push(t); });
-        const colegas=Object.values(_users).filter(u=>u.key!==_miKey && u.memberships.some(m=>m.restaurante_id===R));
+        // Compañeros: editores los tienen en la grilla; el resto ya no ve filas ajenas
+        // (privacidad) → listado básico de usuarios activos del local (/auth/usuarios).
+        let colegas=Object.values(_users).filter(u=>u.key!==_miKey && u.memberships.some(m=>m.restaurante_id===R))
+            .map(u=>{ const m=u.memberships.find(x=>x.restaurante_id===R); return { usuario_id:m.usuario_id, key:u.key, nombre:u.nombre }; });
+        if(!colegas.length){
+            const mi=_users[_miKey], miM=mi&&mi.memberships.find(m=>m.restaurante_id===R);
+            const miId=miM?miM.usuario_id:-1;
+            colegas=(await _cargarCompaneros()||[])
+                .filter(u=>u.id!==miId && (u.username||'').toLowerCase()!==_miKey && (u.rol||'')!=='gerente')
+                .map(u=>({ usuario_id:u.id, key:(u.username||'').toLowerCase(), nombre:(u.nombre_display||u.username) }));
+        }
         const selC=document.getElementById('ix-companero');
-        selC.innerHTML='<option value="">Elegí…</option>'+colegas.map(u=>{
-            const m=u.memberships.find(x=>x.restaurante_id===R); return `<option value="${m.usuario_id}|${u.key}">${_esc(u.nombre)}</option>`;
-        }).join('');
+        selC.innerHTML='<option value="">Elegí…</option>'+colegas.map(c=>
+            `<option value="${c.usuario_id}|${c.key}">${_esc(c.nombre)}</option>`).join('');
         document.getElementById('ix-recibe-add').innerHTML='<option value="">Elegí compañero primero…</option>';
         _ixRenderChips(); _ixRefreshDaAdder();
         ov.style.display='flex';
