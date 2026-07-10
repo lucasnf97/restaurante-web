@@ -508,7 +508,12 @@
         if(filtroNombre) arr=arr.filter(u=>u.nombre.toLowerCase().includes(filtroNombre));
         // Rol: dentro de las membresías relevantes (acotadas por el filtro de restaurante)
         if(rolesActivos.size) arr=arr.filter(u=>userRests(u).some(m=>rolesActivos.has(m.rol)));
-        arr.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es',{sensitivity:'base'}));
+        // El usuario que entró SIEMPRE primero (no tiene que buscarse entre el personal)
+        arr.sort((a,b)=>{
+            if(a.key===_miKey) return -1;
+            if(b.key===_miKey) return 1;
+            return a.nombre.localeCompare(b.nombre,'es',{sensitivity:'base'});
+        });
         return arr;
     }
 
@@ -617,16 +622,21 @@
             html+=`</tr>`;
         });
 
-        html+=`<tr class="tr-summary"><td class="td-user td-sum-label"><div class="td-user-inner" style="justify-content:center;"><span style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:.7px;">📊 Total día</span></div></td>`;
-        days.forEach(d=>{
-            const key=formatDate(d);
-            const cls=['td-day', isToday(d)?'col-hoy':'', (d.getDay()===0||d.getDay()===6)?'col-wknd':''].filter(Boolean).join(' ');
-            const entries=Object.entries(summary[key]||{}).filter(([,v])=>v.count>0).sort(([a],[b])=>a.localeCompare(b));
-            html+=`<td class="${cls}" style="vertical-align:top;padding:4px;cursor:default;">`;
-            entries.forEach(([rol,data])=>{ const col=getRolColor(rol); html+=`<div class="sum-rol-row" style="border-left:3px solid ${col};background:${hexToRgba(col,.06)}"><span class="sum-hours">${_fmtH(data.mins)}</span><span class="sum-info">${data.count} ${_esc(getRolLabel(rol).toLowerCase())}</span></div>`; });
-            html+=`</td>`;
-        });
-        html+=`</tr></tbody></table>`;
+        // Recuento de horas por día: solo para quien EDITA (el resto ve la grilla
+        // completa pero sin el total de horas de la plantilla)
+        if(!_RO){
+            html+=`<tr class="tr-summary"><td class="td-user td-sum-label"><div class="td-user-inner" style="justify-content:center;"><span style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:.7px;">📊 Total día</span></div></td>`;
+            days.forEach(d=>{
+                const key=formatDate(d);
+                const cls=['td-day', isToday(d)?'col-hoy':'', (d.getDay()===0||d.getDay()===6)?'col-wknd':''].filter(Boolean).join(' ');
+                const entries=Object.entries(summary[key]||{}).filter(([,v])=>v.count>0).sort(([a],[b])=>a.localeCompare(b));
+                html+=`<td class="${cls}" style="vertical-align:top;padding:4px;cursor:default;">`;
+                entries.forEach(([rol,data])=>{ const col=getRolColor(rol); html+=`<div class="sum-rol-row" style="border-left:3px solid ${col};background:${hexToRgba(col,.06)}"><span class="sum-hours">${_fmtH(data.mins)}</span><span class="sum-info">${data.count} ${_esc(getRolLabel(rol).toLowerCase())}</span></div>`; });
+                html+=`</td>`;
+            });
+            html+=`</tr>`;
+        }
+        html+=`</tbody></table>`;
         area.innerHTML=html;
     }
 
