@@ -1310,26 +1310,9 @@ function _highlightFuenteSrc(src, pagina) {
     if (primera) try { primera.scrollIntoView({ block:'center', behavior:'smooth' }); } catch(e) {}
 }
 
-// Mapea el id del input enfocado → { idx, campo }
-function _campoDeInput(id) {
-    if (!id) return null;
-    const idx = id.split('-').pop();
-    let campo = null;
-    if (id.indexOf('insumo') >= 0 || id.indexOf('servicio') >= 0) campo = 'nombre';
-    else if (id.indexOf('cant') >= 0) campo = 'cantidad';
-    else if (id.indexOf('precio') >= 0 || id.indexOf('-imp-') >= 0) campo = 'precio';
-    return campo ? { idx, campo } : null;
-}
-
-// Delegación: al enfocar un campo numérico de un ítem (cantidad/precio), resaltar su fuente.
-// El NOMBRE ya NO se resalta automáticamente: solo mediante el botón 🔍 de cada línea.
-document.addEventListener('focusin', (e) => {
-    const t = e.target;
-    if (!t || !t.id || !document.getElementById('conf-items')?.contains(t)) return;
-    const m = _campoDeInput(t.id);
-    if (!m || m.campo === 'nombre') return;   // el nombre se resalta solo con la lupa 🔍
-    _highlightFuente(m.idx, m.campo);
-});
+// El resaltado es SOLO manual, con las lupas 🔍 (nombre y Nº de factura). El resaltado
+// automático por campo (cantidad/precio al enfocar) se quitó: las regiones que da la IA
+// para esos campos no eran confiables — el resto de la línea se lee a mano en el visor.
 
 // Lupa 🔍 a la izquierda del nombre: resalta en el PDF dónde aparece ese nombre (acción manual).
 function resaltarNombreFuente(idx) {
