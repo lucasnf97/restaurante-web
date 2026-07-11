@@ -46,6 +46,14 @@ tr.nuevo { background:#f0fdf4; }
 .sec-card.confirmada { border-color:#86efac; background:#f0fdf4; }
 .sec-inp { border:1px solid #e5e7eb; border-radius:6px; padding:4px 6px; width:100%; }
 .aviso { background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:8px; padding:8px 12px; font-size:12.5px; margin-bottom:8px; }
+/* Modal crear usuario (alta unificada desde el matcheo de fichajes) */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:300; }
+.modal-overlay.active { display:flex; }
+.modal { background:#fff; border-radius:16px; padding:26px 28px; width:100%; max-width:520px; max-height:90vh; overflow:auto; }
+.modal h3 { font-size:17px; font-weight:700; color:#1a1a2e; margin-bottom:16px; }
+.fgroup { margin-bottom:12px; }
+.fgroup label { display:block; font-size:12px; font-weight:600; color:#444; margin-bottom:5px; }
+.fgroup input, .fgroup select { width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:14px; outline:none; }
 </style>
 </head>
 <body>
@@ -172,6 +180,33 @@ tr.nuevo { background:#f0fdf4; }
             <thead><tr><th>Nombre</th><th>Tipo</th><th>Período</th><th>Cargada</th><th style="text-align:right;">Ítems</th><th style="text-align:right;">Total</th><th></th></tr></thead>
             <tbody id="hist-body"><tr><td colspan="7" class="empty">Cargando…</td></tr></tbody>
         </table>
+        </div>
+    </div>
+
+    <!-- Modal: crear usuario nuevo desde el matcheo de fichajes (alta unificada:
+         crea la ficha en la CADENA y lo da de alta en ESTE restaurante) -->
+    <div class="modal-overlay" id="modal-nuevo-usr">
+        <div class="modal">
+            <h3>➕ Crear usuario para «<span id="nu-empleado"></span>»</h3>
+            <div class="hint" style="margin-bottom:12px;">Se crea la ficha única en la cadena y queda dado de alta en este restaurante. Los fichajes de este empleado se vincularán al usuario nuevo.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
+                <div class="fgroup"><label>Nombre</label><input type="text" id="nu-nombre"></div>
+                <div class="fgroup"><label>Apellido</label><input type="text" id="nu-apellido"></div>
+                <div class="fgroup"><label>DNI</label><input type="text" id="nu-dni"></div>
+                <div class="fgroup"><label>Teléfono</label><input type="text" id="nu-telefono"></div>
+            </div>
+            <div class="fgroup"><label>Correo *</label><input type="email" id="nu-email" placeholder="Único en el sistema — permite loguear por correo"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
+                <div class="fgroup"><label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto)</span></label><input type="text" id="nu-username" placeholder="Único en la cadena"></div>
+                <div class="fgroup"><label>Contraseña *</label><input type="password" id="nu-password"></div>
+                <div class="fgroup"><label>Rol *</label><select id="nu-rol"></select></div>
+                <div class="fgroup"><label>Estado</label><select id="nu-activo"><option value="true">Activo</option><option value="false">Inactivo</option></select></div>
+            </div>
+            <div class="msg" id="nu-msg"></div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:14px;">
+                <button class="btn btn-secondary" onclick="cerrarModalUsr()">Cancelar</button>
+                <button class="btn btn-primary" id="nu-guardar" onclick="guardarUsuarioNuevo()">Crear y vincular</button>
+            </div>
         </div>
     </div>
 
@@ -389,15 +424,66 @@ function _fichajesUserMap(si){
         // sin nombres detectados: selector por fila (columna Usuario de la tabla)
         return '';
     }
+    const puedeCrear = hasPermiso('acceso_usuarios');
     const opts=(uid)=>'<option value="">— elegir usuario —</option>'+
         (_usuarios||[]).map(u=>`<option value="${u.id}" ${String(u.id)===String(uid)?'selected':''}>${esc(displayName(u))}</option>`).join('');
     return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;margin-bottom:8px;">
         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">Matcheo de empleados (aplica a todas sus filas):</div>`+
-        s.usuarios_detectados.map((m,mi)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:2px 0;">
+        s.usuarios_detectados.map((m,mi)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:2px 0;flex-wrap:wrap;">
             <span style="min-width:160px;">«${esc(m.empleado)}»</span> →
             <select onchange="_mapEmpleado(${si},${mi},this.value)" style="border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:13px;">${opts(m.usuario_id)}</select>
             ${m.usuario_id?'':'<span class="badge new" style="background:#fee2e2;color:#dc2626;">sin match</span>'}
+            ${puedeCrear?`<button class="btn btn-secondary btn-sm" onclick="abrirModalUsr(${si},${mi})" title="Crear la ficha en la cadena y darla de alta en este restaurante">➕ Crear usuario</button>`:''}
         </div>`).join('')+`</div>`;
+}
+
+// ── Crear usuario nuevo desde el matcheo (alta unificada) ─────
+let _nuCtx=null;       // {si, mi} empleado al que se vincula el usuario creado
+let _rolesDisp=null;
+async function _cargarRoles(){
+    if(_rolesDisp) return _rolesDisp;
+    try{ _rolesDisp = (await api.get('/roles')) || []; }
+    catch(e){ _rolesDisp = [{nombre:'empleado'},{nombre:'camarero'},{nombre:'cocinero'},{nombre:'bartender'},{nombre:'sub-gerente'}]; }
+    return _rolesDisp;
+}
+async function abrirModalUsr(si,mi){
+    _nuCtx={si,mi};
+    const emp=(_secs[si].usuarios_detectados[mi]||{}).empleado||'';
+    document.getElementById('nu-empleado').textContent=emp;
+    // Prefill: primera palabra = nombre, resto = apellido
+    const partes=emp.trim().split(/\s+/);
+    document.getElementById('nu-nombre').value=partes[0]||'';
+    document.getElementById('nu-apellido').value=partes.slice(1).join(' ');
+    ['nu-dni','nu-telefono','nu-email','nu-username','nu-password'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('nu-activo').value='true';
+    document.getElementById('nu-msg').textContent='';
+    const roles=await _cargarRoles();
+    const asignables=roles.filter(r=>r.nombre!=='gerente'&&r.nombre!=='admin');
+    document.getElementById('nu-rol').innerHTML=asignables.map(r=>
+        `<option value="${esc(r.nombre)}">${esc(r.nombre.charAt(0).toUpperCase()+r.nombre.slice(1))}</option>`).join('');
+    document.getElementById('modal-nuevo-usr').classList.add('active');
+}
+function cerrarModalUsr(){ document.getElementById('modal-nuevo-usr').classList.remove('active'); _nuCtx=null; }
+async function guardarUsuarioNuevo(){
+    const msg=document.getElementById('nu-msg');
+    const v=id=>document.getElementById(id).value.trim();
+    const body={ nombre:v('nu-nombre')||null, apellido:v('nu-apellido')||null, dni:v('nu-dni')||null,
+        telefono:v('nu-telefono')||null, email:v('nu-email'), username:v('nu-username')||null,
+        password:document.getElementById('nu-password').value,
+        rol:document.getElementById('nu-rol').value,
+        activo:document.getElementById('nu-activo').value==='true' };
+    if(!body.email || !body.email.includes('@')){ msg.className='msg err'; msg.textContent='El correo es obligatorio (y debe ser válido).'; return; }
+    if(!body.password){ msg.className='msg err'; msg.textContent='La contraseña es obligatoria.'; return; }
+    const btn=document.getElementById('nu-guardar'); btn.disabled=true;
+    msg.className='msg'; msg.textContent='Creando…';
+    try{
+        const r=await api.post('/auth/usuarios', body);
+        _usuarios=null; await cargarUsuarios();   // refrescar el listado con el nuevo
+        const ctx=_nuCtx;
+        cerrarModalUsr();
+        if(ctx && r.id!=null) _mapEmpleado(ctx.si, ctx.mi, String(r.id));   // vincular sus filas
+    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+    finally{ btn.disabled=false; }
 }
 function _mapEmpleado(si,mi,val){
     const s=_secs[si]; const m=s.usuarios_detectados[mi];
