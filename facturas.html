@@ -1202,6 +1202,12 @@ function _renderViewer(file) {
     _pdfPages = {};
     if (_viewerUrl) { try { URL.revokeObjectURL(_viewerUrl); } catch(e){} _viewerUrl = null; }
     if (!file) { cont.innerHTML = '<div class="conf-viewer-empty">Sin archivo para previsualizar.</div>'; return; }
+    // Comprobante HTML autogenerado (facturas manuales sin adjunto) → iframe
+    if ((file.type || '').includes('html') || /\.html?$/i.test(file.name || '')) {
+        _viewerUrl = URL.createObjectURL(file);
+        cont.innerHTML = `<iframe src="${_viewerUrl}" title="Comprobante"></iframe>`;
+        return;
+    }
     const isPdf = (file.type === 'application/pdf') || /\.pdf$/i.test(file.name || '');
     if (isPdf) {
         cont.innerHTML = '<div class="conf-viewer-empty">Cargando PDF…</div>';
@@ -2001,6 +2007,16 @@ async function editarFactura(id) {
         const periodoMes = f.periodo_hasta ? String(f.periodo_hasta).slice(0, 7) : null;
         const fechaStr   = f.fecha_factura ? String(f.fecha_factura).slice(0, 10) : (f.datos.fecha || null);
         _setFechaPeriodoConf(fechaStr, periodoMes);
+        // Preview del comprobante original (igual que al continuar un borrador): se baja el
+        // archivo guardado y se muestra en el visor (antes quedaba en blanco al editar).
+        if (f.archivo_url) {
+            const url = f.archivo_url.startsWith('http') ? f.archivo_url : API_URL + f.archivo_url;
+            const nombre = f.archivo_nombre || ((url.split('/').pop() || 'factura').split('?')[0]);
+            try {
+                const blob = await fetch(url).then(r => r.ok ? r.blob() : null);
+                _renderViewer(blob ? new File([blob], nombre, { type: blob.type }) : null);
+            } catch(e) { _renderViewer(null); }
+        } else { _renderViewer(null); }
     } catch(e) { alert("Error al abrir la factura: " + (e.message || e)); }
 }
 
