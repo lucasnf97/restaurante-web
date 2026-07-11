@@ -184,22 +184,22 @@
         <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;padding:12px 0 8px 0;border-bottom:1px solid #e5e7eb;margin-bottom:12px;">
             <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px;">
                 <label style="font-size:12px;font-weight:600;color:#6b7280;">Buscar proveedor</label>
-                <input type="text" id="filtro-proveedor" placeholder="Nombre del proveedor..." oninput="aplicarFiltrosHistorial()"
+                <input type="text" id="filtro-proveedor" placeholder="Nombre del proveedor..." oninput="filtrarHistorial()"
                     style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
                 <label style="font-size:12px;font-weight:600;color:#6b7280;">Carga desde</label>
-                <input type="date" id="filtro-desde" oninput="aplicarFiltrosHistorial()"
+                <input type="date" id="filtro-desde" oninput="filtrarHistorial()"
                     style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
                 <label style="font-size:12px;font-weight:600;color:#6b7280;">Carga hasta</label>
-                <input type="date" id="filtro-hasta" oninput="aplicarFiltrosHistorial()"
+                <input type="date" id="filtro-hasta" oninput="filtrarHistorial()"
                     style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
                 <label style="font-size:12px;font-weight:600;color:#6b7280;">Período de facturación</label>
-                <input type="month" id="filtro-periodo" oninput="aplicarFiltrosHistorial()"
+                <input type="month" id="filtro-periodo" oninput="filtrarHistorial()"
                     style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
             </div>
             <button onclick="limpiarFiltrosHistorial()" style="padding:7px 14px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;font-size:13px;cursor:pointer;color:#374151;">✕ Limpiar</button>
@@ -223,7 +223,6 @@
                 <tbody id="tbody-facturas"><tr><td colspan="6" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
-        <div id="hist-ver-mas" style="text-align:center;padding:12px 0;"></div>
     </div>
 
     <!-- SERVICIOS -->
@@ -1852,26 +1851,20 @@ async function cargarHistorialFacturas() {
     const tbody = document.getElementById("tbody-facturas");
     if (window.UI) UI.skeleton(tbody, 6, 6);
     else tbody.innerHTML = `<tr><td colspan="6" class="empty">Cargando...</td></tr>`;
-    // Sin preseteo de período: se cargan TODAS las facturas (paginadas de a 10);
-    // los filtros solo aplican cuando el usuario los elige (o llega por deep-link).
+    // Preseleccionar el período actual la primera vez que se abre (si no viene ya seteado
+    // por un deep-link ?periodo=YYYY-MM u otra navegación).
+    const per = document.getElementById("filtro-periodo");
+    if (per && !per.value && !_histPeriodoPreseteado) {
+        const hoy = new Date();
+        per.value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+        _histPeriodoPreseteado = true;
+    }
     try {
         _historialFacturas = await api.get("/stock/facturas/historial");
         filtrarHistorial();
     } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Error cargando historial</td></tr>`; }
 }
-// Paginación del historial: se muestran de a 10 facturas ("Ver más" suma 10).
-const _HIST_PAGINA = 10;
-let _histLimite = _HIST_PAGINA;
-
-function aplicarFiltrosHistorial() {
-    _histLimite = _HIST_PAGINA;   // cambiar un filtro reinicia la paginación
-    filtrarHistorial();
-}
-
-function verMasHistorial() {
-    _histLimite += _HIST_PAGINA;
-    filtrarHistorial();
-}
+let _histPeriodoPreseteado = false;
 // Símbolo de la moneda del sistema (las facturas se guardan ya convertidas a esta divisa).
 function _simboloSys() { const s = window.SISTEMA_MONEDA || {}; return s.simbolo || s.codigo || ''; }
 function _fmtSys(v) {
@@ -1916,8 +1909,7 @@ function filtrarHistorial() {
         return true;
     });
 
-    // Totales del filtro (barra superior) — SIEMPRE sobre todas las filtradas,
-    // aunque la tabla muestre solo la página actual.
+    // Totales del filtro (barra superior).
     let totNeto = 0, totBruto = 0;
     filtradas.forEach(f => { totNeto += Number(f.total_neto) || 0; totBruto += Number(f.total_detectado) || 0; });
     const elN = document.getElementById("hist-total-neto");   if (elN) elN.textContent = _fmtSys(totNeto);
@@ -1925,31 +1917,14 @@ function filtrarHistorial() {
     const elC = document.getElementById("hist-total-count");
     if (elC) elC.textContent = `${filtradas.length} factura${filtradas.length === 1 ? '' : 's'}`;
 
-    const contMas = document.getElementById("hist-ver-mas");
     if (!filtradas.length) {
         tbody.innerHTML = `<tr><td colspan="6" class="empty">Sin facturas para los filtros aplicados</td></tr>`;
-        if (contMas) contMas.innerHTML = "";
         return;
     }
 
-    // Paginación: las más recientes primero, de a _HIST_PAGINA (el botón suma 10).
-    const porFecha = [...filtradas].sort((a, b) => {
-        const fa = parseFechaUTC(a.creado_en), fb = parseFechaUTC(b.creado_en);
-        return (fb ? fb.getTime() : 0) - (fa ? fa.getTime() : 0) || (b.id || 0) - (a.id || 0);
-    });
-    const visibles = porFecha.slice(0, _histLimite);
-    const restantes = porFecha.length - visibles.length;
-    if (contMas) {
-        contMas.innerHTML = restantes > 0
-            ? `<button onclick="verMasHistorial()" style="padding:9px 24px;background:#fff;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-weight:600;color:#4f46e5;cursor:pointer;">
-                   Ver más (${restantes} restante${restantes === 1 ? '' : 's'})</button>`
-            : "";
-    }
-
-    // Agrupar por proveedor (nombre registrado > nombre libre) las facturas VISIBLES,
-    // en orden de aparición (recientes primero); los subtotales son de lo visible.
+    // Agrupar por proveedor (nombre registrado > nombre libre).
     const grupos = new Map();  // nombre -> { nombre, facturas:[], neto, bruto }
-    visibles.forEach(f => {
+    filtradas.forEach(f => {
         const nombre = f.proveedor_nombre_reg || f.proveedor_nombre || "Sin proveedor";
         if (!grupos.has(nombre)) grupos.set(nombre, { nombre, facturas: [], neto: 0, bruto: 0 });
         const g = grupos.get(nombre);
@@ -1957,7 +1932,8 @@ function filtrarHistorial() {
         g.neto  += Number(f.total_neto) || 0;
         g.bruto += Number(f.total_detectado) || 0;
     });
-    const ordenados = [...grupos.values()];
+    // Ordenar proveedores por gasto (con IVA) descendente.
+    const ordenados = [...grupos.values()].sort((a, b) => b.bruto - a.bruto);
 
     let html = "";
     ordenados.forEach((g, gi) => {
@@ -2005,7 +1981,7 @@ function limpiarFiltrosHistorial() {
     document.getElementById("filtro-desde").value = "";
     document.getElementById("filtro-hasta").value = "";
     const per = document.getElementById("filtro-periodo"); if (per) per.value = "";
-    aplicarFiltrosHistorial();
+    filtrarHistorial();
 }
 
 // Reabre la pantalla de confirmación precargada con los datos de la factura (para corregir).
@@ -2366,13 +2342,13 @@ if (!_facturasSoloVista) cargarBorradores();
 // Solo-vista (ver_facturas): la pestaña de carga está oculta → arrancar en Historial
 if (_facturasSoloVista) setTab('historial');
 
-// Deep-link desde el dashboard: ?periodo=YYYY-MM → abrir Historial con el filtro de período
-// (navegación intencional del usuario; el historial ya no presetea ningún período solo).
+// Deep-link desde el dashboard: ?periodo=YYYY-MM → abrir Historial con el filtro de período preseteado.
 (function () {
     const per = new URLSearchParams(location.search).get('periodo');
     if (per && /^\d{4}-\d{2}$/.test(per)) {
         const el = document.getElementById('filtro-periodo');
         if (el) el.value = per;            // se aplica al renderizar el historial (filtrarHistorial)
+        _histPeriodoPreseteado = true;     // el deep-link ya definió el período → no re-presetear al actual
         setTab('historial');
     }
 })();
