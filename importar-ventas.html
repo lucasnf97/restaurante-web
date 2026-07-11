@@ -320,10 +320,27 @@ async function analizarLote(){
         const d1=document.getElementById('lote-desde').value, h1=document.getElementById('lote-hasta').value;
         if(d1) fd.append('periodo_desde', d1);
         if(h1) fd.append('periodo_hasta', h1);
+        fd.append('en_segundo_plano','1');
         const res=await fetch(`${API_URL}/importar/analizar-lote`,{method:'POST',
             headers:{Authorization:`Bearer ${getToken()}`}, body:fd});
         if(!res.ok){ const e=await res.json().catch(()=>({detail:'Error'})); throw new Error(e.detail||('HTTP '+res.status)); }
-        const d=await res.json();
+        let d=await res.json();
+        if(d.job_id){
+            // El análisis corre en el SERVIDOR: sondear el estado cada 4s. Así un lote
+            // pesado puede tardar lo que necesite sin que el navegador corte el request
+            // a los ~5 min ("Failed to fetch").
+            let fallos=0;
+            for(;;){
+                await new Promise(r=>setTimeout(r,4000));
+                let st=null;
+                try{ st=await api.get(`/importar/analisis/${d.job_id}`); }
+                catch(e){ if(/no encontrado|expirad/i.test(e.message||'')) throw e; }
+                if(!st){ if(++fallos>=8) throw new Error('Se perdió la conexión con el análisis — reintentá.'); continue; }
+                fallos=0;
+                if(st.estado==='listo'){ d=st.resultado; break; }
+                if(st.estado==='error') throw new Error(st.error||'El análisis falló.');
+            }
+        }
         renderRevision(d);
         msg.className='msg ok';
         msg.textContent=`IA: ${(d.secciones||[]).length} tabla(s) detectada(s). Revisalas abajo.`;
