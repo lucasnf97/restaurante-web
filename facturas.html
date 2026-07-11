@@ -596,7 +596,16 @@ function renderArchivos() {
     const cont = document.getElementById("archivos-cargados");
     if (!_archivosFactura.length) { cont.innerHTML = ""; return; }
     const statusTexto = { pendiente: 'Listo para procesar', procesando: 'Procesando con IA…', procesado: 'Listo para confirmar', confirmado: 'Registrado ✓', error: 'Error al procesar', borrador: '📝 En proceso de confirmación' };
-    cont.innerHTML = _archivosFactura.map((a) => {
+    // Varias hojas de la MISMA factura cargadas como archivos sueltos → unirlas en un
+    // solo PDF (una hoja por archivo) y analizarla como una única factura.
+    const nPend = _archivosFactura.filter(a => a.estado === 'pendiente' && a.file).length;
+    const barraUnir = nPend >= 2 ? `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#eef2ff;border:1px dashed #a5b4fc;border-radius:10px;padding:9px 12px;margin-bottom:10px;">
+            <span style="font-size:13px;color:#3730a3;">¿Son <b>hojas de la misma factura</b>?</span>
+            <button class="btn btn-secondary btn-sm" onclick="unirArchivos()">🧷 Unir los ${nPend} pendientes en UNA factura</button>
+            <span style="font-size:12px;color:#6b7280;">Se combinan en un solo PDF (una hoja por archivo, en el orden de la lista) y se analiza todo junto.</span>
+        </div>` : '';
+    cont.innerHTML = barraUnir + _archivosFactura.map((a) => {
         const nombre = a.file ? a.file.name : (a.archivo_nombre || 'Factura');
         const icon = nombre.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️';
         let acciones = '';
@@ -631,6 +640,70 @@ function renderArchivos() {
 }
 
 function quitarArchivo(id) { _archivosFactura = _archivosFactura.filter(a => a.id !== id); renderArchivos(); }
+
+// ── Unir varios archivos (hojas) en UNA factura ───────────────
+// Combina los archivos pendientes en un solo PDF en el navegador (pdf-lib, bajo demanda):
+// las fotos se re-encodean a JPEG (máx 2600px, corrige peso/orientación) y los PDF se
+// copian página a página. El resultado entra al flujo normal (análisis multipágina,
+// preview, guardado y edición) como cualquier PDF.
+async function _cargarPdfLib() {
+    if (window.PDFLib) return;
+    await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+        s.onload = res;
+        s.onerror = () => rej(new Error('No se pudo cargar el componente para unir PDFs (¿sin internet?)'));
+        document.head.appendChild(s);
+    });
+}
+async function _imgAJpeg(file) {
+    const url = URL.createObjectURL(file);
+    try {
+        const img = await new Promise((res, rej) => {
+            const i = new Image();
+            i.onload = () => res(i);
+            i.onerror = () => rej(new Error(`No se pudo leer la imagen "${file.name}"`));
+            i.src = url;
+        });
+        const MAX = 2600;   // suficiente para el OCR; limita el peso del PDF final
+        const esc = Math.min(1, MAX / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.naturalWidth * esc));
+        c.height = Math.max(1, Math.round(img.naturalHeight * esc));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.88));
+        if (!blob) throw new Error(`No se pudo convertir la imagen "${file.name}"`);
+        return new Uint8Array(await blob.arrayBuffer());
+    } finally { URL.revokeObjectURL(url); }
+}
+async function unirArchivos() {
+    const pend = _archivosFactura.filter(a => a.estado === 'pendiente' && a.file);
+    if (pend.length < 2) return;
+    if (!confirm(`¿Unir estos ${pend.length} archivos en UNA sola factura?\nUna hoja por archivo, en este orden:\n\n${pend.map((a, i) => `  ${i + 1}. ${a.file.name}`).join('\n')}\n\nSi acá hay facturas DISTINTAS mezcladas, cancelá y procesalas por separado.`)) return;
+    try {
+        await _cargarPdfLib();
+        const doc = await PDFLib.PDFDocument.create();
+        for (const a of pend) {
+            const esPdf = a.file.type === 'application/pdf' || /\.pdf$/i.test(a.file.name || '');
+            if (esPdf) {
+                const src = await PDFLib.PDFDocument.load(await a.file.arrayBuffer(), { ignoreEncryption: true });
+                (await doc.copyPages(src, src.getPageIndices())).forEach(p => doc.addPage(p));
+            } else {
+                const jpg = await doc.embedJpg(await _imgAJpeg(a.file));
+                const page = doc.addPage([jpg.width, jpg.height]);
+                page.drawImage(jpg, { x: 0, y: 0, width: jpg.width, height: jpg.height });
+            }
+        }
+        const bytes = await doc.save();
+        const nombre = `factura-unida-${pend.length}-hojas-${new Date().toISOString().slice(0,10)}-${String(Date.now()).slice(-5)}.pdf`;
+        const ids = new Set(pend.map(a => a.id));
+        _archivosFactura = _archivosFactura.filter(a => !ids.has(a.id));
+        _archivosFactura.push({ id: _nextFileId++, file: new File([bytes], nombre, { type: 'application/pdf' }),
+                                estado: 'pendiente', datos: null, error: null });
+        renderArchivos();
+        if (window.UI) UI.toast(`${pend.length} hojas unidas en un PDF — procesalo como una factura`, 'success');
+    } catch (e) { alert('No se pudieron unir los archivos: ' + (e.message || e)); }
+}
 
 // ── CÁMARA ────────────────────────────────────────────────────
 async function abrirCamara() {
