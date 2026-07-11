@@ -199,7 +199,13 @@ tr.nuevo { background:#f0fdf4; }
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
                 <div class="fgroup"><label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto)</span></label><input type="text" id="nu-username" autocomplete="off" placeholder="Único en la cadena"></div>
                 <div class="fgroup"><label>Contraseña *</label><input type="password" id="nu-password" autocomplete="new-password"></div>
-                <div class="fgroup"><label>Rol *</label><select id="nu-rol"></select></div>
+                <div class="fgroup"><label>Rol *</label>
+                    <select id="nu-rol" onchange="_nuRolChange()"></select>
+                    <input type="text" id="nu-rol-nuevo" autocomplete="off" maxlength="50"
+                           placeholder="Nombre del rol nuevo (ej: Camarero)"
+                           style="display:none;margin-top:6px;">
+                    <small class="hint" id="nu-rol-hint" style="display:none;">Se crea sin permisos — configuralos después en Configuración → Roles.</small>
+                </div>
                 <div class="fgroup"><label>Estado</label><select id="nu-activo"><option value="true">Activo</option><option value="false">Inactivo</option></select></div>
             </div>
             <div class="msg" id="nu-msg"></div>
@@ -446,6 +452,13 @@ async function _cargarRoles(){
     catch(e){ _rolesDisp = [{nombre:'empleado'},{nombre:'camarero'},{nombre:'cocinero'},{nombre:'bartender'},{nombre:'sub-gerente'}]; }
     return _rolesDisp;
 }
+function _nuRolChange(){
+    const esNuevo=document.getElementById('nu-rol').value==='__nuevo__';
+    const inp=document.getElementById('nu-rol-nuevo');
+    inp.style.display=esNuevo?'':'none';
+    document.getElementById('nu-rol-hint').style.display=esNuevo?'':'none';
+    if(esNuevo) inp.focus();
+}
 async function abrirModalUsr(si,mi){
     _nuCtx={si,mi};
     const emp=(_secs[si].usuarios_detectados[mi]||{}).empleado||'';
@@ -454,29 +467,50 @@ async function abrirModalUsr(si,mi){
     const partes=emp.trim().split(/\s+/);
     document.getElementById('nu-nombre').value=partes[0]||'';
     document.getElementById('nu-apellido').value=partes.slice(1).join(' ');
-    ['nu-dni','nu-telefono','nu-email','nu-username','nu-password'].forEach(id=>document.getElementById(id).value='');
+    ['nu-dni','nu-telefono','nu-email','nu-username','nu-password','nu-rol-nuevo'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nu-activo').value='true';
     document.getElementById('nu-msg').textContent='';
     const roles=await _cargarRoles();
-    const asignables=roles.filter(r=>r.nombre!=='gerente'&&r.nombre!=='admin');
-    document.getElementById('nu-rol').innerHTML=asignables.map(r=>
+    const asignables=(Array.isArray(roles)?roles:[]).filter(r=>r.nombre!=='gerente'&&r.nombre!=='admin');
+    const puedeCrearRol=hasPermiso('acceso_configuracion');
+    let opts=asignables.map(r=>
         `<option value="${esc(r.nombre)}">${esc(r.nombre.charAt(0).toUpperCase()+r.nombre.slice(1))}</option>`).join('');
+    if(puedeCrearRol) opts+=`<option value="__nuevo__">➕ Crear rol nuevo…</option>`;
+    if(!opts) opts='<option value="">(no hay roles — pedile al gerente que cree uno)</option>';
+    const sel=document.getElementById('nu-rol');
+    sel.innerHTML=opts;
+    // Sin roles definidos: ir directo a "crear rol nuevo"
+    if(!asignables.length && puedeCrearRol) sel.value='__nuevo__';
+    _nuRolChange();
     document.getElementById('modal-nuevo-usr').classList.add('active');
 }
 function cerrarModalUsr(){ document.getElementById('modal-nuevo-usr').classList.remove('active'); _nuCtx=null; }
 async function guardarUsuarioNuevo(){
     const msg=document.getElementById('nu-msg');
     const v=id=>document.getElementById(id).value.trim();
+    let rol=document.getElementById('nu-rol').value;
     const body={ nombre:v('nu-nombre')||null, apellido:v('nu-apellido')||null, dni:v('nu-dni')||null,
         telefono:v('nu-telefono')||null, email:v('nu-email'), username:v('nu-username')||null,
         password:document.getElementById('nu-password').value,
-        rol:document.getElementById('nu-rol').value,
         activo:document.getElementById('nu-activo').value==='true' };
     if(!body.email || !body.email.includes('@')){ msg.className='msg err'; msg.textContent='El correo es obligatorio (y debe ser válido).'; return; }
     if(!body.password){ msg.className='msg err'; msg.textContent='La contraseña es obligatoria.'; return; }
+    if(rol==='__nuevo__'){
+        const nuevo=v('nu-rol-nuevo');
+        if(!nuevo){ msg.className='msg err'; msg.textContent='Poné el nombre del rol nuevo.'; return; }
+        rol=nuevo;
+    }
+    if(!rol){ msg.className='msg err'; msg.textContent='Elegí o creá un rol.'; return; }
+    body.rol=rol;
     const btn=document.getElementById('nu-guardar'); btn.disabled=true;
     msg.className='msg'; msg.textContent='Creando…';
     try{
+        if(document.getElementById('nu-rol').value==='__nuevo__'){
+            // Crear el rol (sin permisos; se configuran en Configuración → Roles).
+            // Si ya existía (400), se usa igual por nombre.
+            try{ await api.post('/roles', { nombre: rol }); _rolesDisp=null; }
+            catch(e){ if(!/duplicate|exist|unique/i.test(e.message||'')) { msg.className='msg err'; msg.textContent='No se pudo crear el rol: '+e.message; btn.disabled=false; return; } }
+        }
         const r=await api.post('/auth/usuarios', body);
         _usuarios=null; await cargarUsuarios();   // refrescar el listado con el nuevo
         const ctx=_nuCtx;
