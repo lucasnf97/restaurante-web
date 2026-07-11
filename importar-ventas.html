@@ -121,7 +121,7 @@ tr.nuevo { background:#f0fdf4; }
         <h3>Revisar y confirmar (carga manual) <span id="prev-tipo" class="badge"></span></h3>
         <div class="mapeo" id="mapeo"></div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
-            <div class="field"><label>Nombre de la importación</label><input type="text" id="imp-nombre" style="width:240px;"></div>
+            <div class="field"><label>Nombre de la importación</label><input type="text" id="imp-nombre" autocomplete="off" style="width:240px;"></div>
             <div class="field"><label>Período desde</label><input type="date" id="mp-desde"></div>
             <div class="field"><label>Período hasta</label><input type="date" id="mp-hasta"></div>
         </div>
@@ -166,7 +166,7 @@ tr.nuevo { background:#f0fdf4; }
     <div class="card">
         <h3>3) Histórico de tablas cargadas</h3>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
-            <div class="field"><label>Nombre</label><input type="text" id="h-q" placeholder="Ej: fact. gral. mayo" style="width:180px;" onkeydown="if(event.key==='Enter')cargarHistorial()"></div>
+            <div class="field"><label>Nombre</label><input type="text" id="h-q" autocomplete="off" placeholder="Ej: fact. gral. mayo" style="width:180px;" onkeydown="if(event.key==='Enter')cargarHistorial()"></div>
             <div class="field"><label>Tipo</label><select id="h-tipo" onchange="cargarHistorial()"><option value="">Todos</option></select></div>
             <div class="field"><label>Cargada desde</label><input type="date" id="h-desde" onchange="cargarHistorial()"></div>
             <div class="field"><label>Cargada hasta</label><input type="date" id="h-hasta" onchange="cargarHistorial()"></div>
@@ -190,15 +190,15 @@ tr.nuevo { background:#f0fdf4; }
             <h3>➕ Crear usuario para «<span id="nu-empleado"></span>»</h3>
             <div class="hint" style="margin-bottom:12px;">Se crea la ficha única en la cadena y queda dado de alta en este restaurante. Los fichajes de este empleado se vincularán al usuario nuevo.</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
-                <div class="fgroup"><label>Nombre</label><input type="text" id="nu-nombre"></div>
-                <div class="fgroup"><label>Apellido</label><input type="text" id="nu-apellido"></div>
-                <div class="fgroup"><label>DNI</label><input type="text" id="nu-dni"></div>
-                <div class="fgroup"><label>Teléfono</label><input type="text" id="nu-telefono"></div>
+                <div class="fgroup"><label>Nombre</label><input type="text" id="nu-nombre" autocomplete="off"></div>
+                <div class="fgroup"><label>Apellido</label><input type="text" id="nu-apellido" autocomplete="off"></div>
+                <div class="fgroup"><label>DNI</label><input type="text" id="nu-dni" autocomplete="off"></div>
+                <div class="fgroup"><label>Teléfono</label><input type="text" id="nu-telefono" autocomplete="off"></div>
             </div>
-            <div class="fgroup"><label>Correo *</label><input type="email" id="nu-email" placeholder="Único en el sistema — permite loguear por correo"></div>
+            <div class="fgroup"><label>Correo *</label><input type="email" id="nu-email" autocomplete="off" placeholder="Único en el sistema — permite loguear por correo"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
-                <div class="fgroup"><label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto)</span></label><input type="text" id="nu-username" placeholder="Único en la cadena"></div>
-                <div class="fgroup"><label>Contraseña *</label><input type="password" id="nu-password"></div>
+                <div class="fgroup"><label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto)</span></label><input type="text" id="nu-username" autocomplete="off" placeholder="Único en la cadena"></div>
+                <div class="fgroup"><label>Contraseña *</label><input type="password" id="nu-password" autocomplete="new-password"></div>
                 <div class="fgroup"><label>Rol *</label><select id="nu-rol"></select></div>
                 <div class="fgroup"><label>Estado</label><select id="nu-activo"><option value="true">Activo</option><option value="false">Inactivo</option></select></div>
             </div>
@@ -283,7 +283,7 @@ function renderArchivos(){
     box.innerHTML=_archivos.map((a,i)=>`<div class="fcard">
         <span>📄</span><span class="fname">${esc(a.file.name)}</span>
         <span class="hint">${Math.round(a.file.size/1024)} KB</span>
-        <input class="fcom" placeholder="Comentario sobre este archivo (opcional)…" maxlength="300"
+        <input class="fcom" autocomplete="off" placeholder="Comentario sobre este archivo (opcional)…" maxlength="300"
                value="${esc(a.comentario)}" oninput="_archivos[${i}].comentario=this.value">
         <button class="btn-x" onclick="quitarArchivo(${i})">✕</button>
     </div>`).join('');
@@ -386,7 +386,7 @@ function _seccionHTML(si){
         </div></div>`;
     }
     let head=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">`+
-        `<input value="${esc(s.nombre)}" oninput="_secs[${si}].nombre=this.value" placeholder="Nombre de la importación (para buscarla en el histórico)"`+
+        `<input value="${esc(s.nombre)}" autocomplete="off" oninput="_secs[${si}].nombre=this.value" placeholder="Nombre de la importación (para buscarla en el histórico)"`+
         ` style="flex:1;min-width:240px;border:1px solid #d1d5db;border-radius:8px;padding:7px 10px;font-size:14px;font-weight:600;">`+
         `<label style="font-size:13px;color:#374151;">Destino: `+
         `<select onchange="_setTipo(${si},this.value)" style="border:1px solid #d1d5db;border-radius:6px;padding:5px 6px;font-size:13px;">${opts}</select></label>`+
@@ -395,7 +395,7 @@ function _seccionHTML(si){
     head+=`<div class="hint" style="margin-bottom:8px;">${esc(d.descripcion||'')}${s.archivo?` · <b>archivo:</b> ${esc(s.archivo)}`:''}${s.titulo?` · <b>bloque:</b> ${esc(s.titulo)}`:''}</div>`;
     if(s._reint){
         head+=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 10px;margin-bottom:8px;">
-            <input id="reint-ind-${si}" placeholder="Indicaciones para la IA (ej: la 2ª columna es la hora de salida)…" maxlength="400"
+            <input id="reint-ind-${si}" autocomplete="off" placeholder="Indicaciones para la IA (ej: la 2ª columna es la hora de salida)…" maxlength="400"
                    style="flex:1;min-width:260px;border:1px solid #c7d2fe;border-radius:6px;padding:6px 9px;font-size:13px;">
             <button class="btn btn-primary btn-sm" onclick="reinterpretar(${si})">🤖 Re-mapear con el destino elegido</button>
         </div>`;
