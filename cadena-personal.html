@@ -44,6 +44,12 @@
     .asig-add .lbl { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.4px; }
     .empty { text-align:center; color:#94a3b8; padding:36px; }
 
+    .filtros { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+    .filtros input { flex:1; min-width:200px; padding:8px 11px; border:1px solid #e5e7eb; border-radius:9px; font-size:13px; outline:none; background:#fff; }
+    .filtros input:focus, .filtros select:focus { border-color:#a5b4fc; }
+    .filtros select { padding:8px 10px; border:1px solid #e5e7eb; border-radius:9px; font-size:13px; background:#fff; color:#334155; outline:none; }
+    .f-count { font-size:12px; color:#94a3b8; white-space:nowrap; }
+
     .overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:60; }
     .overlay.open { display:flex; }
     .modal { background:#fff; border-radius:16px; width:100%; max-width:440px; box-shadow:0 20px 50px rgba(0,0,0,.25); overflow:hidden; }
@@ -75,6 +81,13 @@
             <button class="btn-primary" onclick="abrirModal(null)">＋ Nuevo empleado</button>
         </div>
         <p class="hint">Cada empleado es una <b>ficha única</b> de la cadena (identidad, datos). Lo <b>asignás a uno o más locales</b> con un rol; su acceso (login + rol) se crea en cada local sin duplicar la persona. El <b>rol y el estado (alta/baja) son POR local</b>: con ⏸ lo das de baja en un local sin quitarlo (queda agregado, sin acceso ahí).</p>
+        <div class="filtros">
+            <input id="f-nombre" type="text" autocomplete="off" placeholder="🔎 Buscar por nombre, usuario o email…" oninput="render()">
+            <select id="f-rest" onchange="render()"><option value="">Todos los locales</option></select>
+            <select id="f-rol" onchange="render()"><option value="">Todos los roles</option></select>
+            <button class="btn-sm" onclick="limpiarFiltros()">✕ Limpiar</button>
+            <span class="f-count" id="f-count"></span>
+        </div>
         <div id="lista"><div class="empty">Cargando…</div></div>
     </div>
 
@@ -121,13 +134,57 @@
     async function cargar(){
         try { _rests = await api.get('/cadena/restaurantes'); } catch(e){ _rests = []; }
         try { _emps = await api.get('/cadena/empleados'); } catch(e){ _emps = []; }
+        llenarFiltros();
         render();
+    }
+
+    // ── Filtros de búsqueda (nombre / local / rol) ──
+    function _normTxt(s){ return String(s||'').toLowerCase().trim().normalize('NFD').replace(/\p{M}/gu,''); }
+    function llenarFiltros(){
+        const selR = document.getElementById('f-rest'), selRol = document.getElementById('f-rol');
+        const vR = selR.value, vRol = selRol.value;   // preservar la selección al recargar
+        selR.innerHTML = '<option value="">Todos los locales</option>' +
+            '<option value="sin">— Sin asignar a ningún local —</option>' +
+            _rests.map(r=>`<option value="${r.id}">${_esc(r.nombre||r.codigo)} (${_esc(r.codigo)})</option>`).join('');
+        const roles = [...new Set([].concat(...(_emps||[]).map(e=>(e.asignaciones||[]).map(a=>a.rol||''))).filter(Boolean))].sort();
+        selRol.innerHTML = '<option value="">Todos los roles</option>' +
+            roles.map(r=>`<option value="${_esc(r)}">${_esc(r)}</option>`).join('');
+        selR.value = [...selR.options].some(o=>o.value===vR) ? vR : '';
+        selRol.value = [...selRol.options].some(o=>o.value===vRol) ? vRol : '';
+    }
+    function limpiarFiltros(){
+        document.getElementById('f-nombre').value = '';
+        document.getElementById('f-rest').value = '';
+        document.getElementById('f-rol').value = '';
+        render();
+    }
+    function _empsFiltrados(){
+        const q = _normTxt(document.getElementById('f-nombre').value);
+        const fr = document.getElementById('f-rest').value;
+        const frol = document.getElementById('f-rol').value;
+        return _emps.filter(e => {
+            if (q && !_normTxt([e.nombre, e.apellido, e.username, e.email].filter(Boolean).join(' ')).includes(q)) return false;
+            const asigs = e.asignaciones||[];
+            if (fr === 'sin') { if (asigs.length) return false; }
+            else if (fr && !asigs.some(a => String(a.restaurante_id) === fr)) return false;
+            // Rol: si además hay local elegido, el rol se exige EN ese local
+            if (frol && !asigs.some(a => (a.rol||'') === frol && (!fr || fr === 'sin' || String(a.restaurante_id) === fr))) return false;
+            return true;
+        });
     }
 
     function render(){
         const cont = document.getElementById('lista');
-        if (!_emps.length) { cont.innerHTML = '<div class="empty">No hay empleados todavía. Creá el primero con “＋ Nuevo empleado”.</div>'; return; }
-        cont.innerHTML = _emps.map(e => {
+        if (!_emps.length) {
+            document.getElementById('f-count').textContent = '';
+            cont.innerHTML = '<div class="empty">No hay empleados todavía. Creá el primero con “＋ Nuevo empleado”.</div>'; return;
+        }
+        const emps = _empsFiltrados();
+        document.getElementById('f-count').textContent =
+            emps.length === _emps.length ? `${_emps.length} empleado${_emps.length===1?'':'s'}`
+                                         : `${emps.length} de ${_emps.length}`;
+        if (!emps.length) { cont.innerHTML = '<div class="empty">Ningún empleado coincide con los filtros.</div>'; return; }
+        cont.innerHTML = emps.map(e => {
             const nombre = [e.nombre, e.apellido].filter(Boolean).join(' ');
             const asigs = (e.asignaciones||[]);
             const chips = asigs.length
