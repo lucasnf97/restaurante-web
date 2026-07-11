@@ -409,6 +409,13 @@ function _seccionHTML(si){
     if(s.tipo==='fichajes'){
         head+=`<div class="aviso">⏱ Estos fichajes se cargan como turnos REALES: aparecen en Fichajes y <b>suman horas en Salarios</b> del período. Eliminar la importación los revierte.</div>`;
         head+=_fichajesUserMap(si);
+        const pend=(s.usuarios_detectados||[]).filter(m=>!m.usuario_id).length;
+        if(pend>0){
+            head+=`<div class="aviso" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;">
+                👤 Hay <b>${pend} empleado${pend>1?'s':''} sin usuario</b> en el sistema. Asignalos arriba, crealos con ➕ o quitalos con ✕ —
+                la tabla para revisar y confirmar aparece cuando estén todos resueltos.</div>`;
+            return `<div class="sec-card">${head}</div>`;
+        }
     }
     if(s.tipo==='otras'){
         const tv=(s.titulo||'').replace(/"/g,'&quot;');
@@ -434,13 +441,56 @@ function _fichajesUserMap(si){
     const opts=(uid)=>'<option value="">— elegir usuario —</option>'+
         (_usuarios||[]).map(u=>`<option value="${u.id}" ${String(u.id)===String(uid)?'selected':''}>${esc(displayName(u))}</option>`).join('');
     return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;margin-bottom:8px;">
-        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">Matcheo de empleados (aplica a todas sus filas):</div>`+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <span style="font-size:12px;font-weight:700;color:#374151;">Matcheo de empleados (aplica a todas sus filas):</span>
+            <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="_rebuscarUsuarios(${si})"
+                    title="Recargar los usuarios del sistema y volver a buscar coincidencias por nombre">🔄 Re-buscar coincidencias</button>
+        </div>`+
         s.usuarios_detectados.map((m,mi)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:2px 0;flex-wrap:wrap;">
             <span style="min-width:160px;">«${esc(m.empleado)}»</span> →
             <select onchange="_mapEmpleado(${si},${mi},this.value)" style="border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:13px;">${opts(m.usuario_id)}</select>
             ${m.usuario_id?'':'<span class="badge new" style="background:#fee2e2;color:#dc2626;">sin match</span>'}
             ${puedeCrear?`<button class="btn btn-secondary btn-sm" onclick="abrirModalUsr(${si},${mi})" title="Crear la ficha en la cadena y darla de alta en este restaurante">➕ Crear usuario</button>`:''}
+            <button class="btn-x" onclick="_quitarEmpleado(${si},${mi})"
+                    title="Quitar este empleado del matcheo: sus líneas quedan destildadas y no se importan">✕</button>
         </div>`).join('')+`</div>`;
+}
+
+function _quitarEmpleado(si,mi){
+    const s=_secs[si];
+    const m=s.usuarios_detectados[mi];
+    if(!m) return;
+    if(!confirm(`¿Quitar a «${m.empleado}» del matcheo?\n\nSus líneas quedan destildadas y NO se importan (útil para usuarios de prueba o "caja" que no querés en tu base).`)) return;
+    s.filas.forEach(f=>{ if((f.empleado||'').trim()===m.empleado){ f._incl=false; f.usuario_id=null; } });
+    s.usuarios_detectados.splice(mi,1);
+    renderSeccion(si);
+}
+
+// Match local por nombre (misma lógica que el backend: sin acentos, exacto > empieza > contiene)
+function _normNombre(s){
+    return String(s||'').toLowerCase().trim().normalize('NFD').replace(/\p{M}/gu,'');
+}
+function _matchUsuarioLocal(nombre){
+    const n=_normNombre(nombre);
+    if(!n) return null;
+    const us=_usuarios||[];
+    const por=f=>us.filter(u=>f(_normNombre(displayName(u)))||f(_normNombre(u.username)));
+    let cand=por(x=>x===n);
+    if(!cand.length) cand=por(x=>x.startsWith(n));
+    if(!cand.length) cand=por(x=>x.includes(n));
+    return cand.length===1?cand[0].id:null;
+}
+async function _rebuscarUsuarios(si){
+    _usuarios=null; await cargarUsuarios();
+    const s=_secs[si];
+    let enlazados=0;
+    s.usuarios_detectados.forEach(m=>{
+        if(m.usuario_id) return;
+        const id=_matchUsuarioLocal(m.empleado);
+        if(id){ m.usuario_id=id; s.filas.forEach(f=>{ if((f.empleado||'').trim()===m.empleado) f.usuario_id=id; }); enlazados++; }
+    });
+    renderSeccion(si);
+    if(!enlazados) alert('No se encontraron coincidencias nuevas. Asignalos a mano, crealos con ➕ o quitalos con ✕.');
 }
 
 // ── Crear usuario nuevo desde el matcheo (alta unificada) ─────
