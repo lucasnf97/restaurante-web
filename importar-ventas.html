@@ -566,7 +566,23 @@ async function guardarUsuarioNuevo(){
         const ctx=_nuCtx;
         cerrarModalUsr();
         if(ctx && r.id!=null) _mapEmpleado(ctx.si, ctx.mi, String(r.id));   // vincular sus filas
-    }catch(err){ msg.className='msg err'; msg.textContent='Error: '+err.message; }
+    }catch(err){
+        if(/registrado en el sistema/i.test(err.message||'')){
+            // La ficha ya existe (p.ej. quedó en la cadena tras formatear el restaurante):
+            // ofrecer darla de alta acá sin crear nada nuevo.
+            if(confirm(`Ese correo ya tiene una ficha en el sistema.\n\nSi es la misma persona y pertenece a tu cadena, ¿la doy de alta en ESTE restaurante con el rol "${rol}"?\n(Conserva su contraseña y sus datos actuales.)`)){
+                try{
+                    const r2=await api.post('/auth/usuarios/vincular-existente', { email: body.email, rol });
+                    _usuarios=null; await cargarUsuarios();
+                    const ctx=_nuCtx;
+                    cerrarModalUsr();
+                    if(ctx && r2.id!=null) _mapEmpleado(ctx.si, ctx.mi, String(r2.id));
+                }catch(e2){ msg.className='msg err'; msg.textContent='No se pudo vincular: '+e2.message; }
+                btn.disabled=false; return;
+            }
+        }
+        msg.className='msg err'; msg.textContent='Error: '+err.message;
+    }
     finally{ btn.disabled=false; }
 }
 function _mapEmpleado(si,mi,val){
