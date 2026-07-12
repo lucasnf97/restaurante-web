@@ -1172,11 +1172,21 @@ function abrirModalConfirmacion(datos) {
         _proveedores.map(p => `<option value="${p.id}" data-nombre="${esc(p.nombre)}" data-cuit="${esc(p.cuit || '')}">${esc(p.nombre)}${p.cuit ? ' ('+esc(p.cuit)+')' : ''}</option>`).join("");
 
     const items = datos.items || [];
-    // Impuesto: % por defecto = el que la IA detectó en la factura; si no lo detectó,
-    // el % del sistema. Modo inicial (sin/con) = mayoría de los ítems (incluye_impuesto).
+    // Impuesto: UN solo % por factura, que gobierna el campo global Y todas las filas
+    // (así lo que se muestra es siempre lo que se aplica). Prioridad: el % a nivel
+    // factura que detectó la IA → si no, el % más frecuente entre los ítems → si no,
+    // el % del sistema (ajustes). El usuario puede después ajustar filas puntuales.
+    // Modo inicial (sin/con) = mayoría de los ítems (incluye_impuesto).
     const impGlobalCfg = window.SISTEMA_MONEDA?.impuesto_pct || 0;
     const impFactura   = (typeof datos.impuesto_pct === 'number') ? datos.impuesto_pct : null;
-    const impDefault   = (impFactura !== null) ? impFactura : impGlobalCfg;
+    let impItems = null;
+    if (impFactura === null) {
+        const cuenta = {};
+        for (const it of items) if (typeof it.impuesto_pct === 'number') cuenta[it.impuesto_pct] = (cuenta[it.impuesto_pct] || 0) + 1;
+        const claves = Object.keys(cuenta);
+        if (claves.length) impItems = Number(claves.sort((a, b) => cuenta[b] - cuenta[a])[0]);
+    }
+    const impDefault   = (impFactura !== null) ? impFactura : (impItems !== null ? impItems : impGlobalCfg);
     const conImp = items.filter(it => it.incluye_impuesto === true).length;
     const sinImp = items.filter(it => it.incluye_impuesto === false).length;
     _confModoImp = conImp > sinImp ? 'con' : (sinImp > conImp ? 'sin' : 'con');
@@ -1192,8 +1202,9 @@ function abrirModalConfirmacion(datos) {
         _confPaginas[idx] = item.pagina || 1;        // página de la línea (PDF multipágina)
         // precio_total = total de la línea tal como figura en la factura (fallback al viejo precio_unitario)
         const precioRaw  = item.precio_total ?? item.precio_unitario ?? null;
-        // % por ítem: el de la línea si la IA lo dio; si no, el general de la factura; si no, config.
-        const pct        = (typeof item.impuesto_pct === 'number') ? item.impuesto_pct : impDefault;
+        // Todas las filas arrancan con el % único de la factura (impDefault) → el campo
+        // global y las filas SIEMPRE coinciden. El usuario puede editar filas puntuales.
+        const pct        = impDefault;
         // Interpretación uniforme según el modo global (el toggle la cambia para todas las filas).
         const incluyeImp = (_confModoImp === 'con');
         return itemRow(idx, tipo, item.descripcion_factura, item.insumo_id, item.servicio_id || null,
@@ -1710,7 +1721,9 @@ async function confirmarFactura() {
         }
 
         // Snapshot de la confirmación (forma IA) → permite reabrir/editar esta factura.
-        const impGlobalVal = parseFloat(document.getElementById('conf-imp-global')?.value);
+        // Campo vacío = 0% (coherente con las filas, que ya quedan en 0 al vaciarlo).
+        const _impGlobalRaw = (document.getElementById('conf-imp-global')?.value ?? '').trim();
+        const impGlobalVal = _impGlobalRaw === '' ? 0 : parseFloat(_impGlobalRaw);
         const datosSnapshot = {
             proveedor_nombre: provNombre, proveedor_cuit: provCuit || null,
             numero_factura: numeroFactura, numero_factura_fuente: _confNumeroFuente,
@@ -1821,7 +1834,8 @@ function _capturarBorrador() {
                 fuentes, pagina });
         }
     });
-    const impG = parseFloat(document.getElementById('conf-imp-global')?.value);
+    const _impGRaw = (document.getElementById('conf-imp-global')?.value ?? '').trim();
+    const impG = _impGRaw === '' ? 0 : parseFloat(_impGRaw);
     return {
         proveedor_nombre: document.getElementById('conf-prov-nombre')?.value.trim() || '',
         proveedor_cuit:   document.getElementById('conf-prov-cuit')?.value.trim() || null,
@@ -2325,7 +2339,10 @@ function onEditSrvImp(idx)   { _recalcFila('cs', idx, 'neto'); }
 
 // Header: aplica un % a TODAS las filas (insumos y servicios) y recalcula c/imp desde el neto.
 function aplicarImpGlobal() {
-    const g = parseFloat(document.getElementById('conf-imp-global')?.value);
+    const raw = (document.getElementById('conf-imp-global')?.value ?? '').trim();
+    // Campo vacío = 0% EXPLÍCITO (no dejar el valor anterior en las filas). Un texto
+    // no numérico a medio tipear se ignora hasta que sea un número válido.
+    const g = raw === '' ? 0 : parseFloat(raw);
     if (isNaN(g)) return;
     document.querySelectorAll("[id^='ci-imp-'],[id^='cs-imp-']").forEach(inp => {
         inp.value = g;
