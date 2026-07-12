@@ -212,6 +212,10 @@
         <button class="tab-btn" id="tab-enviados" onclick="setTab('enviados')">
             📤 Enviados
         </button>
+        <button class="tab-btn" id="tab-papelera" onclick="setTab('papelera')"
+                title="Mensajes borrados — se guardan 30 días y se pueden recuperar">
+            🗑 Papelera
+        </button>
         <button class="tab-btn" id="tab-cadena" onclick="toggleCadena()" style="display:none; margin-left:auto;"
                 title="Ver tus mensajes recibidos de todos tus restaurantes">
             🌐 Todos mis locales
@@ -268,6 +272,11 @@
                 <label>🏷️ Etiqueta</label>
                 <select id="det-etiqueta" onchange="cambiarEtiqueta(this.value)"></select>
             </div>
+        </div>
+        <div class="modal-foot" id="modal-ver-foot-pap" style="display:none; align-items:center; gap:10px;">
+            <button class="btn-responder" onclick="recuperarDesdeModal()">♻️ Recuperar</button>
+            <button class="icon-btn" style="font-size:16px;" onclick="eliminarDefDesdeModal()" title="Eliminar definitivamente">🗑️</button>
+            <span id="det-pap-info" style="font-size:12px;color:#92400e;font-weight:600;"></span>
         </div>
     </div>
 </div>
@@ -439,7 +448,8 @@ async function cargarMensajes() {
     try {
         if (_emp) { _mensajes = await apiFetch('/empleado/mensajes', { token: getEmpToken() }); renderLista(); return; }
         const endpoint = _cadena ? "/mensajes/recibidos-cadena"
-                       : (_tabActual === "recibidos" ? "/mensajes/recibidos" : "/mensajes/enviados");
+                       : (_tabActual === "papelera" ? "/mensajes/papelera"
+                       : (_tabActual === "recibidos" ? "/mensajes/recibidos" : "/mensajes/enviados"));
         _mensajes = await apiFetch(endpoint);
         renderLista();
         if (!_cadena && _tabActual === "recibidos") actualizarBadge();
@@ -553,38 +563,50 @@ function renderLista() {
         const filtrando = _busqueda || (_mostrarFiltroCat() && _catFiltro !== "todos");
         const etq = { _fav: "favoritos", _arch: "archivados" }[_catFiltro] || (_CAT_INFO[_catFiltro]?.label);
         lista.innerHTML = `<div class="empty-state">
-            <div class="empty-icon">${_busqueda ? "🔍" : (_catFiltro === "_arch" ? "🗂️" : (_tabActual === "recibidos" ? "📭" : "📤"))}</div>
+            <div class="empty-icon">${_busqueda ? "🔍" : (_tabActual === "papelera" ? "🗑" : (_catFiltro === "_arch" ? "🗂️" : (_tabActual === "recibidos" ? "📭" : "📤")))}</div>
             ${_busqueda
                 ? `Sin resultados para "${_esc(_busqueda)}"`
-                : filtrando
-                    ? `No tenés mensajes ${_catFiltro === "_fav" || _catFiltro === "_arch" ? etq : "de " + etq}`
-                    : `No tenés ${_tabActual === "recibidos" ? "mensajes recibidos" : "mensajes enviados"}`}
+                : _tabActual === "papelera"
+                    ? `La papelera está vacía.<div style="font-size:12px;color:#9ca3af;margin-top:6px;">Los mensajes borrados se guardan acá 30 días.</div>`
+                    : filtrando
+                        ? `No tenés mensajes ${_catFiltro === "_fav" || _catFiltro === "_arch" ? etq : "de " + etq}`
+                        : `No tenés ${_tabActual === "recibidos" ? "mensajes recibidos" : "mensajes enviados"}`}
         </div>`;
         return;
     }
 
+    const esPap = _tabActual === "papelera";
     const recorte = visibles.slice(0, _mostrando);
     let html = recorte.map(m => {
         const i       = _mensajes.indexOf(m);   // índice real en _mensajes (para verMensaje)
-        const esCC    = _tabActual === "recibidos" && (m.asunto || "").startsWith("[CC] ");
+        const ladoM   = esPap ? (m.lado || "recibido") : _tabActual;
+        const esCC    = ladoM === "recibidos" && (m.asunto || "").startsWith("[CC] ");
         const noLeido = _tabActual === "recibidos" && !m.leido;
-        const nombre  = _tabActual === "recibidos"
+        const esRec   = ladoM === "recibido" || ladoM === "recibidos";
+        const nombre  = esRec
             ? (m.de_nombre_display || m.de_username || "Sistema")
             : (m.para_nombre_display || m.para_username || "—");
-        const prefijo = _tabActual === "recibidos" ? "De" : "Para";
+        const prefijo = esRec ? "De" : "Para";
         const fecha   = _formatFecha(m.creado_en);
         const asuntoMostrar = esCC ? (m.asunto || "").slice(5) : (m.asunto || "(sin asunto)");
         const preview = (m.cuerpo || "").replace(/\n/g, " ").slice(0, 80);
         const tieneAdj = (m.adjuntos && m.adjuntos.length) ? ' <span class="msg-adj-ind" title="Con adjuntos">📎</span>' : "";
-        // Badge de categoría (solo en recibidos)
+        // Badge de categoría (solo en recibidos) / de retención (papelera)
         let catBadge = "";
         if (_tabActual === "recibidos") {
             const ci = _CAT_INFO[_catDe(m)];
             catBadge = `<div><span class="msg-cat-badge" style="background:${ci.bg};color:${ci.fg};">${ci.icono} ${ci.label}</span>${m.archivado && _catFiltro !== "_arch" ? ' <span class="msg-cat-badge" style="background:#fef3c7;color:#92400e;">🗂️ Archivado</span>' : ""}</div>`;
+        } else if (esPap) {
+            catBadge = `<div><span class="msg-cat-badge" style="background:#fef3c7;color:#92400e;">🗑 ${esRec ? "Recibido" : "Enviado"} · se borra en ${m.dias_restantes} día${m.dias_restantes === 1 ? "" : "s"}</span></div>`;
         }
         // Acciones (no en vista de cadena / modo empleado: solo lectura)
         let acciones = "";
-        if (!_cadena && !_emp) {
+        if (esPap) {
+            acciones = `<div class="msg-acciones">
+                       <button class="icon-btn" title="Recuperar" onclick="event.stopPropagation();recuperarMensaje(${m.id},'${ladoM}')">♻️</button>
+                       <button class="icon-btn" title="Eliminar definitivamente" onclick="event.stopPropagation();eliminarDefinitivo(${m.id},'${ladoM}')">🗑️</button>
+                   </div>`;
+        } else if (!_cadena && !_emp) {
             acciones = _tabActual === "recibidos"
                 ? `<div class="msg-acciones">
                        <button class="icon-btn ${m.favorito ? "fav-on" : ""}" title="${m.favorito ? "Quitar de favoritos" : "Marcar favorito"}" onclick="event.stopPropagation();toggleFavorito(${m.id})">${m.favorito ? "⭐" : "☆"}</button>
@@ -680,6 +702,33 @@ async function _eliminarConfirmado(id) {
     } catch (e) { alert("Error al eliminar: " + (e.message || e)); }
 }
 
+// ── PAPELERA: recuperar / eliminar definitivo ────────────────
+async function recuperarMensaje(id, lado) {
+    try {
+        await apiFetch(`/mensajes/${id}/restaurar?lado=${lado}`, { method: "POST" });
+        const idx = _mensajes.findIndex(m => m.id === id);
+        if (idx !== -1) _mensajes.splice(idx, 1);
+        if (_msgActual && _msgActual.id === id) cerrarVer();
+        renderLista();
+        _toast("Mensaje recuperado ♻️");
+    } catch (e) { alert("Error al recuperar: " + (e.message || e)); }
+}
+
+async function eliminarDefinitivo(id, lado) {
+    if (!confirm("¿Eliminar este mensaje definitivamente? No se podrá recuperar.")) return;
+    try {
+        await apiFetch(`/mensajes/${id}/definitivo?lado=${lado}`, { method: "DELETE" });
+        const idx = _mensajes.findIndex(m => m.id === id);
+        if (idx !== -1) _mensajes.splice(idx, 1);
+        if (_msgActual && _msgActual.id === id) cerrarVer();
+        renderLista();
+        _toast("Mensaje eliminado 🗑️");
+    } catch (e) { alert("Error al eliminar: " + (e.message || e)); }
+}
+
+function recuperarDesdeModal()  { if (_msgActual) recuperarMensaje(_msgActual.id, _msgActual.lado || "recibido"); }
+function eliminarDefDesdeModal() { if (_msgActual) eliminarDefinitivo(_msgActual.id, _msgActual.lado || "recibido"); }
+
 // Acciones desde el modal de lectura
 function toggleFavoritoModal()  { if (_msgActual) toggleFavorito(_msgActual.id); }
 function toggleArchivadoModal() { if (_msgActual) toggleArchivado(_msgActual.id); }
@@ -716,11 +765,14 @@ async function verMensaje(idx) {
     if (!m) return;
     _msgActual = m;
 
-    const esCC    = _tabActual === "recibidos" && (m.asunto || "").startsWith("[CC] ");
-    const nombre  = _tabActual === "recibidos"
+    const esPap   = _tabActual === "papelera";
+    const ladoM   = esPap ? (m.lado || "recibido") : _tabActual;
+    const esRec   = ladoM === "recibido" || ladoM === "recibidos";
+    const esCC    = esRec && (m.asunto || "").startsWith("[CC] ");
+    const nombre  = esRec
         ? (m.de_nombre_display || m.de_username || "Sistema")
         : (m.para_nombre_display || m.para_username || "—");
-    const prefijo = _tabActual === "recibidos" ? "De" : "Para";
+    const prefijo = esRec ? "De" : "Para";
     const asuntoMostrar = esCC ? (m.asunto || "").slice(5) : (m.asunto || "(sin asunto)");
 
     document.getElementById("det-asunto").textContent = asuntoMostrar;
@@ -763,15 +815,22 @@ async function verMensaje(idx) {
         </div>`;
     }
 
-    // Pie con acciones solo en recibidos propios (no en vista cadena / enviados)
+    // Pie con acciones: recibidos propios (fav/archivar/eliminar/responder), o papelera
+    // (recuperar / eliminar definitivo). En cadena/enviados: sin pie.
     const foot = document.getElementById("modal-ver-foot");
-    foot.style.display = (!_cadena && _tabActual === "recibidos") ? "flex" : "none";
+    const footPap = document.getElementById("modal-ver-foot-pap");
+    foot.style.display = (!_cadena && !esPap && _tabActual === "recibidos") ? "flex" : "none";
+    if (footPap) {
+        footPap.style.display = esPap ? "flex" : "none";
+        const info = document.getElementById("det-pap-info");
+        if (info && esPap) info.textContent = `Se borra definitivamente en ${m.dias_restantes} día${m.dias_restantes === 1 ? "" : "s"}`;
+    }
     _syncFootModal();
 
     document.getElementById("modal-ver").classList.add("open");
 
     // Marcar como leído (solo en el local actual; en la vista de cadena es solo lectura)
-    if (!_cadena && _tabActual === "recibidos" && !m.leido) {
+    if (!_cadena && !esPap && _tabActual === "recibidos" && !m.leido) {
         try {
             await apiFetch(`/mensajes/${m.id}/leer`, { method: "PATCH" });
             m.leido = true;
@@ -926,6 +985,7 @@ function setTab(tab) {
     const tc = document.getElementById("tab-cadena"); if (tc) tc.classList.remove("active");
     document.getElementById("tab-recibidos").classList.toggle("active", tab === "recibidos");
     document.getElementById("tab-enviados").classList.toggle("active",  tab === "enviados");
+    const tp = document.getElementById("tab-papelera"); if (tp) tp.classList.toggle("active", tab === "papelera");
     cargarMensajes();
 }
 
@@ -936,6 +996,7 @@ function toggleCadena() {
     document.getElementById("tab-cadena").classList.toggle("active", _cadena);
     document.getElementById("tab-recibidos").classList.toggle("active", !_cadena && _tabActual === "recibidos");
     document.getElementById("tab-enviados").classList.toggle("active", !_cadena && _tabActual === "enviados");
+    const tp = document.getElementById("tab-papelera"); if (tp) tp.classList.toggle("active", !_cadena && _tabActual === "papelera");
     cargarMensajes();
 }
 
