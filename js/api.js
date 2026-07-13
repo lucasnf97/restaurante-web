@@ -29,6 +29,79 @@ function displayName(x) {
 }
 window.displayName = displayName;
 
+// ── USERNAME único global: normalización + autocompletado + chequeo en vivo ──
+// Mirror del backend (fichas.normalizar_username): sin tildes, sin espacios, alfanum + punto.
+function normalizarUsername(s) {
+    return (s || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9.]/g, "");
+}
+window.normalizarUsername = normalizarUsername;
+
+// Cablea nombre/apellido → propuesta de username libre + chequeo de disponibilidad
+// en vivo. Deshabilita los `botones` (Crear/Guardar) mientras el username no esté libre.
+// opts: {nombre, apellido, username, estado, botones:[], base, excluirEmp, editadoManual}
+// `base`: "/auth/usuarios" o "/cadena/empleados". Devuelve { estaLibre() }.
+function wireUsername(opts) {
+    const { nombre, apellido, username, estado, base } = opts;
+    const botones = opts.botones || [];
+    let editado = !!opts.editadoManual, libre = false, timer = null, seq = 0;
+    const setBtns = v => botones.forEach(b => { if (b) b.disabled = !v; });
+    const setEstado = (txt, tipo) => {
+        if (!estado) return;
+        estado.textContent = txt;
+        estado.style.fontSize = "11px";
+        estado.style.marginTop = "3px";
+        estado.style.color = tipo === "ok" ? "#059669" : tipo === "err" ? "#dc2626" : "#6b7280";
+    };
+    async function proponer() {
+        if (editado) return;
+        const n = nombre.value.trim(), a = apellido.value.trim();
+        if (!n && !a) { username.value = ""; libre = false; setEstado("", ""); return; }
+        try {
+            const r = await api.getSilent(`${base}/username/sugerir?nombre=${encodeURIComponent(n)}&apellido=${encodeURIComponent(a)}`);
+            if (!editado && r && r.propuesta) { username.value = r.propuesta; libre = true; setEstado("Propuesta libre ✓", "ok"); setBtns(true); }
+        } catch { }
+    }
+    async function chequear() {
+        const u = normalizarUsername(username.value);
+        if (!u) { libre = true; setEstado("Sin usuario: la persona entra por su correo.", ""); setBtns(true); return; }
+        const mine = ++seq;
+        try {
+            const qs = `u=${encodeURIComponent(u)}` + (opts.excluirEmp ? `&excluir_emp=${opts.excluirEmp}` : "");
+            const r = await api.getSilent(`${base}/username/disponible?${qs}`);
+            if (mine !== seq) return;   // llegó una respuesta vieja
+            libre = !!r.libre;
+            if (libre) { setEstado("Disponible ✓", "ok"); setBtns(true); }
+            else { setEstado(`Ya está en uso — libre: ${r.sugerencia || "—"}`, "err"); setBtns(false); }
+        } catch { }
+    }
+    nombre.addEventListener("input", proponer);
+    apellido.addEventListener("input", proponer);
+    username.addEventListener("input", () => {
+        editado = true; libre = false; setBtns(false);
+        setEstado("Verificando…", "");
+        clearTimeout(timer); timer = setTimeout(chequear, 350);
+    });
+    username.addEventListener("blur", () => { username.value = normalizarUsername(username.value); });
+    if (username.value.trim()) { editado = true; chequear(); }
+    return { estaLibre: () => libre };
+}
+window.wireUsername = wireUsername;
+
+// Preview de una foto elegida en un <input type=file> dentro de un contenedor redondo.
+function previewFotoLocal(inputEl, prevEl) {
+    const f = inputEl.files && inputEl.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = e => {
+        prevEl.style.backgroundImage = `url('${e.target.result}')`;
+        prevEl.style.backgroundSize = "cover";
+        prevEl.style.backgroundPosition = "center";
+        prevEl.textContent = "";
+    };
+    rd.readAsDataURL(f);
+}
+window.previewFotoLocal = previewFotoLocal;
+
 // ── TOKEN ─────────────────────────────────────────────────────
 function getToken() {
     return localStorage.getItem("token");

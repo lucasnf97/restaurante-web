@@ -96,22 +96,29 @@
         <div class="modal">
             <div class="modal-head" id="m-title">Nuevo empleado</div>
             <div class="modal-body">
-                <div class="fld"><label>Email (identidad — con esto entra a la web)</label><input id="m-email" type="email" autocomplete="off" placeholder="tu@email.com"></div>
-                <div class="fld"><label>Nombre de usuario <span style="color:#94a3b8;font-weight:400">(opcional · único en la cadena · login cómodo en el terminal)</span></label><input id="m-username" autocomplete="off"></div>
-                <div class="fld"><label id="m-pass-lbl">Contraseña</label><input id="m-password" type="password" autocomplete="new-password"></div>
                 <div class="fld"><div class="row2">
                     <div style="flex:1"><label>Nombre</label><input id="m-nombre"></div>
                     <div style="flex:1"><label>Apellido</label><input id="m-apellido"></div>
                 </div></div>
+                <div class="fld"><label>Email (identidad — con esto entra a la web)</label><input id="m-email" type="email" autocomplete="off" placeholder="tu@email.com"></div>
+                <div class="fld"><label>Nombre de usuario <span style="color:#94a3b8;font-weight:400">(opcional · único en el sistema · login cómodo en el terminal)</span></label><input id="m-username" autocomplete="off" placeholder="Se propone solo; editable"><div id="m-username-estado"></div></div>
+                <div class="fld"><label id="m-pass-lbl">Contraseña</label><input id="m-password" type="password" autocomplete="new-password"></div>
                 <div class="fld"><div class="row2">
                     <div style="flex:1"><label>Teléfono</label><input id="m-telefono"></div>
                     <div style="flex:1"><label>DNI</label><input id="m-dni"></div>
                 </div></div>
+                <div class="fld"><label>Foto <span style="color:#94a3b8;font-weight:400">(opcional · tipo carnet)</span></label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div id="m-foto-prev" style="width:56px;height:56px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex-shrink:0;">📷</div>
+                        <input type="file" id="m-foto" accept="image/*" style="flex:1;">
+                        <button type="button" class="btn-sm" id="m-foto-quitar" onclick="marcarQuitarFoto()" style="display:none;">Quitar</button>
+                    </div>
+                </div>
                 <div class="msg" id="m-msg"></div>
             </div>
             <div class="modal-foot">
                 <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
-                <button class="btn-primary" onclick="guardar()">Guardar</button>
+                <button class="btn-primary" id="m-guardar-btn" onclick="guardar()">Guardar</button>
             </div>
         </div>
     </div>
@@ -207,7 +214,9 @@
                 </div>` : '<div class="asig-add"><span class="asig-none">Ya está en todos los locales de la cadena.</span></div>';
             return `<div class="emp-card">
                 <div class="emp-head">
-                    <div class="av">${_esc(_ini(e))}</div>
+                    ${e.foto_url
+                        ? `<div class="av" style="background-image:url('${escAttr(e.foto_url)}');background-size:cover;background-position:center;"></div>`
+                        : `<div class="av">${_esc(_ini(e))}</div>`}
                     <div><div class="emp-n">${_esc(nombre||e.username||e.email)}</div>
                         <div class="emp-m">${_esc(e.email||'(sin email — no puede entrar a la web)')}${e.username?' · usuario: '+_esc(e.username):''}${e.telefono?' · '+_esc(e.telefono):''}</div></div>
                     <div class="acc">
@@ -257,8 +266,10 @@
     }
 
     // ── Modal crear/editar ──
+    let _fotoQuitar = false;
     function abrirModal(id){
         _editId = id;
+        _fotoQuitar = false;
         const e = id ? _emps.find(x=>x.id===id) : null;
         document.getElementById('m-title').textContent = e ? 'Editar empleado' : 'Nuevo empleado';
         document.getElementById('m-email').value = e ? (e.email||'') : '';
@@ -270,14 +281,44 @@
         document.getElementById('m-telefono').value = e ? (e.telefono||'') : '';
         document.getElementById('m-dni').value = e ? (e.dni||'') : '';
         document.getElementById('m-msg').textContent = '';
+        document.getElementById('m-username-estado').textContent = '';
+        // Foto
+        const mFoto = document.getElementById('m-foto'); mFoto.value = '';
+        const prev = document.getElementById('m-foto-prev');
+        const quitarBtn = document.getElementById('m-foto-quitar');
+        if (e && e.foto_url) {
+            prev.style.backgroundImage = `url('${e.foto_url}')`; prev.style.backgroundSize='cover'; prev.style.backgroundPosition='center'; prev.textContent='';
+            quitarBtn.style.display = '';
+        } else {
+            prev.style.backgroundImage = ''; prev.textContent = e ? _ini(e) : '📷';
+            quitarBtn.style.display = e ? '' : 'none';
+        }
+        mFoto.onchange = () => { _fotoQuitar = false; previewFotoLocal(mFoto, prev); };
+        // Autocompletado + chequeo en vivo (base del panel de cadena; excluye la propia ficha)
+        wireUsername({
+            nombre: document.getElementById('m-nombre'),
+            apellido: document.getElementById('m-apellido'),
+            username: document.getElementById('m-username'),
+            estado: document.getElementById('m-username-estado'),
+            botones: [document.getElementById('m-guardar-btn')],
+            base: '/cadena/empleados', excluirEmp: e ? e.id : null, editadoManual: !!e,
+        });
         document.getElementById('overlay').classList.add('open');
     }
     function cerrarModal(){ document.getElementById('overlay').classList.remove('open'); _editId = null; }
 
+    function marcarQuitarFoto(){
+        _fotoQuitar = true;
+        document.getElementById('m-foto').value = '';
+        const e = _editId ? _emps.find(x=>x.id===_editId) : null;
+        const prev = document.getElementById('m-foto-prev');
+        prev.style.backgroundImage = ''; prev.textContent = e ? _ini(e) : '📷';
+    }
+
     async function guardar(){
         const msg = document.getElementById('m-msg');
         const body = {
-            username: document.getElementById('m-username').value.trim(),
+            username: normalizarUsername(document.getElementById('m-username').value) || null,
             password: document.getElementById('m-password').value,
             nombre: document.getElementById('m-nombre').value.trim(),
             apellido: document.getElementById('m-apellido').value.trim(),
@@ -286,13 +327,23 @@
             dni: document.getElementById('m-dni').value.trim(),
         };
         try {
+            let empId = _editId;
             if (_editId) {
                 const patch = { email:body.email, username:body.username, nombre:body.nombre, apellido:body.apellido, telefono:body.telefono, dni:body.dni };
                 if (body.password) patch.password = body.password;
                 await api.patch('/cadena/empleados/'+_editId, patch);
             } else {
                 if (!body.email || !body.password) { msg.className='msg err'; msg.textContent='El email y la contraseña son obligatorios.'; return; }
-                await api.post('/cadena/empleados', body);
+                const r = await api.post('/cadena/empleados', body);
+                empId = r && r.id;
+            }
+            // Foto: subir la nueva o borrar si se marcó Quitar.
+            const f = document.getElementById('m-foto').files[0];
+            if (f && empId) {
+                const fd = new FormData(); fd.append('file', f);
+                await apiFetch('/cadena/empleados/'+empId+'/foto', { method:'POST', body: fd });
+            } else if (_editId && _fotoQuitar) {
+                await api.delete('/cadena/empleados/'+_editId+'/foto');
             }
             cerrarModal(); await cargar();
         } catch(e){ msg.className='msg err'; msg.textContent='Error: '+(e.message||e); }

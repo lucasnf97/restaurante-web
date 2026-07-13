@@ -177,8 +177,9 @@
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
             <div class="form-group">
-                <label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto)</span></label>
-                <input type="text" id="fn-username" placeholder="Único en la cadena">
+                <label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto · único)</span></label>
+                <input type="text" id="fn-username" placeholder="Se propone solo; editable">
+                <div id="fn-username-estado"></div>
             </div>
             <div class="form-group">
                 <label>Contraseña *</label>
@@ -196,10 +197,17 @@
                 </select>
             </div>
         </div>
+        <div class="form-group">
+            <label>Foto <span style="color:#94a3b8;font-weight:400;">(opcional · tipo carnet)</span></label>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div id="fn-foto-prev" style="width:56px;height:56px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex-shrink:0;">📷</div>
+                <input type="file" id="fn-foto" accept="image/*" style="flex:1;">
+            </div>
+        </div>
         <small style="color:#6b7280;font-size:11px;display:block;">El rol y el estado valen para ESTE restaurante. Los permisos se asignan automáticamente según el rol. El programa nombra a la persona por Nombre y Apellido; el usuario es solo la credencial de login.</small>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo')">Cancelar</button>
-            <button class="btn btn-primary" onclick="crearUsuario()">Crear</button>
+            <button class="btn btn-primary" id="fn-crear-btn" onclick="crearUsuario()">Crear</button>
         </div>
     </div>
 </div>
@@ -232,8 +240,9 @@
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
             <div class="form-group">
-                <label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto)</span></label>
-                <input type="text" id="fe-username" placeholder="Único en la cadena">
+                <label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto · único)</span></label>
+                <input type="text" id="fe-username" placeholder="Único en el sistema">
+                <div id="fe-username-estado"></div>
             </div>
             <div class="form-group">
                 <label>Iniciales <span style="color:#94a3b8;font-weight:400;">(máx 3)</span></label>
@@ -252,10 +261,18 @@
                 </select>
             </div>
         </div>
+        <div class="form-group">
+            <label>Foto <span style="color:#94a3b8;font-weight:400;">(opcional · tipo carnet)</span></label>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div id="fe-foto-prev" style="width:56px;height:56px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex-shrink:0;">📷</div>
+                <input type="file" id="fe-foto" accept="image/*" style="flex:1;">
+                <button type="button" class="btn btn-secondary btn-sm" id="fe-foto-quitar" onclick="marcarQuitarFoto()">Quitar</button>
+            </div>
+        </div>
         <small style="color:#6b7280;font-size:11px;display:block;">Los datos personales editan la ficha única de la persona (aplican en todos sus restaurantes). El rol y el estado valen solo para ESTE restaurante.</small>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-editar')">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarEdicion()">Guardar</button>
+            <button class="btn btn-primary" id="fe-guardar-btn" onclick="guardarEdicion()">Guardar</button>
         </div>
     </div>
 </div>
@@ -307,6 +324,7 @@
     let rolesDisp = [];
     let editandoId = null;
     let opcionesRolHTML = '';
+    let _fotoQuitar = false;   // en edición: se marcó "Quitar" la foto
 
     async function cargarRolesOpciones() {
         try {
@@ -340,9 +358,9 @@
                 <td><strong>${esc(u.nombre_display || u.username)}</strong></td>
                 <td style="color:#6b7280;">${esc(u.username)}</td>
                 <td style="text-align:center;">
-                    <span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">
-                        ${u.iniciales || u.username.substring(0,3).toUpperCase()}
-                    </span>
+                    ${u.foto_url
+                        ? `<img src="${escAttr(u.foto_url)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;">`
+                        : `<span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">${u.iniciales || u.username.substring(0,3).toUpperCase()}</span>`}
                 </td>
                 <td><span class="badge ${rolBadge(u.rol)}">${esc(u.rol)}</span></td>
                 <td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
@@ -376,6 +394,21 @@
             document.getElementById("fn-" + c).value = "";
         document.getElementById("fn-rol").value = "empleado";
         document.getElementById("fn-activo").value = "true";
+        // Reset foto
+        const fnFoto = document.getElementById("fn-foto"); fnFoto.value = "";
+        const prev = document.getElementById("fn-foto-prev");
+        prev.style.backgroundImage = ""; prev.textContent = "📷";
+        fnFoto.onchange = () => previewFotoLocal(fnFoto, prev);
+        document.getElementById("fn-username-estado").textContent = "";
+        // Autocompletado + chequeo en vivo (base del panel de local)
+        wireUsername({
+            nombre: document.getElementById("fn-nombre"),
+            apellido: document.getElementById("fn-apellido"),
+            username: document.getElementById("fn-username"),
+            estado: document.getElementById("fn-username-estado"),
+            botones: [document.getElementById("fn-crear-btn")],
+            base: "/auth/usuarios",
+        });
         document.getElementById("modal-nuevo").classList.add("active");
     }
 
@@ -387,7 +420,7 @@
             dni: v("fn-dni") || null,
             telefono: v("fn-telefono") || null,
             email: v("fn-email"),
-            username: v("fn-username") || null,
+            username: normalizarUsername(v("fn-username")) || null,
             password: document.getElementById("fn-password").value,
             rol: document.getElementById("fn-rol").value,
             activo: document.getElementById("fn-activo").value === "true"
@@ -395,7 +428,13 @@
         if (!body.email || !body.email.includes("@")) { alert("El correo es obligatorio (y debe ser válido)."); return; }
         if (!body.password) { alert("La contraseña es obligatoria."); return; }
         try {
-            await api.post("/auth/usuarios", body);
+            const r = await api.post("/auth/usuarios", body);
+            // Foto (si se eligió): se sube tras crear, con el id del usuario recién creado.
+            const f = document.getElementById("fn-foto").files[0];
+            if (f && r && r.id) {
+                const fd = new FormData(); fd.append("file", f);
+                await apiFetch(`/auth/usuarios/${r.id}/foto`, { method: "POST", body: fd });
+            }
             cerrarModal("modal-nuevo");
             await cargarUsuarios();
         } catch (err) { alert("Error: " + err.message); }
@@ -403,6 +442,7 @@
 
     function abrirModalEditar(id) {
         editandoId = id;
+        _fotoQuitar = false;
         const u = usuarios.find(x => x.id === id);
         document.getElementById("fe-nombre").value = u.nombre || "";
         document.getElementById("fe-apellido").value = u.apellido || "";
@@ -419,8 +459,35 @@
         feRol.value = u.rol;
         document.getElementById("fe-activo").value = u.activo ? "true" : "false";
         document.getElementById("fe-email").value = u.email || "";
+        // Foto actual + selector
+        const feFoto = document.getElementById("fe-foto"); feFoto.value = "";
+        const prev = document.getElementById("fe-foto-prev");
+        if (u.foto_url) {
+            prev.style.backgroundImage = `url('${u.foto_url}')`;
+            prev.style.backgroundSize = "cover"; prev.style.backgroundPosition = "center"; prev.textContent = "";
+        } else { prev.style.backgroundImage = ""; prev.textContent = u.iniciales || "📷"; }
+        feFoto.onchange = () => { _fotoQuitar = false; previewFotoLocal(feFoto, prev); };
+        document.getElementById("fe-username-estado").textContent = "";
+        // Chequeo en vivo (excluye la propia ficha por empleado_id)
+        wireUsername({
+            nombre: document.getElementById("fe-nombre"),
+            apellido: document.getElementById("fe-apellido"),
+            username: document.getElementById("fe-username"),
+            estado: document.getElementById("fe-username-estado"),
+            botones: [document.getElementById("fe-guardar-btn")],
+            base: "/auth/usuarios", excluirEmp: u.empleado_id, editadoManual: true,
+        });
         document.getElementById("modal-editar").classList.add("active");
     }
+
+    function marcarQuitarFoto() {
+        _fotoQuitar = true;
+        document.getElementById("fe-foto").value = "";
+        const prev = document.getElementById("fe-foto-prev");
+        const u = usuarios.find(x => x.id === editandoId) || {};
+        prev.style.backgroundImage = ""; prev.textContent = u.iniciales || "📷";
+    }
+
     async function guardarEdicion() {
         const u = usuarios.find(x => x.id === editandoId) || {};
         const v = id => document.getElementById(id).value.trim();
@@ -433,19 +500,26 @@
         // Datos personales: mandar solo lo que cambió (editan la ficha única de la
         // persona — con ficha, aplican en todos sus restaurantes)
         const pares = [["nombre", "fe-nombre"], ["apellido", "fe-apellido"], ["dni", "fe-dni"],
-                       ["telefono", "fe-telefono"], ["email", "fe-email"], ["username", "fe-username"]];
+                       ["telefono", "fe-telefono"], ["email", "fe-email"]];
         for (const [campo, inputId] of pares) {
             const nuevo = v(inputId);
             if (nuevo !== (u[campo] || "")) body[campo] = nuevo;
         }
+        const nuevoUser = normalizarUsername(v("fe-username"));
+        if (nuevoUser !== (u.username || "")) body.username = nuevoUser || null;
         if ("email" in body && (!body.email || !body.email.includes("@"))) {
             alert("El correo no puede quedar vacío."); return;
         }
-        if ("username" in body && !body.username) {
-            alert("El usuario no puede quedar vacío."); return;
-        }
         try {
             await api.patch(`/auth/usuarios/${editandoId}`, body);
+            // Foto: subir la nueva, o borrar si se marcó Quitar.
+            const f = document.getElementById("fe-foto").files[0];
+            if (f) {
+                const fd = new FormData(); fd.append("file", f);
+                await apiFetch(`/auth/usuarios/${editandoId}/foto`, { method: "POST", body: fd });
+            } else if (_fotoQuitar && u.foto_url) {
+                await api.delete(`/auth/usuarios/${editandoId}/foto`);
+            }
             cerrarModal("modal-editar");
             await cargarUsuarios();
         } catch (err) { alert("Error: " + err.message); }
