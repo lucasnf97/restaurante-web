@@ -262,7 +262,7 @@ async function cargarUsuariosPersonal() {
             ? _usuariosPersonal.map(u => `
                 <div class="grp-chip-row">
                     <span style="font-size:20px;">🔒</span>
-                    <span class="gn">${esc(u.username)} <span style="color:#9ca3af;font-weight:400;">(${esc(u.rol)})</span></span>
+                    <span class="gn">${esc(displayName(u))} <span style="color:#9ca3af;font-weight:400;">(${esc(u.rol)})</span></span>
                     <button class="btn" onclick="abrirPersonal(${u.id})">Abrir</button>
                 </div>`).join('')
             : '<div class="doc-empty">Sin usuarios.</div>');
@@ -535,7 +535,7 @@ function renderCapacitaciones() {
         }
         const destLista = _capsPuedeEditar ? `<div class="cap-dest-lista" id="cap-dest-${c.id}">` +
             (c.destinatarios || []).map(d => `<div class="cap-dest-row">
-                <span class="quien">${esc(d.username)}</span>
+                <span class="quien">${esc(displayName(d))}</span>
                 ${d.firmado_en
                     ? `<span class="cap-chip ok">✓ ${fmtFechaHora(d.firmado_en)}</span>` +
                       (d.comprobante_url ? ` <a class="dl" href="${esc(d.comprobante_url)}" target="_blank" rel="noopener">Comprobante</a>` : '')
@@ -558,7 +558,7 @@ async function abrirCapModal() {
     document.getElementById('cap-desc').value = '';
     document.getElementById('cap-file').value = '';
     document.getElementById('cap-dest').innerHTML = _usuariosDisp.map(u =>
-        `<label class="check-row"><input type="checkbox" value="${u.id}"> ${esc(u.username)} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`
+        `<label class="check-row"><input type="checkbox" value="${u.id}"> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`
     ).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
     document.getElementById('modal-cap').classList.add('open');
 }
@@ -641,7 +641,7 @@ async function abrirGrupoModal(id) {
     document.getElementById('grupo-roles').innerHTML = _rolesDisp.map(r =>
         `<label class="check-row"><input type="checkbox" value="${esc(r.nombre)}" ${rolesSel.has(r.nombre) ? 'checked' : ''}> ${esc(r.nombre)}</label>`).join('') || '<span style="font-size:12px;color:#9ca3af">Sin roles</span>';
     document.getElementById('grupo-usuarios').innerHTML = _usuariosDisp.map(u =>
-        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(u.username)} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
+        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
     document.getElementById('grupo-del').style.display = _grupoEdit ? '' : 'none';
     document.getElementById('modal-grupo').classList.add('open');
 }
