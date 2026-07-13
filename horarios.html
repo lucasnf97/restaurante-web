@@ -188,7 +188,7 @@
     </div>
 
     <!-- Modal edición de turno -->
-    <div class="overlay" id="overlay" onclick="if(event.target===this) cerrarModal()">
+    <div class="overlay" id="overlay">
         <div class="modal">
             <div class="modal-head">
                 <div class="mav" id="m-av">--</div>
@@ -212,7 +212,7 @@
     </div>
 
     <!-- Modal plantilla -->
-    <div class="overlay" id="tpl-overlay" onclick="if(event.target===this) cerrarTplModal()">
+    <div class="overlay" id="tpl-overlay">
         <div class="modal">
             <div class="modal-head"><div><div class="mt" id="t-title">Nueva plantilla</div><div class="ms">Arrastrá la plantilla a una celda para aplicarla.</div></div></div>
             <div class="modal-body">
@@ -231,7 +231,7 @@
     </div>
 
     <!-- Modal elegir restaurante: plantilla sobre un empleado de varios locales sin filtro -->
-    <div class="overlay" id="tplrest-overlay" onclick="if(event.target===this) cerrarTplRest()">
+    <div class="overlay" id="tplrest-overlay">
         <div class="modal" style="max-width:400px;">
             <div class="modal-head"><div><div class="mt">¿En qué restaurante?</div><div class="ms" id="tr-sub"></div></div></div>
             <div class="modal-body" id="tr-opts" style="display:flex;flex-direction:column;gap:8px;"></div>
@@ -692,7 +692,6 @@
               <button class="ix-b prim" onclick="enviarIntercambio()">Enviar solicitud</button>
             </div>
           </div>`;
-        ov.addEventListener('click', e=>{ if(e.target===ov) cerrarIntercambio(); });
         document.body.appendChild(ov);
         // Modal "Ofrecer turno(s)"
         const of=document.createElement('div');
@@ -706,7 +705,6 @@
               <button class="ix-b prim" onclick="_ixConfirmarOfrecer()">Ofrecer</button>
             </div>
           </div>`;
-        of.addEventListener('click', e=>{ if(e.target===of) of.style.display='none'; });
         document.body.appendChild(of);
         // Modal "Crear turno abierto"
         const ab=document.createElement('div'); ab.className='ix-ov'; ab.id='abierto-modal';
@@ -721,7 +719,6 @@
             <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;margin-top:8px;"><input type="checkbox" id="ab-muro" style="width:auto;"> Publicar también en el muro</label>
             <div class="ix-acts"><button class="ix-b sec" onclick="document.getElementById('abierto-modal').style.display='none'">Cancelar</button><button class="ix-b prim" onclick="_crearAbierto()">Crear</button></div>
           </div>`;
-        ab.addEventListener('click', e=>{ if(e.target===ab) ab.style.display='none'; });
         document.body.appendChild(ab);
         // Modal "Asignar turno abierto"
         const asg=document.createElement('div'); asg.className='ix-ov'; asg.id='asignar-modal';
@@ -731,7 +728,6 @@
             <div id="asig-lista"></div>
             <div class="ix-acts"><button class="ix-b sec" onclick="document.getElementById('asignar-modal').style.display='none'">Cerrar</button></div>
           </div>`;
-        asg.addEventListener('click', e=>{ if(e.target===asg) asg.style.display='none'; });
         document.body.appendChild(asg);
     }
     function cerrarMenuTurno(){ const e=document.getElementById('cell-menu'); if(e) e.remove(); }
@@ -1146,7 +1142,7 @@
             body=`<div class="dg-wrap">${head}${filas}</div>`;
         }
         let ov=document.getElementById('desglose-modal');
-        if(!ov){ ov=document.createElement('div'); ov.id='desglose-modal'; ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
+        if(!ov){ ov=document.createElement('div'); ov.id='desglose-modal'; document.body.appendChild(ov); }
         const dd=new Date(fecha+'T00:00:00');
         const titulo=`Desglose · ${DIAS_LARGO[jsDay2Api(dd)]} ${dd.getDate()} de ${MESES[dd.getMonth()]}`;
         const leyenda = rolesUsados.size

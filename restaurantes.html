@@ -84,7 +84,7 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
                     <option value="completo">Completo (POS + gestión)</option>
                     <option value="analisis">Solo análisis de datos</option>
                 </select>
-                <div class="hint">Análisis = Productos, Stock, Facturas, Estadísticas e Importar ventas. Se puede editar después.</div>
+                <div class="hint">Análisis = Productos, Stock, Facturas, Estadísticas e Importar informes. Se puede editar después.</div>
             </div>
             <div class="field" style="margin-top:12px;">
                 <label>Gerentes asignados</label>
@@ -306,7 +306,7 @@ const MODULOS_DEF = [
     {key:'caja',         label:'Caja'},
     {key:'personal',     label:'Personal (fichajes, usuarios, horarios, salarios)'},
     {key:'estadisticas', label:'Facturación y Estadísticas'},
-    {key:'importar',     label:'Importar ventas (análisis)'},
+    {key:'importar',     label:'Importar informes'},
 ];
 const PRESET_COMPLETO = MODULOS_DEF.map(m=>m.key);
 const PRESET_ANALISIS = ['productos','stock','facturas','estadisticas','importar'];
@@ -721,7 +721,7 @@ function usarCodigoReservado(){
 }
 
 function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
-document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('active'); }));
+// Los modales solo cierran con su botón Cancelar/Cerrar (no al clickear el fondo).
 
 function limpiarFiltros(){
     ['f-codigo','f-nombre','f-gerente','fc-pais','fc-ciudad','fc-nombre'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
