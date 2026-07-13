@@ -382,6 +382,7 @@ const _CAT_INFO = {
     personal:   { label: "Personal",   icono: "👥", bg: "#f3f4f6", fg: "#4b5563" },
     documentos: { label: "Documentos", icono: "📁", bg: "#fef3c7", fg: "#92400e" },
     tareas:     { label: "Tareas",     icono: "📋", bg: "#dcfce7", fg: "#166534" },
+    stock:      { label: "Control de Stock", icono: "📦", bg: "#fee2e2", fg: "#b91c1c" },
 };
 function _catDe(m) { return _CAT_INFO[m.categoria] ? m.categoria : "personal"; }
 let _usuariosMap = {};   // id → {id, username, rol}
@@ -482,6 +483,7 @@ function renderChipsCat() {
     const cats = ["horarios", "social", "personal"];
     if (_mensajes.some(m => _catDe(m) === "documentos")) cats.push("documentos");
     if (_mensajes.some(m => _catDe(m) === "tareas")) cats.push("tareas");
+    if (_mensajes.some(m => _catDe(m) === "stock")) cats.push("stock");
     const chip = (key, label, icono, count, esp) => {
         const cnt = count ? `<span class="cat-count">${count}</span>` : "";
         return `<button class="cat-chip ${esp ? "esp" : ""} ${_catFiltro === key ? "active" : ""}" onclick="filtrarCat('${key}')">${icono ? icono + " " : ""}${label}${cnt}</button>`;
