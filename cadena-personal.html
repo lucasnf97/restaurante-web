@@ -77,7 +77,6 @@
     <div class="wrap">
         <div class="topbar">
             <div class="sec-title">Empleados</div>
-            <button class="btn-sm" onclick="vincularExistentes()" title="Crear fichas maestras para los empleados que ya existen en tus locales">🔗 Vincular existentes</button>
             <button class="btn-primary" onclick="abrirModal(null)">＋ Nuevo empleado</button>
         </div>
         <p class="hint">Cada empleado es una <b>ficha única</b> de la cadena (identidad, datos). Lo <b>asignás a uno o más locales</b> con un rol; su acceso (login + rol) se crea en cada local sin duplicar la persona. El <b>rol y el estado (alta/baja) son POR local</b>: con ⏸ lo das de baja en un local sin quitarlo (queda agregado, sin acceso ahí).</p>
@@ -92,7 +91,7 @@
     </div>
 
     <!-- Modal crear/editar empleado -->
-    <div class="overlay" id="overlay" onclick="if(event.target===this) cerrarModal()">
+    <div class="overlay" id="overlay">
         <div class="modal">
             <div class="modal-head" id="m-title">Nuevo empleado</div>
             <div class="modal-body">
@@ -245,19 +244,6 @@
     async function toggleEstado(empId, restId, actual){
         try { await api.patch('/cadena/empleados/'+empId+'/estado', { restaurante_id: restId, activo: !actual }); await cargar(); }
         catch(e){ alert('No se pudo cambiar el estado: '+(e.message||e)); }
-    }
-    async function vincularExistentes(){
-        if (!confirm('¿Crear fichas maestras para los empleados que YA existen en tus locales (agrupados por usuario)? Es seguro e idempotente — podés repetirlo.')) return;
-        try {
-            const r = await api.post('/cadena/empleados/vincular-existentes', {});
-            let txt = 'Vinculación lista.\nFichas nuevas: '+(r.empleados_creados||0)+'\nAsignaciones vinculadas: '+(r.asignaciones_vinculadas||0);
-            if ((r.ambiguos||[]).length) {
-                txt += '\n\n⚠ Usuarios con el mismo nombre en varios locales que NO parecen la misma persona (quedaron en fichas separadas — revisalos):\n' +
-                       r.ambiguos.map(a=>'· '+a.username+' ('+a.locales.join(', ')+')').join('\n');
-            }
-            alert(txt);
-            await cargar();
-        } catch(e){ alert('No se pudo vincular: '+(e.message||e)); }
     }
     async function borrar(empId, username){
         if (!confirm('¿Eliminar al empleado "'+username+'" de la cadena? Se quita su acceso de todos los locales.')) return;

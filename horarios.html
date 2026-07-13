@@ -346,6 +346,7 @@
     // Solicitudes de turnos (Fase 1: intercambio). Mi fila de la grilla = mi username.
     const _miKey = (_user.username||_user.nombre||'').toLowerCase();
     let _solicitudesSemana = {};   // `${restaurante_id}|${usuario_id}|${fechaISO}` -> solicitud activa
+    let _ixComprometidos = new Set();   // horario_ids ya ofrecidos/intercambiados (lado 'da' activo) → bloqueados
     let _desdeISO='', _hastaISO='';
     let _ixSel = null;             // modo "elegir turno del compañero desde la grilla"
     let _ixOwnSel = null;          // modo "seleccionar varios turnos míos" { R, turnos:[{id,date,franjas}] }
@@ -456,7 +457,7 @@
     // Trae las solicitudes activas del rango y las indexa para pintar el marcador 🔁.
     // Single restaurante (token con schema): una sola llamada. Cadena: una por restaurante.
     async function _cargarSolicitudes(desde, hasta){
-        _solicitudesSemana = {}; _abiertos = [];
+        _solicitudesSemana = {}; _abiertos = []; _ixComprometidos = new Set();
         const ctxs = _SINGLE ? [null] : _rests.map(r=>r.id);
         for (const rid of ctxs){
             try{
@@ -478,6 +479,9 @@
                     (s.turnos||[]).forEach(t=>{
                         const uid = (t.lado==='da') ? s.creado_por : s.destino_usuario_id;
                         if(uid && t.fecha) _solicitudesSemana[`${R}|${uid}|${t.fecha}`]=s;
+                        // El turno que alguien está DANDO (lado 'da') queda comprometido
+                        // hasta que la solicitud se defina o se cancele → no reofertar.
+                        if(t.lado==='da' && t.horario_id) _ixComprometidos.add(t.horario_id);
                     });
                 });
             }catch(e){ /* contexto sin acceso (p.ej. gerente_cadena): se ignora */ }
@@ -591,7 +595,7 @@
                         // Elegible para ofertar/intercambiar = PUBLICADO y de hoy en
                         // adelante (misma regla que _ixTurnosDe). Antes se resaltaban
                         // también los pasados/borrador pero el click no hacía nada.
-                        const _eleg = e.publicado && key>=_ixHoyISO();
+                        const _eleg = e.publicado && key>=_ixHoyISO() && !_ixComprometidos.has(e.id);
                         const _enModoSel = (_ixOwnSel && u.key===_miKey && s.restaurante_id===_ixOwnSel.R)
                                         || (_ixSel && u.key===_ixSel.destKey && s.restaurante_id===_ixSel.R);
                         const _selRecibe = _eleg && _ixSel && u.key===_ixSel.destKey && s.restaurante_id===_ixSel.R;
@@ -603,7 +607,7 @@
                         if(_selRecibe)            _handlers=`onclick="event.stopPropagation();_ixSeleccionarTurno(${e.id})"`;
                         else if(_selPropio)       _handlers=`onclick="event.stopPropagation();_ixTogglePropio(${e.id})"`;
                         // En modo selección, los turnos NO elegibles (pasados/borrador) quedan inertes
-                        else if(_enModoSel)       _handlers=`onclick="event.stopPropagation();" title="Este turno no se puede ofrecer (pasado o sin publicar)"`;
+                        else if(_enModoSel)       _handlers=`onclick="event.stopPropagation();" title="Este turno no se puede ofrecer (pasado, sin publicar o ya ofrecido/en intercambio)"`;
                         else if(_ofDisp && !esMio)_handlers=`onclick="event.stopPropagation();_tomarOferta(${_sol.id},${s.restaurante_id})"`;
                         else if(esMio)            _handlers=`onclick="event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id},${_ofId})"`;
                         // Editor sobre turno ajeno: 1 click = gestionar solicitud, doble click = editar config.
@@ -763,7 +767,8 @@
     function _ixTurnosDe(u, R){
         const hoy=_ixHoyISO(), out=[];
         Object.entries(u.shiftsByDate||{}).forEach(([date,arr])=>{
-            (arr||[]).forEach(s=>{ if(s.restaurante_id===R && s.entry && s.entry.publicado && date>=hoy)
+            (arr||[]).forEach(s=>{ if(s.restaurante_id===R && s.entry && s.entry.publicado && date>=hoy
+                    && !_ixComprometidos.has(s.entry.id))   // ya ofrecido/intercambiado → no reofertar
                 out.push({ id:s.entry.id, date, franjas:(s.entry.franjas||[]).map(f=>`${(f.inicio||'').slice(0,5)}–${(f.fin||'').slice(0,5)}`).join(', ') }); });
         });
         out.sort((a,b)=>a.date.localeCompare(b.date));
