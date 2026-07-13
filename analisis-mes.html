@@ -636,14 +636,19 @@ function actualizarLblMes() {
 }
 
 // ── Meta mensual (barra de progreso) ────────────────────────────
-const META_KEY = claveRest('meta_mensual_v1');   // por restaurante
+let _metaMensual = null;   // objetivo mensual (SERVIDOR, por restaurante)
+let _metaDia = {};         // objetivo diario { facturacion, tickets } (SERVIDOR)
 let datosMes         = null;
 let ventasMesAnterior = null;
 
-function getMeta() {
-    try { const v = JSON.parse(localStorage.getItem(META_KEY))?.meta; return v > 0 ? v : null; }
-    catch { return null; }
+async function _cargarMetas() {
+    try {
+        const m = await apiFetch('/reportes/metas');
+        _metaMensual = (m && m.mensual > 0) ? m.mensual : null;
+        _metaDia = { facturacion: (m && m.diaria_fact) || null, tickets: (m && m.diaria_tickets) || null };
+    } catch { _metaMensual = null; _metaDia = {}; }
 }
+function getMeta() { return _metaMensual; }
 
 function toggleMetaConfig() {
     const bar = document.getElementById("meta-config-bar");
@@ -653,20 +658,24 @@ function toggleMetaConfig() {
     if (open) document.getElementById("meta-valor").value = getMeta() ?? '';
 }
 
-function guardarMeta() {
+async function guardarMeta() {
     const v = parseFloat(document.getElementById("meta-valor").value);
-    if (v > 0) localStorage.setItem(META_KEY, JSON.stringify({ meta: v }));
+    _metaMensual = v > 0 ? v : null;
     document.getElementById("meta-config-bar").classList.remove("visible");
     document.getElementById("btn-gear-meta").classList.remove("active");
     renderProgressBar();
+    try { await apiFetch('/reportes/metas', { method: 'PUT', body: JSON.stringify({ mensual: _metaMensual }) }); }
+    catch (e) { alert('No se pudo guardar la meta: ' + e.message); }
 }
 
-function borrarMeta() {
-    localStorage.removeItem(META_KEY);
+async function borrarMeta() {
+    _metaMensual = null;
     document.getElementById("meta-valor").value = '';
     document.getElementById("meta-config-bar").classList.remove("visible");
     document.getElementById("btn-gear-meta").classList.remove("active");
     renderProgressBar();
+    try { await apiFetch('/reportes/metas', { method: 'PUT', body: JSON.stringify({ mensual: null }) }); }
+    catch (e) {}
 }
 
 function prevMonthParams(y, m) {
@@ -1390,17 +1399,13 @@ function toggleRow(id) {
 }
 
 // ── Progreso del día ────────────────────────────────────────────
-const META_DIA_KEY = claveRest('meta_diaria_v1');   // por restaurante
 let datosDay = null;
 
 const DIAS_LONG  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const MESES_LONG = ['enero','febrero','marzo','abril','mayo','junio',
                     'julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
-function getMetaDia() {
-    try { return JSON.parse(localStorage.getItem(META_DIA_KEY)) || {}; }
-    catch { return {}; }
-}
+function getMetaDia() { return _metaDia || {}; }
 
 function toggleDayConfig() {
     const bar  = document.getElementById('day-config-bar');
@@ -1414,20 +1419,24 @@ function toggleDayConfig() {
     }
 }
 
-function guardarMetaDia() {
+async function guardarMetaDia() {
     const f = parseFloat(document.getElementById('day-meta-fact').value) || null;
     const t = parseInt(document.getElementById('day-meta-tickets').value)  || null;
-    localStorage.setItem(META_DIA_KEY, JSON.stringify({ facturacion: f, tickets: t }));
+    _metaDia = { facturacion: f, tickets: t };
     document.getElementById('day-config-bar').classList.remove('visible');
     document.getElementById('btn-gear-day').classList.remove('active');
     renderDayBars();
+    try { await apiFetch('/reportes/metas', { method: 'PUT', body: JSON.stringify({ diaria_fact: f, diaria_tickets: t }) }); }
+    catch (e) { alert('No se pudo guardar el objetivo diario: ' + e.message); }
 }
 
-function borrarMetaDia() {
-    localStorage.removeItem(META_DIA_KEY);
+async function borrarMetaDia() {
+    _metaDia = {};
     document.getElementById('day-config-bar').classList.remove('visible');
     document.getElementById('btn-gear-day').classList.remove('active');
     renderDayBars();
+    try { await apiFetch('/reportes/metas', { method: 'PUT', body: JSON.stringify({ diaria_fact: null, diaria_tickets: null }) }); }
+    catch (e) {}
 }
 
 async function cargarDia() {
@@ -1571,7 +1580,7 @@ function renderOneDayBar({ valor, label, formatVal, formatFill, markers }) {
 }
 
 // ── Init ────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     requireAuth();
     cargarUmbralesUI();
     actualizarLblMes();
@@ -1581,6 +1590,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('day-date-lbl').textContent =
         `${DIAS_LONG[hoy.getDay()]}, ${hoy.getDate()} de ${MESES_LONG[hoy.getMonth()]} de ${hoy.getFullYear()}`;
 
+    await _cargarMetas();   // objetivos (mensual + diario) desde el servidor
     cargarFacturacion();
     cargarCostos();
     cargarDia();

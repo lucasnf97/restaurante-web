@@ -1221,14 +1221,15 @@ function actualizarLblMes() {
 }
 
 // ── Meta mensual (barra de progreso) ────────────────────────────
-const META_KEY = claveRest('meta_mensual_v1');   // por restaurante
-let datosMes         = null;
+let _metaMensual = null;   // objetivo mensual: se guarda en el SERVIDOR (por restaurante)
+let datosMes         = null;   // para que la app del empleado lo lea. Configurable acá (engranaje).
 let ventasMesAnterior = null;
 
-function getMeta() {
-    try { const v = JSON.parse(localStorage.getItem(META_KEY))?.meta; return v > 0 ? v : null; }
-    catch { return null; }
+async function _cargarMeta() {
+    try { const m = await apiFetch('/reportes/metas'); _metaMensual = (m && m.mensual > 0) ? m.mensual : null; }
+    catch { _metaMensual = null; }
 }
+function getMeta() { return _metaMensual; }
 
 function toggleMetaConfig() {
     const bar = document.getElementById("meta-config-bar");
@@ -1238,20 +1239,24 @@ function toggleMetaConfig() {
     if (open) document.getElementById("meta-valor").value = getMeta() ?? '';
 }
 
-function guardarMeta() {
+async function guardarMeta() {
     const v = parseFloat(document.getElementById("meta-valor").value);
-    if (v > 0) localStorage.setItem(META_KEY, JSON.stringify({ meta: v }));
+    _metaMensual = v > 0 ? v : null;
     document.getElementById("meta-config-bar").classList.remove("visible");
     document.getElementById("btn-gear-meta").classList.remove("active");
     renderProgressBar();
+    try { await apiFetch('/reportes/metas', { method: 'PUT', body: JSON.stringify({ mensual: _metaMensual }) }); }
+    catch (e) { alert('No se pudo guardar la meta: ' + e.message); }
 }
 
-function borrarMeta() {
-    localStorage.removeItem(META_KEY);
+async function borrarMeta() {
+    _metaMensual = null;
     document.getElementById("meta-valor").value = '';
     document.getElementById("meta-config-bar").classList.remove("visible");
     document.getElementById("btn-gear-meta").classList.remove("active");
     renderProgressBar();
+    try { await apiFetch('/reportes/metas', { method: 'PUT', body: JSON.stringify({ mensual: null }) }); }
+    catch (e) {}
 }
 
 function prevMonthParams(y, m) {
@@ -1328,6 +1333,7 @@ async function cargarFacturacion() {
     try {
         const d = await apiFetch(`/reportes/facturacion-mes?year=${anioActual}&month=${mesActual}`);
         datosMes = d;
+        await _cargarMeta();   // objetivo mensual desde el servidor
         renderBillingCards(d);
 
         // Mes anterior para el marcador de la barra
