@@ -1919,7 +1919,17 @@ async function continuarBorrador(id) {
 async function eliminarBorrador(id) {
     const entry = getEntrada(id); if (!entry) return;
     if (!confirm('¿Eliminar este borrador? Se perderá el avance guardado.')) return;
-    try { await api.delete(`/stock/facturas/borradores/${entry.borrador_id}`); } catch(e) {}
+    // Antes: catch(e){} vacio y se quitaba la fila IGUAL -> si el DELETE fallaba, el
+    // borrador desaparecia de la pantalla, todo parecia OK, y al recargar volvia a estar
+    // con el avance que el usuario creia descartado. Si falla, hay que decirlo y NO tocar
+    // la lista.
+    try {
+        await api.delete(`/stock/facturas/borradores/${entry.borrador_id}`);
+    } catch (e) {
+        alert('No se pudo eliminar el borrador: ' + (e.message || 'error de conexión') +
+              '. Sigue guardado; probá de nuevo.');
+        return;
+    }
     _archivosFactura = _archivosFactura.filter(a => a.id !== id);
     renderArchivos();
 }

@@ -516,10 +516,16 @@ function _comentHtml(c) {
         </div>${del}
     </div>`;
 }
+const _comentando = new Set();   // posts con un comentario en vuelo
 async function comentar(postId) {
     const input = document.getElementById('coment-input-' + postId);
     const texto = (input.value || '').trim();
     if (!texto) return;
+    // El input se limpia recien DESPUES del await y ni el boton ni el Enter se bloqueaban:
+    // pulsar Enter dos veces (o Enter + clic en Enviar) mandaba el comentario duplicado al
+    // muro y habia que borrar uno. publicar() en este mismo archivo si bloquea su boton.
+    if (_comentando.has(postId)) return;
+    _comentando.add(postId);
     try {
         const c = await apiFetch(`/social/posts/${postId}/comentarios`, {
             method: 'POST', body: JSON.stringify({ texto }) });
@@ -529,6 +535,7 @@ async function comentar(postId) {
         if (cnt) cnt.textContent = Number(cnt.textContent || 0) + 1;
         if (_postsCache[postId]) _postsCache[postId].comentarios_count = Number(cnt ? cnt.textContent : 1);
     } catch (e) { alert('No se pudo comentar: ' + (e.message || e)); }
+    finally { _comentando.delete(postId); }
 }
 async function borrarComentario(comentId, btn) {
     if (!confirm('¿Eliminar este comentario?')) return;

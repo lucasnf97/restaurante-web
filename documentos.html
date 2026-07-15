@@ -228,15 +228,27 @@ function seleccionarCat(cat) {
 }
 
 // ── Grupos ───────────────────────────────────────────────────
+let _gruposError = null;   // null = cargo bien; string = fallo (para no mentir)
 async function cargarGrupos() {
-    try { const r = await api.get('/documentos/grupos'); _grupos = r.grupos || []; _puedeGestionar = !!r.puede_gestionar; }
-    catch (e) { _grupos = []; _puedeGestionar = false; }
+    // Antes el catch convertia un 500 o un corte de red en un estado vacio LEGITIMO: el
+    // usuario leia "No estas en ningun grupo", ademas se le apagaba el boton "＋ Grupo",
+    // y concluia que le habian sacado los permisos. Solo habia fallado un GET.
+    try {
+        const r = await api.get('/documentos/grupos');
+        _grupos = r.grupos || []; _puedeGestionar = !!r.puede_gestionar; _gruposError = null;
+    } catch (e) {
+        _grupos = []; _puedeGestionar = false;
+        _gruposError = e.message || 'error de conexión';
+    }
     renderGruposLista();
 }
 function renderGruposLista() {
     const body = document.getElementById('doc-body');
     let html = '<div class="doc-sec-title">Grupos</div>';
-    if (!_grupos.length) {
+    if (_gruposError) {
+        html += `<div class="doc-empty" style="color:#b91c1c;">No se pudieron cargar los grupos: ${esc(_gruposError)}.
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="cargarGrupos()">Reintentar</button></div>`;
+    } else if (!_grupos.length) {
         html += `<div class="doc-empty">${_puedeGestionar ? 'Todavía no hay grupos. Creá uno con “＋ Grupo”.' : 'No estás en ningún grupo.'}</div>`;
     } else {
         html += _grupos.map(g => `

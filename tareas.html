@@ -246,7 +246,7 @@
         <div class="m-error" id="ma-error"></div>
         <div class="m-foot">
             <button class="btn" onclick="document.getElementById('m-aplicar').classList.remove('open')">Cancelar</button>
-            <button class="btn btn-primary" onclick="confirmarAplicarPlantillas()">Aplicar seleccionadas</button>
+            <button class="btn btn-primary" id="btn-aplicar-tpl" onclick="confirmarAplicarPlantillas()">Aplicar seleccionadas</button>
         </div>
     </div>
 </div>
@@ -751,12 +751,18 @@ async function confirmarAplicarPlantillas() {
         body.usuario_destino = parseInt(document.getElementById('ma-usuario').value, 10) || null;
         if (!body.usuario_destino) { err.textContent = 'Elegí el empleado.'; return; }
     }
+    // Aplicar SUMA, nunca reemplaza (lo aclara la propia pantalla): un segundo clic
+    // mientras el POST vuela deja cada tarea repetida dos veces en la checklist del
+    // empleado, y hay que borrarlas de a una.
+    const _btnAp = document.getElementById('btn-aplicar-tpl');
+    if (_btnAp) { if (_btnAp.disabled) return; _btnAp.disabled = true; }
     try {
         const r = await apiFetch('/tareas/plantillas/aplicar', { method: 'POST', body: JSON.stringify(body) });
         document.getElementById('m-aplicar').classList.remove('open');
         alert(r.mensaje || 'Plantillas aplicadas.');
         _reload();
     } catch (e) { err.textContent = e.message || 'No se pudo aplicar.'; }
+    finally { if (_btnAp) _btnAp.disabled = false; }
 }
 
 // ── Editor de plantilla ──

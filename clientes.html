@@ -477,14 +477,19 @@ async function ecToggleVip(){
     }
     catch(err){ _ecMsg('Error: '+err.message, false); document.getElementById('ec-vip').checked=!vip; }
 }
+let _ecAgregando=false;
 async function ecAgregarContacto(){
     const valor=document.getElementById('ec-valor').value.trim();
     if(!valor){ _ecMsg('Ingresá un teléfono o correo.', false); return; }
+    // El input se limpia despues del await: un doble clic agregaba el contacto dos veces.
+    if(_ecAgregando) return;
+    _ecAgregando=true;
     try{
         await api.post('/clientes/'+_ecId+'/contactos', { tipo: document.getElementById('ec-tipo').value, valor });
         document.getElementById('ec-valor').value=''; _ecDirty=true; _ecMsg('Contacto agregado ✓', true);
         await ecRecargar();
     }catch(err){ _ecMsg('Error: '+err.message, false); }
+    finally{ _ecAgregando=false; }
 }
 async function ecQuitarContacto(contactoId){
     if(!confirm('¿Quitar este contacto?')) return;
