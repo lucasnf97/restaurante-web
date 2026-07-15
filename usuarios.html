@@ -337,8 +337,9 @@
         }
         // 'gerente' lo asigna sólo el super-admin; 'admin' es oculto. No se ofrecen acá.
         const asignables = rolesDisp.filter(r => r.nombre !== 'gerente' && r.nombre !== 'admin');
+        // Los nombres de rol son editables por el usuario → escapar (value = atributo).
         opcionesRolHTML = asignables.map(r =>
-            `<option value="${r.nombre}">${r.nombre.charAt(0).toUpperCase()+r.nombre.slice(1)}${r.es_sistema?' ⭐':''}</option>`
+            `<option value="${escAttr(r.nombre)}">${esc(r.nombre.charAt(0).toUpperCase()+r.nombre.slice(1))}${r.es_sistema?' ⭐':''}</option>`
         ).join('');
         document.getElementById('fn-rol').innerHTML = opcionesRolHTML;
         document.getElementById('fe-rol').innerHTML = opcionesRolHTML;

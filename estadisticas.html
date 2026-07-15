@@ -1531,7 +1531,7 @@ async function cargarDetalle(tipo) {
                         </tr></thead>
                         <tbody>
                             ${data.items.map(r => `<tr>
-                                <td>${r.nombre}</td><td>${r.unidad}</td>
+                                <td>${esc(r.nombre)}</td><td>${esc(r.unidad)}</td>
                                 <td class="num">${r.cantidad_actual}</td>
                                 <td class="num">${fmt(r.precio_unitario)}</td>
                                 <td class="num">${fmt(r.valor_total)}</td>
@@ -1878,7 +1878,7 @@ function renderTablaRows(lista) {
         const productRow = `
             <tr class="product-row${isExp?" expanded":""}" onclick="toggleRow(${p.id})">
                 <td><span class="expand-icon">${sinReceta?"":"▶"}</span></td>
-                <td><strong>${p.nombre}</strong>${sinReceta?` <span class="sin-receta">(sin receta)</span>`:""}</td>
+                <td><strong>${esc(p.nombre)}</strong>${sinReceta?` <span class="sin-receta">(sin receta)</span>`:""}</td>
                 <td>${fmt(p.precio)}</td>
                 <td>${sinReceta ? `<span class="sin-receta">—</span>` : fmt(p.costo_produccion)}</td>
                 <td>
@@ -1902,7 +1902,7 @@ function renderTablaRows(lista) {
                 const sinP = !ing.precio_promedio || ing.precio_promedio === 0;
                 return `
                     <tr>
-                        <td>${ing.nombre}</td>
+                        <td>${esc(ing.nombre)}</td>
                         <td>${ing.cantidad_receta} ${ing.unidad}</td>
                         <td>${sinP
                             ? `<span class="sin-precio">Sin precio (${ing.num_compras} compras)</span>`

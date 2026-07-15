@@ -1020,9 +1020,9 @@ function poblarSelects() {
         document.getElementById('fc-categoria').innerHTML += `<option value="${c.id}">${esc(c.nombre)}</option>`;
     });
     areas.forEach(a => {
-        selArea.innerHTML += `<option value="${a.id}">${a.nombre}</option>`;
-        document.getElementById('fp-area').innerHTML += `<option value="${a.id}">${a.nombre}</option>`;
-        document.getElementById('fc-area').innerHTML += `<option value="${a.id}">${a.nombre}</option>`;
+        selArea.innerHTML += `<option value="${a.id}">${esc(a.nombre)}</option>`;
+        document.getElementById('fp-area').innerHTML += `<option value="${a.id}">${esc(a.nombre)}</option>`;
+        document.getElementById('fc-area').innerHTML += `<option value="${a.id}">${esc(a.nombre)}</option>`;
     });
 }
 
@@ -2070,7 +2070,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
         }
         cont.innerHTML = _rnItems.map((it, idx) => `
             <div style="display:flex;align-items:center;gap:8px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px 12px;">
-                <span style="flex:1;font-size:13px;font-weight:500;">${it.nombre}</span>
+                <span style="flex:1;font-size:13px;font-weight:500;">${esc(it.nombre)}</span>
                 <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;
                              background:${it.tipo==='prod'?'#ede9fe':'#dbeafe'};
                              color:${it.tipo==='prod'?'#6d28d9':'#1d4ed8'};">
@@ -2447,8 +2447,8 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
         cont.innerHTML = areas.map(a => `
             <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;
                         background:#f9fafb;border-radius:8px;margin-bottom:6px;border:1px solid #f0f0f0;">
-                <span id="ga-sp-${a.id}" style="flex:1;font-size:14px;font-weight:600;">${a.nombre}</span>
-                <input type="text" id="ga-in-${a.id}" value="${a.nombre}"
+                <span id="ga-sp-${a.id}" style="flex:1;font-size:14px;font-weight:600;">${esc(a.nombre)}</span>
+                <input type="text" id="ga-in-${a.id}" value="${escAttr(a.nombre)}"
                        style="flex:1;display:none;padding:5px 8px;border:1.5px solid #4f46e5;border-radius:6px;font-size:13px;outline:none;"
                        onkeydown="if(event.key==='Enter')gaGuardarEdicion(${a.id})">
                 <button class="btn btn-secondary btn-sm" id="ga-eb-${a.id}" onclick="gaIniciarEdicion(${a.id})">✏️</button>
@@ -2514,7 +2514,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
             `El área "${areaNom}" tiene ${enUso.length} producto(s) asignado(s). Para eliminarla, movelos a otra área:`;
         document.getElementById('ma-lista').innerHTML = enUso.map(p => `<div>• ${esc(p.nombre)}</div>`).join('');
         document.getElementById('ma-destino').innerHTML =
-            otras.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
+            otras.map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('');
         document.getElementById('modal-mover-area').classList.add('active');
     }
 
@@ -2535,7 +2535,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
     }
 
     function _actualizarSelectsAreas() {
-        const opts = areas.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
+        const opts = areas.map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('');
         const fa = document.getElementById('filtro-area'); if (fa) fa.innerHTML = `<option value="">Todas las áreas</option>${opts}`;
         const fp = document.getElementById('fp-area');     if (fp) fp.innerHTML = `<option value="">Sin área</option>${opts}`;
         const fc = document.getElementById('fc-area');     if (fc) fc.innerHTML = `<option value="">Sin área</option>${opts}`;

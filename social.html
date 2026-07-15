@@ -392,7 +392,14 @@ function renderPost(p) {
     const files = (p.adjuntos || []).filter(a => a.tipo === 'archivo')
         .map(a => `<a class="post-file" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="fi">📄</span>${esc(a.nombre)}</a>`).join('');
     const filesBlock = files ? `<div class="post-files">${files}</div>` : '';
-    const enlace = p.enlace ? `<div class="post-enlace"><a href="${esc(p.enlace)}" target="_blank" rel="noopener">🔗 ${esc(p.enlace)}</a></div>` : '';
+    // urlSegura() filtra el esquema (javascript:/data: → XSS): si no es http(s) se
+    // muestra el texto sin link.
+    const _lnk = p.enlace ? urlSegura(p.enlace) : '';
+    const enlace = p.enlace
+        ? `<div class="post-enlace">${_lnk
+            ? `<a href="${escAttr(_lnk)}" target="_blank" rel="noopener noreferrer">🔗 ${esc(p.enlace)}</a>`
+            : `🔗 ${esc(p.enlace)}`}</div>`
+        : '';
     const texto = p.contenido ? `<div class="post-texto">${resaltarMenciones(esc(p.contenido))}</div>` : '';
     let solBlock = '';
     if (p.solicitud_id && (p.solicitud_tipo === 'oferta' || p.solicitud_tipo === 'abierto')) {
