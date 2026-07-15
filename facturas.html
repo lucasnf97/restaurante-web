@@ -8,12 +8,18 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
 
-        /* Modo solo-vista: permiso ver_facturas sin acceso_facturacion → solo Historial */
+        /* Modo solo-vista: permiso ver_facturas sin acceso_facturacion → solo Historial.
+           ⚠ Los botones del Historial TIENEN que estar acá: es la solapa donde aterriza el
+           usuario de solo lectura, y el backend valida gestion_stock (no acceso_facturacion)
+           → sin estos selectores, un encargado de stock que sólo debía CONSULTAR facturas
+           podía borrar una de verdad y revertir el stock. */
         body.solo-vista #tab-cargar,
         body.solo-vista #tab-servicios,
         body.solo-vista #tab-proveedores,
         body.solo-vista [onclick*="abrirModalServicio"],
         body.solo-vista [onclick*="abrirModalProveedor"],
+        body.solo-vista [onclick*="editarFactura"],
+        body.solo-vista [onclick*="eliminarFactura"],
         body.solo-vista [onclick*="cargarManual"] { display: none !important; }
 
         .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
