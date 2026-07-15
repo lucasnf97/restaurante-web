@@ -522,8 +522,14 @@
 </script>
 <script>
 requireAuth();
-requirePermiso('acceso_facturacion', 'ver_facturas');
-const _facturasSoloVista = !hasPermiso('acceso_facturacion');
+requirePermiso('acceso_facturacion', 'ver_facturas', 'gestion_stock');
+// Las facturas van DE LA MANO del stock (decisión del dueño, 2026-07-16): quien puede
+// gestionar stock tiene que poder ver las facturas cargadas y cargar nuevas. Y así es como
+// gatea el BACKEND todo el módulo (registrar/borradores/eliminar exigen gestion_stock, no
+// acceso_facturacion). Antes esta línea miraba sólo acceso_facturacion, así que a un
+// encargado de stock la UI le ocultaba botones que el servidor sí le permitía usar.
+// Solo-vista = el que puede MIRAR facturas pero no toca stock ni facturación.
+const _facturasSoloVista = !hasPermiso('acceso_facturacion') && !hasPermiso('gestion_stock');
 if (_facturasSoloVista) document.body.classList.add('solo-vista');
 
 let _insumos     = [];
