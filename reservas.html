@@ -310,7 +310,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-reserva')">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarReserva()">Guardar</button>
+            <button class="btn btn-primary" id="btn-guardar-reserva" onclick="guardarReserva()">Guardar</button>
         </div>
     </div>
 </div>
@@ -1391,8 +1391,15 @@ async function guardarReserva(){
     if(!body.nombre_cliente||!body.fecha||!body.hora_inicio){alert('Nombre, fecha y hora de inicio son obligatorios.');return;}
     const esProgramada = !editandoId || (body.estado||'programada')==='programada';
     if(esProgramada && !body.telefono && !body.email){alert('Indicá un teléfono o un correo electrónico para la reserva.');return;}
+    // Bloquear el botón mientras vuela: el POST no es idempotente y el modal sigue vivo
+    // durante el await, así que un segundo clic (reflejo normal cuando la API tarda:
+    // el cold start de Railway son segundos) creaba DOS reservas idénticas en la misma
+    // mesa y horario, y había que cancelar una a mano.
+    const _btnG = document.getElementById('btn-guardar-reserva');
+    if (_btnG) { if (_btnG.disabled) return; _btnG.disabled = true; _btnG.textContent = 'Guardando…'; }
     try{if(editandoId)await api.patch('/reservas/'+editandoId,body);else await api.post('/reservas/',body);cerrarModal('modal-reserva');await cargarDatos();}
     catch(err){alert('Error: '+err.message);}
+    finally{ if(_btnG){ _btnG.disabled=false; _btnG.textContent='Guardar'; } }
 }
 
 // ── Listado imprimible ────────────────────────────────────────

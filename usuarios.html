@@ -347,6 +347,9 @@
 
     async function cargarUsuarios() {
         window.UI && UI.skeleton(document.getElementById("tabla-body"), 5, 6);
+        // Sin try/catch, un fallo dejaba el skeleton eterno Y tiraba una promesa sin
+        // manejar (el error solo se veia en la consola, que nadie mira).
+        try {
         // El usuario admin (acceso oculto del dueño) no se muestra a nadie.
         usuarios = (await api.get("/auth/usuarios")).filter(u => u.rol !== 'admin');
         const tbody = document.getElementById("tabla-body");
@@ -378,6 +381,14 @@
                 </td>
             </tr>
         `).join("");
+        } catch (e) {
+            console.error("Error al cargar usuarios:", e);
+            const tb = document.getElementById("tabla-body");
+            if (tb) tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:18px;color:#b91c1c;">
+                No se pudieron cargar los usuarios: ${esc(e.message || "error de conexión")}.
+                <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="cargarUsuarios()">Reintentar</button>
+            </td></tr>`;
+        }
     }
 
     function rolBadge(rol) {

@@ -652,7 +652,16 @@ async function cargarCierres() {
                 <td></td>
             </tr>` : "";
         tbody.innerHTML = abiertaRow + filasCierres + totalRow;
-    } catch(e) { console.error("Error cierres:", e); }
+    } catch(e) {
+        // Antes solo console.error: el skeleton de 6 filas se quedaba brillando PARA
+        // SIEMPRE y el encargado creia que seguia cargando. Ahora la tabla dice que fallo.
+        console.error("Error cierres:", e);
+        const tb = document.getElementById("tabla-body");
+        if (tb) tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color:#b91c1c;">
+            No se pudieron cargar los cierres: ${esc(e.message || "error de conexión")}.
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="cargarCierres()">Reintentar</button>
+        </td></tr>`;
+    }
 }
 
 function filaCajaAbierta(ab) {

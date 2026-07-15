@@ -1302,6 +1302,11 @@
     }
     async function eliminarTurno(){
         if(!_modal || !_modal.entryId){ cerrarModal(); return; }
+        // El 🗑 está pegado a "Guardar" en el mismo pie del modal y borraba en el servidor
+        // al primer clic, sin diálogo, sin aviso y sin forma de recuperarlo: había que
+        // reconstruir el turno de memoria. En este mismo archivo, borrar una plantilla
+        // (que vive sólo en localStorage) SÍ pregunta.
+        if(!confirm('¿Eliminar este turno? No se puede deshacer.')) return;
         try{ await _delTurno(_modal.restaurante_id, _modal.entryId); cerrarModal(); await cargarYRenderizar(); }
         catch(e){ alert('No se pudo eliminar: '+(e.message||e)); }
     }
