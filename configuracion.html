@@ -1236,6 +1236,52 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 
             <div class="cfg-grid" style="margin-top:18px;">
                 <div class="cfg-field">
+                    <label class="cfg-label">Zona horaria del restaurante</label>
+                    <select class="cfg-input" id="cfg-zona" onchange="actualizarPreviewZona()">
+                        <optgroup label="Europa">
+                            <option value="Europe/Madrid">España (Madrid)</option>
+                            <option value="Atlantic/Canary">España (Islas Canarias)</option>
+                            <option value="Europe/Lisbon">Portugal (Lisboa)</option>
+                            <option value="Europe/London">Reino Unido (Londres)</option>
+                            <option value="Europe/Dublin">Irlanda (Dublín)</option>
+                            <option value="Europe/Paris">Francia (París)</option>
+                            <option value="Europe/Brussels">Bélgica (Bruselas)</option>
+                            <option value="Europe/Amsterdam">Países Bajos (Ámsterdam)</option>
+                            <option value="Europe/Luxembourg">Luxemburgo</option>
+                            <option value="Europe/Berlin">Alemania (Berlín)</option>
+                            <option value="Europe/Zurich">Suiza (Zúrich)</option>
+                            <option value="Europe/Vienna">Austria (Viena)</option>
+                            <option value="Europe/Rome">Italia (Roma)</option>
+                            <option value="Europe/Malta">Malta</option>
+                            <option value="Europe/Copenhagen">Dinamarca (Copenhague)</option>
+                            <option value="Europe/Oslo">Noruega (Oslo)</option>
+                            <option value="Europe/Stockholm">Suecia (Estocolmo)</option>
+                            <option value="Europe/Helsinki">Finlandia (Helsinki)</option>
+                            <option value="Europe/Warsaw">Polonia (Varsovia)</option>
+                            <option value="Europe/Prague">Chequia (Praga)</option>
+                            <option value="Europe/Budapest">Hungría (Budapest)</option>
+                            <option value="Europe/Athens">Grecia (Atenas)</option>
+                            <option value="Europe/Bucharest">Rumanía (Bucarest)</option>
+                            <option value="Europe/Sofia">Bulgaria (Sofía)</option>
+                        </optgroup>
+                        <optgroup label="América">
+                            <option value="America/Argentina/Buenos_Aires">Argentina (Buenos Aires)</option>
+                            <option value="America/Montevideo">Uruguay (Montevideo)</option>
+                            <option value="America/Santiago">Chile (Santiago)</option>
+                            <option value="America/Sao_Paulo">Brasil (São Paulo)</option>
+                            <option value="America/Bogota">Colombia (Bogotá)</option>
+                            <option value="America/Lima">Perú (Lima)</option>
+                            <option value="America/Mexico_City">México (Ciudad de México)</option>
+                            <option value="America/New_York">EE.UU. (Nueva York)</option>
+                        </optgroup>
+                        <optgroup label="Otros">
+                            <option value="UTC">UTC (sin horario de verano)</option>
+                        </optgroup>
+                    </select>
+                    <span class="cfg-hint">Define qué es “hoy” en los informes, la caja y los fichajes. El horario de verano se aplica solo.</span>
+                    <div class="hora-corte-preview" id="zona-preview">🕐 —</div>
+                </div>
+                <div class="cfg-field">
                     <label class="cfg-label">Hora de corte del turno</label>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <input class="cfg-input" type="number" id="corte-hora"
@@ -1497,6 +1543,15 @@ async function cargarCorteHorario() {
         document.getElementById('corte-hora').value            = hora;
         document.getElementById('corte-cierra-fichajes').checked = !!cfg.corte_cierra_fichajes;
         document.getElementById('corte-cierra-caja').checked    = !!cfg.corte_cierra_caja;
+        // Si el restaurante tiene una zona que no está en la lista (la puso otro cliente
+        // o la API), se agrega al vuelo para no cambiársela sin querer al guardar.
+        const selZ = document.getElementById('cfg-zona');
+        const z    = cfg.zona_horaria || 'Europe/Madrid';
+        if (selZ && !Array.from(selZ.options).some(o => o.value === z)) {
+            selZ.add(new Option(z, z));
+        }
+        if (selZ) selZ.value = z;
+        actualizarPreviewZona();
         actualizarPreviewCorte();
 
         // Ocultar botón de guardar si el usuario no tiene permisos
@@ -1512,6 +1567,46 @@ async function cargarCorteHorario() {
         }
     } catch(e) {
         console.warn('No se pudo cargar horario de corte:', e);
+    }
+}
+
+// Offset real de una zona en una fecha dada, en minutos (lo resuelve el navegador con
+// la tzdata, así que ya contempla el horario de verano de ese país en esa fecha).
+function _offsetZona(zona, fecha) {
+    const p = new Intl.DateTimeFormat('en-US', { timeZone: zona, timeZoneName: 'longOffset' })
+        .formatToParts(fecha).find(x => x.type === 'timeZoneName').value;   // "GMT+02:00"
+    const m = /GMT([+-])(\d{2}):(\d{2})/.exec(p);
+    if (!m) return 0;
+    return (m[1] === '-' ? -1 : 1) * (parseInt(m[2], 10) * 60 + parseInt(m[3], 10));
+}
+
+function _fmtOffset(min) {
+    const s = min < 0 ? '-' : '+';
+    const a = Math.abs(min);
+    return `UTC${s}${String(Math.floor(a / 60)).padStart(2, '0')}:${String(a % 60).padStart(2, '0')}`;
+}
+
+// Muestra la hora que es AHORA en el restaurante y si esa zona cambia de hora en verano.
+// Comparar enero contra julio es la forma directa de saberlo sin tabla de reglas.
+function actualizarPreviewZona() {
+    const sel = document.getElementById('cfg-zona');
+    const el  = document.getElementById('zona-preview');
+    if (!sel || !el) return;
+    const zona = sel.value;
+    try {
+        const ahora = new Date();
+        const hora  = new Intl.DateTimeFormat('es-ES', {
+            timeZone: zona, weekday: 'short', day: '2-digit', month: '2-digit',
+            hour: '2-digit', minute: '2-digit',
+        }).format(ahora);
+        const y   = ahora.getFullYear();
+        const ene = _offsetZona(zona, new Date(Date.UTC(y, 0, 15)));
+        const jul = _offsetZona(zona, new Date(Date.UTC(y, 6, 15)));
+        const dst = ene !== jul;
+        el.innerHTML = `🕐 Ahí son las <strong>${hora}</strong> · ${_fmtOffset(_offsetZona(zona, ahora))}` +
+            (dst ? ` · cambia de hora en verano (automático)` : ` · sin cambio de hora en verano`);
+    } catch (e) {
+        el.textContent = '⚠️ Zona no reconocida';
     }
 }
 
@@ -1546,6 +1641,7 @@ async function guardarCorteHorario() {
             impuesto_pct:          cfg.impuesto_pct       || 0,
             dia_inicio_periodo:    cfg.dia_inicio_periodo || 1,
             hora_corte_turno:      hora,
+            zona_horaria:          document.getElementById('cfg-zona').value,
             corte_cierra_fichajes: document.getElementById('corte-cierra-fichajes').checked,
             corte_cierra_caja:     document.getElementById('corte-cierra-caja').checked,
             modo_impositivo:       cfg.modo_impositivo    || 'predeterminado',

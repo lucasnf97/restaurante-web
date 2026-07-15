@@ -783,9 +783,10 @@ async function buscarCalor() {
     body.innerHTML = `<div class="hm-loading">Cargando…</div>`;
     const desde = document.getElementById('hm-desde').value;
     const hasta = document.getElementById('hm-hasta').value;
-    const tz    = -new Date().getTimezoneOffset();   // el backend guarda en UTC
     try {
-        hmData = await api.get(`/ventas/calor-mesas?desde=${desde}&hasta=${hasta}&tz_offset_min=${tz}`);
+        // Las horas salen en el huso del RESTAURANTE (lo fija el backend desde su config),
+        // no en el de este navegador: mirar los informes de viaje ya no corre el mapa.
+        hmData = await api.get(`/ventas/calor-mesas?desde=${desde}&hasta=${hasta}`);
         hmSel  = new Set();   // nueva búsqueda → limpiar selección
         renderCalor();
     } catch(e) {
