@@ -130,15 +130,23 @@
 <!-- Modal Nueva capacitación -->
 <div class="modal-ov" id="modal-cap">
     <div class="modal">
-        <h3>🎓 Nueva capacitación</h3>
+        <h3 id="cap-modal-tit">🎓 Nueva capacitación</h3>
         <label class="lbl">Título</label>
         <input type="text" class="txt" id="cap-titulo" placeholder="Ej: Manipulación de alimentos" maxlength="200">
         <label class="lbl">Descripción (opcional)</label>
         <textarea class="txt" id="cap-desc" placeholder="Indicaciones para el personal…"></textarea>
-        <label class="lbl">Documento</label>
+        <label class="lbl" id="cap-file-lbl">Documento</label>
         <input type="file" id="cap-file" style="font-size:13px;">
-        <label class="lbl">Destinatarios — quién debe firmarla</label>
-        <div class="checks" id="cap-dest"></div>
+        <div id="cap-edit-aviso" style="display:none;font-size:12.5px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-top:6px;">
+            ⚠ Si adjuntás un archivo nuevo, reemplaza el documento y <b>quienes ya firmaron deberán firmar de nuevo</b> la nueva versión. Cambiar solo título o descripción conserva las firmas.
+        </div>
+        <div id="cap-dest-wrap">
+            <label class="lbl">Destinatarios — quién debe firmarla</label>
+            <div class="lbl" style="font-weight:600;font-size:12px;margin:2px 0;">Por rol (todos los activos de ese rol)</div>
+            <div class="checks" id="cap-roles"></div>
+            <div class="lbl" style="font-weight:600;font-size:12px;margin:6px 0 2px;">O por persona</div>
+            <div class="checks" id="cap-dest"></div>
+        </div>
         <div class="modal-acc">
             <button class="btn-primary btn" id="cap-guardar" onclick="guardarCap()">Crear capacitación</button>
             <button class="btn-sec" onclick="cerrarModal('modal-cap')">Cancelar</button>
@@ -542,6 +550,7 @@ function renderCapacitaciones() {
             const firmados = dest.filter(d => d.firmado_en).length;
             editorHtml = `
                 <span class="cap-chip ${firmados === dest.length ? 'ok' : 'pend'}">${firmados}/${dest.length} firmaron</span>
+                <button class="cap-toggle" onclick="editarCap(${c.id})">✏️ Editar</button>
                 <button class="cap-toggle" onclick="document.getElementById('cap-dest-${c.id}').classList.toggle('open')">▾ Destinatarios</button>
                 <button class="del" onclick="eliminarCap(${c.id}, '${esc(c.titulo).replace(/'/g,'')}')">🗑</button>`;
         }
@@ -564,37 +573,76 @@ function renderCapacitaciones() {
     body.innerHTML = html;
 }
 
+let _capEditId = null;
+
 async function abrirCapModal() {
     await _cargarRolesUsuarios();
+    _capEditId = null;
+    document.getElementById('cap-modal-tit').textContent = '🎓 Nueva capacitación';
+    document.getElementById('cap-guardar').textContent = 'Crear capacitación';
+    document.getElementById('cap-file-lbl').textContent = 'Documento';
+    document.getElementById('cap-edit-aviso').style.display = 'none';
+    document.getElementById('cap-dest-wrap').style.display = '';
     document.getElementById('cap-titulo').value = '';
     document.getElementById('cap-desc').value = '';
     document.getElementById('cap-file').value = '';
+    // Por rol: un check por cada rol distinto entre los usuarios disponibles.
+    const roles = [...new Set(_usuariosDisp.map(u => u.rol).filter(Boolean))];
+    document.getElementById('cap-roles').innerHTML = roles.length ? roles.map(r =>
+        `<label class="check-row"><input type="checkbox" value="${esc(r)}"> ${esc(r)}</label>`
+    ).join('') : '<span style="font-size:12px;color:#9ca3af">Sin roles</span>';
     document.getElementById('cap-dest').innerHTML = _usuariosDisp.map(u =>
         `<label class="check-row"><input type="checkbox" value="${u.id}"> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`
     ).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
     document.getElementById('modal-cap').classList.add('open');
 }
 
+// Editar una capacitación existente (título/descripción y, opcionalmente, reemplazar el
+// archivo). Editar los destinatarios queda fuera de alcance: se ocultan.
+function editarCap(id) {
+    const c = _caps.find(x => x.id === id);
+    if (!c) return;
+    _capEditId = id;
+    document.getElementById('cap-modal-tit').textContent = '✏️ Editar capacitación';
+    document.getElementById('cap-guardar').textContent = 'Guardar cambios';
+    document.getElementById('cap-file-lbl').textContent = 'Reemplazar documento (opcional — vacío conserva el actual)';
+    document.getElementById('cap-edit-aviso').style.display = '';
+    document.getElementById('cap-dest-wrap').style.display = 'none';
+    document.getElementById('cap-titulo').value = c.titulo || '';
+    document.getElementById('cap-desc').value = c.descripcion || '';
+    document.getElementById('cap-file').value = '';
+    document.getElementById('modal-cap').classList.add('open');
+}
+
 async function guardarCap() {
     const titulo = document.getElementById('cap-titulo').value.trim();
     const file = document.getElementById('cap-file').files[0];
-    const dest = [...document.querySelectorAll('#cap-dest input:checked')].map(c => Number(c.value));
+    const editando = _capEditId != null;
     if (!titulo) { alert('Poné un título.'); return; }
-    if (!file) { alert('Adjuntá el documento de la capacitación.'); return; }
-    if (!dest.length) { alert('Elegí al menos un destinatario.'); return; }
+    if (!editando && !file) { alert('Adjuntá el documento de la capacitación.'); return; }
+    const dest = [...document.querySelectorAll('#cap-dest input:checked')].map(c => Number(c.value));
+    const roles = [...document.querySelectorAll('#cap-roles input:checked')].map(c => c.value);
+    if (!editando && !dest.length && !roles.length) { alert('Elegí al menos un rol o una persona.'); return; }
+    if (editando && file &&
+        !confirm('Reemplazar el documento hará que quienes ya firmaron deban firmar de nuevo la nueva versión. ¿Continuar?')) return;
     const btn = document.getElementById('cap-guardar');
-    btn.disabled = true; btn.textContent = 'Creando…';
+    btn.disabled = true; btn.textContent = editando ? 'Guardando…' : 'Creando…';
     try {
         const fd = new FormData();
         fd.append('titulo', titulo);
         fd.append('descripcion', document.getElementById('cap-desc').value.trim());
-        fd.append('destinatarios', JSON.stringify(dest));
-        fd.append('file', file);
-        await apiFetch('/documentos/capacitaciones', { method: 'POST', body: fd });
+        if (file) fd.append('file', file);
+        if (editando) {
+            await apiFetch(`/documentos/capacitaciones/${_capEditId}`, { method: 'PATCH', body: fd });
+        } else {
+            fd.append('destinatarios', JSON.stringify(dest));
+            fd.append('roles', JSON.stringify(roles));
+            await apiFetch('/documentos/capacitaciones', { method: 'POST', body: fd });
+        }
         cerrarModal('modal-cap');
         cargarCapacitaciones();
-    } catch (e) { alert('No se pudo crear: ' + (e.message || e)); }
-    finally { btn.disabled = false; btn.textContent = 'Crear capacitación'; }
+    } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
+    finally { btn.disabled = false; btn.textContent = editando ? 'Guardar cambios' : 'Crear capacitación'; }
 }
 
 function abrirFirma(id) {
