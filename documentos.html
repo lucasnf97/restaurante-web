@@ -63,11 +63,15 @@
         /* Modal grupo */
         .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 400; align-items: center; justify-content: center; }
         .modal-ov.open { display: flex; }
-        .modal { background: #fff; border-radius: 14px; width: 460px; max-width: 94vw; max-height: 88vh; overflow-y: auto; padding: 22px; }
+        .modal { background: #fff; border-radius: 14px; width: 460px; max-width: 94vw; max-height: 88vh; overflow-y: auto; overscroll-behavior: contain; padding: 22px; }
+        /* Modal alto (capacitación): columna flex — el cuerpo scrollea, el footer queda fijo */
+        .modal.modal-flex { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+        .modal.modal-flex .modal-scroll { overflow-y: auto; overscroll-behavior: contain; padding: 22px 22px 8px; }
+        .modal.modal-flex .modal-acc { margin: 0; padding: 12px 22px; border-top: 1px solid #eee; background: #fff; flex-shrink: 0; }
         .modal h3 { font-size: 18px; margin-bottom: 14px; color: #1a1a2e; }
         .modal label.lbl { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; display: block; margin: 12px 0 6px; }
         .modal input.txt { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; font-size: 14px; }
-        .checks { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 8px; }
+        .checks { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #f0f0f0; border-radius: 8px; padding: 8px; }
         .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; }
         .modal-acc { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
         .btn-del { padding: 9px 16px; border: 1px solid #fecaca; background: #fef2f2; color: #dc2626; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-left: auto; }
@@ -129,23 +133,25 @@
 
 <!-- Modal Nueva capacitación -->
 <div class="modal-ov" id="modal-cap">
-    <div class="modal">
-        <h3 id="cap-modal-tit">🎓 Nueva capacitación</h3>
-        <label class="lbl">Título</label>
-        <input type="text" class="txt" id="cap-titulo" placeholder="Ej: Manipulación de alimentos" maxlength="200">
-        <label class="lbl">Descripción (opcional)</label>
-        <textarea class="txt" id="cap-desc" placeholder="Indicaciones para el personal…"></textarea>
-        <label class="lbl" id="cap-file-lbl">Documento</label>
-        <input type="file" id="cap-file" style="font-size:13px;">
-        <div id="cap-edit-aviso" style="display:none;font-size:12.5px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-top:6px;">
-            ⚠ Si adjuntás un archivo nuevo, reemplaza el documento y <b>quienes ya firmaron deberán firmar de nuevo</b> la nueva versión. Cambiar solo título o descripción conserva las firmas.
-        </div>
-        <div id="cap-dest-wrap">
-            <label class="lbl">Destinatarios — quién debe firmarla</label>
-            <div class="lbl" style="font-weight:600;font-size:12px;margin:2px 0;">Por rol (todos los activos de ese rol)</div>
-            <div class="checks" id="cap-roles"></div>
-            <div class="lbl" style="font-weight:600;font-size:12px;margin:6px 0 2px;">O por persona</div>
-            <div class="checks" id="cap-dest"></div>
+    <div class="modal modal-flex">
+        <div class="modal-scroll">
+            <h3 id="cap-modal-tit">🎓 Nueva capacitación</h3>
+            <label class="lbl">Título</label>
+            <input type="text" class="txt" id="cap-titulo" placeholder="Ej: Manipulación de alimentos" maxlength="200">
+            <label class="lbl">Descripción (opcional)</label>
+            <textarea class="txt" id="cap-desc" placeholder="Indicaciones para el personal…"></textarea>
+            <label class="lbl" id="cap-file-lbl">Documento</label>
+            <input type="file" id="cap-file" style="font-size:13px;">
+            <div id="cap-edit-aviso" style="display:none;font-size:12.5px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-top:6px;">
+                ⚠ Si adjuntás un archivo nuevo, reemplaza el documento y <b>quienes ya firmaron deberán firmar de nuevo</b> la nueva versión. Cambiar solo título o descripción conserva las firmas.
+            </div>
+            <div id="cap-dest-wrap">
+                <label class="lbl">Destinatarios — quién debe firmarla</label>
+                <div class="lbl" style="font-weight:600;font-size:12px;margin:2px 0;">Por rol (tilda a todo el personal de ese rol)</div>
+                <div class="checks" id="cap-roles"></div>
+                <div class="lbl" style="font-weight:600;font-size:12px;margin:6px 0 2px;">Por persona</div>
+                <div class="checks" id="cap-dest"></div>
+            </div>
         </div>
         <div class="modal-acc">
             <button class="btn-primary btn" id="cap-guardar" onclick="guardarCap()">Crear capacitación</button>
@@ -607,15 +613,49 @@ async function abrirCapModal() {
     document.getElementById('cap-titulo').value = '';
     document.getElementById('cap-desc').value = '';
     document.getElementById('cap-file').value = '';
-    // Por rol: un check por cada rol distinto entre los usuarios disponibles.
+    // Por rol: "Todos" (todo el personal) + un check por cada rol distinto. Tildar un rol
+    // tilda a sus personas (feedback visual + inclusión). "Todos" tilda todo.
     const roles = [...new Set(_usuariosDisp.map(u => u.rol).filter(Boolean))];
-    document.getElementById('cap-roles').innerHTML = roles.length ? roles.map(r =>
-        `<label class="check-row"><input type="checkbox" value="${esc(r)}"> ${esc(r)}</label>`
-    ).join('') : '<span style="font-size:12px;color:#9ca3af">Sin roles</span>';
+    document.getElementById('cap-roles').innerHTML =
+        `<label class="check-row"><input type="checkbox" id="cap-rol-todos" onchange="_capToggleTodos(this)"> <b>Todos</b> <span style="color:#9ca3af;font-weight:400;">(todo el personal)</span></label>` +
+        (roles.length ? roles.map(r =>
+            `<label class="check-row"><input type="checkbox" class="cap-rol-cb" value="${esc(r)}" onchange="_capToggleRol(this)"> ${esc(r)}</label>`
+        ).join('') : '<span style="font-size:12px;color:#9ca3af">Sin roles</span>');
     document.getElementById('cap-dest').innerHTML = _usuariosDisp.map(u =>
-        `<label class="check-row"><input type="checkbox" value="${u.id}"> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`
+        `<label class="check-row"><input type="checkbox" value="${u.id}" onchange="_capSyncRoles()"> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`
     ).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
     document.getElementById('modal-cap').classList.add('open');
+}
+
+// Tildar un rol tilda/destilda a todas sus personas.
+function _capToggleRol(cb) {
+    const rol = cb.value, on = cb.checked;
+    document.querySelectorAll('#cap-dest input[type=checkbox]').forEach(pc => {
+        const u = _usuariosDisp.find(x => String(x.id) === pc.value);
+        if (u && u.rol === rol) pc.checked = on;
+    });
+    _capSyncTodos();
+}
+// "Todos": tilda/destilda todos los roles y todas las personas.
+function _capToggleTodos(cb) {
+    const on = cb.checked;
+    document.querySelectorAll('#cap-roles .cap-rol-cb').forEach(rc => rc.checked = on);
+    document.querySelectorAll('#cap-dest input[type=checkbox]').forEach(pc => pc.checked = on);
+}
+// Al cambiar personas, sincroniza el estado de los checks de rol (marcado si están TODAS).
+function _capSyncRoles() {
+    const checked = new Set([...document.querySelectorAll('#cap-dest input:checked')].map(c => c.value));
+    document.querySelectorAll('#cap-roles .cap-rol-cb').forEach(rc => {
+        const personas = _usuariosDisp.filter(u => u.rol === rc.value);
+        rc.checked = personas.length > 0 && personas.every(u => checked.has(String(u.id)));
+    });
+    _capSyncTodos();
+}
+function _capSyncTodos() {
+    const t = document.getElementById('cap-rol-todos');
+    if (!t) return;
+    const roles = [...document.querySelectorAll('#cap-roles .cap-rol-cb')];
+    t.checked = roles.length > 0 && roles.every(r => r.checked);
 }
 
 // Editar una capacitación existente (título/descripción y, opcionalmente, reemplazar el
@@ -642,7 +682,7 @@ async function guardarCap() {
     if (!titulo) { alert('Poné un título.'); return; }
     if (!editando && !file) { alert('Adjuntá el documento de la capacitación.'); return; }
     const dest = [...document.querySelectorAll('#cap-dest input:checked')].map(c => Number(c.value));
-    const roles = [...document.querySelectorAll('#cap-roles input:checked')].map(c => c.value);
+    const roles = [...document.querySelectorAll('#cap-roles .cap-rol-cb:checked')].map(c => c.value);
     if (!editando && !dest.length && !roles.length) { alert('Elegí al menos un rol o una persona.'); return; }
     if (editando && file &&
         !confirm('Reemplazar el documento hará que quienes ya firmaron deban firmar de nuevo la nueva versión. ¿Continuar?')) return;
