@@ -408,7 +408,11 @@ const MESES_CORTO = ['','Ene','Feb','Mar','Abr','May','Jun',
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(n)  { return _SIM + ' ' + parseFloat(n).toFixed(2); }
 function fmtH(n) { return parseFloat(n).toFixed(1) + ' h'; }
-const fmtDate = d => d.toISOString().split('T')[0];
+// Fecha LOCAL (YYYY-MM-DD), sin pasar por UTC. Los períodos se crean a medianoche local
+// (new Date(y,m,d)); toISOString los pasaba a UTC y en husos +offset (DK/SE = mercado
+// objetivo) los corría un día atrás, desfasando los límites del período y el match contra
+// periodos_confirmados. getFullYear/Month/Date leen la fecha tal como es en el local.
+const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function _lupaFichajesUrl(username) {
     const desde   = _periodoActualDesde || '';
