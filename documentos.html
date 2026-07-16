@@ -212,7 +212,7 @@ function _icono(a) {
 // ── Tabs ─────────────────────────────────────────────────────
 function renderTabs() {
     // El empleado (sin restaurante) solo ve la categoría General (cadena); grupos/personal son por local.
-    const cats = _emp ? [['general','📂 General']]
+    const cats = _emp ? [['general','📂 General'], ['capacitaciones','🎓 Capacitaciones']]
                       : [['general','📂 General'], ['grupos','👥 Grupos'],
                          ['capacitaciones','🎓 Capacitaciones'], ['personal','🔒 Personal']];
     document.getElementById('cat-tabs').innerHTML = cats.map(([c, l]) =>
@@ -497,7 +497,7 @@ async function eliminarArchivo(id) {
 }
 
 // ── Capacitaciones ───────────────────────────────────────────
-let _caps = [], _capsPuedeEditar = false, _capFirmaId = null;
+let _caps = [], _capsPuedeEditar = false, _capFirmaId = null, _capFirmaRid = null;
 
 function fmtFechaHora(ts) {
     if (!ts) return '';
@@ -509,7 +509,10 @@ async function cargarCapacitaciones() {
     const body = document.getElementById('doc-body');
     body.innerHTML = '<div class="doc-empty">Cargando…</div>';
     try {
-        const r = await api.get('/documentos/capacitaciones');
+        // Empleado de cadena (token de cuenta): sus capacitaciones agregadas de todos sus locales.
+        const r = _emp
+            ? await apiFetch('/empleado/documentos/capacitaciones', { token: getEmpToken() })
+            : await api.get('/documentos/capacitaciones');
         _caps = r.capacitaciones || [];
         _capsPuedeEditar = !!r.puede_editar;
     } catch (e) { body.innerHTML = '<div class="doc-empty">No se pudo cargar.</div>'; return; }
@@ -565,7 +568,7 @@ function renderCapacitaciones() {
         return `<div class="cap-card ${clase}">
             <div class="cap-tit">🎓 ${esc(c.titulo)}</div>
             ${c.descripcion ? `<div class="cap-desc">${esc(c.descripcion)}</div>` : ''}
-            <div class="cap-meta">${esc(c.nombre_archivo || '')} · ${fmtFecha(c.creado_en)}${c.creador ? ` · por ${esc(c.creador)}` : ''}</div>
+            <div class="cap-meta">${esc(c.nombre_archivo || '')} · ${fmtFecha(c.creado_en)}${c.creador ? ` · por ${esc(c.creador)}` : ''}${c.restaurante ? ` · 🏠 ${esc(c.restaurante)}` : ''}</div>
             <div class="cap-acciones">${verDoc}${estado}${editorHtml}</div>
             ${destLista}
         </div>`;
@@ -649,6 +652,7 @@ function abrirFirma(id) {
     const c = _caps.find(x => x.id === id);
     if (!c) return;
     _capFirmaId = id;
+    _capFirmaRid = c.restaurante_id;   // en modo empleado: local al que pertenece
     document.getElementById('firma-titulo').textContent = `🎓 ${c.titulo}`;
     document.getElementById('firma-user').value = _user.username || '';
     document.getElementById('firma-pass').value = '';
@@ -667,10 +671,12 @@ async function firmarCap() {
     const d = new Date(), p = n => String(n).padStart(2, '0');
     const fechaLocal = `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
     try {
-        const r = await apiFetch(`/documentos/capacitaciones/${_capFirmaId}/firmar`, {
-            method: 'POST',
-            body: JSON.stringify({ password: pass, fecha_local: fechaLocal }),
-        });
+        const cuerpo = JSON.stringify({ password: pass, fecha_local: fechaLocal });
+        const r = _emp
+            ? await apiFetch(`/empleado/documentos/capacitaciones/${_capFirmaRid}/${_capFirmaId}/firmar`,
+                             { method: 'POST', body: cuerpo, token: getEmpToken() })
+            : await apiFetch(`/documentos/capacitaciones/${_capFirmaId}/firmar`,
+                             { method: 'POST', body: cuerpo });
         cerrarModal('modal-firmar');
         alert(r.mensaje || 'Firma registrada ✓ — el comprobante quedó en tu carpeta Personal.');
         cargarCapacitaciones();
