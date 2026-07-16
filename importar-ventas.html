@@ -365,7 +365,7 @@ function renderRevision(d){
     document.getElementById('rev-resumen').innerHTML=`🤖 ${esc(d.resumen||'')}`+
         (d.notas?` <span style="color:#9ca3af">— ${esc(d.notas)}</span>`:'');
     document.getElementById('msg-conf').textContent='';
-    if(_secs.some(s=>s.tipo==='fichajes')) cargarUsuarios().then(()=>renderSecciones());
+    if(_secs.some(s=>s.tipo==='fichajes'||s.tipo==='horas_salario')) cargarUsuarios().then(()=>renderSecciones());
     renderSecciones();
     document.getElementById('revision').style.display='';
     document.getElementById('revision').scrollIntoView({behavior:'smooth', block:'start'});
@@ -382,7 +382,7 @@ function _setTipo(si,t){
     const d=_destMap[t];
     if(d && d.permitido===false){ alert(`Este destino requiere el permiso "${d.permiso}".`); renderSeccion(si); return; }
     _secs[si].tipo=t;
-    if(t==='fichajes') cargarUsuarios().then(()=>renderSeccion(si));
+    if(t==='fichajes'||t==='horas_salario') cargarUsuarios().then(()=>renderSeccion(si));
     renderSeccion(si);
 }
 function _toggleSec(si,v){ _secs[si].filas.forEach(f=>f._incl=v); renderSeccion(si); }
@@ -434,7 +434,13 @@ function _seccionHTML(si){
             return `<div class="sec-card">${head}</div>`;
         }
     }
+    if(s.tipo==='horas_salario'){
+        head+=`<div class="aviso">🧾 Estas horas se cargan como <b>horas de nómina</b>: suman en Salarios (× el sueldo/hora de cada empleado) y en el gasto de salarios del balance del período, mostradas como línea aparte de las fichadas. Asigná el empleado del sistema en cada fila. Eliminar la importación las revierte.</div>`;
+    }
     if(s.tipo==='otras'){
+        head+=`<div class="aviso" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;">
+            ⚠ <b>«Otras» no carga nada en el sistema</b>: sólo archiva estas filas en el PDF del lote, como respaldo. No suma a ventas, stock ni salarios.
+            Si esto son <b>horas trabajadas por empleado</b>, cambiá el destino a <b>🧾 Horas de nómina</b> para que cuenten en Salarios; si son ventas/compras/insumos, elegí el destino que corresponda arriba.</div>`;
         const tv=(s.titulo||'').replace(/"/g,'&quot;');
         head+=`<div style="margin-bottom:8px;"><input value="${tv}" placeholder="Título (encabezará el PDF)" oninput="_secs[${si}].titulo=this.value"
               style="width:280px;border:1px solid #d1d5db;border-radius:6px;padding:5px 8px;font-size:13px;"></div>`;
@@ -696,7 +702,7 @@ async function reinterpretar(si){
         s.titulo=r.titulo||s.titulo;
         s.usuarios_detectados=r.usuarios_detectados||[];
         s._reint=false;
-        if(s.tipo==='fichajes') await cargarUsuarios();
+        if(s.tipo==='fichajes'||s.tipo==='horas_salario') await cargarUsuarios();
         renderSeccion(si);
         const m=document.getElementById('sec-msg-'+si); if(m){ m.className='msg ok'; m.textContent=`Re-mapeada: ${s.filas.length} filas.`; }
     }catch(err){ alert('Error IA: '+err.message); }
@@ -741,6 +747,12 @@ function _payloadSeccion(s){
         if(sinDatos.length) return { error:`Hay ${sinDatos.length} fila(s) sin fecha u horas.` };
         base.fichajes=incl.map(f=>({ empleado:(f.empleado||null), usuario_id:parseInt(f.usuario_id),
             fecha:String(f.fecha).slice(0,10), entrada:String(f.entrada), salida:String(f.salida), notas:(f.notas||null) }));
+    } else if(s.tipo==='horas_salario'){
+        const sinUsuario=incl.filter(f=>!f.usuario_id);
+        if(sinUsuario.length) return { error:`Hay ${sinUsuario.length} fila(s) sin usuario asignado — elegí el empleado del sistema en cada fila.` };
+        base.horas_salario=incl.map(f=>({ empleado:(f.empleado||null), usuario_id:parseInt(f.usuario_id),
+            horas:parseFloat(f.horas)||0 })).filter(h=>h.horas>0);
+        if(!base.horas_salario.length) return { error:'No hay horas > 0 para importar.' };
     } else if(s.tipo==='clientes'){
         base.clientes=incl.map(f=>({ nombre:String(f.nombre||'').trim(), telefono:(String(f.telefono||'').trim()||null),
             email:(String(f.email||'').trim()||null), notas:(String(f.notas||'').trim()||null) })).filter(c=>c.nombre);
@@ -757,8 +769,9 @@ function _payloadSeccion(s){
 }
 
 function _resumenResultado(r){
+    if(r && r.tipo==='generico') return 'archivado en el PDF — no se cargó nada al sistema';
     const parts=[];
-    for(const k of ['ventas','dias','creados','actualizados','compras','fichajes','contactos','filas','ya_existian','precios_actualizados','fusionados_con_existentes','productos_creados','categorias_creadas'])
+    for(const k of ['ventas','dias','creados','total_horas','actualizados','compras','fichajes','contactos','filas','ya_existian','precios_actualizados','fusionados_con_existentes','productos_creados','categorias_creadas'])
         if(r[k]!=null && r[k]!==0 && typeof r[k]!=='object') parts.push(`${k.replace(/_/g,' ')}: ${r[k]}`);
     if(Array.isArray(r.omitidos)&&r.omitidos.length) parts.push(`omitidos: ${r.omitidos.length}`);
     return parts.join(' · ')||'importada';

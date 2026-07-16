@@ -167,6 +167,8 @@
         .ajuste-subrow-nota { color: #6b7280; font-style: italic; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; cursor: help; }
         .ajuste-subrow .btn-edit { font-size: 11px; padding: 0 2px; line-height: 1; background: none; border: none; cursor: pointer; opacity: 0.55; margin-left: auto; }
         .ajuste-subrow .btn-edit:hover { opacity: 1; }
+        /* Horas declaradas por importación (nómina, no fichadas): línea aparte que suma al salario */
+        .nomina-subrow { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 2px 7px; background: #f0fdf4; border-radius: 5px; border-left: 3px solid #16a34a; font-size: 11px; color: #166534; }
     </style>
 </head>
 <body>
@@ -608,6 +610,7 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                         <span>${fmtH(u.horas_fichadas)}</span>
                         ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},${idxArg})" title="Ajustar horas fichadas">✏️</button>` : ''}
                     </div>
+                    ${_nominaSubHTML(u)}
                 </td>
                 <td><strong>${fmt(u.salario_total)}</strong>${_cargosSubHTML(u, data)}</td>
                 <td class="${difHCls}">
@@ -627,7 +630,7 @@ function buildTablaHTML(data, canEdit, pendIdx) {
                 <td>${userCellHTML(u, ini)}</td>
                 <td>•••••</td>
                 <td>${fmtH(u.horas_asignadas)}</td>
-                <td>${fmtH(u.horas_fichadas)}</td>
+                <td>${fmtH(u.horas_fichadas)}${_nominaSubHTML(u)}</td>
                 <td>•••••</td>
                 <td class="${difHCls}">
                     <div class="dif-cell">
@@ -879,6 +882,14 @@ function _cargosSubHTML(u, data) {
         − ${fmt(cargos)} comida 🍽</div>`;
 }
 
+// Horas declaradas por importación (nómina, no fichadas): línea aparte bajo Hs. Fichadas.
+// Ya están sumadas en salario_total (backend). Vacío si no hay.
+function _nominaSubHTML(u) {
+    const h = +(u.horas_declaradas || 0);
+    if (!h) return '';
+    return `<div class="nomina-subrow" title="Horas de nómina importadas (no fichadas). Suman al salario del período.">🧾 ＋${fmtH(h)} nómina</div>`;
+}
+
 async function verCargosEmpleado(uid, username, desde, hasta) {
     if (!desde || !hasta) return;
     let lista = [];
@@ -950,6 +961,7 @@ function buildRow(u) {
                     <span>${fmtH(u.horas_fichadas)}</span>
                     ${canEdit ? `<button class="btn-edit" onclick="abrirAjusteHoras(${u.id},null)" title="Ajustar horas fichadas">✏️</button>` : ''}
                 </div>
+                ${_nominaSubHTML(u)}
             </td>
             <td><strong>${fmt(u.salario_total)}</strong>${_cargosSubHTML(u)}</td>
             <td class="${difHCls}">
@@ -969,7 +981,7 @@ function buildRow(u) {
             <td>${userCell(u, ini)}</td>
             <td><span class="masked-cell" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span></td>
             <td>${fmtH(u.horas_asignadas)}</td>
-            <td>${fmtH(u.horas_fichadas)}</td>
+            <td>${fmtH(u.horas_fichadas)}${_nominaSubHTML(u)}</td>
             <td><span class="masked-cell" onclick="pedirAuth()" title="Clic para desbloquear">•••••</span></td>
             <td class="${difHCls}">
                 <div class="dif-cell">
@@ -1204,7 +1216,7 @@ async function guardarSueldo(uid) {
             const u = _data.usuarios.find(x => x.id === uid);
             if (u) {
                 u.sueldo_hora      = val;
-                u.salario_total    = +(val * u.horas_fichadas - (u.cargos || 0)).toFixed(2);
+                u.salario_total    = +(val * (u.horas_fichadas + (u.horas_declaradas || 0)) - (u.cargos || 0)).toFixed(2);
                 u.diferencia_saldo = +(val * u.diferencia_horas).toFixed(2);
                 _data.total_salarios = +(_data.usuarios.reduce((s,x) => s + x.salario_total, 0)).toFixed(2);
                 renderAll();
@@ -1323,7 +1335,7 @@ function _actualizarPreviewAjuste(u, horas) {
     let difSaldo, salFinal;
     if (_ajusteModo === 'edit') {
         const oldDelta = u.ajuste_delta || 0;
-        const baseSal  = +(u.sueldo_hora * (u.horas_fichadas - oldDelta)).toFixed(2);
+        const baseSal  = +(u.sueldo_hora * (u.horas_fichadas - oldDelta + (u.horas_declaradas || 0))).toFixed(2);
         difSaldo = +(u.sueldo_hora * horas).toFixed(2);
         salFinal = +(baseSal + difSaldo).toFixed(2);
     } else {
@@ -1364,7 +1376,7 @@ function confirmarAjuste() {
         u.horas_fichadas   = +((u.horas_fichadas + ajuste).toFixed(4));
         u.ajuste_delta     = +((u.ajuste_delta || 0) + ajuste).toFixed(4);
     }
-    u.salario_total    = +(u.sueldo_hora * u.horas_fichadas - (u.cargos || 0)).toFixed(2);
+    u.salario_total    = +(u.sueldo_hora * (u.horas_fichadas + (u.horas_declaradas || 0)) - (u.cargos || 0)).toFixed(2);
     u.diferencia_horas = +((u.horas_fichadas - u.horas_asignadas).toFixed(4));
     u.diferencia_saldo = +(u.sueldo_hora * u.diferencia_horas).toFixed(2);
     u.nota_ajuste      = nota || null;
