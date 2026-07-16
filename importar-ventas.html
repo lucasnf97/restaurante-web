@@ -423,19 +423,18 @@ function _seccionHTML(si){
             <button class="btn btn-primary btn-sm" onclick="reinterpretar(${si})">🤖 Re-mapear con el destino elegido</button>
         </div>`;
     }
-    if(s.tipo==='fichajes'){
-        head+=`<div class="aviso">⏱ Estos fichajes se cargan como turnos REALES: aparecen en Fichajes y <b>suman horas en Salarios</b> del período. Eliminar la importación los revierte.</div>`;
+    if(s.tipo==='fichajes' || s.tipo==='horas_salario'){
+        head += (s.tipo==='fichajes')
+            ? `<div class="aviso">⏱ Estos fichajes se cargan como turnos REALES: aparecen en Fichajes y <b>suman horas en Salarios</b> del período. Eliminar la importación los revierte.</div>`
+            : `<div class="aviso">🧾 Estas horas se cargan como <b>horas de nómina</b>: suman en Salarios (× el sueldo/hora de cada empleado) y en el gasto de salarios del balance del período, mostradas como línea aparte de las fichadas. Eliminar la importación las revierte.</div>`;
         head+=_fichajesUserMap(si);
         const pend=(s.usuarios_detectados||[]).filter(m=>!m.usuario_id).length;
         if(pend>0){
             head+=`<div class="aviso" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;">
-                👤 Hay <b>${pend} empleado${pend>1?'s':''} sin usuario</b> en el sistema. Asignalos arriba, crealos con ➕ o quitalos con ✕ —
+                👤 Hay <b>${pend} empleado${pend>1?'s':''} sin usuario</b> en el sistema. Agregalos con <b>➕ Crear usuario</b>, asignalos a uno existente o quitalos con ✕ —
                 la tabla para revisar y confirmar aparece cuando estén todos resueltos.</div>`;
             return `<div class="sec-card">${head}</div>`;
         }
-    }
-    if(s.tipo==='horas_salario'){
-        head+=`<div class="aviso">🧾 Estas horas se cargan como <b>horas de nómina</b>: suman en Salarios (× el sueldo/hora de cada empleado) y en el gasto de salarios del balance del período, mostradas como línea aparte de las fichadas. Asigná el empleado del sistema en cada fila. Eliminar la importación las revierte.</div>`;
     }
     if(s.tipo==='otras'){
         head+=`<div class="aviso" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;">
