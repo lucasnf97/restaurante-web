@@ -395,6 +395,8 @@ let _confirmados     = [];
 let _periodoActualDesde = null;
 let _periodoActualHasta = null;
 let _pendientesData  = {};
+let _resumenCache    = {};   // resumen por período "desde|hasta" (se trae 1 vez por carga)
+let _pendGen         = 0;    // token de generación: solo el render más nuevo aplica al DOM
 let _ajustePendIdx   = null;
 let _breakevenData   = null;
 
@@ -502,24 +504,70 @@ function gastoRegistrado(inicio, fin) {
     return c ? !!c.gasto_registrado : false;
 }
 
-function renderPendientes() {
-    const pasados    = calcularPeriodosPasados();
-    const pendientes = pasados.filter(p => !estaConfirmado(p.inicio, p.fin));
+// Trae el resumen (con total_salarios) de cada período candidato, cacheado por período y en
+// tandas de 4 para no saturar el pool. Devuelve [{p, data|null}] en el MISMO orden.
+// Fail-open: si una llamada falla, data=null (no se cachea) y el período se muestra igual
+// (mejor sobre-mostrar que ocultar nómina real por un error transitorio).
+async function _resolverTotales(periodos) {
+    const key = p => `${fmtDate(p.inicio)}|${fmtDate(p.fin)}`;
+    const faltan = periodos.filter(p => !(key(p) in _resumenCache));
+    for (let i = 0; i < faltan.length; i += 4) {
+        const tanda = faltan.slice(i, i + 4);
+        const res = await Promise.allSettled(tanda.map(p =>
+            api.get(`/salarios/resumen?desde=${fmtDate(p.inicio)}&hasta=${fmtDate(p.fin)}`)));
+        res.forEach((r, j) => { if (r.status === 'fulfilled') _resumenCache[key(tanda[j])] = r.value; });
+    }
+    return periodos.map(p => ({ p, data: _resumenCache[key(p)] || null }));
+}
 
+// Un período aparece como pendiente SOLO si hay salario real que confirmar: algún empleado con
+// salario_total != 0 (positivo o negativo). Los meses en 0 (sin sueldos cargados, sin horas
+// pagadas — típico de quien solo usa Análisis) no ensucian la lista. Se mira por-empleado y no
+// el neto: un neto ~0 podría ser A=+500 y B=−500 cancelándose y ocultaría salarios reales.
+function _tieneSalario(data) {
+    if (!data) return true;   // fail-open: no se pudo traer el total -> mostrar
+    return (data.usuarios || []).some(u => Math.abs(u.salario_total || 0) > 0.005);
+}
+
+async function renderPendientes() {
+    const gen = ++_pendGen;
     const section = document.getElementById('pendientes-section');
     const list    = document.getElementById('pendientes-list');
 
-    if (!pendientes.length) { section.style.display = 'none'; return; }
+    const candidatos = calcularPeriodosPasados().filter(p => !estaConfirmado(p.inicio, p.fin));
+    if (!candidatos.length) {
+        window._pendientesPeriodos = []; _pendientesData = {};
+        section.style.display = 'none';
+        return;
+    }
+
+    // Resolver los totales antes de pintar (evita el "flash" de tarjetas que luego se colapsan).
+    const conData = await _resolverTotales(candidatos);
+    if (gen !== _pendGen) return;   // llegó un render más nuevo: no pisar su DOM
+    const survivors = conData.filter(x => _tieneSalario(x.data));
+
+    if (!survivors.length) {
+        window._pendientesPeriodos = []; _pendientesData = {};
+        section.style.display = 'none';
+        return;
+    }
     section.style.display = 'block';
 
-    list.innerHTML = pendientes.map((p, idx) => `
+    // Reconstruir TODO alineado al índice YA filtrado (0..n-1): períodos, cache por-idx y DOM.
+    // Reemplazo total de _pendientesData (no mutación) para no arrastrar claves stale.
+    window._pendientesPeriodos = survivors.map(s => s.p);
+    const dataPorIdx = {};
+    survivors.forEach((s, idx) => { if (s.data) dataPorIdx[idx] = s.data; });
+    _pendientesData = dataPorIdx;
+
+    list.innerHTML = survivors.map(({ p, data }, idx) => {
+        const totalTxt = _unlocked ? (data ? fmt(data.total_salarios) : '—') : '•••••';
+        return `
         <div class="pendiente-card" id="pend-card-${idx}">
             <div class="pendiente-summary" onclick="togglePendiente(${idx})">
                 <div class="pendiente-period-label">📅 ${periodoLabel(p.inicio, p.fin)}</div>
                 <span class="badge-pendiente">⚠ Pendiente de confirmación</span>
-                <div class="pendiente-total" id="pend-total-${idx}">
-                    ${_unlocked ? '—' : '•••••'}
-                </div>
+                <div class="pendiente-total" id="pend-total-${idx}">${totalTxt}</div>
                 <span class="pendiente-arrow">▼</span>
             </div>
             <div class="pendiente-body" id="pend-body-${idx}">
@@ -535,10 +583,8 @@ function renderPendientes() {
                     </button>
                 </div>` : ''}
             </div>
-        </div>
-    `).join('');
-
-    window._pendientesPeriodos = pendientes;
+        </div>`;
+    }).join('');
 }
 
 function togglePendiente(idx) {
@@ -553,18 +599,24 @@ async function cargarPendiente(idx) {
     const p = window._pendientesPeriodos && window._pendientesPeriodos[idx];
     if (!p) return;
     const content = document.getElementById(`pend-content-${idx}`);
-    content.innerHTML = '<em style="color:#888;">Cargando…</em>';
-    try {
-        const data = await api.get(
-            `/salarios/resumen?desde=${fmtDate(p.inicio)}&hasta=${fmtDate(p.fin)}`
-        );
-        _pendientesData[idx] = data;
-        const totalEl = document.getElementById(`pend-total-${idx}`);
-        if (totalEl) totalEl.textContent = _unlocked ? fmt(data.total_salarios) : '•••••';
-        content.innerHTML = buildTablaHTML(data, isManager && _unlocked, idx);
-    } catch(e) {
-        content.innerHTML = `<em style="color:#dc2626;">Error al cargar: ${e.message || e}</em>`;
+    // Reusar lo ya traído por el prefetch de renderPendientes: evita re-pegarle a la API y no
+    // pisa un ajuste en curso (confirmarAjuste muta _pendientesData[idx] in-place). Solo se
+    // fetchea si no hay dato cacheado (p.ej. tras un fail-open).
+    let data = _pendientesData[idx];
+    if (!data) {
+        content.innerHTML = '<em style="color:#888;">Cargando…</em>';
+        try {
+            data = await api.get(`/salarios/resumen?desde=${fmtDate(p.inicio)}&hasta=${fmtDate(p.fin)}`);
+            _pendientesData[idx] = data;
+            _resumenCache[`${fmtDate(p.inicio)}|${fmtDate(p.fin)}`] = data;
+        } catch(e) {
+            content.innerHTML = `<em style="color:#dc2626;">Error al cargar: ${e.message || e}</em>`;
+            return;
+        }
     }
+    const totalEl = document.getElementById(`pend-total-${idx}`);
+    if (totalEl) totalEl.textContent = _unlocked ? fmt(data.total_salarios) : '•••••';
+    content.innerHTML = buildTablaHTML(data, isManager && _unlocked, idx);
 }
 
 function _ajusteSubrowHTML(u, idxArg, canEdit) {
