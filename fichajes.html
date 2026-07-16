@@ -250,6 +250,11 @@
             <option value="">Todos</option>
         </select>
         <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
+        <span style="flex:1;"></span>
+        <button class="btn btn-secondary" onclick="descargarRegistro('csv')"
+                title="Registro de jornada del período (CSV para archivo/gestor)">📥 Registro CSV</button>
+        <button class="btn btn-secondary" onclick="descargarRegistro('pdf')"
+                title="Registro de jornada del período (PDF imprimible/firmable)">📄 Registro PDF</button>
     </div>
 
     <!-- Lista agrupada por usuario -->
@@ -579,6 +584,40 @@ function limpiarFiltros() {
     document.getElementById("filtro-hasta").value = "";
     if (hasEdicionFichajes()) document.getElementById("filtro-usuario").value = "";
     cargarHistorial();
+}
+
+// Descarga el Registro de jornada del período filtrado (CSV o PDF). El backend scopea por
+// permiso: gerente/edicion_fichajes exporta a todos, un empleado sólo su propio registro.
+async function descargarRegistro(formato) {
+    const desde = document.getElementById("filtro-desde").value;
+    const hasta = document.getElementById("filtro-hasta").value;
+    const qs = new URLSearchParams();
+    if (desde) qs.set("desde", desde);
+    if (hasta) qs.set("hasta", hasta);
+    qs.set("formato", formato);
+    if (window.UI) window.UI._reqStart();
+    try {
+        const res = await fetch(`${API_URL}/turnos/registro-jornada?${qs}`,
+                                { headers: { "Authorization": `Bearer ${getToken()}` } });
+        if (res.status === 401) { logout(); return; }
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            alert("No se pudo generar el registro: " + (e.detail || res.status));
+            return;
+        }
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const suf = (desde || hasta) ? `_${desde || "inicio"}_a_${hasta || "hoy"}` : "";
+        a.download = `registro-jornada${suf}.${formato === "pdf" ? "pdf" : "csv"}`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        alert("Error al descargar: " + (e.message || e));
+    } finally {
+        if (window.UI) window.UI._reqEnd();
+    }
 }
 
 // ── Agrupación por fecha ──────────────────────────────────────
