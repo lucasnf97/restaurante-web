@@ -187,7 +187,7 @@ const _emp = (typeof esEmpleadoCadena === 'function' && esEmpleadoCadena()
               && (typeof enCuenta !== 'function' || enCuenta()));
 
 let _cat = 'general';            // general | grupos | personal
-let _grupos = [], _grupoSel = null, _puedeGestionar = false;
+let _grupos = [], _grupoSel = null, _grupoSelRid = null, _puedeGestionar = false;
 let _usuariosPersonal = [], _usuarioSel = null;   // editor: usuario cuyos personales mira
 let _personalDesbloqueado = false;                // no-editor: abrió su personal con contraseña
 let _misLocales = [];                             // restaurantes del empleado (para vista unificada)
@@ -212,9 +212,8 @@ function _icono(a) {
 // ── Tabs ─────────────────────────────────────────────────────
 function renderTabs() {
     // El empleado (sin restaurante) solo ve la categoría General (cadena); grupos/personal son por local.
-    const cats = _emp ? [['general','📂 General'], ['capacitaciones','🎓 Capacitaciones']]
-                      : [['general','📂 General'], ['grupos','👥 Grupos'],
-                         ['capacitaciones','🎓 Capacitaciones'], ['personal','🔒 Personal']];
+    const cats = [['general','📂 General'], ['grupos','👥 Grupos'],
+                  ['capacitaciones','🎓 Capacitaciones'], ['personal','🔒 Personal']];
     document.getElementById('cat-tabs').innerHTML = cats.map(([c, l]) =>
         `<div class="cat-tab ${_cat === c ? 'active' : ''}" onclick="seleccionarCat('${c}')">${l}</div>`).join('');
 }
@@ -229,7 +228,8 @@ function seleccionarCat(cat) {
     } else if (cat === 'capacitaciones') {
         cargarCapacitaciones();
     } else { // personal
-        if (canEdit) { cargarUsuariosPersonal(); }
+        if (_emp) { cargarPersonalCadena(); }   // empleado (cuenta): sus personales agregados, ya autenticado
+        else if (canEdit) { cargarUsuariosPersonal(); }
         else if (_personalDesbloqueado) { cargarContenido(null); }
         else { renderLockPersonal(); }
     }
@@ -242,7 +242,9 @@ async function cargarGrupos() {
     // usuario leia "No estas en ningun grupo", ademas se le apagaba el boton "＋ Grupo",
     // y concluia que le habian sacado los permisos. Solo habia fallado un GET.
     try {
-        const r = await api.get('/documentos/grupos');
+        const r = _emp
+            ? await apiFetch('/empleado/documentos/grupos', { token: getEmpToken() })
+            : await api.get('/documentos/grupos');
         _grupos = r.grupos || []; _puedeGestionar = !!r.puede_gestionar; _gruposError = null;
     } catch (e) {
         _grupos = []; _puedeGestionar = false;
@@ -259,18 +261,20 @@ function renderGruposLista() {
     } else if (!_grupos.length) {
         html += `<div class="doc-empty">${_puedeGestionar ? 'Todavía no hay grupos. Creá uno con “＋ Grupo”.' : 'No estás en ningún grupo.'}</div>`;
     } else {
-        html += _grupos.map(g => `
+        html += _grupos.map(g => {
+            const rid = g.restaurante_id != null ? g.restaurante_id : 'null';
+            return `
             <div class="grp-chip-row">
                 <span style="font-size:20px;">👥</span>
-                <span class="gn" onclick="abrirGrupo(${g.id})" style="cursor:pointer;">${esc(g.nombre)}</span>
-                <button class="btn" onclick="abrirGrupo(${g.id})">Abrir</button>
+                <span class="gn" onclick="abrirGrupo(${g.id}, ${rid})" style="cursor:pointer;">${esc(g.nombre)}${g.restaurante ? ` <span style="color:#9ca3af;font-weight:400;">· 🏠 ${esc(g.restaurante)}</span>` : ''}</span>
+                <button class="btn" onclick="abrirGrupo(${g.id}, ${rid})">Abrir</button>
                 ${_puedeGestionar ? `<button class="btn" onclick="abrirGrupoModal(${g.id})">⚙️ Editar</button>` : ''}
-            </div>`).join('');
+            </div>`; }).join('');
     }
     if (_puedeGestionar) html += `<button class="btn" style="margin-top:12px;" onclick="abrirGrupoModal(null)">＋ Grupo</button>`;
     body.innerHTML = html;
 }
-function abrirGrupo(id) { _grupoSel = id; _carpetaId = null; cargarContenido(null); }
+function abrirGrupo(id, rid) { _grupoSel = id; _grupoSelRid = (rid != null ? rid : null); _carpetaId = null; cargarContenido(null); }
 
 // ── Personal (editor: picker de usuario / no-editor: lock) ───
 async function cargarUsuariosPersonal() {
@@ -331,7 +335,16 @@ async function cargarContenido(carpetaId) {
     }
     let q = _ctxParams();
     if (carpetaId) q += `&carpeta_id=${carpetaId}`;
-    try { _contenido = await api.get('/documentos/contenido?' + q); }
+    try {
+        if (_emp && _cat === 'grupos') {
+            // Empleado (cuenta): navega el grupo dentro de su local (restaurante_id del grupo).
+            let ge = `/empleado/documentos/grupo-contenido?restaurante_id=${_grupoSelRid}&grupo_id=${_grupoSel}`;
+            if (carpetaId) ge += `&carpeta_id=${carpetaId}`;
+            _contenido = await apiFetch(ge, { token: getEmpToken() });
+        } else {
+            _contenido = await api.get('/documentos/contenido?' + q);
+        }
+    }
     catch (e) { document.getElementById('doc-body').innerHTML = `<div class="doc-empty">No tenés acceso o hubo un error.</div>`; return; }
     renderContenido();
 }
@@ -397,6 +410,7 @@ function renderContenido() {
 
 // ── Personal de TODOS mis locales (solo lectura) ─────────────
 function _cadenaToggleHtml() {
+    if (_emp) return '';   // el empleado (cuenta) no tiene un "este local": siempre agregado
     return `<div style="display:flex;gap:8px;margin-bottom:12px;">
         <button class="btn ${_docCadena ? '' : 'btn-primary'}" onclick="verPersonalLocal()">📍 Este local</button>
         <button class="btn ${_docCadena ? 'btn-primary' : ''}" onclick="verPersonalCadena()">🌐 Todos mis locales</button>
@@ -410,7 +424,11 @@ async function cargarPersonalCadena() {
     const body = document.getElementById('doc-body');
     body.innerHTML = _cadenaToggleHtml() + '<div class="doc-empty">Cargando…</div>';
     let files = [];
-    try { files = await api.get('/documentos/personal-cadena'); }
+    try {
+        files = _emp
+            ? await apiFetch('/empleado/documentos/personal', { token: getEmpToken() })
+            : await api.get('/documentos/personal-cadena');
+    }
     catch (e) { body.innerHTML = _cadenaToggleHtml() + '<div class="doc-empty">No se pudo cargar.</div>'; return; }
     renderPersonalCadena(files);
 }
