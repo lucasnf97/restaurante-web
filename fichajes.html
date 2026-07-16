@@ -412,12 +412,39 @@ function canEditNota(fichaje) {
     return hasEdicionFichajes() || fichaje.usuario_id == currentUser().id;
 }
 
+// ── Huso horario del RESTAURANTE (no el del navegador) ────────
+// Fichajes se muestra y edita en la hora del LOCAL, igual que Salarios y el registro
+// de jornada (que ya la calculan server-side). Sin esto, corregir una hora desde otro
+// país usaba el huso del navegador → el instante quedaba corrido.
+let _TZ = "Europe/Madrid";   // IANA; se sobreescribe con cfg.zona_horaria al cargar config
+
+// Partes {y,mo,d,h,mi,s} de un instante VISTAS en el huso del restaurante.
+function _partsEnTZ(ts) {
+    const p = new Intl.DateTimeFormat("en-CA", { timeZone: _TZ, year: "numeric",
+        month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+        second: "2-digit", hour12: false }).formatToParts(new Date(ts));
+    const g = t => +p.find(x => x.type === t).value;
+    return { y: g("year"), mo: g("month"), d: g("day"), h: g("hour") % 24, mi: g("minute"), s: g("second") };
+}
+// Wall-clock "YYYY-MM-DDTHH:MM[:SS]" tecleado en el huso del restaurante → instante UTC (Date).
+// Invierte el offset del huso para esa fecha (maneja horario de verano).
+function _wallToInstant(wall) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(wall || "");
+    if (!m) return new Date(wall);
+    const y = +m[1], mo = +m[2], d = +m[3], h = +m[4], mi = +m[5], s = +(m[6] || 0);
+    const asUTC = Date.UTC(y, mo - 1, d, h, mi, s);
+    const q = _partsEnTZ(asUTC);
+    const tzWall = Date.UTC(q.y, q.mo - 1, q.d, q.h, q.mi, q.s);
+    return new Date(asUTC - (tzWall - asUTC));
+}
+
 // ── Init ─────────────────────────────────────────────────────
 async function init() {
-    // Cargar configuración (hora de corte de turno) primero
+    // Cargar configuración (hora de corte de turno + huso) primero
     try {
         const cfg = await api.get("/config/sistema");
         if (cfg.hora_corte_turno != null) HORA_CORTE_TURNO = cfg.hora_corte_turno;
+        if (cfg.zona_horaria) _TZ = cfg.zona_horaria;
     } catch(e) { console.warn("No se pudo cargar config:", e); }
 
     // Leer parámetros de URL (acceso directo desde revisión de salarios)
@@ -1258,12 +1285,13 @@ function _setAnularDif(val) {
 
 // ── Edición inline de hora ────────────────────────────────────
 
-/** Convierte un timestamp ISO al formato requerido por datetime-local: "YYYY-MM-DDTHH:MM" */
+/** Convierte un instante ISO al formato de datetime-local ("YYYY-MM-DDTHH:MM"),
+ *  en la hora del RESTAURANTE (no la del navegador). */
 function _toDatetimeLocal(ts) {
     if (!ts) return "";
-    const d = new Date(ts);
+    const p = _partsEnTZ(ts);
     const pad = n => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${p.y}-${pad(p.mo)}-${pad(p.d)}T${pad(p.h)}:${pad(p.mi)}`;
 }
 
 function toggleEditHora(campo) {
@@ -1380,12 +1408,11 @@ async function guardarHora(campo) {
     const newVal = input.value;  // "YYYY-MM-DDTHH:MM" en hora LOCAL del navegador
     if (!newVal) { alert("Ingresá una hora válida"); return; }
 
-    // Convertir la hora local del input a UTC para el backend.
-    // datetime-local da hora local; sin esta conversión el backend (Railway/UTC)
-    // lo almacena desfasado y al recargar la página se ve una hora distinta.
-    const dateObj   = new Date(newVal);              // Date en epoch correcto
+    // La hora tecleada es del huso del RESTAURANTE (no del navegador): la convertimos al
+    // instante UTC usando la TZ del local, así corregir desde otro país no la corre.
+    const dateObj   = _wallToInstant(newVal);        // instante UTC correcto
     const isoUtc    = dateObj.toISOString();         // "YYYY-MM-DDTHH:MM:SS.mmmZ"
-    const isoApiStr = isoUtc.slice(0, 19);           // "YYYY-MM-DDTHH:MM:SS" para el backend
+    const isoApiStr = isoUtc.slice(0, 19);           // "YYYY-MM-DDTHH:MM:SS" (UTC) para el backend
 
     // ── Validación de superposición ───────────────────────────
     const f = _fichajesData[_revFichajeId];
@@ -1554,21 +1581,22 @@ async function guardarEditInlineFichaje(fichajeId) {
     const f = _fichajesData[fichajeId];
     if (!f) return;
 
+    // La hora tecleada es del huso del RESTAURANTE → _wallToInstant da el instante UTC correcto.
     const body = {};
     if (entInp.value) {
-        const isoApi = new Date(entInp.value).toISOString().slice(0, 19);
+        const isoApi = _wallToInstant(entInp.value).toISOString().slice(0, 19);
         if (isoApi !== (f.ts_entrada || "").slice(0, 19)) body.ts_entrada = isoApi;
     }
     if (salInp && salInp.value) {
-        const isoApi = new Date(salInp.value).toISOString().slice(0, 19);
+        const isoApi = _wallToInstant(salInp.value).toISOString().slice(0, 19);
         if (isoApi !== (f.ts_salida || "").slice(0, 19)) body.ts_salida = isoApi;
     }
 
     if (!Object.keys(body).length) { _refreshAfterEdit(fichajeId); return; }
 
     // Validación básica
-    const nuevaEnt = body.ts_entrada ? new Date(entInp.value) : new Date(f.ts_entrada);
-    const nuevaSal = body.ts_salida  ? new Date(salInp.value) : (f.ts_salida ? new Date(f.ts_salida) : null);
+    const nuevaEnt = body.ts_entrada ? _wallToInstant(entInp.value) : new Date(f.ts_entrada);
+    const nuevaSal = body.ts_salida  ? _wallToInstant(salInp.value) : (f.ts_salida ? new Date(f.ts_salida) : null);
     if (nuevaSal && nuevaEnt >= nuevaSal) {
         alert("⚠️ La hora de entrada debe ser anterior a la hora de salida.");
         return;
@@ -1579,8 +1607,8 @@ async function guardarEditInlineFichaje(fichajeId) {
             method: "PATCH",
             body:   JSON.stringify(body),
         });
-        if (body.ts_entrada) f.ts_entrada = new Date(entInp.value).toISOString();
-        if (body.ts_salida)  f.ts_salida  = new Date(salInp.value).toISOString();
+        if (body.ts_entrada) f.ts_entrada = _wallToInstant(entInp.value).toISOString();
+        if (body.ts_salida)  f.ts_salida  = _wallToInstant(salInp.value).toISOString();
         if (f.ts_entrada && f.ts_salida) {
             f.horas = (new Date(f.ts_salida) - new Date(f.ts_entrada)) / 3600000;
         } else if (res.horas != null) {
@@ -1614,11 +1642,15 @@ function fechaLocal(ts) {
  */
 let HORA_CORTE_TURNO = 6; // hora local (0-23) — se sobreescribe al cargar config
 function fechaTurno(ts) {
-    const d = new Date(ts);
-    if (d.getHours() < HORA_CORTE_TURNO) {
-        d.setDate(d.getDate() - 1);
+    // Día de negocio en el huso del RESTAURANTE: si la hora local del local es antes del
+    // corte, el turno pertenece al día anterior.
+    const p = _partsEnTZ(ts);
+    let y = p.y, mo = p.mo, d = p.d;
+    if (p.h < HORA_CORTE_TURNO) {
+        const t = new Date(Date.UTC(y, mo - 1, d)); t.setUTCDate(t.getUTCDate() - 1);
+        y = t.getUTCFullYear(); mo = t.getUTCMonth() + 1; d = t.getUTCDate();
     }
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
 /**
@@ -1688,12 +1720,12 @@ function formatMins(mins) {
 
 function formatTs(ts) {
     if (!ts) return "—";
-    return new Date(ts).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
+    return new Date(ts).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: _TZ });
 }
 
 function formatHoraTs(ts) {
     if (!ts) return "—";
-    return new Date(ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+    return new Date(ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: _TZ });
 }
 
 function formatFechaShort(fechaStr) {
