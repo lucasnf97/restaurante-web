@@ -18,6 +18,9 @@
         .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
         .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; }
         .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .reg-export-item { display: block; width: 100%; text-align: left; padding: 10px 14px; background: none; border: none; cursor: pointer; font-size: 14px; color: #333; }
+        .reg-export-item + .reg-export-item { border-top: 1px solid #f0f0f0; }
+        .reg-export-item:hover { background: #f5f5f7; color: #4f46e5; }
 
         /* ── Stats ── */
         .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -251,10 +254,14 @@
         </select>
         <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
         <span style="flex:1;"></span>
-        <button class="btn btn-secondary" onclick="descargarRegistro('csv')"
-                title="Registro de jornada del período (CSV para archivo/gestor)">📥 Registro CSV</button>
-        <button class="btn btn-secondary" onclick="descargarRegistro('pdf')"
-                title="Registro de jornada del período (PDF imprimible/firmable)">📄 Registro PDF</button>
+        <div class="reg-export" style="position:relative;display:inline-block;">
+            <button class="btn btn-secondary" onclick="toggleExportMenu(event)"
+                    title="Registro de jornada del período (CSV o PDF)">📥 Exportar registro ▾</button>
+            <div id="export-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #e0e0e0;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12);z-index:50;min-width:180px;overflow:hidden;">
+                <button class="reg-export-item" onclick="descargarRegistro('csv')">📄 CSV (Excel / archivo)</button>
+                <button class="reg-export-item" onclick="descargarRegistro('pdf')">🧾 PDF (imprimible / firmable)</button>
+            </div>
+        </div>
     </div>
 
     <!-- Lista agrupada por usuario -->
@@ -588,7 +595,19 @@ function limpiarFiltros() {
 
 // Descarga el Registro de jornada del período filtrado (CSV o PDF). El backend scopea por
 // permiso: gerente/edicion_fichajes exporta a todos, un empleado sólo su propio registro.
+function toggleExportMenu(ev) {
+    if (ev) ev.stopPropagation();
+    const m = document.getElementById("export-menu");
+    if (m) m.style.display = (m.style.display === "none") ? "block" : "none";
+}
+// Cerrar el menú al clickear afuera
+document.addEventListener("click", (e) => {
+    const m = document.getElementById("export-menu");
+    if (m && m.style.display !== "none" && !e.target.closest(".reg-export")) m.style.display = "none";
+});
+
 async function descargarRegistro(formato) {
+    const m = document.getElementById("export-menu"); if (m) m.style.display = "none";
     const desde = document.getElementById("filtro-desde").value;
     const hasta = document.getElementById("filtro-hasta").value;
     const qs = new URLSearchParams();
