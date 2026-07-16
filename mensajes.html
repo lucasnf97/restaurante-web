@@ -831,10 +831,19 @@ async function verMensaje(idx) {
 
     document.getElementById("modal-ver").classList.add("open");
 
-    // Marcar como leído (solo en el local actual; en la vista de cadena es solo lectura)
-    if (!_cadena && !esPap && _tabActual === "recibidos" && !m.leido) {
+    // Marcar como leído. En modo empleado (token de cuenta) va por /empleado con el
+    // restaurante_id del mensaje; en el tenant normal, por /mensajes/{id}/leer. La vista
+    // de cadena de un token de LOCAL (no empleado) es solo lectura → no marca.
+    if (!esPap && _tabActual === "recibidos" && !m.leido && (_emp || !_cadena)) {
         try {
-            await apiFetch(`/mensajes/${m.id}/leer`, { method: "PATCH" });
+            if (_emp && m.restaurante_id != null) {
+                await apiFetch(`/empleado/mensajes/leer/${m.restaurante_id}/${m.id}`,
+                               { method: "POST", body: "{}", token: getEmpToken() });
+            } else if (!_emp) {
+                await apiFetch(`/mensajes/${m.id}/leer`, { method: "PATCH" });
+            } else {
+                throw new Error("sin restaurante_id");
+            }
             m.leido = true;
             renderLista();
             actualizarBadge();
