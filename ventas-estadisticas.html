@@ -1326,15 +1326,17 @@ function barSetPeriodo(key, dias, label) {
 }
 
 function barGetDates(dias) {
+    // Fecha LOCAL (no toISOString: en husos +offset pasa a UTC y en la madrugada corre un día).
+    const fmt   = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const hoy   = new Date();
-    const hasta = hoy.toISOString().split('T')[0];
+    const hasta = fmt(hoy);
     const desde = new Date(hoy);
     if (dias === 0) {
         /* solo hoy */
     } else {
         desde.setDate(desde.getDate() - dias);
     }
-    return { desde: desde.toISOString().split('T')[0], hasta };
+    return { desde: fmt(desde), hasta };
 }
 
 async function barFetch(key) {

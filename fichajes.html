@@ -422,7 +422,8 @@ async function init() {
         const diaSem = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;
         const lunes  = new Date(hoy); lunes.setDate(hoy.getDate() - diaSem);
         const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
-        const fmt = d => d.toISOString().split("T")[0];
+        // Fecha LOCAL (no toISOString: en husos +offset pasa a UTC y en la madrugada corre un día).
+        const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         document.getElementById("filtro-desde").value = fmt(lunes);
         document.getElementById("filtro-hasta").value = fmt(domingo);
     }

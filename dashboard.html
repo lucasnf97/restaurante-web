@@ -480,8 +480,9 @@ async function cargarDatos() {
         })(),
         (async () => {
             try {
-                const hoy = new Date().toISOString().split("T")[0];
-                const hoy2 = new Date().toISOString().split("T")[0];
+                // Fecha LOCAL de hoy (no toISOString: en husos +offset corre un día en la madrugada).
+                const _d = new Date();
+                const hoy2 = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
                 const [rv, esp] = await Promise.all([
                     api.get(`/reservas/?fecha=${hoy2}`),
                     api.get(`/reservas/espera?fecha=${hoy2}`).catch(()=>[])
@@ -1197,7 +1198,8 @@ function buildVentas7Dias(b) {
 
     const maxVal  = Math.max(...dias.map(d => d.total), 1);
     const sym     = _monedaSim;
-    const hoy     = new Date().toISOString().split("T")[0];
+    const _hoy    = new Date();  // fecha LOCAL (no toISOString: corre un día en la madrugada en husos +offset)
+    const hoy     = `${_hoy.getFullYear()}-${String(_hoy.getMonth()+1).padStart(2,'0')}-${String(_hoy.getDate()).padStart(2,'0')}`;
     const DOW     = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
     const promDia = dias.reduce((s,d) => s+d.total, 0) / dias.length;
 

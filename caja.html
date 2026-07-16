@@ -550,7 +550,8 @@ async function buscarPorPedidoId() {
 // ── TAKE AWAY ─────────────────────────────────────────────────
 
 async function init() {
-    const hoy = new Date().toISOString().split("T")[0];
+    const _h = new Date();  // fecha LOCAL (no toISOString: en husos +offset corre un día en la madrugada)
+    const hoy = `${_h.getFullYear()}-${String(_h.getMonth()+1).padStart(2,'0')}-${String(_h.getDate()).padStart(2,'0')}`;
     document.getElementById("filtro-desde").value = hoy;
     document.getElementById("filtro-hasta").value = hoy;
     await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
@@ -758,7 +759,8 @@ async function verDetalleAbierta() {
 }
 
 function limpiarFiltros() {
-    const hoy = new Date().toISOString().split("T")[0];
+    const _h = new Date();  // fecha LOCAL (no toISOString: en husos +offset corre un día en la madrugada)
+    const hoy = `${_h.getFullYear()}-${String(_h.getMonth()+1).padStart(2,'0')}-${String(_h.getDate()).padStart(2,'0')}`;
     document.getElementById("filtro-desde").value    = hoy;
     document.getElementById("filtro-hasta").value    = hoy;
     document.getElementById("filtro-cierre-id").value = "";

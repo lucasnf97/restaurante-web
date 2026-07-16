@@ -998,7 +998,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Defaults: diario = últimos 30 días; semanal = año anterior y actual
     const hoy    = new Date();
     const hace30 = new Date(hoy); hace30.setDate(hoy.getDate() - 30);
-    const toISO  = d => d.toISOString().split('T')[0];
+    // Fecha LOCAL (no toISOString: en husos +offset pasa a UTC y en la madrugada corre un día).
+    const toISO  = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     document.getElementById('an-desde').value      = toISO(hace30);
     document.getElementById('an-hasta').value      = toISO(hoy);
     document.getElementById('an-anio-desde').value = hoy.getFullYear() - 1;
