@@ -175,7 +175,7 @@
         <label class="lbl">Usuarios</label>
         <div class="checks" id="grupo-usuarios"></div>
         <div class="modal-acc">
-            <button class="btn-save" onclick="guardarGrupo()">Guardar</button>
+            <button class="btn-save" id="btn-guardar-grupo" onclick="guardarGrupo()">Guardar</button>
             <button class="btn-sec" onclick="cerrarModal('modal-grupo')">Cancelar</button>
             <button class="btn-del" id="grupo-del" style="display:none" onclick="eliminarGrupo()">🗑 Eliminar</button>
         </div>
@@ -759,12 +759,17 @@ async function guardarGrupo() {
     const roles = [...document.querySelectorAll('#grupo-roles input:checked')].map(c => c.value);
     const usuarios = [...document.querySelectorAll('#grupo-usuarios input:checked')].map(c => Number(c.value));
     const body = { nombre, roles, usuarios };
+    // Sin bloqueo, un segundo clic creaba el grupo DOS veces (el POST no es idempotente y
+    // el modal sigue vivo durante el await). publicar() en este mismo archivo ya lo hacía.
+    const btn = document.getElementById('btn-guardar-grupo');
+    if (btn) { if (btn.disabled) return; btn.disabled = true; }
     try {
         if (_grupoEdit) await apiFetch(`/social/grupos/${_grupoEdit.id}`, { method: 'PATCH', body: JSON.stringify(body) });
         else await apiFetch('/social/grupos', { method: 'POST', body: JSON.stringify(body) });
         cerrarModal('modal-grupo');
         await cargarGrupos();
     } catch (e) { alert('No se pudo guardar el grupo: ' + (e.message || e)); }
+    finally { if (btn) btn.disabled = false; }
 }
 async function eliminarGrupo() {
     if (!_grupoEdit) return;

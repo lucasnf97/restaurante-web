@@ -1011,7 +1011,15 @@ async function guardarMenuConfig() {
     const filas = parseInt(document.getElementById('mc-filas').value) || 4;
     const cols = parseInt(document.getElementById('mc-cols').value) || 5;
     const pag = paginas.find(p => p.id === _menuPagId);
-    await api.patch(`/menu/paginas/${_menuPagId}`, { nombre: pag.nombre, filas, columnas: cols });
+    // Sin try/catch, un fallo (403 por no tener edicion_sala, o 500) abortaba la función y
+    // NO pasaba absolutamente nada: ni cartel de éxito ni de error. El usuario volvía a
+    // clickear y otra vez nada, sin forma de saber que no se guardó hasta recargar.
+    try {
+        await api.patch(`/menu/paginas/${_menuPagId}`, { nombre: pag.nombre, filas, columnas: cols });
+    } catch (e) {
+        alert('No se pudo guardar la configuración: ' + (e.message || 'error de conexión'));
+        return;
+    }
     _menuLayout.filas = filas;
     _menuLayout.columnas = cols;
     alert('✓ Configuración guardada');

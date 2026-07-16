@@ -2157,7 +2157,15 @@ async function cargarServicios() {
                 <button class="btn btn-danger btn-sm" onclick="eliminarServicio(${s.id})">✕</button>
             </div></td>
         </tr>`).join("");
-    } catch(e) { console.error(e); }
+    } catch(e) {
+        // Antes solo console.error: la solapa se quedaba en "Cargando..." para siempre.
+        console.error(e);
+        const tb = document.getElementById("tbody-servicios");
+        if (tb) tb.innerHTML = `<tr><td colspan="4" class="empty" style="color:#b91c1c;">
+            No se pudieron cargar los servicios: ${esc(e.message || "error de conexión")}.
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="cargarServicios()">Reintentar</button>
+        </td></tr>`;
+    }
 }
 
 function abrirModalServicio() {
@@ -2226,7 +2234,14 @@ async function cargarProveedores() {
                 <button class="btn btn-danger btn-sm" onclick="eliminarProveedor(${p.id})">✕</button>
             </div></td>
         </tr>`).join("");
-    } catch(e) { console.error(e); }
+    } catch(e) {
+        console.error(e);
+        const tb = document.getElementById("tbody-proveedores");
+        if (tb) tb.innerHTML = `<tr><td colspan="5" class="empty" style="color:#b91c1c;">
+            No se pudieron cargar los proveedores: ${esc(e.message || "error de conexión")}.
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="cargarProveedores()">Reintentar</button>
+        </td></tr>`;
+    }
 }
 
 function abrirModalProveedor() {
