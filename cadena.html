@@ -53,7 +53,7 @@
                 <tfoot id="fact-foot"></tfoot>
             </table>
         </div>
-        <p style="font-size:12px;color:#94a3b8;margin-top:8px;">Facturación POS (a valor de carta) por período calendario. Los montos están en la moneda de cada restaurante.</p>
+        <p style="font-size:12px;color:#94a3b8;margin-top:8px;">Facturación NETA (con descuentos), por día de negocio, incluyendo ventas importadas — igual que el resumen de cada local. El número grande es con impuesto; abajo en gris, sin impuesto. Montos en la moneda de cada restaurante.</p>
 
         <div class="sec-title">Herramientas</div>
         <div class="cards">
@@ -115,15 +115,15 @@
             foot.innerHTML = '';
             return;
         }
-        // Celda: neto en grande + bruto (con impuesto) chico y gris debajo.
-        const _cell = (neto, bruto) => `${fmt(neto != null ? neto : bruto)}<div style="font-size:11px;color:#9ca3af;text-align:right;">${fmt(bruto || 0)} c/imp</div>`;
+        // Celda: CON impuesto en grande + SIN impuesto chico y gris debajo.
+        const _cell = (conImp, sinImp) => `${fmt(conImp || 0)}<div style="font-size:11px;color:#9ca3af;text-align:right;">${fmt(sinImp || 0)} sin imp.</div>`;
         body.innerHTML = datos.map(d => `
             <tr>
                 <td>${d.restaurante || '—'}</td>
-                <td>${_cell(d.dia_neto, d.dia)}</td>
-                <td>${_cell(d.semana_neto, d.semana)}</td>
-                <td>${_cell(d.mes_neto, d.mes)}</td>
-                <td>${_cell(d.anio_neto, d.anio)}</td>
+                <td>${_cell(d.dia, d.dia_neto)}</td>
+                <td>${_cell(d.semana, d.semana_neto)}</td>
+                <td>${_cell(d.mes, d.mes_neto)}</td>
+                <td>${_cell(d.anio, d.anio_neto)}</td>
             </tr>`).join('');
         const tot = datos.reduce((a, d) => ({
             dia: a.dia + (d.dia || 0), semana: a.semana + (d.semana || 0),
@@ -131,7 +131,7 @@
             dia_n: a.dia_n + (d.dia_neto || 0), semana_n: a.semana_n + (d.semana_neto || 0),
             mes_n: a.mes_n + (d.mes_neto || 0), anio_n: a.anio_n + (d.anio_neto || 0)
         }), { dia: 0, semana: 0, mes: 0, anio: 0, dia_n: 0, semana_n: 0, mes_n: 0, anio_n: 0 });
-        foot.innerHTML = `<tr><td>Total cadena</td><td>${_cell(tot.dia_n, tot.dia)}</td><td>${_cell(tot.semana_n, tot.semana)}</td><td>${_cell(tot.mes_n, tot.mes)}</td><td>${_cell(tot.anio_n, tot.anio)}</td></tr>`;
+        foot.innerHTML = `<tr><td>Total cadena</td><td>${_cell(tot.dia, tot.dia_n)}</td><td>${_cell(tot.semana, tot.semana_n)}</td><td>${_cell(tot.mes, tot.mes_n)}</td><td>${_cell(tot.anio, tot.anio_n)}</td></tr>`;
     }
 
     async function entrar(id, btn) {
