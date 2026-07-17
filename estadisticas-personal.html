@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurante — Estadísticas de Personal</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+
+/* ── Navbar ─────────────────────────────────────────────────── */
+.navbar {
+    background:#1a1a2e; color:white; padding:0 32px; height:60px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:fixed; top:0; left:0; right:0; z-index:200;
+}
+.navbar-brand { font-size:18px; font-weight:700; }
+.navbar-links  { display:flex; gap:12px; align-items:center; }
+.btn-logout {
+    background:transparent; border:1px solid #4f46e5; color:#a5b4fc;
+    padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px;
+}
+.btn-logout:hover { background:#4f46e5; color:white; }
+
+.content { margin-top:60px; padding:24px 28px; max-width:1500px; margin-left:auto; margin-right:auto; }
+
+/* ── Header + selector de período ───────────────────────────── */
+.page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+.page-title { font-size:20px; font-weight:800; color:#1a1a2e; }
+.periodo-picker { display:flex; gap:8px; align-items:center; }
+.periodo-picker select, .periodo-picker input {
+    border:1px solid #d1d5db; border-radius:8px; padding:8px 10px; font-size:14px; background:#fff;
+}
+.periodo-picker input { width:90px; }
+.btn-primary {
+    background:#4f46e5; color:#fff; border:none; padding:9px 18px; border-radius:8px;
+    font-size:13px; font-weight:700; cursor:pointer;
+}
+.btn-primary:hover { background:#4338ca; }
+.periodo-label { font-size:13px; color:#6b7280; }
+
+/* ── Secciones y cards ──────────────────────────────────────── */
+.sec { margin-bottom:30px; }
+.sec-title { font-size:17px; font-weight:800; color:#1a1a2e; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.sec-sub { font-size:12px; color:#9ca3af; font-weight:400; }
+.stat-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:14px; }
+.stat-card { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:14px 16px; }
+.stat-lbl { font-size:11.5px; color:#6b7280; font-weight:700; text-transform:uppercase; letter-spacing:.3px; }
+.stat-val { font-size:22px; font-weight:800; color:#1a1a2e; margin-top:4px; }
+.stat-hint { font-size:11px; color:#9ca3af; margin-top:2px; }
+
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+@media (max-width:980px) { .grid-2 { grid-template-columns:1fr; } }
+.panel { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
+.panel h4 { font-size:13.5px; font-weight:700; color:#374151; margin-bottom:10px; }
+.chart-box { position:relative; height:260px; }
+
+/* ── Tablas ─────────────────────────────────────────────────── */
+.tbl-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; padding:8px 10px; color:#6b7280; font-size:11.5px; text-transform:uppercase;
+     letter-spacing:.3px; border-bottom:2px solid #f0f0f0; white-space:nowrap; }
+td { padding:8px 10px; border-bottom:1px solid #f6f6f6; color:#1f2937; white-space:nowrap; }
+td.num, th.num { text-align:right; }
+tr:hover td { background:#fafaff; }
+.dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:7px; vertical-align:baseline; }
+.empty { color:#9ca3af; font-size:13px; padding:18px; text-align:center; }
+
+/* ── Toggle de insumos ──────────────────────────────────────── */
+.tgl { display:inline-flex; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; }
+.tgl button { background:#fff; border:none; padding:6px 12px; font-size:12px; cursor:pointer; color:#6b7280; }
+.tgl button.on { background:#4f46e5; color:#fff; }
+.aviso-inline { font-size:11.5px; color:#9ca3af; margin-top:6px; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header">
+        <div>
+            <div class="page-title">👥 Estadísticas de Personal</div>
+            <div class="periodo-label" id="lbl-periodo"></div>
+        </div>
+        <div class="periodo-picker">
+            <select id="sel-mes">
+                <option value="" selected>Todo el año</option>
+                <option value="1">Enero</option><option value="2">Febrero</option>
+                <option value="3">Marzo</option><option value="4">Abril</option>
+                <option value="5">Mayo</option><option value="6">Junio</option>
+                <option value="7">Julio</option><option value="8">Agosto</option>
+                <option value="9">Septiembre</option><option value="10">Octubre</option>
+                <option value="11">Noviembre</option><option value="12">Diciembre</option>
+            </select>
+            <input type="number" id="inp-year" min="2020" max="2099" step="1">
+            <button class="btn-primary" onclick="cargar()">Cargar</button>
+        </div>
+    </div>
+
+    <div id="cuerpo"><div class="empty">Cargando…</div></div>
+</div>
+
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
+<script>
+requireAuth();
+requirePermiso('acceso_estadisticas', 'acceso_facturacion');
+
+/* Paleta categórica validada (dataviz: orden fijo = mecanismo de seguridad CVD; nunca
+   ciclar — más de 8 empleados se pliegan en "Otros" gris en los gráficos, la tabla
+   muestra a todos). Validada contra superficie blanca: PASS (el WARN de contraste de
+   3 tonos se cubre con las tablas al lado de cada gráfico y bordes blancos de 2px). */
+const PALETA = ['#2a78d6','#008300','#e87ba4','#eda100','#1baf7a','#eb6834','#4a3aa7','#e34948'];
+const GRIS_OTROS = '#9ca3af';
+
+const fmtN  = new Intl.NumberFormat('es-ES', { minimumFractionDigits:2, maximumFractionDigits:2 });
+const fmtI  = new Intl.NumberFormat('es-ES');
+const money = v => `${simboloMoneda()} ${fmtN.format(v || 0)}`;
+const fmtH  = v => `${fmtN.format(v || 0)} h`;
+const mmss  = s => s == null ? '—' : `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')} min`;
+const esc   = window.esc || (s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
+
+let _charts = {};       // instancias Chart.js por canvas id (destroy antes de re-render)
+let _colores = {};      // usuario_id -> color (fijo por CARGA, asignado por id ascendente)
+let _data = null;
+
+function _asignarColores(payload) {
+    // El color sigue a la ENTIDAD: asignación por usuario_id ascendente (estable entre
+    // períodos para el mismo equipo), nunca por ranking del período.
+    const uids = new Set();
+    (payload.camareros.empleados || []).forEach(e => uids.add(e.usuario_id));
+    (payload.areas || []).forEach(a => (a.personal || []).forEach(p => uids.add(p.usuario_id)));
+    _colores = {};
+    [...uids].sort((a, b) => a - b).forEach((uid, i) => {
+        _colores[uid] = i < PALETA.length ? PALETA[i] : GRIS_OTROS;
+    });
+}
+const colorDe = uid => _colores[uid] || GRIS_OTROS;
+
+function _mkChart(id, cfg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    _charts[id]?.destroy();
+    _charts[id] = new Chart(el, cfg);
+}
+
+/* Donut: torta = el equipo, porciones = empleados. Pliega más allá de 7 en "Otros".
+   Bordes blancos 2px (separador entre porciones), leyenda siempre presente. */
+function donut(id, items, fmtVal) {
+    const orden = [...items].filter(x => (x.value || 0) > 0).sort((a, b) => b.value - a.value);
+    let vis = orden, otros = 0;
+    if (orden.length > 8) { vis = orden.slice(0, 7); otros = orden.slice(7).reduce((s, x) => s + x.value, 0); }
+    const labels = vis.map(x => x.label).concat(otros > 0 ? ['Otros'] : []);
+    const data   = vis.map(x => x.value).concat(otros > 0 ? [otros] : []);
+    const cols   = vis.map(x => colorDe(x.uid)).concat(otros > 0 ? [GRIS_OTROS] : []);
+    _mkChart(id, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data, backgroundColor: cols, borderColor: '#fff', borderWidth: 2 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '55%',
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } } },
+                tooltip: { callbacks: { label: ctx => {
+                    const tot = data.reduce((s, v) => s + v, 0) || 1;
+                    return ` ${ctx.label}: ${fmtVal(ctx.parsed)} (${Math.round(ctx.parsed / tot * 100)}%)`;
+                } } },
+            },
+        },
+    });
+}
+
+/* Barras simples (franjas horarias / series de producción): un solo color (slot 1),
+   topes redondeados, grilla recesiva, tooltip formateado. */
+function barras(id, labels, values, fmtVal, color) {
+    _mkChart(id, {
+        type: 'bar',
+        data: { labels, datasets: [{ data: values, backgroundColor: color || PALETA[0],
+                                     borderRadius: 4, maxBarThickness: 34 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false },
+                       tooltip: { callbacks: { label: ctx => ` ${fmtVal(ctx.parsed.y)}` } } },
+            scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                      y: { grid: { color: '#f0f0f0' }, ticks: { font: { size: 11 } }, beginAtZero: true } },
+        },
+    });
+}
+
+function statCard(lbl, val, hint) {
+    return `<div class="stat-card"><div class="stat-lbl">${lbl}</div>
+        <div class="stat-val">${val}</div>${hint ? `<div class="stat-hint">${hint}</div>` : ''}</div>`;
+}
+
+// ── Render ────────────────────────────────────────────────────
+function render() {
+    const d = _data;
+    document.getElementById('lbl-periodo').textContent =
+        `${d.periodo.label} · ${d.periodo.dias_con_venta} día(s) con venta`;
+    let html = '';
+
+    // ── CAMAREROS ──
+    const c = d.camareros, t = c.totales;
+    html += `<div class="sec"><div class="sec-title">🧑‍🍳 Camareros
+        <span class="sec-sub">mesas atribuidas a quien las abrió</span></div>`;
+    if (!c.empleados.length) {
+        html += `<div class="panel"><div class="empty">Sin mesas cobradas en el período.</div></div></div>`;
+    } else {
+        html += `<div class="stat-row">
+            ${statCard('Horas trabajadas', fmtH(t.horas))}
+            ${statCard('Mesas cerradas', fmtI.format(t.mesas_cerradas))}
+            ${statCard('Órdenes entregadas', fmtI.format(t.ordenes_entregadas))}
+            ${statCard('Total facturado', money(t.total_facturado), money(t.total_facturado_neto) + ' sin imp.')}
+            ${statCard('Ticket promedio', money(t.ticket_promedio))}
+            ${statCard(simboloMoneda() + ' por hora', t.facturado_por_hora != null ? money(t.facturado_por_hora) : '—')}
+        </div>
+        <div class="grid-2">
+            <div class="panel"><h4>Facturación por camarero</h4><div class="chart-box"><canvas id="ch-cam-fact"></canvas></div></div>
+            <div class="panel"><h4>Horas por camarero</h4><div class="chart-box"><canvas id="ch-cam-horas"></canvas></div></div>
+        </div>
+        <div class="panel" style="margin-bottom:14px;"><h4>Mesas por franja horaria</h4>
+            <div class="chart-box" style="height:200px;"><canvas id="ch-cam-franjas"></canvas></div></div>
+        <div class="panel tbl-wrap"><table><thead><tr>
+            <th>Empleado</th><th class="num">Horas</th><th class="num">Mesas</th><th class="num">Órdenes</th>
+            <th class="num">Comensales</th><th class="num">Facturado</th><th class="num">Ticket prom.</th>
+            <th class="num">${esc(simboloMoneda())}/hora</th><th class="num">Descuentos</th><th class="num">Refunds</th>
+        </tr></thead><tbody>`;
+        c.empleados.forEach(e => {
+            html += `<tr>
+                <td><span class="dot" style="background:${colorDe(e.usuario_id)}"></span>${esc(e.nombre)}
+                    <span style="color:#9ca3af;font-size:11px;"> ${esc(e.rol || '')}</span></td>
+                <td class="num">${fmtH(e.horas)}</td>
+                <td class="num">${fmtI.format(e.mesas_cerradas)}</td>
+                <td class="num">${fmtI.format(e.ordenes_entregadas)}</td>
+                <td class="num">${fmtI.format(e.comensales)}</td>
+                <td class="num"><b>${money(e.total_facturado)}</b></td>
+                <td class="num">${money(e.ticket_promedio)}</td>
+                <td class="num">${e.facturado_por_hora != null ? money(e.facturado_por_hora) : '—'}</td>
+                <td class="num">${e.descuentos_otorgados ? money(e.descuentos_otorgados) : '—'}</td>
+                <td class="num">${e.refunds ? `${e.refunds} (${money(e.refunds_total)})` : '—'}</td>
+            </tr>`;
+        });
+        html += `</tbody></table></div></div>`;
+    }
+
+    // ── ÁREAS ──
+    d.areas.forEach((a, ai) => {
+        const icono = a.es_cocina ? '👨‍🍳' : (a.es_barra ? '🍸' : '🍽️');
+        const tt = a.totales;
+        html += `<div class="sec"><div class="sec-title">${icono} ${esc(a.nombre)}
+            <span class="sec-sub">producción y tiempos por área — por persona solo las horas</span></div>
+        <div class="stat-row">
+            ${statCard('Órdenes entregadas', fmtI.format(tt.ordenes_entregadas))}
+            ${statCard('Productos realizados', fmtI.format(tt.productos_realizados))}
+            ${statCard('Prep. promedio', mmss(tt.tiempo_prep_promedio_s),
+                       tt.ordenes_con_tiempo ? `basado en ${fmtI.format(tt.ordenes_con_tiempo)} órdenes` : 'sin datos de preparación')}
+            ${statCard('Horas del personal', fmtH(tt.horas_personal), `${tt.empleados} empleado(s)`)}
+            ${statCard('% canceladas', tt.ordenes_totales ? (tt.ordenes_canceladas / tt.ordenes_totales * 100).toFixed(1) + '%' : '—')}
+        </div>
+        <div class="grid-2">
+            <div class="panel"><h4>Horas por empleado del área</h4>
+                ${a.personal.length ? `<div class="chart-box"><canvas id="ch-a${ai}-horas"></canvas></div>`
+                                    : `<div class="empty">Sin personal asignado a esta área.<br>
+                                       <span style="font-size:11.5px;">Asignales el área en Usuarios para verlos acá.</span></div>`}
+            </div>
+            <div class="panel"><h4>Top productos</h4>${a.top_productos.length ? `<div class="tbl-wrap"><table>
+                <thead><tr><th>Producto</th><th class="num">Unidades</th></tr></thead><tbody>
+                ${a.top_productos.map(p => `<tr><td>${esc(p.nombre)}</td><td class="num">${fmtI.format(p.unidades)}</td></tr>`).join('')}
+                </tbody></table></div>` : '<div class="empty">Sin producción en el período.</div>'}
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="panel"><h4>Producción ${d.periodo.month ? 'por día' : 'por mes'}</h4>
+                <div class="chart-box" style="height:200px;"><canvas id="ch-a${ai}-serie"></canvas></div></div>
+            <div class="panel"><h4>Órdenes por franja horaria</h4>
+                <div class="chart-box" style="height:200px;"><canvas id="ch-a${ai}-franjas"></canvas></div></div>
+        </div>`;
+        if (a.personal.length) {
+            html += `<div class="panel tbl-wrap" style="margin-top:14px;"><table><thead><tr>
+                <th>Empleado</th><th>Rol</th><th class="num">Horas</th><th class="num">% del equipo</th>
+            </tr></thead><tbody>`;
+            const totH = tt.horas_personal || 1;
+            a.personal.forEach(p => {
+                html += `<tr><td><span class="dot" style="background:${colorDe(p.usuario_id)}"></span>${esc(p.nombre)}</td>
+                    <td>${esc(p.rol || '')}</td><td class="num">${fmtH(p.horas)}</td>
+                    <td class="num">${tt.horas_personal ? Math.round(p.horas / totH * 100) + '%' : '—'}</td></tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+        if (a.insumos && a.insumos.length) {
+            html += `<div class="panel" style="margin-top:14px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <h4 style="margin:0;">Insumos consumidos <span class="sec-sub">(teórico: recetas × ventas)</span></h4>
+                    <div class="tgl" id="tgl-a${ai}">
+                        <button class="on" onclick="setInsumosModo(${ai}, 'total', this)">Total</button>
+                        <button onclick="setInsumosModo(${ai}, 'dia', this)">Por día</button>
+                        <button onclick="setInsumosModo(${ai}, 'semana', this)">Por semana</button>
+                        <button onclick="setInsumosModo(${ai}, 'mes', this)">Por mes</button>
+                    </div>
+                </div>
+                <div class="tbl-wrap" id="insumos-a${ai}"></div>
+                <div class="aviso-inline">Promedios calculados sobre ${d.periodo.dias_con_venta} día(s) con venta del período.</div>
+            </div>`;
+        }
+        html += `</div>`;
+    });
+
+    // ── OTROS ──
+    const o = d.otros;
+    if (o.sin_atribuir.mesas > 0 || o.usuarios_sin_area.length) {
+        html += `<div class="sec"><div class="sec-title">📎 Otros</div><div class="grid-2">`;
+        if (o.sin_atribuir.mesas > 0) {
+            html += `<div class="panel"><h4>Mesas sin camarero registrado</h4>
+                <div style="font-size:13.5px;color:#374151;">${fmtI.format(o.sin_atribuir.mesas)} mesa(s) ·
+                ${money(o.sin_atribuir.total_facturado)} facturado</div>
+                <div class="aviso-inline">Pedidos sin usuario que los abriera (históricos o cargas externas).
+                Se cuentan en la facturación total pero no se atribuyen a nadie.</div></div>`;
+        }
+        if (o.usuarios_sin_area.length) {
+            html += `<div class="panel"><h4>Personal con horas y sin área asignada</h4>
+                <div class="tbl-wrap"><table><thead><tr><th>Empleado</th><th>Rol</th><th class="num">Horas</th></tr></thead><tbody>
+                ${o.usuarios_sin_area.map(u => `<tr><td>${esc(u.nombre)}</td><td>${esc(u.rol || '')}</td>
+                    <td class="num">${fmtH(u.horas)}</td></tr>`).join('')}
+                </tbody></table></div>
+                <div class="aviso-inline">Asignales un área en Usuarios para que aparezcan en su sección.</div></div>`;
+        }
+        html += `</div></div>`;
+    }
+
+    document.getElementById('cuerpo').innerHTML = html;
+
+    // ── Charts (después de montar el DOM) ──
+    if (c.empleados.length) {
+        donut('ch-cam-fact',  c.empleados.map(e => ({ label: e.nombre, value: e.total_facturado, uid: e.usuario_id })), money);
+        donut('ch-cam-horas', c.empleados.map(e => ({ label: e.nombre, value: e.horas, uid: e.usuario_id })), fmtH);
+        const fr = d.franjas_camareros || [];
+        barras('ch-cam-franjas', fr.map(f => `${f.hora}h`), fr.map(f => f.mesas), v => `${fmtI.format(v)} mesas`);
+    }
+    d.areas.forEach((a, ai) => {
+        if (a.personal.length)
+            donut(`ch-a${ai}-horas`, a.personal.map(p => ({ label: p.nombre, value: p.horas, uid: p.usuario_id })), fmtH);
+        barras(`ch-a${ai}-serie`, a.produccion_series.map(s => s.bucket),
+               a.produccion_series.map(s => s.unidades), v => `${fmtI.format(v)} unidades`);
+        barras(`ch-a${ai}-franjas`, a.franjas.map(f => `${f.hora}h`),
+               a.franjas.map(f => f.ordenes), v => `${fmtI.format(v)} órdenes`, PALETA[1]);
+        if (a.insumos && a.insumos.length) renderInsumos(ai, 'total');
+    });
+}
+
+// ── Insumos: toggle Total | Por día | Por semana | Por mes ────
+function setInsumosModo(ai, modo, btn) {
+    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    renderInsumos(ai, modo);
+}
+function renderInsumos(ai, modo) {
+    const a = _data.areas[ai];
+    const dias = Math.max(_data.periodo.dias_con_venta, 1);
+    const meses = _data.periodo.month ? 1 : Math.max(new Set(
+        (a.produccion_series || []).map(s => s.bucket.slice(0, 7))).size, 1);
+    const div = modo === 'dia' ? dias : modo === 'semana' ? dias / 7 : modo === 'mes' ? meses : 1;
+    const sufijo = modo === 'dia' ? '/día' : modo === 'semana' ? '/semana' : modo === 'mes' ? '/mes' : '';
+    let html = `<table><thead><tr><th>Insumo</th><th class="num">Cantidad${sufijo}</th>
+        <th>Unidad</th><th class="num">Costo${sufijo}</th></tr></thead><tbody>`;
+    a.insumos.forEach(i => {
+        html += `<tr><td>${esc(i.nombre)}</td>
+            <td class="num">${fmtN.format(i.consumido / div)}</td>
+            <td>${esc(i.unidad || '')}</td>
+            <td class="num">${money(i.costo_total / div)}</td></tr>`;
+    });
+    document.getElementById(`insumos-a${ai}`).innerHTML = html + '</tbody></table>';
+}
+
+// ── Carga ─────────────────────────────────────────────────────
+async function cargar() {
+    const mes = document.getElementById('sel-mes').value;
+    const anio = parseInt(document.getElementById('inp-year').value) || new Date().getFullYear();
+    document.getElementById('cuerpo').innerHTML = '<div class="empty">Cargando…</div>';
+    try {
+        let url = `/reportes/estadisticas-personal?year=${anio}`;
+        if (mes) url += `&month=${mes}`;
+        _data = await api.get(url);
+        _asignarColores(_data);
+        render();
+    } catch (e) {
+        document.getElementById('cuerpo').innerHTML =
+            `<div class="panel"><div class="empty">No se pudo cargar: ${esc(e.message || e)}
+             <br><button class="btn-primary" style="margin-top:10px;" onclick="cargar()">Reintentar</button></div></div>`;
+    }
+}
+
+(async () => {
+    try { await cargarMonedaSistema(); } catch (e) {}
+    document.getElementById('inp-year').value = new Date().getFullYear();
+    cargar();
+})();
+</script>
+</body>
+</html>

@@ -46,6 +46,7 @@
                 { href: "analisis-mes.html",          icon: "📅", label: "Análisis de mes" },
                 { href: "historicos.html",            icon: "📈", label: "Históricos" },
                 { href: "ventas-estadisticas.html",   icon: "🛒", label: "Est. de Ventas" },
+                { href: "estadisticas-personal.html", icon: "👥", label: "Est. de Personal" },
             ]
         },
         { href: "importar-ventas.html", icon: "📥", label: "Importar", mod: "importar", perm: ["acceso_importar"] },
