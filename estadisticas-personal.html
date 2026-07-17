@@ -125,7 +125,8 @@ const fmtI  = new Intl.NumberFormat('es-ES');
 const money = v => `${simboloMoneda()} ${fmtN.format(v || 0)}`;
 const fmtH  = v => `${fmtN.format(v || 0)} h`;
 const mmss  = s => s == null ? '—' : `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')} min`;
-const esc   = window.esc || (s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
+// esc() viene de js/api.js (global, cargado antes). NO redeclararla: un `const esc` acá
+// es SyntaxError por colisión y mata el script entero (la página queda en "Cargando…").
 
 let _charts = {};       // instancias Chart.js por canvas id (destroy antes de re-render)
 let _colores = {};      // usuario_id -> color (fijo por CARGA, asignado por id ascendente)
