@@ -229,6 +229,18 @@ table.hist th { color:#9ca3af; font-weight:600; font-size:11px; text-transform:u
     </div>
 </div>
 
+<!-- Ticket guardado de una cuenta (mismo HTML que se imprime/manda por correo) -->
+<div class="modal-overlay" id="modal-ticket">
+    <div class="modal" style="width:460px;max-width:94vw;">
+        <h3 id="ticket-titulo">Ticket</h3>
+        <iframe id="ticket-frame" style="width:100%;height:min(60vh,520px);border:1px solid #e5e7eb;border-radius:8px;background:#fff;"></iframe>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="imprimirTicketCliente()">🖨 Reimprimir</button>
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-ticket')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
@@ -323,11 +335,12 @@ function renderHistorico(id, d){
             '<td>'+fecha+'</td>'+
             '<td>'+mesa+'</td>'+
             '<td><a class="cuenta-link" onclick="verConsumo('+h.pedido_id+')">Cuenta #'+h.pedido_id+'</a></td>'+
+            '<td><a class="cuenta-link" onclick="verTicketCliente('+h.pedido_id+')" title="Ver el ticket guardado / reimprimir">🧾 Ticket</a></td>'+
             '<td class="hist-tot">'+money(h.total)+'</td>'+
         '</tr>';
     }).join('');
     cont.innerHTML =
-        '<table class="hist"><thead><tr><th>Fecha</th><th>Mesa</th><th>Cuenta</th><th class="hist-tot">Total consumido</th></tr></thead>'+
+        '<table class="hist"><thead><tr><th>Fecha</th><th>Mesa</th><th>Cuenta</th><th>Ticket</th><th class="hist-tot">Total consumido</th></tr></thead>'+
         '<tbody>'+filas+'</tbody></table>'+
         '<div class="resumen-cli">'+d.visitas+' visita(s) · Total consumido: '+money(d.total_general)+'</div>';
 }
@@ -357,6 +370,27 @@ function renderExtra(id, d){
         html += '<div class="estado-vacio">Sin cuentas asociadas aún.</div>';
     }
     cont.innerHTML = html;
+}
+
+// ── Ticket guardado de la cuenta (ver + reimprimir) ─────────────────────────
+// Trae el MISMO HTML del ticket que se imprimió/mandó por correo (única maqueta,
+// GET /pedidos/{id}/ticket) y lo muestra en un iframe; Reimprimir imprime el iframe.
+async function verTicketCliente(pedidoId){
+    document.getElementById('ticket-titulo').textContent = 'Ticket — Cuenta #'+pedidoId;
+    const frame = document.getElementById('ticket-frame');
+    frame.srcdoc = '<div style="font-family:sans-serif;color:#888;padding:20px;">Cargando…</div>';
+    document.getElementById('modal-ticket').classList.add('active');
+    try{
+        const r = await api.get('/pedidos/'+pedidoId+'/ticket?fiscal=true');
+        frame.srcdoc = r.html || '<div style="padding:20px;">Sin ticket.</div>';
+    }catch(e){
+        frame.srcdoc = '<div style="font-family:sans-serif;color:#dc2626;padding:20px;">No se pudo cargar el ticket: '+esc(e.message||e)+'</div>';
+    }
+}
+function imprimirTicketCliente(){
+    const frame = document.getElementById('ticket-frame');
+    try{ frame.contentWindow.focus(); frame.contentWindow.print(); }
+    catch(e){ alert('No se pudo imprimir: '+(e.message||e)); }
 }
 
 async function verConsumo(pedidoId){
