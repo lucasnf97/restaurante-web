@@ -134,14 +134,14 @@
         #camara-video { width: 100%; border-radius: 10px; }
         .cat-chip { display: inline-block; background: #f3f4f6; color: #374151; border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
         /* Picker del período de facturación (el nativo de Chrome no deja elegir el año tocándolo) */
-        #periodo-picker .pp-btn { padding: 8px 0; border: none; border-radius: 7px; font-size: 12.5px; cursor: pointer; background: transparent; color: #374151; }
-        #periodo-picker .pp-btn:hover { background: #eef2ff; }
-        #periodo-picker .pp-btn.sel { background: #4f46e5; color: #fff; font-weight: 700; }
-        #periodo-picker .pp-btn.sel:hover { background: #4f46e5; }
-        #periodo-picker .pp-nav { border: none; background: transparent; cursor: pointer; font-size: 15px; color: #6b7280; padding: 2px 8px; border-radius: 6px; }
-        #periodo-picker .pp-nav:hover { background: #f3f4f6; }
-        #periodo-picker .pp-link { border: none; background: transparent; color: #4f46e5; font-size: 12.5px; cursor: pointer; padding: 4px 2px; }
-        #periodo-picker .pp-link:hover { text-decoration: underline; }
+        .periodo-pick .pp-btn { padding: 8px 0; border: none; border-radius: 7px; font-size: 12.5px; cursor: pointer; background: transparent; color: #374151; }
+        .periodo-pick .pp-btn:hover { background: #eef2ff; }
+        .periodo-pick .pp-btn.sel { background: #4f46e5; color: #fff; font-weight: 700; }
+        .periodo-pick .pp-btn.sel:hover { background: #4f46e5; }
+        .periodo-pick .pp-nav { border: none; background: transparent; cursor: pointer; font-size: 15px; color: #6b7280; padding: 2px 8px; border-radius: 6px; }
+        .periodo-pick .pp-nav:hover { background: #f3f4f6; }
+        .periodo-pick .pp-link { border: none; background: transparent; color: #4f46e5; font-size: 12.5px; cursor: pointer; padding: 4px 2px; }
+        .periodo-pick .pp-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -217,7 +217,7 @@
                 <input type="text" id="filtro-periodo-vis" readonly placeholder="Todos" onclick="abrirPeriodoPicker()"
                     style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;cursor:pointer;background:#fff;width:150px;">
                 <input type="hidden" id="filtro-periodo">
-                <div id="periodo-picker" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border:1px solid #d1d5db;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:10px;z-index:120;width:238px;"></div>
+                <div id="periodo-picker" class="periodo-pick" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border:1px solid #d1d5db;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:10px;z-index:120;width:238px;"></div>
             </div>
             <button onclick="limpiarFiltrosHistorial()" style="padding:7px 14px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;font-size:13px;cursor:pointer;color:#374151;">✕ Limpiar</button>
         </div>
@@ -335,11 +335,14 @@
                 <input type="date" id="conf-fecha" onchange="onFechaFacturaChange()"
                        style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;">
             </label>
-            <label style="font-size:12px;color:#3730a3;display:flex;align-items:center;gap:6px;">
+            <!-- span (no <label>): un label reenviaría los clicks del popup al input y lo cerraría -->
+            <span style="font-size:12px;color:#3730a3;display:inline-flex;align-items:center;gap:6px;position:relative;">
                 Período
-                <input type="month" id="conf-periodo" onchange="onPeriodoUserChange()"
-                       style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;">
-            </label>
+                <input type="text" id="conf-periodo-vis" readonly placeholder="—" onclick="abrirPeriodoPicker('conf-periodo')"
+                       style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;cursor:pointer;background:#fff;width:118px;">
+                <input type="hidden" id="conf-periodo">
+                <div id="conf-periodo-picker" class="periodo-pick" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #d1d5db;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:10px;z-index:400;width:238px;text-align:left;"></div>
+            </span>
             <span id="conf-periodo-label" style="font-size:12px;font-weight:700;color:#4338ca;"></span>
             <label style="font-size:12px;color:#3730a3;display:flex;align-items:center;gap:6px;">
                 Nº de factura
@@ -1187,6 +1190,7 @@ function onPeriodoChange() {
     const per = document.getElementById('conf-periodo')?.value;
     const lbl = document.getElementById('conf-periodo-label');
     if (lbl) lbl.textContent = per ? ('→ ' + _periodoLabel(per)) : '';
+    _syncPeriodoLabel('conf-periodo');   // el valor pudo setearse por código (fecha → período, edición)
 }
 // El usuario cambió el período manualmente → respetarlo (no recalcular de la fecha)
 function onPeriodoUserChange() { _periodoManual = true; onPeriodoChange(); }
@@ -2201,27 +2205,37 @@ function limpiarFiltrosHistorial() {
 // El picker nativo de <input type="month"> en Chrome no deja tocar el año para
 // elegirlo (solo scrollear). Este popup replica el nativo (grilla de meses,
 // Borrar / Este mes) y agrega la vista de años: tocás el año del encabezado y
-// aparece una grilla de 12 años con paginación. El valor real vive en el input
-// oculto #filtro-periodo ("YYYY-MM"), así el resto del código no cambia.
-let _perPickVista = 'meses';   // 'meses' | 'anios'
-let _perPickAnio  = null;      // año mostrado en la vista de meses
-let _perPickBase  = null;      // primer año de la página de 12 en la vista de años
+// aparece una grilla de 12 años con paginación. El valor real vive en un input
+// oculto ("YYYY-MM"), así el resto del código no cambia. Dos instancias: el
+// filtro del historial y el campo Período del modal de confirmación.
+const _PERIODO_PICKERS = {
+    'filtro-periodo': { vis: 'filtro-periodo-vis', pop: 'periodo-picker',      alElegir: () => filtrarHistorial() },
+    'conf-periodo':   { vis: 'conf-periodo-vis',   pop: 'conf-periodo-picker', alElegir: () => onPeriodoUserChange() },
+};
+let _perPickTarget = 'filtro-periodo';   // instancia dueña del popup abierto
+let _perPickVista  = 'meses';  // 'meses' | 'anios'
+let _perPickAnio   = null;     // año mostrado en la vista de meses
+let _perPickBase   = null;     // primer año de la página de 12 en la vista de años
 
-function _perValor() { return document.getElementById('filtro-periodo')?.value || ''; }
+function _perCfg()   { return _PERIODO_PICKERS[_perPickTarget]; }
+function _perValor() { return document.getElementById(_perPickTarget)?.value || ''; }
 
-function _syncPeriodoLabel() {
-    const vis = document.getElementById('filtro-periodo-vis');
+function _syncPeriodoLabel(target = 'filtro-periodo') {
+    const vis = document.getElementById(_PERIODO_PICKERS[target].vis);
     if (!vis) return;
-    const v = _perValor();
+    const v = document.getElementById(target)?.value || '';
     if (!v) { vis.value = ''; return; }
     const [y, m] = v.split('-').map(Number);
     vis.value = `${_MESES_PER[m - 1]} ${y}`;
 }
 
-function abrirPeriodoPicker() {
-    const pop = document.getElementById('periodo-picker');
+function abrirPeriodoPicker(target = 'filtro-periodo') {
+    const pop = document.getElementById(_PERIODO_PICKERS[target].pop);
     if (!pop) return;
-    if (pop.style.display !== 'none') { cerrarPeriodoPicker(); return; }
+    const estabaAbierto = pop.style.display !== 'none';
+    cerrarPeriodoPicker();                  // cierra el que esté abierto (este u otro)
+    if (estabaAbierto) return;              // toggle sobre el mismo → queda cerrado
+    _perPickTarget = target;
     const v = _perValor();
     _perPickAnio  = v ? Number(v.slice(0, 4)) : new Date().getFullYear();
     _perPickVista = 'meses';
@@ -2229,8 +2243,10 @@ function abrirPeriodoPicker() {
     _renderPeriodoPicker();
 }
 function cerrarPeriodoPicker() {
-    const pop = document.getElementById('periodo-picker');
-    if (pop) pop.style.display = 'none';
+    for (const cfg of Object.values(_PERIODO_PICKERS)) {
+        const pop = document.getElementById(cfg.pop);
+        if (pop) pop.style.display = 'none';
+    }
 }
 function _perPickNav(delta) {
     if (_perPickVista === 'meses') _perPickAnio += delta;
@@ -2248,10 +2264,11 @@ function _perPickElegirAnio(y) {
     _renderPeriodoPicker();
 }
 function _perPickSet(valor) {
-    const per = document.getElementById('filtro-periodo');
+    const per = document.getElementById(_perPickTarget);
     if (per) per.value = valor;
     cerrarPeriodoPicker();
-    filtrarHistorial();
+    _syncPeriodoLabel(_perPickTarget);
+    _perCfg().alElegir();
 }
 function _perPickElegirMes(m) {   // m 1-based
     _perPickSet(`${_perPickAnio}-${String(m).padStart(2, '0')}`);
@@ -2262,7 +2279,7 @@ function _perPickHoy() {
 }
 
 function _renderPeriodoPicker() {
-    const pop = document.getElementById('periodo-picker');
+    const pop = document.getElementById(_perCfg().pop);
     if (!pop) return;
     const v = _perValor();
     const selY = v ? Number(v.slice(0, 4)) : null;
@@ -2294,9 +2311,11 @@ function _renderPeriodoPicker() {
 
 // Cerrar el picker al clickear afuera o con Escape.
 document.addEventListener('mousedown', (e) => {
-    const pop = document.getElementById('periodo-picker');
-    if (!pop || pop.style.display === 'none') return;
-    if (!pop.contains(e.target) && e.target.id !== 'filtro-periodo-vis') cerrarPeriodoPicker();
+    for (const cfg of Object.values(_PERIODO_PICKERS)) {
+        const pop = document.getElementById(cfg.pop);
+        if (!pop || pop.style.display === 'none') continue;
+        if (!pop.contains(e.target) && e.target.id !== cfg.vis) { cerrarPeriodoPicker(); break; }
+    }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarPeriodoPicker(); });
 
