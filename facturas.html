@@ -604,6 +604,45 @@ async function agregarArchivos(files) {
 
 function getEntrada(id) { return _archivosFactura.find(a => a.id === id); }
 
+// Resumen de una factura ya analizada, para su tarjeta en la lista: proveedor,
+// nº de factura, cantidad de líneas y total con/sin impuestos. Usa los MISMOS
+// defaults que la pantalla de confirmación (% de la factura → % más frecuente
+// entre ítems → % del sistema; modo con/sin = mayoría de los ítems).
+function _resumenFcard(a) {
+    const d = a.datos;
+    if (!d || !(a.estado === 'procesado' || a.estado === 'confirmado' || a.estado === 'borrador')) return '';
+    const items = d.items || [];
+    const impFactura = (typeof d.impuesto_pct === 'number') ? d.impuesto_pct : null;
+    let impItems = null;
+    if (impFactura === null) {
+        const cuenta = {};
+        for (const it of items) if (typeof it.impuesto_pct === 'number') cuenta[it.impuesto_pct] = (cuenta[it.impuesto_pct] || 0) + 1;
+        const claves = Object.keys(cuenta);
+        if (claves.length) impItems = Number(claves.sort((x, y) => cuenta[y] - cuenta[x])[0]);
+    }
+    const pct = (impFactura !== null) ? impFactura : (impItems !== null ? impItems : (window.SISTEMA_MONEDA?.impuesto_pct || 0));
+    const conImp = items.filter(it => it.incluye_impuesto === true).length;
+    const sinImp = items.filter(it => it.incluye_impuesto === false).length;
+    const modoCon = conImp >= sinImp;
+    let neto = 0, bruto = 0, nLineas = 0;
+    for (const it of items) {
+        const p = it.precio_total ?? it.precio_unitario ?? null;
+        nLineas++;
+        if (p === null || isNaN(p)) continue;
+        const v = Number(p);
+        if (modoCon) { bruto += v; neto += v / (1 + pct / 100); }
+        else         { neto += v; bruto += v * (1 + pct / 100); }
+    }
+    const sim = d.moneda_simbolo || (d.moneda ? d.moneda + ' ' : '$');
+    const fnum = v => sim + ' ' + (Math.round(v * 100) / 100).toFixed(2);
+    const partes = [];
+    if (d.proveedor_nombre) partes.push('🏷 ' + esc(d.proveedor_nombre));
+    if (d.numero_factura)   partes.push('Nº ' + esc(String(d.numero_factura)));
+    partes.push(nLineas + ' producto' + (nLineas === 1 ? '' : 's'));
+    if (neto > 0 || bruto > 0) partes.push(`${fnum(neto)} s/imp · <b>${fnum(bruto)}</b> c/imp`);
+    return `<div class="fcard-resumen" style="font-size:12px;color:#4b5563;margin-top:3px;">${partes.join(' · ')}</div>`;
+}
+
 function renderArchivos() {
     const cont = document.getElementById("archivos-cargados");
     if (!_archivosFactura.length) { cont.innerHTML = ""; return; }
@@ -645,6 +684,7 @@ function renderArchivos() {
             <div class="fcard-info">
                 <div class="fcard-name">${nombre}</div>
                 <div class="fcard-status">${statusTexto[a.estado] || ''}</div>
+                ${_resumenFcard(a)}
             </div>
             <div class="fcard-actions">${acciones}</div>
         </div>`;
