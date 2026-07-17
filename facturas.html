@@ -1232,17 +1232,63 @@ function abrirModalConfirmacion(datos) {
     _actualizarTotalesConf();
 }
 
+// ── Auto-match contra el catálogo al cambiar el tipo de una línea ─────────────
+// Si la IA cargó la línea como insumo y en realidad es un bien de uso o un servicio,
+// al cambiar el tipo se busca sola la coincidencia en el catálogo destino usando el
+// texto ORIGINAL de la factura (data-desc) — el usuario ya no rastrea la lista a mano.
+function _normTxt(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+        .replace(/[^a-z0-9ñ ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function _matchCatalogo(desc, lista) {
+    const d = _normTxt(desc);
+    if (!d) return null;
+    let best = null, bestScore = 0;
+    for (const it of lista) {
+        const n = _normTxt(it.nombre);
+        if (!n) continue;
+        let score = 0;
+        if (n === d) score = 100;                                    // exacto
+        else if (d.includes(n) || n.includes(d))                     // uno contiene al otro
+            score = 80 - Math.abs(n.length - d.length) * 0.1;        // (el más parejo gana)
+        else {
+            // solapamiento de palabras significativas (≥3 letras): "ALQUILER LOCAL JULIO"
+            // matchea el servicio "Alquiler local" aunque la factura agregue ruido.
+            const dt = new Set(d.split(' ').filter(w => w.length >= 3));
+            const nt = n.split(' ').filter(w => w.length >= 3);
+            if (nt.length) {
+                const hits = nt.filter(w => dt.has(w)).length;
+                if (hits) score = 40 + (hits / nt.length) * 30;
+            }
+        }
+        if (score > bestScore) { bestScore = score; best = it; }
+    }
+    return bestScore >= 55 ? best : null;   // umbral: mejor sin selección que una absurda
+}
+
 function cambiarTipoItem(idx) {
     const tipo = document.getElementById(`ci-tipo-${idx}`).value;
     const row  = document.getElementById(`conf-item-${idx}`);
     const fi   = document.getElementById(`fields-insumo-${idx}`);
     const fs   = document.getElementById(`fields-servicio-${idx}`);
     const esStock = (tipo === 'insumo' || tipo === 'bien');
-    // El bloque fields-insumo se reutiliza para insumo y bien; repoblar el select según el tipo.
+    const desc = row?.dataset?.desc || '';
+    // El bloque fields-insumo se reutiliza para insumo y bien; repoblar el select según el
+    // tipo. NO se arrastra el id anterior (era de OTRO catálogo: una colisión numérica
+    // seleccionaría cualquier cosa); en su lugar se auto-matchea por el texto de la factura.
     const sel = document.getElementById(`ci-insumo-${idx}`);
     if (sel && esStock) {
-        const prev = sel.value;
-        sel.innerHTML = `<option value="">— Seleccioná —</option>` + (tipo === 'bien' ? optsBienes(prev) : optsInsumos(prev));
+        const lista = tipo === 'bien' ? _bienesFactura : _insumos;
+        const match = _matchCatalogo(desc, lista);
+        sel.innerHTML = `<option value="">— Seleccioná —</option>`
+            + (tipo === 'bien' ? optsBienes(match ? match.id : null) : optsInsumos(match ? match.id : null));
+    }
+    if (tipo === 'servicio') {
+        const selS = document.getElementById(`ci-servicio-${idx}`);
+        if (selS && !selS.value) {                       // no pisar una elección ya hecha
+            const match = _matchCatalogo(desc, _servicios);
+            if (match) { selS.value = String(match.id); onServicioChange(idx); }
+        }
     }
     const lbl = document.getElementById(`ci-sel-label-${idx}`);
     if (lbl) lbl.textContent = tipo === 'bien' ? 'Bien de uso *' : 'Insumo *';
