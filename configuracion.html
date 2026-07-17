@@ -2891,7 +2891,7 @@ function seleccionarRol(id) {
 
 function nuevoRol() {
     if (!_descartarCambiosRol()) return;
-    _rolSel = { id: null, nombre: '', descripcion: '', permisos: {}, es_sistema: false, pantalla_default: 'dashboard' };
+    _rolSel = { id: null, nombre: '', descripcion: '', permisos: {}, es_sistema: false, pantalla_default: 'dashboard', area_id: null };
     _rolOriginal = JSON.parse(JSON.stringify(_rolSel));
     _permTab = null;
     renderListaRoles();
@@ -3040,9 +3040,23 @@ function _permPanelHtml(esSistema) {
         return `<div class="perm-group"><div class="perm-group-title">${grupo}</div><div class="perm-checks">${rows}</div></div>`;
     }).join('');
 
+    // Área de trabajo del rol (agrupa al personal en Est. de Personal): visible en las
+    // dos solapas. Si queda "Automática", se infiere por el nombre del rol (cocinero/
+    // chef → Cocina, barman → Barra) y cada usuario puede tener su override.
+    const raid = r.area_id != null ? String(r.area_id) : '';
+    const areaSel = `
+        <div class="cfg-field" style="margin-bottom:14px;">
+            <label class="cfg-label">Área de trabajo (Est. de Personal)</label>
+            <select class="cfg-input" id="re-area" ${dis} style="cursor:pointer;">
+                <option value="" ${raid === '' ? 'selected' : ''}>Automática (según el nombre del rol)</option>
+                ${_areasCfg.map(a => `<option value="${a.id}" ${raid === String(a.id) ? 'selected' : ''}>${esc(a.nombre)}</option>`).join('')}
+            </select>
+            <span class="cfg-hint">Agrupa a los empleados de este rol en las estadísticas de personal (Cocina, Bar…).</span>
+        </div>`;
+
     // En la solapa Programa, la pantalla de inicio del ejecutable (solo tiene
     // efecto ahí). Se muestra arriba de los permisos.
-    let extra = '';
+    let extra = areaSel;
     if (!esWeb) {
         const pd    = (r.pantalla_default || 'dashboard');
         const pdLow = pd.toLowerCase();
@@ -3052,7 +3066,7 @@ function _permPanelHtml(esSistema) {
             const sel = pdLow === val.toLowerCase() ? 'selected' : '';   // compat con valores viejos (cocina_cocina/cocina_bar)
             return `<option value="${escAttr(val)}" ${sel}>Recepción — ${esc(a.nombre)}</option>`;
         }).join('');
-        extra = `
+        extra += `
             <div class="cfg-field" style="margin-bottom:14px;">
                 <label class="cfg-label">Pantalla de inicio (ejecutable)</label>
                 <select class="cfg-input" id="re-pantalla" ${dis} style="cursor:pointer;">
@@ -3074,6 +3088,7 @@ function _capturarCamposRol() {
     const n  = document.getElementById('re-nombre');   if (n)  _rolSel.nombre          = n.value;
     const d  = document.getElementById('re-desc');     if (d)  _rolSel.descripcion     = d.value;
     const p  = document.getElementById('re-pantalla'); if (p)  _rolSel.pantalla_default = p.value;
+    const a  = document.getElementById('re-area');     if (a)  _rolSel.area_id = a.value ? parseInt(a.value) : null;
 }
 
 function setPermTab(t) {
@@ -3158,6 +3173,7 @@ function _rolTieneCambios() {
     if ((_rolSel.nombre || '') !== (_rolOriginal.nombre || '')) return true;
     if ((_rolSel.descripcion || '') !== (_rolOriginal.descripcion || '')) return true;
     if ((_rolSel.pantalla_default || '') !== (_rolOriginal.pantalla_default || '')) return true;
+    if ((_rolSel.area_id ?? null) !== (_rolOriginal.area_id ?? null)) return true;
     const a = _rolSel.permisos || {}, b = _rolOriginal.permisos || {};
     const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
     for (const k of keys) { if (!!a[k] !== !!b[k]) return true; }
@@ -3188,7 +3204,8 @@ async function guardarRol() {
     if (!nombre) { alert('El nombre del rol es obligatorio.'); return; }
     const permisos        = _leerPermisosRol();
     const pantalla_default = _rolSel.pantalla_default || 'dashboard';
-    const payload         = { nombre, descripcion, permisos, pantalla_default };
+    const payload         = { nombre, descripcion, permisos, pantalla_default,
+                              area_id: _rolSel.area_id ?? null };
     try {
         if (_rolSel.id) {
             await apiFetch(`/roles/${_rolSel.id}`, { method:'PATCH', body: JSON.stringify(payload) });
