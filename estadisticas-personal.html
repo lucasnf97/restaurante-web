@@ -67,6 +67,13 @@ tr:hover td { background:#fafaff; }
 .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:7px; vertical-align:baseline; }
 .empty { color:#9ca3af; font-size:13px; padding:18px; text-align:center; }
 
+/* ── Chip de filtro por empleado ────────────────────────────── */
+.chip-filtro { display:inline-flex; align-items:center; gap:6px; background:#eef2ff;
+    border:1px solid #c7d2fe; color:#4338ca; border-radius:20px; padding:3px 6px 3px 12px;
+    font-size:12px; font-weight:700; }
+.chip-filtro button { background:#4f46e5; color:#fff; border:none; border-radius:50%;
+    width:18px; height:18px; font-size:11px; cursor:pointer; line-height:1; }
+
 /* ── Toggle de insumos ──────────────────────────────────────── */
 .tgl { display:inline-flex; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; }
 .tgl button { background:#fff; border:none; padding:6px 12px; font-size:12px; cursor:pointer; color:#6b7280; }
@@ -131,6 +138,10 @@ const mmss  = s => s == null ? '—' : `${Math.floor(s/60)}:${String(Math.round(
 let _charts = {};       // instancias Chart.js por canvas id (destroy antes de re-render)
 let _colores = {};      // usuario_id -> color (fijo por CARGA, asignado por id ascendente)
 let _data = null;
+let _sel = { cam: null, areas: {} };   // filtro por empleado: click en torta/leyenda (toggle)
+
+function pickCam(uid) { _sel.cam = (_sel.cam === uid ? null : uid); render(); }
+function pickArea(aid, uid) { _sel.areas[aid] = (_sel.areas[aid] === uid ? null : uid); render(); }
 
 function _asignarColores(payload) {
     // El color sigue a la ENTIDAD: asignación por usuario_id ascendente (estable entre
@@ -153,21 +164,36 @@ function _mkChart(id, cfg) {
 }
 
 /* Donut: torta = el equipo, porciones = empleados. Pliega más allá de 7 en "Otros".
-   Bordes blancos 2px (separador entre porciones), leyenda siempre presente. */
-function donut(id, items, fmtVal) {
+   Bordes blancos 2px (separador entre porciones), leyenda siempre presente.
+   opts.onPick: click en la porción o en el NOMBRE de la leyenda filtra por ese empleado
+   (toggle); opts.selected atenúa al resto. La porción "Otros" no filtra. */
+function donut(id, items, fmtVal, opts = {}) {
+    const { selected = null, onPick = null } = opts;
     const orden = [...items].filter(x => (x.value || 0) > 0).sort((a, b) => b.value - a.value);
     let vis = orden, otros = 0;
     if (orden.length > 8) { vis = orden.slice(0, 7); otros = orden.slice(7).reduce((s, x) => s + x.value, 0); }
     const labels = vis.map(x => x.label).concat(otros > 0 ? ['Otros'] : []);
     const data   = vis.map(x => x.value).concat(otros > 0 ? [otros] : []);
-    const cols   = vis.map(x => colorDe(x.uid)).concat(otros > 0 ? [GRIS_OTROS] : []);
+    const uids   = vis.map(x => x.uid).concat(otros > 0 ? [null] : []);
+    const dim    = c => c + '40';   // ~25% alpha para los no seleccionados
+    const cols   = uids.map((uid, i) => {
+        const base = uid == null ? GRIS_OTROS : colorDe(uid);
+        return (selected != null && uid !== selected) ? dim(base) : base;
+    });
+    const elegir = idx => { const uid = uids[idx]; if (uid != null && onPick) onPick(uid); };
     _mkChart(id, {
         type: 'doughnut',
         data: { labels, datasets: [{ data, backgroundColor: cols, borderColor: '#fff', borderWidth: 2 }] },
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '55%',
+            onClick: onPick ? (e, els) => { if (els.length) elegir(els[0].index); } : undefined,
+            onHover: onPick ? (e, els) => {
+                if (e.native && e.native.target) e.native.target.style.cursor = els.length ? 'pointer' : 'default';
+            } : undefined,
             plugins: {
-                legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } } },
+                legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } },
+                          // reemplaza el toggle de visibilidad default: click en el nombre = filtrar
+                          onClick: onPick ? (e, item) => elegir(item.index) : undefined },
                 tooltip: { callbacks: { label: ctx => {
                     const tot = data.reduce((s, v) => s + v, 0) || 1;
                     return ` ${ctx.label}: ${fmtVal(ctx.parsed)} (${Math.round(ctx.parsed / tot * 100)}%)`;
@@ -208,31 +234,37 @@ function render() {
 
     // ── CAMAREROS ──
     const c = d.camareros, t = c.totales;
+    // Filtro por empleado (click en torta/leyenda): las cards y la tabla pasan a ese empleado.
+    const selCam = _sel.cam != null ? c.empleados.find(e => e.usuario_id === _sel.cam) : null;
+    if (_sel.cam != null && !selCam) _sel.cam = null;
+    const st = selCam || t;
+    const chipCam = selCam ? `<span class="chip-filtro">Filtrando: ${esc(selCam.nombre)}
+        <button title="Quitar filtro" onclick="pickCam(${selCam.usuario_id})">✕</button></span>` : '';
     html += `<div class="sec"><div class="sec-title">🧑‍🍳 Camareros
-        <span class="sec-sub">mesas atribuidas a quien las abrió</span></div>`;
+        <span class="sec-sub">mesas atribuidas a quien las abrió</span>${chipCam}</div>`;
     if (!c.empleados.length) {
         html += `<div class="panel"><div class="empty">Sin mesas cobradas en el período.</div></div></div>`;
     } else {
         html += `<div class="stat-row">
-            ${statCard('Horas trabajadas', fmtH(t.horas))}
-            ${statCard('Mesas cerradas', fmtI.format(t.mesas_cerradas))}
-            ${statCard('Órdenes entregadas', fmtI.format(t.ordenes_entregadas))}
-            ${statCard('Total facturado', money(t.total_facturado), money(t.total_facturado_neto) + ' sin imp.')}
-            ${statCard('Ticket promedio', money(t.ticket_promedio))}
-            ${statCard(simboloMoneda() + ' por hora', t.facturado_por_hora != null ? money(t.facturado_por_hora) : '—')}
+            ${statCard('Horas trabajadas', fmtH(st.horas))}
+            ${statCard('Mesas cerradas', fmtI.format(st.mesas_cerradas))}
+            ${statCard('Órdenes entregadas', fmtI.format(st.ordenes_entregadas))}
+            ${statCard('Total facturado', money(st.total_facturado), money(st.total_facturado_neto) + ' sin imp.')}
+            ${statCard('Ticket promedio', money(st.ticket_promedio))}
+            ${statCard(simboloMoneda() + ' por hora', st.facturado_por_hora != null ? money(st.facturado_por_hora) : '—')}
         </div>
         <div class="grid-2">
             <div class="panel"><h4>Facturación por camarero</h4><div class="chart-box"><canvas id="ch-cam-fact"></canvas></div></div>
             <div class="panel"><h4>Horas por camarero</h4><div class="chart-box"><canvas id="ch-cam-horas"></canvas></div></div>
         </div>
-        <div class="panel" style="margin-bottom:14px;"><h4>Mesas por franja horaria</h4>
+        <div class="panel" style="margin-bottom:14px;"><h4>Mesas por franja horaria${selCam ? ` — ${esc(selCam.nombre)}` : ''}</h4>
             <div class="chart-box" style="height:200px;"><canvas id="ch-cam-franjas"></canvas></div></div>
         <div class="panel tbl-wrap"><table><thead><tr>
             <th>Empleado</th><th class="num">Horas</th><th class="num">Mesas</th><th class="num">Órdenes</th>
             <th class="num">Comensales</th><th class="num">Facturado</th><th class="num">Ticket prom.</th>
             <th class="num">${esc(simboloMoneda())}/hora</th><th class="num">Descuentos</th><th class="num">Refunds</th>
         </tr></thead><tbody>`;
-        c.empleados.forEach(e => {
+        (selCam ? [selCam] : c.empleados).forEach(e => {
             html += `<tr>
                 <td><span class="dot" style="background:${colorDe(e.usuario_id)}"></span>${esc(e.nombre)}
                     <span style="color:#9ca3af;font-size:11px;"> ${esc(e.rol || '')}</span></td>
@@ -254,14 +286,22 @@ function render() {
     d.areas.forEach((a, ai) => {
         const icono = a.es_cocina ? '👨‍🍳' : (a.es_barra ? '🍸' : '🍽️');
         const tt = a.totales;
+        // Filtro por empleado del área (solo afecta horas: la producción es del área entera)
+        const selA = _sel.areas[a.area_id] != null
+            ? a.personal.find(p => p.usuario_id === _sel.areas[a.area_id]) : null;
+        if (_sel.areas[a.area_id] != null && !selA) _sel.areas[a.area_id] = null;
+        const chipA = selA ? `<span class="chip-filtro">Filtrando: ${esc(selA.nombre)}
+            <button title="Quitar filtro" onclick="pickArea(${a.area_id}, ${selA.usuario_id})">✕</button></span>` : '';
         html += `<div class="sec"><div class="sec-title">${icono} ${esc(a.nombre)}
-            <span class="sec-sub">producción y tiempos por área — por persona solo las horas</span></div>
+            <span class="sec-sub">producción y tiempos por área — por persona solo las horas</span>${chipA}</div>
         <div class="stat-row">
             ${statCard('Órdenes entregadas', fmtI.format(tt.ordenes_entregadas))}
             ${statCard('Productos realizados', fmtI.format(tt.productos_realizados))}
             ${statCard('Prep. promedio', mmss(tt.tiempo_prep_promedio_s),
                        tt.ordenes_con_tiempo ? `basado en ${fmtI.format(tt.ordenes_con_tiempo)} órdenes` : 'sin datos de preparación')}
-            ${statCard('Horas del personal', fmtH(tt.horas_personal), `${tt.empleados} empleado(s)`)}
+            ${selA ? statCard('Horas de ' + esc(selA.nombre.split(' ')[0]), fmtH(selA.horas),
+                              `${tt.horas_personal ? Math.round(selA.horas / tt.horas_personal * 100) : 0}% del equipo`)
+                   : statCard('Horas del personal', fmtH(tt.horas_personal), `${tt.empleados} empleado(s)`)}
             ${statCard('% canceladas', tt.ordenes_totales ? (tt.ordenes_canceladas / tt.ordenes_totales * 100).toFixed(1) + '%' : '—')}
         </div>
         <div class="grid-2">
@@ -287,7 +327,7 @@ function render() {
                 <th>Empleado</th><th>Rol</th><th class="num">Horas</th><th class="num">% del equipo</th>
             </tr></thead><tbody>`;
             const totH = tt.horas_personal || 1;
-            a.personal.forEach(p => {
+            (selA ? [selA] : a.personal).forEach(p => {
                 html += `<tr><td><span class="dot" style="background:${colorDe(p.usuario_id)}"></span>${esc(p.nombre)}</td>
                     <td>${esc(p.rol || '')}</td><td class="num">${fmtH(p.horas)}</td>
                     <td class="num">${tt.horas_personal ? Math.round(p.horas / totH * 100) + '%' : '—'}</td></tr>`;
@@ -338,14 +378,19 @@ function render() {
 
     // ── Charts (después de montar el DOM) ──
     if (c.empleados.length) {
-        donut('ch-cam-fact',  c.empleados.map(e => ({ label: e.nombre, value: e.total_facturado, uid: e.usuario_id })), money);
-        donut('ch-cam-horas', c.empleados.map(e => ({ label: e.nombre, value: e.horas, uid: e.usuario_id })), fmtH);
-        const fr = d.franjas_camareros || [];
+        const optsCam = { selected: _sel.cam, onPick: pickCam };
+        donut('ch-cam-fact',  c.empleados.map(e => ({ label: e.nombre, value: e.total_facturado, uid: e.usuario_id })), money, optsCam);
+        donut('ch-cam-horas', c.empleados.map(e => ({ label: e.nombre, value: e.horas, uid: e.usuario_id })), fmtH, optsCam);
+        // Franjas: del equipo, o del empleado filtrado (detalle por empleado del payload)
+        const fr = _sel.cam != null
+            ? (d.franjas_camareros_emp || []).filter(f => f.usuario_id === _sel.cam)
+            : (d.franjas_camareros || []);
         barras('ch-cam-franjas', fr.map(f => `${f.hora}h`), fr.map(f => f.mesas), v => `${fmtI.format(v)} mesas`);
     }
     d.areas.forEach((a, ai) => {
         if (a.personal.length)
-            donut(`ch-a${ai}-horas`, a.personal.map(p => ({ label: p.nombre, value: p.horas, uid: p.usuario_id })), fmtH);
+            donut(`ch-a${ai}-horas`, a.personal.map(p => ({ label: p.nombre, value: p.horas, uid: p.usuario_id })), fmtH,
+                  { selected: _sel.areas[a.area_id] ?? null, onPick: uid => pickArea(a.area_id, uid) });
         barras(`ch-a${ai}-serie`, a.produccion_series.map(s => s.bucket),
                a.produccion_series.map(s => s.unidades), v => `${fmtI.format(v)} unidades`);
         barras(`ch-a${ai}-franjas`, a.franjas.map(f => `${f.hora}h`),
@@ -383,6 +428,7 @@ async function cargar() {
     const mes = document.getElementById('sel-mes').value;
     const anio = parseInt(document.getElementById('inp-year').value) || new Date().getFullYear();
     document.getElementById('cuerpo').innerHTML = '<div class="empty">Cargando…</div>';
+    _sel = { cam: null, areas: {} };   // el filtro por empleado no sobrevive al cambio de período
     try {
         let url = `/reportes/estadisticas-personal?year=${anio}`;
         if (mes) url += `&month=${mes}`;
