@@ -162,9 +162,20 @@
 
     <!-- ═══ HISTORIAL ═══ -->
     <div id="tab-historial" style="display:none;">
-        <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
             <button class="btn" id="th-btn-jornadas" onclick="setVistaHistorial('jornadas')">🗓 Jornadas del día</button>
+            <button class="btn" id="th-btn-diarias" onclick="setVistaHistorial('diarias')">🧽 Tareas del local</button>
             <button class="btn" id="th-btn-registros" onclick="setVistaHistorial('registros')">💰 Caja y registros</button>
+        </div>
+
+        <!-- Tareas del local (diarias comunitarias): día por día, quién hizo qué -->
+        <div id="vista-diarias" style="display:none;">
+            <div class="filtros-h">
+                <label>Desde:</label><input class="inp" type="date" id="td-desde" onchange="cargarDiariasHist()">
+                <label>Hasta:</label><input class="inp" type="date" id="td-hasta" onchange="cargarDiariasHist()">
+                <span style="font-size:11.5px;color:#9ca3af;">Vacío = últimos 14 días. Lo que «tocaba» en días pasados se evalúa con la programación actual.</span>
+            </div>
+            <div id="td-lista"><div class="vacio">Cargando...</div></div>
         </div>
 
         <!-- Jornadas (tareas del día): aceptación, tildes con hora, tachadas, agregadas -->
@@ -1059,12 +1070,69 @@ async function _initFiltrosHistorial() {
 let _histVista = 'jornadas';
 function setVistaHistorial(v) {
     _histVista = v;
-    document.getElementById('vista-jornadas').style.display = v === 'jornadas' ? '' : 'none';
-    document.getElementById('vista-registros').style.display = v === 'registros' ? '' : 'none';
-    document.getElementById('th-btn-jornadas').className = 'btn' + (v === 'jornadas' ? ' btn-primary' : '');
-    document.getElementById('th-btn-registros').className = 'btn' + (v === 'registros' ? ' btn-primary' : '');
+    ['jornadas', 'diarias', 'registros'].forEach(k => {
+        document.getElementById('vista-' + k).style.display = k === v ? '' : 'none';
+        document.getElementById('th-btn-' + k).className = 'btn' + (k === v ? ' btn-primary' : '');
+    });
     if (v === 'jornadas') cargarJornadas(0);
+    else if (v === 'diarias') cargarDiariasHist();
     else cargarConfirmaciones(0);
+}
+
+// ── Historial de tareas del local (diarias comunitarias) ──
+function _fechaLargaLocal(ymd) {
+    const [y, m, d] = ymd.split('-').map(Number);
+    // Constructor LOCAL (no parse de string): un date-only string se interpreta UTC
+    // y en husos al oeste correría el día de la semana.
+    const dia = new Date(y, m - 1, d).toLocaleDateString('es', { weekday: 'long' });
+    return `${dia.charAt(0).toUpperCase()}${dia.slice(1)} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+}
+async function cargarDiariasHist() {
+    const cont = document.getElementById('td-lista');
+    cont.innerHTML = '<div class="vacio">Cargando...</div>';
+    const p = new URLSearchParams();
+    const d = document.getElementById('td-desde').value;
+    const h = document.getElementById('td-hasta').value;
+    if (d) p.set('desde', d);
+    if (h) p.set('hasta', h);
+    let r;
+    try { r = await apiFetch('/tareas/diarias/registro' + (p.toString() ? '?' + p.toString() : '')); }
+    catch (e) { cont.innerHTML = `<div class="vacio">⚠️ ${esc(e.message || e)}</div>`; return; }
+    if (!r.dias.length) {
+        cont.innerHTML = `<div class="vacio">Sin tareas del local entre ${r.desde.split('-').reverse().join('/')} y ${r.hasta.split('-').reverse().join('/')}.</div>`;
+        return;
+    }
+    const hoyYmd = _fechaLocalHoy();
+    cont.innerHTML = r.dias.map(dia => {
+        const esHoy = dia.fecha === hoyYmd;
+        const completo = dia.hechas === dia.total;
+        const filas = dia.tareas.map(t => {
+            const rolesChip = (t.roles && t.roles.length)
+                ? `<span class="chip">👥 ${t.roles.map(esc).join(', ')}</span>` : '';
+            const elimChip = t.eliminada
+                ? `<span class="chip" style="background:#fee2e2;color:#b91c1c;">tarea ya eliminada</span>` : '';
+            if (t.hecha) {
+                const hora = t.hecha_en ? new Date(t.hecha_en).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '';
+                return `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px dashed #f3f4f6;font-size:13px;color:#1f2937;">
+                    ✅ <span style="flex:1;">${esc(t.texto)}</span>${rolesChip}${elimChip}
+                    <span style="color:#16a34a;font-weight:700;white-space:nowrap;">${esc(t.hecha_por || '')} ${hora}</span>
+                </div>`;
+            }
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px dashed #f3f4f6;font-size:13px;color:#9ca3af;">
+                ⬜ <span style="flex:1;">${esc(t.texto)}</span>${rolesChip}
+                <span style="font-size:11.5px;font-weight:700;color:${esHoy ? '#d97706' : '#b91c1c'};white-space:nowrap;">
+                    ${esHoy ? 'pendiente hoy' : 'sin hacer'}</span>
+            </div>`;
+        }).join('');
+        return `<div class="card" style="margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f8f9fb;border-bottom:1px solid #eef0f3;">
+                <b style="font-size:13px;color:#1a1a2e;">📅 ${_fechaLargaLocal(dia.fecha)}</b>
+                ${esHoy ? '<span class="chip" style="background:#fef3c7;color:#92400e;">hoy</span>' : ''}
+                <span style="margin-left:auto;font-weight:800;font-size:13px;color:${completo ? '#16a34a' : '#1a1a2e'};">✓ ${dia.hechas}/${dia.total}</span>
+            </div>
+            ${filas}
+        </div>`;
+    }).join('');
 }
 
 const _JOR_PAG = 25;
