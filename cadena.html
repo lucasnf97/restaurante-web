@@ -114,12 +114,21 @@
             <div class="sub">Se publica en el feed <b>General</b> del muro Social de cada restaurante elegido, a tu nombre.</div>
             <label class="fl">¿En qué restaurantes?</label>
             <div class="selchips" id="mu-rests"></div>
+            <label class="fl">¿Quién la ve?</label>
+            <div class="sub" style="margin-bottom:6px;">Sin selección = <b>todo el personal</b>. Elegí roles
+                y/o personas para dirigirla solo a ellos (los demás no la ven en su muro).</div>
+            <div class="selchips" id="mu-droles"></div>
+            <div class="selchips" id="mu-dpersonas" style="margin-top:6px;"></div>
             <label class="fl">Publicación</label>
             <textarea id="mu-contenido" maxlength="4000" placeholder="Escribí la publicación…"></textarea>
             <label class="fl">Enlace (opcional)</label>
             <input type="text" id="mu-enlace" placeholder="https://…">
             <label class="fl">Adjuntos (opcional)</label>
             <input type="file" id="mu-files" multiple>
+            <label class="fl" style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;color:#374151;">
+                <input type="checkbox" id="mu-prio" style="width:16px;height:16px;">
+                📣 Prioritaria — cada destinatario debe dar acuse de recepción
+            </label>
             <div class="m-err" id="mu-err"></div>
             <div class="m-foot">
                 <button class="m-btn" onclick="cerrarModal('modal-muro')">Cancelar</button>
@@ -144,6 +153,8 @@
             <div id="dc-roles-wrap" style="display:none;">
                 <label class="fl">Roles del grupo (si hay que crearlo)</label>
                 <div class="selchips" id="dc-roles"></div>
+                <label class="fl">Personas del grupo (si hay que crearlo)</label>
+                <div class="selchips" id="dc-personas"></div>
             </div>
             <label class="fl">Carpeta (opcional, en la raíz del destino)</label>
             <input type="text" id="dc-carpeta" maxlength="120" placeholder="Ej: Manuales">
@@ -258,15 +269,39 @@
 
     function cerrarModal(id) { document.getElementById(id).classList.remove('active'); }
 
+    // Catálogos de la cadena para elegir destinatarios (se cargan una vez)
+    let _rolesCat = null, _personasCat = null;
+    async function _cargarCatalogos() {
+        if (_rolesCat === null) {
+            try { _rolesCat = (await api.get('/cadena/roles')).roles || []; } catch (e) { _rolesCat = []; }
+        }
+        if (_personasCat === null) {
+            try { _personasCat = (await api.get('/cadena/usuarios')).usuarios || []; } catch (e) { _personasCat = []; }
+        }
+    }
+    function _chipsToggle(contId, items, attr) {
+        document.getElementById(contId).innerHTML = items.length
+            ? items.map(x => `<span class="selchip" data-${attr}="${_esc(x.v)}" title="${_esc(x.t || '')}"
+                     onclick="this.classList.toggle('active')">${_esc(x.l)}</span>`).join('')
+            : '<span style="color:#9ca3af;font-size:12px;">—</span>';
+    }
+    function _chipsActivos(contId, attr) {
+        return [...document.querySelectorAll(`#${contId} .selchip.active`)].map(c => c.dataset[attr]);
+    }
+
     // ── Publicaciones de muro ──
-    function abrirModalMuro() {
+    async function abrirModalMuro() {
         _dest.muro.clear();
         renderDestino('muro', 'mu-rests');
         document.getElementById('mu-contenido').value = '';
         document.getElementById('mu-enlace').value = '';
         document.getElementById('mu-files').value = '';
+        document.getElementById('mu-prio').checked = false;
         document.getElementById('mu-err').textContent = '';
         document.getElementById('modal-muro').classList.add('active');
+        await _cargarCatalogos();
+        _chipsToggle('mu-droles', _rolesCat.map(r => ({ v: r, l: '👥 ' + r })), 'rol');
+        _chipsToggle('mu-dpersonas', _personasCat.map(u => ({ v: u.username, l: '👤 ' + u.nombre_display, t: u.rol })), 'un');
     }
     async function publicarMuro() {
         const err = document.getElementById('mu-err');
@@ -277,6 +312,9 @@
         fd.append('restaurante_ids', _destIds('muro'));
         fd.append('contenido', contenido);
         fd.append('enlace', document.getElementById('mu-enlace').value.trim());
+        fd.append('prioritaria', document.getElementById('mu-prio').checked ? '1' : '');
+        fd.append('dest_roles', JSON.stringify(_chipsActivos('mu-droles', 'rol')));
+        fd.append('dest_usernames', JSON.stringify(_chipsActivos('mu-dpersonas', 'un')));
         for (const f of files) fd.append('files', f);
         const btn = document.getElementById('mu-btn');
         btn.disabled = true; btn.textContent = 'Publicando…';
@@ -289,7 +327,6 @@
     }
 
     // ── Documentos ──
-    let _rolesCadena = null;
     function _dcRolesVisibilidad() {
         document.getElementById('dc-roles-wrap').style.display =
             document.getElementById('dc-grupo').value.trim() ? '' : 'none';
@@ -303,13 +340,9 @@
         document.getElementById('dc-err').textContent = '';
         _dcRolesVisibilidad();
         document.getElementById('modal-docs').classList.add('active');
-        if (_rolesCadena === null) {
-            try { _rolesCadena = (await api.get('/cadena/roles')).roles || []; }
-            catch (e) { _rolesCadena = []; }
-        }
-        document.getElementById('dc-roles').innerHTML = _rolesCadena.length
-            ? _rolesCadena.map(r => `<span class="selchip" data-rol="${_esc(r)}" onclick="this.classList.toggle('active')">${_esc(r)}</span>`).join('')
-            : '<span style="color:#9ca3af;font-size:12px;">Sin roles definidos en la cadena.</span>';
+        await _cargarCatalogos();
+        _chipsToggle('dc-roles', _rolesCat.map(r => ({ v: r, l: '👥 ' + r })), 'rol');
+        _chipsToggle('dc-personas', _personasCat.map(u => ({ v: u.username, l: '👤 ' + u.nombre_display, t: u.rol })), 'un');
     }
     async function aplicarDocs() {
         const err = document.getElementById('dc-err');
@@ -317,11 +350,11 @@
         const carpeta = document.getElementById('dc-carpeta').value.trim();
         const files = document.getElementById('dc-files').files;
         if (!grupo && !carpeta && !files.length) { err.textContent = 'Indicá un grupo, una carpeta o archivos para subir.'; return; }
-        const roles = [...document.querySelectorAll('#dc-roles .selchip.active')].map(c => c.dataset.rol);
         const fd = new FormData();
         fd.append('restaurante_ids', _destIds('docs'));
         fd.append('grupo_nombre', grupo);
-        fd.append('grupo_roles', JSON.stringify(roles));
+        fd.append('grupo_roles', JSON.stringify(_chipsActivos('dc-roles', 'rol')));
+        fd.append('grupo_usernames', JSON.stringify(_chipsActivos('dc-personas', 'un')));
         fd.append('carpeta_nombre', carpeta);
         for (const f of files) fd.append('files', f);
         const btn = document.getElementById('dc-btn');

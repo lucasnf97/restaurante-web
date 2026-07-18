@@ -430,7 +430,10 @@ function renderPost(p) {
     const editado = p.editado_en ? ' · editado' : '';
     const badges = (p.fijado ? ' <span class="badge-pin">📌 Fijada</span>' : '')
         + (p.prioritaria ? ' <span class="badge-prio">🚨 Prioritaria</span>' : '')
-        + (p.prioritaria && p.aceptado_por_mi ? ' <span class="badge-pin" style="background:#d1fae5;color:#065f46;">✔ Aceptada</span>' : '');
+        + (p.prioritaria && p.aceptado_por_mi ? ' <span class="badge-pin" style="background:#d1fae5;color:#065f46;">✔ Aceptada</span>' : '')
+        // Publicación DIRIGIDA (roles/personas): solo la ven los destinatarios + editores
+        + (((p.dest_roles && p.dest_roles.length) || (p.dest_usuarios && p.dest_usuarios.length))
+            ? ` <span class="badge-pin" style="background:#e0e7ff;color:#3730a3;" title="Dirigida${(p.dest_roles || []).length ? ' a: ' + p.dest_roles.join(', ') : ' a personas puntuales'}">🎯 Dirigida</span>` : '');
     return `
     <div class="post${p.fijado ? ' fijado' : ''}${p.prioritaria ? ' prio' : ''}" id="post-${p.restaurante_id!=null?(p.restaurante_id+'-'):''}${p.id}">
         <div class="post-head">
