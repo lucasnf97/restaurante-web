@@ -160,6 +160,23 @@
     </div>
 </div>
 
+<!-- Modal Mover archivo -->
+<div class="modal-ov" id="modal-mover">
+    <div class="modal" style="width:420px;">
+        <h3>📂 Mover archivo</h3>
+        <div style="font-size:13px;color:#374151;font-weight:700;margin-bottom:4px;" id="mov-nombre">—</div>
+        <label class="lbl">Destino</label>
+        <select class="txt" id="mov-destino" onchange="_movCargarCarpetas()"></select>
+        <label class="lbl">Carpeta</label>
+        <select class="txt" id="mov-carpeta"></select>
+        <div class="err" id="mov-err" style="color:#dc2626;font-size:12px;min-height:16px;margin-top:8px;"></div>
+        <div class="modal-acc">
+            <button class="btn-firmar" id="mov-btn" onclick="confirmarMover()">Mover</button>
+            <button class="btn-sec" onclick="cerrarModal('modal-mover')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Firmar recepción y lectura -->
 <div class="modal-ov" id="modal-firmar">
     <div class="modal" style="width:420px;">
@@ -403,7 +420,8 @@ function renderContenido() {
                 ${thumb}
                 <div class="fnm">${esc(a.nombre)}<div class="fdt">${fmtFecha(a.creado_en)}</div></div>
                 <a class="dl" href="${esc(a.url)}" target="_blank" rel="noopener">${a.resource_type === 'image' ? 'Ver' : 'Descargar'}</a>
-                ${puedeEditar ? `<button class="del" onclick="eliminarArchivo(${a.id})">🗑</button>` : ''}
+                ${puedeEditar ? `<button class="del" title="Mover a otra carpeta o grupo" style="color:#4f46e5;" onclick="abrirMover(${a.id}, '${esc(a.nombre).replace(/'/g,'')}')">📂</button>
+                <button class="del" onclick="eliminarArchivo(${a.id})">🗑</button>` : ''}
             </div>`;
         }).join('');
     } else if (!c.carpetas.length) {
@@ -412,6 +430,54 @@ function renderContenido() {
     html += '</div>';
 
     body.innerHTML = html;
+}
+
+// ── Mover archivo: subís a General y después lo acomodás donde quieras ──
+let _movArchivoId = null;
+async function abrirMover(id, nombre) {
+    _movArchivoId = id;
+    document.getElementById('mov-nombre').textContent = nombre || '';
+    document.getElementById('mov-err').textContent = '';
+    let grupos = _grupos;
+    if (!grupos.length) {
+        try { grupos = (await api.get('/documentos/grupos')).grupos || []; } catch (e) { grupos = []; }
+    }
+    const sel = document.getElementById('mov-destino');
+    sel.innerHTML = `<option value="general">📄 General</option>` +
+        grupos.map(g => `<option value="g${g.id}">👥 ${esc(g.nombre)}</option>`).join('');
+    sel.value = (_cat === 'grupos' && _grupoSel) ? ('g' + _grupoSel) : 'general';
+    if (!sel.value) sel.value = 'general';
+    await _movCargarCarpetas();
+    document.getElementById('modal-mover').classList.add('open');
+}
+async function _movCargarCarpetas() {
+    const v = document.getElementById('mov-destino').value;
+    const p = new URLSearchParams({ categoria: v === 'general' ? 'general' : 'grupos' });
+    if (v !== 'general') p.set('grupo_id', v.slice(1));
+    let carpetas = [];
+    try { carpetas = (await apiFetch('/documentos/carpetas-arbol?' + p.toString())).carpetas || []; }
+    catch (e) { carpetas = []; }
+    document.getElementById('mov-carpeta').innerHTML =
+        `<option value="">(raíz)</option>` +
+        carpetas.map(c => `<option value="${c.id}">📁 ${esc(c.ruta)}</option>`).join('');
+}
+async function confirmarMover() {
+    const v = document.getElementById('mov-destino').value;
+    const cf = document.getElementById('mov-carpeta').value;
+    const body = {
+        categoria: v === 'general' ? 'general' : 'grupos',
+        grupo_id: v === 'general' ? null : parseInt(v.slice(1), 10),
+        carpeta_id: cf ? parseInt(cf, 10) : null,
+    };
+    const btn = document.getElementById('mov-btn');
+    btn.disabled = true;
+    try {
+        await apiFetch(`/documentos/archivos/${_movArchivoId}/mover`,
+                       { method: 'PATCH', body: JSON.stringify(body) });
+        cerrarModal('modal-mover');
+        cargarContenido(_carpetaId);   // refresca la vista actual (el archivo desaparece de acá)
+    } catch (e) { document.getElementById('mov-err').textContent = e.message || 'No se pudo mover.'; }
+    finally { btn.disabled = false; }
 }
 
 // ── Personal de TODOS mis locales (solo lectura) ─────────────
