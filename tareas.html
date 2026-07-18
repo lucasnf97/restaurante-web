@@ -78,6 +78,12 @@
         .chk-com.hecha { background: #dcfce7; color: #166534; }
         .chk-com.pend { background: #fef3c7; color: #92400e; }
         .chk-com.notoca { background: #f3f4f6; color: #9ca3af; cursor: default; }
+
+        /* Historial de confirmaciones: columnas FIJAS (grilla), no flex flotante */
+        .conf-head, .conf-fila { display: grid; grid-template-columns: 110px minmax(150px, 1fr) 180px 130px 56px 80px; gap: 10px; align-items: center; padding: 8px 12px; }
+        .conf-head { font-size: 10.5px; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid #eef0f3; }
+        .conf-fila { border-bottom: 1px solid #f3f4f6; }
+        .conf-fila:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -202,6 +208,7 @@
                 <option value="">Todos</option>
                 <option value="apertura_caja">Apertura de caja</option>
                 <option value="cierre_caja">Cierre de caja</option>
+                <option value="dia">Tareas del día (histórico)</option>
                 <option value="checkin">Entrada de turno (histórico)</option>
                 <option value="checkout">Salida de turno (histórico)</option>
             </select>
@@ -1046,7 +1053,7 @@ async function guardarEditorPlantilla() {
 }
 
 // ══════════════ SOLAPA HISTORIAL (auditoría — registros inmutables) ══════════════
-const TA_MOM = { checkin: '🟢 Entrada', checkout: '🔴 Salida', apertura_caja: '🔓 Apertura caja', cierre_caja: '🔒 Cierre caja' };
+const TA_MOM = { dia: '📋 Tareas del día', checkin: '🟢 Entrada', checkout: '🔴 Salida', apertura_caja: '🔓 Apertura caja', cierre_caja: '🔒 Cierre caja' };
 const TA_LIMIT = 50;
 let _taOffset = 0, _histCargado = false;
 
@@ -1233,25 +1240,34 @@ async function cargarConfirmaciones(offset) {
         document.getElementById('ta-pag').innerHTML = '';
         return;
     }
-    cont.innerHTML = `<div class="card">` + r.items.map(c => {
+    // Grilla de columnas FIJAS: cada campo en su lugar, sin flotar según el contenido.
+    cont.innerHTML = `<div class="card" style="overflow-x:auto;"><div style="min-width:700px;">
+        <div class="conf-head">
+            <span>Fecha</span><span>Empleado</span><span>Momento</span>
+            <span style="text-align:center;">Tildadas</span>
+            <span style="text-align:center;" title="Comentarios">💬</span><span></span>
+        </div>` + r.items.map(c => {
         const completa = c.tildadas >= c.total;
         const fecha = c.fecha_local ? c.fecha_local.split('-').reverse().join('/') : '—';
         const hora = c.creado_en ? new Date(/[+Zz]/.test(String(c.creado_en).slice(10)) ? c.creado_en : c.creado_en + 'Z')
             .toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
-        return `<div class="fila-tarea" style="flex-wrap:wrap;">
-            <div style="min-width:105px;font-size:12.5px;color:#6b7280;">${fecha}<br><span style="color:#9ca3af;">${hora}</span></div>
-            <div style="flex:1;min-width:140px;">
-                <div style="font-size:14px;font-weight:700;color:#1a1a2e;">${esc(c.username)}</div>
-                <div style="font-size:11.5px;color:#9ca3af;">${esc(c.rol || '—')}</div>
+        return `<div class="conf-fila">
+            <div style="font-size:12.5px;color:#6b7280;">${fecha}<br><span style="color:#9ca3af;">${hora}</span></div>
+            <div style="min-width:0;">
+                <div style="font-size:14px;font-weight:700;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.username)}</div>
+                <div style="font-size:11.5px;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.rol || '—')}</div>
             </div>
-            <div style="font-size:12px;font-weight:700;color:#4b5563;min-width:115px;">${TA_MOM[c.momento] || esc(c.momento)}</div>
-            <span style="font-size:12px;font-weight:800;border-radius:20px;padding:4px 12px;white-space:nowrap;
-                         background:${completa ? '#dcfce7' : '#fee2e2'};color:${completa ? '#166534' : '#b91c1c'};">
-                ${c.tildadas}/${c.total} tildadas</span>
-            ${c.comentarios ? `<span style="font-size:12px;color:#b45309;font-weight:700;">💬 ${c.comentarios}</span>` : ''}
-            <button class="btn" style="padding:6px 14px;" onclick="verConfirmacion(${c.id})">Ver</button>
+            <div style="font-size:12px;font-weight:700;color:#4b5563;">${TA_MOM[c.momento] || esc(c.momento)}</div>
+            <div style="text-align:center;">
+                <span style="display:inline-block;font-size:12px;font-weight:800;border-radius:20px;padding:4px 12px;white-space:nowrap;
+                             background:${completa ? '#dcfce7' : '#fee2e2'};color:${completa ? '#166534' : '#b91c1c'};">
+                    ${c.tildadas}/${c.total}</span>
+            </div>
+            <div style="text-align:center;font-size:12px;font-weight:700;color:${c.comentarios ? '#b45309' : '#e5e7eb'};">
+                ${c.comentarios || '—'}</div>
+            <div style="text-align:right;"><button class="btn" style="padding:6px 14px;" onclick="verConfirmacion(${c.id})">Ver</button></div>
         </div>`;
-    }).join('') + `</div>`;
+    }).join('') + `</div></div>`;
     const pag = document.getElementById('ta-pag');
     const d = _taOffset + 1, h = Math.min(_taOffset + TA_LIMIT, r.total);
     pag.innerHTML = `
