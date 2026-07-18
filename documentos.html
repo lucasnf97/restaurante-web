@@ -679,26 +679,31 @@ async function abrirCapModal() {
     document.getElementById('cap-titulo').value = '';
     document.getElementById('cap-desc').value = '';
     document.getElementById('cap-file').value = '';
-    // Por rol: "Todos" (todo el personal) + un check por cada rol distinto. Tildar un rol
+    // Por rol: "Todos" (todo el personal) + un check por cada rol distinto — contando
+    // TODOS los roles de cada persona (multi-rol), no solo el almacenado. Tildar un rol
     // tilda a sus personas (feedback visual + inclusión). "Todos" tilda todo.
-    const roles = [...new Set(_usuariosDisp.map(u => u.rol).filter(Boolean))];
+    const roles = [...new Set(_usuariosDisp.flatMap(u => _rolesDeU(u)))];
     document.getElementById('cap-roles').innerHTML =
         `<label class="check-row"><input type="checkbox" id="cap-rol-todos" onchange="_capToggleTodos(this)"> <b>Todos</b> <span style="color:#9ca3af;font-weight:400;">(todo el personal)</span></label>` +
         (roles.length ? roles.map(r =>
             `<label class="check-row"><input type="checkbox" class="cap-rol-cb" value="${esc(r)}" onchange="_capToggleRol(this)"> ${esc(r)}</label>`
         ).join('') : '<span style="font-size:12px;color:#9ca3af">Sin roles</span>');
     document.getElementById('cap-dest').innerHTML = _usuariosDisp.map(u =>
-        `<label class="check-row"><input type="checkbox" value="${u.id}" onchange="_capSyncRoles()"> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`
+        `<label class="check-row"><input type="checkbox" value="${u.id}" onchange="_capSyncRoles()"> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(_rolesDeU(u).join(', '))})</span></label>`
     ).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
     document.getElementById('modal-cap').classList.add('open');
 }
 
+// TODOS los roles de una persona (almacenado + secundarios) — multi-rol.
+function _rolesDeU(u) {
+    return [u.rol, ...(u.roles_secundarios || [])].filter(Boolean);
+}
 // Tildar un rol tilda/destilda a todas sus personas.
 function _capToggleRol(cb) {
     const rol = cb.value, on = cb.checked;
     document.querySelectorAll('#cap-dest input[type=checkbox]').forEach(pc => {
         const u = _usuariosDisp.find(x => String(x.id) === pc.value);
-        if (u && u.rol === rol) pc.checked = on;
+        if (u && _rolesDeU(u).includes(rol)) pc.checked = on;
     });
     _capSyncTodos();
 }
@@ -712,7 +717,7 @@ function _capToggleTodos(cb) {
 function _capSyncRoles() {
     const checked = new Set([...document.querySelectorAll('#cap-dest input:checked')].map(c => c.value));
     document.querySelectorAll('#cap-roles .cap-rol-cb').forEach(rc => {
-        const personas = _usuariosDisp.filter(u => u.rol === rc.value);
+        const personas = _usuariosDisp.filter(u => _rolesDeU(u).includes(rc.value));
         rc.checked = personas.length > 0 && personas.every(u => checked.has(String(u.id)));
     });
     _capSyncTodos();
