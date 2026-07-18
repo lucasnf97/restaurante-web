@@ -937,12 +937,16 @@ function _refrescarSelectsServicio(forzarIdx, nuevoId) {
 
 // Al elegir "Gasto extraordinario" se muestra el campo de concepto libre y se oculta el botón
 // "+ Nuevo" (no tiene sentido crear catálogo para un cargo que no se guarda).
+// También se re-deriva la CLASE (corriente/extraordinario) por defecto: servicio de
+// catálogo → corriente; gasto suelto → extraordinario. El usuario puede pisarla a mano.
 function onServicioChange(idx) {
     const esExtra = document.getElementById(`ci-servicio-${idx}`)?.value === '__extra__';
     const concEl  = document.getElementById(`cs-concepto-${idx}`);
     const btnEl   = document.getElementById(`cs-nuevo-btn-${idx}`);
     if (concEl) { concEl.style.display = esExtra ? '' : 'none'; if (esExtra) concEl.focus(); }
     if (btnEl)  btnEl.style.display = esExtra ? 'none' : '';
+    const claseEl = document.getElementById(`cs-clase-${idx}`);
+    if (claseEl) claseEl.value = esExtra ? 'extraordinario' : 'corriente';
 }
 
 function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, marca, concepto, esExtra) {
@@ -1040,6 +1044,13 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
                 <input type="text" id="cs-concepto-${idx}" value="${conceptoAttr}"
                        placeholder="Concepto del gasto (ej: Reparación urgente heladera)"
                        style="margin-top:6px;width:100%;box-sizing:border-box;padding:6px 9px;border:1.5px solid #c4b5fd;border-radius:7px;font-size:12px;font-family:inherit;${esExtra ? '' : 'display:none;'}">
+            </div>
+            <div class="item-field">
+                <label title="Corriente = gasto recurrente (alquiler, luz, agua…); Extraordinario = puntual. En facturas con insumos/bienes la línea acompaña a la factura.">Clase</label>
+                <select id="cs-clase-${idx}" style="width:100%;">
+                    <option value="corriente" ${esExtra ? '' : 'selected'}>🏠 Corriente</option>
+                    <option value="extraordinario" ${esExtra ? 'selected' : ''}>⚡ Extraordinario</option>
+                </select>
             </div>
             <div class="item-field">
                 <label>Monto s/imp</label>
@@ -1278,6 +1289,14 @@ function abrirModalConfirmacion(datos) {
                        item.cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, item.marca || '',
                        item.concepto || '', item.es_extra || false);
     }).join("");
+    // Restaurar la clase corriente/extraordinario guardada (si el snapshot/borrador la trae
+    // y difiere del default derivado del catálogo).
+    items.forEach((item, idx) => {
+        if (item && item.tipo === 'servicio' && item.extraordinario != null) {
+            const el = document.getElementById(`cs-clase-${idx}`);
+            if (el) el.value = item.extraordinario ? 'extraordinario' : 'corriente';
+        }
+    });
 
     // Fecha de la factura + período (de la IA o del snapshot); el período se autocalcula
     // de la fecha salvo que la edición lo provea explícito (datos._periodo).
@@ -1706,10 +1725,14 @@ async function confirmarFactura() {
             // solo se bloquea el campo vacío/inválido.
             if (montoNeto === null || isNaN(montoNeto)) { alert("Completá el monto del ítem de servicio (puede ser 0 o negativo)."); return; }
             // Se guarda el gasto SIN impuesto (neto), coherente con el costo de los insumos.
-            itemsServicio.push({ srvId, monto: _conv(montoNeto), montoBruto: _conv(montoBruto), concepto: conceptoTxt });
+            // Clase corriente/extraordinario: default derivado del catálogo, pisable por línea.
+            const claseSrv = document.getElementById(`cs-clase-${idx}`)?.value
+                             || (esExtra ? 'extraordinario' : 'corriente');
+            itemsServicio.push({ srvId, monto: _conv(montoNeto), montoBruto: _conv(montoBruto),
+                                 concepto: conceptoTxt, extraordinario: claseSrv === 'extraordinario' });
             snapItems.push({ tipo: "servicio", descripcion_factura: desc, servicio_id: srvId,
                              precio_total: montoNeto, incluye_impuesto: false, impuesto_pct: pctSrv,
-                             concepto: conceptoTxt, es_extra: esExtra });
+                             concepto: conceptoTxt, es_extra: esExtra, extraordinario: claseSrv === 'extraordinario' });
         }
     }
     if (!itemsInsumo.length && !itemsServicio.length && !itemsBien.length) { alert("No hay ítems para registrar (todos omitidos)."); return; }
@@ -1885,7 +1908,8 @@ async function confirmarFactura() {
             await api.post("/stock/servicios/movimiento", {
                 servicio_id: item.srvId, factura_id: facturaId,
                 monto: item.monto, moneda: monedaGuardar, proveedor_id: proveedorId, referencia,
-                concepto: item.concepto || null
+                concepto: item.concepto || null,
+                extraordinario: item.extraordinario === true
             });
         }
 
@@ -1931,6 +1955,8 @@ function _capturarBorrador() {
             items.push({ tipo:'servicio', descripcion_factura:desc,
                 servicio_id: esExtra ? null : (parseInt(srvSel) || null),
                 es_extra: esExtra,
+                extraordinario: (document.getElementById(`cs-clase-${idx}`)?.value
+                                 || (esExtra ? 'extraordinario' : 'corriente')) === 'extraordinario',
                 concepto: esExtra ? (document.getElementById(`cs-concepto-${idx}`)?.value?.trim() || '') : null,
                 precio_total: _numOrNull(document.getElementById(`cs-precio-neto-${idx}`)?.value),
                 incluye_impuesto: false,

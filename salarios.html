@@ -1010,6 +1010,16 @@ function buildRow(u) {
                            onchange="guardarSueldo(${u.id})">
                     ${canEdit ? `<button class="btn-edit" onclick="focusSueldo(${u.id})" title="Editar">✏️</button>` : ''}
                 </div>
+                <div class="sueldo-wrap" style="margin-top:3px;"
+                     title="Cargas sociales/seguros de este empleado (% patronal). Vacío = usa el % global de Configuración${u.cargas_pct != null ? ` (hoy aplica ${u.cargas_pct}%)` : ''}.">
+                    <input class="sueldo-inp" id="cg-${u.id}" type="number" min="0" step="0.01"
+                           style="width:56px;font-size:11px;padding:2px 6px;"
+                           placeholder="${u.cargas_pct != null && u.cargas_pct_propio == null ? u.cargas_pct : '%'}"
+                           value="${u.cargas_pct_propio != null ? u.cargas_pct_propio : ''}"
+                           ${canEdit ? '' : 'readonly'}
+                           onchange="guardarCargas(${u.id})">
+                    <span style="font-size:10px;color:#9ca3af;">% cargas</span>
+                </div>
             </td>
             <td>${fmtH(u.horas_asignadas)}</td>
             <td>
@@ -1281,6 +1291,25 @@ async function guardarSueldo(uid) {
     } catch(e) {
         toast('Error al guardar: ' + (e.message || e), true);
         inp.setAttribute('readonly', '');
+    }
+}
+
+// Override de cargas sociales del empleado. Vacío = borrar el override (usa el % global).
+async function guardarCargas(uid) {
+    const inp = document.getElementById(`cg-${uid}`);
+    const raw = (inp.value || '').trim();
+    const val = raw === '' ? null : parseFloat(raw);
+    if (val !== null && (isNaN(val) || val < 0)) { inp.value = ''; return; }
+    const u0 = _data && _data.usuarios.find(x => x.id === uid);
+    try {
+        await api.patch(`/salarios/sueldo/${uid}`, {
+            sueldo_hora: u0 ? u0.sueldo_hora : parseFloat(document.getElementById(`si-${uid}`)?.value || 0),
+            cargas_sociales_pct: val,
+        });
+        toast(val === null ? 'Cargas: usa el % global ✓' : `Cargas sociales ${val}% ✓`);
+        cargar();   // re-fetch: el % efectivo lo calcula el server
+    } catch(e) {
+        toast('Error al guardar: ' + (e.message || e), true);
     }
 }
 

@@ -74,12 +74,16 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .bill-card.descuentos::before{ background:#db2777; }
 .bill-card.salarios::before  { background:#7c3aed; }
 .bill-card.balance::before   { background:#0ea5e9; }
+.bill-card.corrientes::before      { background:#f59e0b; }
+.bill-card.extraordinarios::before { background:#db2777; }
 
 .bill-icon { font-size:26px; margin-bottom:10px; }
 .bill-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:#888; margin-bottom:6px; }
 .bill-value { font-size:22px; font-weight:800; color:#1a1a2e; }
 .bill-value.negativo { color:#dc2626; }
 .bill-value.positivo { color:#16a34a; }
+/* Salarios sin aprobar: número ESTIMATIVO en gris (fichajes pendientes de revisión) */
+.bill-value.estimado { color:#9ca3af; }
 .bill-sub { font-size:11px; color:#aaa; margin-top:4px; }
 /* % SIEMPRE fijo abajo-izquierda de la tarjeta (mismo lugar en todas, sin depender del texto) */
 .bill-pct { position:absolute; left:22px; bottom:16px; font-size:11px; color:#9ca3af; font-weight:600; margin:0; padding:0; }
@@ -770,52 +774,74 @@ function renderBillingCards(d) {
     const esMesActual = d.year === new Date().getFullYear() && d.month === new Date().getMonth()+1;
     const sufijo = esMesActual ? " (parcial)" : "";
 
-    const desechos = d.desechos || 0;
-    const salarios = d.salarios || 0;
-    const gastosFact = (d.costo_insumos_facturados || 0) + (d.costo_servicios_facturados || 0) + (d.costo_bienes_facturados || 0);   // insumos + servicios + bienes de uso
-    // Base para los % de gasto: ventas NETAS (sin impuesto) del mes.
+    // Rediseño 2026-07: Ventas (sin IVA) · Salarios (con cargas; gris = estimado) ·
+    // Materia prima (insumos + servicios embebidos) · Gastos corrientes · Gastos
+    // extraordinarios (+ bienes de uso) · Resultado · Stock (con la merma en su detalle).
+    // Fallbacks: si la API vieja no manda las claves nuevas, se degradan a las legacy.
+    const salariosTotal = d.salarios_total != null ? d.salarios_total : (d.salarios || 0);
+    const aprobado      = d.salarios_aprobado === true;
+    const materia       = d.materia_prima != null ? d.materia_prima : (d.costo_insumos_facturados || 0);
+    const corrientes    = d.gastos_corrientes || 0;
+    const extra         = d.gastos_extraordinarios != null ? d.gastos_extraordinarios
+                          : ((d.costo_servicios_facturados || 0) + (d.costo_bienes_facturados || 0));
+    const mermaTotal    = d.merma_total != null ? d.merma_total : (d.desechos || 0);
+    const resultado     = d.resultado != null ? d.resultado : (d.balance || 0);
     const vn = (d.ventas_neto != null ? d.ventas_neto : d.ventas) || 0;
     const pctVentas = (val) => vn > 0 ? `${(val / vn * 100).toFixed(1)}% de ventas` : "";
     const cards = [
         {
             cls:"ventas", icon:"💰", label:"Ventas del mes",
-            value: fmt(d.ventas_neto != null ? d.ventas_neto : d.ventas),
-            extraCls: (d.ventas_neto != null ? d.ventas_neto : d.ventas) >= 0 ? "" : "negativo",
-            sub: (d.ventas_neto != null ? `${fmt(d.ventas)} con impuesto` : "Suma de cierres de caja")
+            value: fmt(vn),
+            extraCls: vn >= 0 ? "" : "negativo",
+            sub: (d.ventas_neto != null ? `${fmt(d.ventas)} con impuesto · sin IVA arriba` : "Suma de cierres de caja")
+                 + ((d.refunds || 0) > 0 ? ` · refunds ${fmt(d.refunds)}` : "")
+        },
+        {
+            cls:"salarios", icon:"👥", label: aprobado ? "Salarios" : "Salarios (estimado)",
+            value: fmt(salariosTotal),
+            extraCls: aprobado ? (salariosTotal > 0 ? "negativo" : "") : "estimado",
+            sub: (d.cargas_sociales != null
+                    ? `Sueldos + cargas sociales${aprobado ? "" : " — fichajes sin aprobar"}`
+                    : "Sueldos del mes (horas fichadas)"),
+            pct: pctVentas(salariosTotal)
+        },
+        {
+            cls:"gastos", icon:"📦", label:"Materia prima / insumos",
+            value: fmt(materia),
+            extraCls: materia < 0 ? "positivo" : "negativo",
+            sub: (d.servicios_en_insumos || 0) > 0
+                 ? `Incluye ${fmt(d.servicios_en_insumos)} de servicios en facturas de insumos`
+                 : "Compras de insumos del mes",
+            pct: pctVentas(materia)
+        },
+        {
+            cls:"corrientes", icon:"🏠", label:"Gastos corrientes",
+            value: fmt(corrientes),
+            extraCls: corrientes < 0 ? "positivo" : "negativo",
+            sub: "Alquiler, luz, agua, internet, seguros… (servicios recurrentes)",
+            pct: pctVentas(corrientes)
+        },
+        {
+            cls:"extraordinarios", icon:"⚡", label:"Gastos extraordinarios",
+            value: fmt(extra),
+            extraCls: extra < 0 ? "positivo" : "negativo",
+            sub: (d.costo_bienes_facturados || 0) > 0
+                 ? `Incluye ${fmt(d.costo_bienes_facturados)} de bienes de uso`
+                 : "Gastos no recurrentes del mes",
+            pct: pctVentas(extra)
+        },
+        {
+            cls:"balance", icon:"⚖️", label:`Resultado${sufijo}`,
+            value: fmt(resultado),
+            extraCls: resultado >= 0 ? "positivo" : "negativo",
+            sub: "Ventas netas − refunds − salarios − materia prima − corrientes − extraordinarios",
+            pct: (vn > 0 ? `${(resultado / vn * 100).toFixed(1)}% de la facturación` : "")
         },
         {
             cls:"stock", icon:"🏗️", label:"Monto acumulado de stock",
             value: fmt(d.monto_acumulado_stock), extraCls:"",
-            sub: d.stock_es_cierre ? "Valor al cierre del mes — dato estadístico" : "Valor actual en inventario — dato estadístico"
-        },
-        {
-            cls:"gastos", icon:"🧾", label:"Gastos facturados",
-            value: fmt(gastosFact),
-            extraCls: gastosFact < 0 ? "positivo" : "negativo",
-            sub: "Insumos + servicios + bienes de uso facturados",
-            pct: pctVentas(gastosFact),
-            // Redirige al historial de facturas con el período actual preseteado en el filtro.
-            nav: `facturas.html?periodo=${d.year}-${String(d.month).padStart(2,'0')}`
-        },
-        {
-            cls:"desechos", icon:"🗑️", label:"Desechos / merma",
-            value: fmt(desechos),
-            extraCls: desechos > 0 ? "negativo" : "",
-            sub: desechos > 0 ? "Pérdida por revisiones de stock" : "Sin revisiones de stock este mes",
-            pct: pctVentas(desechos)
-        },
-        {
-            cls:"salarios", icon:"👥", label:"Salarios",
-            value: fmt(salarios),
-            extraCls: salarios > 0 ? "negativo" : "",
-            sub: "Sueldos del mes (horas fichadas)", pct: pctVentas(salarios)
-        },
-        {
-            cls:"balance", icon:"⚖️", label:`Balance mensual${sufijo}`,
-            value: fmt(d.balance),
-            extraCls: d.balance >= 0 ? "positivo" : "negativo",
-            sub: "Ventas netas − insumos − servicios − bienes de uso − desechos − descuentos − salarios",
-            pct: (vn > 0 ? `${(d.balance / vn * 100).toFixed(1)}% de la facturación` : "")
+            sub: (d.stock_es_cierre ? "Valor al cierre del mes" : "Valor actual en inventario")
+                 + (mermaTotal > 0 ? ` · merma del mes ${fmt(mermaTotal)}` : " · sin merma este mes")
         },
     ];
 
@@ -832,14 +858,17 @@ function renderBillingCards(d) {
 
 // ── Detalle de cards ────────────────────────────────────────────
 const _DET_TITLES = {
-    ventas:    '💰 Ventas del mes — desglose diario',
-    stock:     '🏗️ Monto acumulado de stock',
+    ventas:    '💰 Ventas del mes — desglose',
+    stock:     '🏗️ Stock acumulado + merma',
     insumos:   '📦 Insumos facturados — por factura',
     servicios: '🔧 Servicios facturados — por factura',
     desechos:  '🗑️ Desechos / merma',
     descuentos:'🎟️ Descuentos / refounds',
+    gastos:    '📦 Materia prima / insumos — por factura',
+    corrientes:'🏠 Gastos corrientes — por factura',
+    extraordinarios:'⚡ Gastos extraordinarios',
     salarios:  '👥 Salarios del mes',
-    balance:   '⚖️ Balance mensual — desglose',
+    balance:   '⚖️ Resultado del mes — desglose',
 };
 
 function abrirDetalle(tipo) {
@@ -909,16 +938,59 @@ async function cargarDetalle(tipo) {
         switch (tipo) {
 
             case 'ventas': {
+                const d0 = datosMes || {};
                 const mm   = String(m).padStart(2, '0');
                 const last = new Date(y, m, 0).getDate();
-                const data = await apiFetch(
-                    `/reportes/ventas-diarias?desde=${y}-${mm}-01&hasta=${y}-${mm}-${String(last).padStart(2,'0')}`
-                );
+                const [data, ddata] = await Promise.all([
+                    apiFetch(`/reportes/ventas-diarias?desde=${y}-${mm}-01&hasta=${y}-${mm}-${String(last).padStart(2,'0')}`),
+                    apiFetch(`/reportes/descuentos-mes?year=${y}&month=${m}`).catch(() => ({ items: [] })),
+                ]);
+                const vn = (d0.ventas_neto != null ? d0.ventas_neto : d0.ventas) || 0;
+                // Resumen arriba: sin IVA / impuesto / refunds. Los descuentos van en su sección.
+                const resumen = `
+                    <div class="balance-formula" style="margin-bottom:14px;">
+                        <div class="bal-row"><span class="bal-label">💰 Ventas netas (sin IVA)</span>
+                            <span class="bal-val verde">${fmt(vn)}</span></div>
+                        <div class="bal-row"><span class="bal-label">🧾 Con impuesto</span>
+                            <span class="bal-val">${fmt(d0.ventas || 0)}</span></div>
+                        <div class="bal-row"><span class="bal-label">🏛️ Impuesto (IVA)</span>
+                            <span class="bal-val">${fmt(d0.impuesto_ventas || 0)}</span></div>
+                        ${(d0.ventas_importadas || 0) > 0 ? `
+                        <div class="bal-row"><span class="bal-label">📥 De ventas importadas (con imp.)</span>
+                            <span class="bal-val">${fmt(d0.ventas_importadas)}</span></div>` : ''}
+                        <div class="bal-row"><span class="bal-label">↩️ Refunds / devoluciones</span>
+                            <span class="bal-val rojo">− ${fmt(d0.refunds || 0)}</span></div>
+                        <div class="bal-row"><span class="bal-label">🎟️ Descuentos otorgados (ya restados de la venta)</span>
+                            <span class="bal-val">${fmt(d0.descuentos_personal || 0)}</span></div>
+                    </div>`;
+                // Descuentos otorgados: listado de mesas (misma tabla que la vieja tarjeta).
+                const C = 'text-align:center;';
+                const filasDesc = (ddata.items || []).map(it => {
+                    const esRef = it.tipo === 'refund';
+                    const id = it.pedido_id != null ? ('#' + it.pedido_id) : ('R' + (it.refund_ticket_id || ''));
+                    const desc = esRef
+                        ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 6px;font-weight:600;">Refound</span>'
+                        : `${it.descuento_pct}%`;
+                    const pagado = esRef ? `− ${fmt(it.devuelto)}` : fmt(it.pagado);
+                    const ver = esRef
+                        ? `<button class="btn-ver-mesa" onclick="verRefund(${it.refund_ticket_id})">Ver</button>`
+                        : (it.pedido_id ? `<button class="btn-ver-mesa" onclick="verResumenMesa(${it.pedido_id})">Ver</button>` : '');
+                    return `<tr><td style="${C}">${id}</td><td style="${C}">${_escH(it.usuario || '—')}</td>
+                        <td style="${C}">${fmt(it.total)}</td><td style="${C}">${desc}</td>
+                        <td style="${C}">${pagado}</td><td style="${C}">${ver}</td></tr>`;
+                }).join('');
+                const secDesc = filasDesc ? `
+                    <div class="bill-sub" style="margin:14px 0 6px;font-weight:700;color:#666;">🎟️ Descuentos / refounds del mes</div>
+                    <table class="det-table" style="table-layout:fixed;width:100%;">
+                        <thead><tr><th style="${C}">ID</th><th style="${C}">Usuario</th><th style="${C}">Total</th>
+                            <th style="${C}">Desc.</th><th style="${C}">Pagado</th><th style="${C}"></th></tr></thead>
+                        <tbody>${filasDesc}</tbody>
+                    </table>` : '';
                 const rows = data.filter(r => r.mesas_cerradas > 0 || r.facturacion > 0);
-                if (!rows.length) { body.innerHTML = '<div class="det-empty">Sin ventas registradas este mes.</div>'; break; }
                 const totM = rows.reduce((s, r) => s + r.mesas_cerradas, 0);
                 const totF = rows.reduce((s, r) => s + r.facturacion, 0);
-                body.innerHTML = `
+                const tablaDias = rows.length ? `
+                    <div class="bill-sub" style="margin:14px 0 6px;font-weight:700;color:#666;">📅 Ventas por día</div>
                     <table class="det-table">
                         <thead><tr>
                             <th>Fecha</th><th>Día</th>
@@ -938,17 +1010,20 @@ async function cargarDetalle(tipo) {
                                 <td class="num">${totM > 0 ? fmt(totF / totM) : '—'}</td>
                             </tr>
                         </tbody>
-                    </table>`;
+                    </table>` : '<div class="det-empty">Sin ventas registradas este mes.</div>';
+                body.innerHTML = resumen + secDesc + tablaDias;
                 break;
             }
 
             case 'stock': {
-                const data = await apiFetch(`/reportes/stock-snapshot?year=${y}&month=${m}`);
-                if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin inventario registrado.</div>'; break; }
+                const [data, merma] = await Promise.all([
+                    apiFetch(`/reportes/stock-snapshot?year=${y}&month=${m}`),
+                    apiFetch(`/reportes/desechos-mes?year=${y}&month=${m}`).catch(() => ({ items: [], total: 0 })),
+                ]);
                 const stockNota = data.es_cierre
                     ? '<div class="bill-sub" style="margin-bottom:8px;">Reconstruido al cierre del mes</div>'
                     : '';
-                body.innerHTML = stockNota + `
+                const tablaStock = data.items.length ? `
                     <table class="det-table">
                         <thead><tr>
                             <th>Insumo</th><th>Unidad</th>
@@ -966,7 +1041,104 @@ async function cargarDetalle(tipo) {
                                 <td class="num">${fmt(data.total)}</td>
                             </tr>
                         </tbody>
+                    </table>` : '<div class="det-empty">Sin inventario registrado.</div>';
+                // Merma del mes (revisiones + desechos individuales) — vive acá, no en el resultado.
+                const tablaMerma = (merma.items || []).length ? `
+                    <div class="bill-sub" style="margin:16px 0 6px;font-weight:700;color:#666;">🗑️ Merma del mes (revisiones + desechos)</div>
+                    <table class="det-table">
+                        <thead><tr>
+                            <th>Insumo</th><th>Origen</th><th>Fecha</th>
+                            <th class="num">Cant. perdida</th><th class="num">Pérdida</th>
+                        </tr></thead>
+                        <tbody>
+                            ${merma.items.map(r => `<tr>
+                                <td>${esc(r.insumo)}</td>
+                                <td>${r.origen === 'desecho' ? '🗑️ Desecho' : '📋 Revisión'}${r.nota ? ` <span style="color:#9ca3af;font-size:11px;">(${esc(r.nota)})</span>` : ''}</td>
+                                <td>${r.fecha}</td>
+                                <td class="num">${r.diferencia} ${esc(r.unidad || '')}</td>
+                                <td class="num" style="color:#dc2626">${fmt(r.perdida)}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total"><td colspan="4">TOTAL MERMA</td>
+                                <td class="num" style="color:#dc2626">${fmt(merma.total)}</td></tr>
+                        </tbody>
+                    </table>` : '<div class="bill-sub" style="margin-top:14px;">Sin merma registrada este mes.</div>';
+                body.innerHTML = stockNota + tablaStock + tablaMerma;
+                break;
+            }
+
+            case 'gastos': {   // Materia prima: insumos + servicios embebidos en facturas de insumos
+                const [ins, emb] = await Promise.all([
+                    apiFetch(`/reportes/insumos-mes?year=${y}&month=${m}`),
+                    apiFetch(`/reportes/servicios-mes?year=${y}&month=${m}&clase=materia`).catch(() => ({ items: [], total: 0 })),
+                ]);
+                if (!ins.items.length && !(emb.items || []).length) {
+                    body.innerHTML = '<div class="det-empty">Sin compras de materia prima este mes.</div>'; break;
+                }
+                const tabla = (items, titulo, nota) => items.length ? `
+                    ${titulo ? `<div class="bill-sub" style="margin:14px 0 6px;font-weight:700;color:#666;">${titulo}</div>` : ''}
+                    ${nota ? `<div class="bill-sub" style="margin-bottom:6px;">${nota}</div>` : ''}
+                    <table class="det-table">
+                        <thead><tr><th>Factura / Proveedor</th><th>Fecha</th><th class="num">Líneas</th><th class="num">Monto</th></tr></thead>
+                        <tbody>
+                            ${items.map(r => `<tr>
+                                <td>${_escH(r.proveedor)}</td><td>${r.fecha}</td>
+                                <td class="num">${r.n_lineas}</td>
+                                <td class="num">${fmt(r.monto)}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total"><td colspan="3">TOTAL</td>
+                                <td class="num">${fmt(items.reduce((s, r) => s + r.monto, 0))}</td></tr>
+                        </tbody>
+                    </table>` : '';
+                body.innerHTML =
+                    tabla(ins.items, '📦 Insumos por factura', 'Solo la parte de insumos de cada factura.') +
+                    tabla(emb.items || [], '🚚 Servicios dentro de facturas de insumos', 'Transporte, tasas… — suman a materia prima.');
+                break;
+            }
+
+            case 'corrientes': {
+                const data = await apiFetch(`/reportes/servicios-mes?year=${y}&month=${m}&clase=corriente`);
+                if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin gastos corrientes este mes.</div>'; break; }
+                body.innerHTML = `
+                    <div class="bill-sub" style="margin-bottom:8px;">Servicios recurrentes (alquiler, luz, agua, internet, seguros…), por factura.</div>
+                    <table class="det-table">
+                        <thead><tr><th>Factura / Proveedor</th><th>Fecha</th><th class="num">Líneas</th><th class="num">Monto</th></tr></thead>
+                        <tbody>
+                            ${data.items.map(r => `<tr>
+                                <td>${_escH(r.proveedor)}</td><td>${r.fecha}</td>
+                                <td class="num">${r.n_lineas}</td>
+                                <td class="num" style="color:${r.monto < 0 ? '#16a34a' : '#dc2626'}">${fmt(r.monto)}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total"><td colspan="3">TOTAL</td>
+                                <td class="num">${fmt(data.total)}</td></tr>
+                        </tbody>
                     </table>`;
+                break;
+            }
+
+            case 'extraordinarios': {
+                const [sx, sb, bi] = await Promise.all([
+                    apiFetch(`/reportes/servicios-mes?year=${y}&month=${m}&clase=extraordinario`).catch(() => ({ items: [] })),
+                    apiFetch(`/reportes/servicios-mes?year=${y}&month=${m}&clase=bienes`).catch(() => ({ items: [] })),
+                    apiFetch(`/reportes/bienes-mes?year=${y}&month=${m}`).catch(() => ({ items: [] })),
+                ]);
+                const sec = (items, titulo) => (items || []).length ? `
+                    <div class="bill-sub" style="margin:14px 0 6px;font-weight:700;color:#666;">${titulo}</div>
+                    <table class="det-table">
+                        <thead><tr><th>Factura / Proveedor</th><th>Fecha</th><th class="num">Líneas</th><th class="num">Monto</th></tr></thead>
+                        <tbody>
+                            ${items.map(r => `<tr>
+                                <td>${_escH(r.proveedor)}</td><td>${r.fecha}</td>
+                                <td class="num">${r.n_lineas}</td>
+                                <td class="num" style="color:${r.monto < 0 ? '#16a34a' : '#dc2626'}">${fmt(r.monto)}</td>
+                            </tr>`).join('')}
+                            <tr class="det-total"><td colspan="3">TOTAL</td>
+                                <td class="num">${fmt(items.reduce((s, r) => s + r.monto, 0))}</td></tr>
+                        </tbody>
+                    </table>` : '';
+                const html = sec(sx.items, '⚡ Gastos extraordinarios (servicios)')
+                           + sec(bi.items, '🏗️ Bienes de uso comprados')
+                           + sec(sb.items, '🚚 Servicios dentro de facturas de bienes');
+                body.innerHTML = html || '<div class="det-empty">Sin gastos extraordinarios este mes.</div>';
                 break;
             }
 
@@ -1087,27 +1259,38 @@ async function cargarDetalle(tipo) {
             }
 
             case 'salarios': {
-                const totalSal = (datosMes && datosMes.salarios) || 0;
+                const d0 = datosMes || {};
+                const totalSal = d0.salarios_total != null ? d0.salarios_total : (d0.salarios || 0);
                 let sd = null;
                 try { sd = await apiFetch(`/salarios/resumen?year=${y}&month=${m}`); } catch(e) {}
-                const emp = (sd && sd.usuarios ? sd.usuarios : []).filter(e => (e.salario_total||0) !== 0 || (e.horas_fichadas||0) > 0);
+                const aviso = d0.salarios_aprobado === false
+                    ? `<div class="bill-sub" style="margin-bottom:8px;color:#b45309;background:#fef3c7;border-radius:6px;padding:6px 10px;">
+                         ⏳ Número ESTIMATIVO: hay fichajes del mes sin aprobar (revisalos en Fichajes).</div>` : '';
+                const emp = (sd && sd.usuarios ? sd.usuarios : []).filter(e =>
+                    (e.salario_total||0) !== 0 || (e.horas_fichadas||0) > 0 || (e.horas_declaradas||0) > 0);
+                const conCargas = emp.some(e => e.cargas_sociales != null);
                 if (!emp.length) {
-                    body.innerHTML = `<div class="det-empty">Salarios del mes: <b>${fmt(totalSal)}</b>.<br>
+                    body.innerHTML = aviso + `<div class="det-empty">Salarios del mes: <b>${fmt(totalSal)}</b>.<br>
                         <span style="color:#9ca3af;font-size:12px;">El detalle por empleado está en la sección Salarios.</span></div>`;
                     break;
                 }
-                body.innerHTML = `
+                body.innerHTML = aviso + `
                     <table class="det-table">
-                        <thead><tr><th>Empleado</th><th class="num">Horas fichadas</th><th class="num">$/hora</th><th class="num">Salario</th></tr></thead>
+                        <thead><tr><th>Empleado</th><th class="num">Horas</th><th class="num">$/hora</th>
+                            <th class="num">Salario</th>${conCargas ? '<th class="num">Cargas soc.</th><th class="num">Costo total</th>' : ''}</tr></thead>
                         <tbody>
                             ${emp.map(e => `<tr>
-                                <td>${_escH(e.username)}</td>
-                                <td class="num">${(e.horas_fichadas||0).toFixed(1)}</td>
+                                <td>${_escH(e.nombre_display || e.username)}</td>
+                                <td class="num">${((e.horas_fichadas||0) + (e.horas_declaradas||0)).toFixed(1)}</td>
                                 <td class="num">${fmt(e.sueldo_hora)}</td>
                                 <td class="num">${fmt(e.salario_total)}</td>
+                                ${conCargas ? `<td class="num">${fmt(e.cargas_sociales || 0)}${e.cargas_pct ? ` <span style=\"font-size:10px;color:#9ca3af;\">(${e.cargas_pct}%)</span>` : ''}</td>
+                                <td class="num">${fmt(e.salario_con_cargas != null ? e.salario_con_cargas : e.salario_total)}</td>` : ''}
                             </tr>`).join('')}
                             <tr class="det-total"><td colspan="3">TOTAL</td>
-                                <td class="num">${fmt(sd && sd.total_salarios != null ? sd.total_salarios : totalSal)}</td></tr>
+                                <td class="num">${fmt(sd && sd.total_salarios != null ? sd.total_salarios : totalSal)}</td>
+                                ${conCargas ? `<td class="num">${fmt(sd && sd.total_cargas_sociales || 0)}</td>
+                                <td class="num">${fmt(sd && sd.total_con_cargas != null ? sd.total_con_cargas : totalSal)}</td>` : ''}</tr>
                         </tbody>
                     </table>`;
                 break;
@@ -1116,37 +1299,22 @@ async function cargarDetalle(tipo) {
             case 'balance': {
                 const d = datosMes;
                 if (!d) { body.innerHTML = '<div class="det-empty">Cargue primero los datos del mes.</div>'; break; }
-                const desechos = d.desechos || 0;
-                const salarios = d.salarios || 0;
-                const bal = d.balance;
+                const salariosT = d.salarios_total != null ? d.salarios_total : (d.salarios || 0);
+                const materia   = d.materia_prima != null ? d.materia_prima : (d.costo_insumos_facturados || 0);
+                const corr      = d.gastos_corrientes || 0;
+                const extra     = d.gastos_extraordinarios != null ? d.gastos_extraordinarios
+                                  : ((d.costo_servicios_facturados || 0) + (d.costo_bienes_facturados || 0));
+                const res = d.resultado != null ? d.resultado : d.balance;
                 const vn  = (d.ventas_neto != null ? d.ventas_neto : d.ventas) || 0;
                 // % de cada línea sobre las ventas netas (gris, al lado del valor).
                 const pl = (val) => vn > 0 ? ` <span style="font-size:11px;color:#9ca3af;font-weight:400;">(${(val / vn * 100).toFixed(1)}%)</span>` : "";
+                const salExtra = d.cargas_sociales != null
+                    ? ` <span style="font-size:11px;color:#9ca3af;font-weight:400;">(bruto ${fmt(d.salarios_bruto || 0)}${(d.salarios_cargos || 0) > 0 ? ` − cargos ${fmt(d.salarios_cargos)}` : ''} + cargas ${fmt(d.cargas_sociales)})</span>` : '';
                 body.innerHTML = `
                     <div class="balance-formula">
                         <div class="bal-row">
-                            <span class="bal-label">💰 Ventas del mes (neto)</span>
+                            <span class="bal-label">💰 Ventas del mes (neto, sin IVA)</span>
                             <span class="bal-val verde">+ ${fmt(vn)}</span>
-                        </div>
-                        <div class="bal-op">−</div>
-                        <div class="bal-row">
-                            <span class="bal-label">📦 Insumos facturados</span>
-                            <span class="bal-val rojo">− ${fmt(d.costo_insumos_facturados)}${pl(d.costo_insumos_facturados)}</span>
-                        </div>
-                        <div class="bal-op">−</div>
-                        <div class="bal-row">
-                            <span class="bal-label">🔧 Servicios facturados</span>
-                            <span class="bal-val rojo">− ${fmt(d.costo_servicios_facturados)}${pl(d.costo_servicios_facturados)}</span>
-                        </div>
-                        <div class="bal-op">−</div>
-                        <div class="bal-row">
-                            <span class="bal-label">🏗️ Bienes de uso</span>
-                            <span class="bal-val rojo">− ${fmt(d.costo_bienes_facturados || 0)}${pl(d.costo_bienes_facturados || 0)}</span>
-                        </div>
-                        <div class="bal-op">−</div>
-                        <div class="bal-row">
-                            <span class="bal-label">🗑️ Desechos / merma</span>
-                            <span class="bal-val rojo">− ${fmt(desechos)}${pl(desechos)}</span>
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
@@ -1155,14 +1323,30 @@ async function cargarDetalle(tipo) {
                         </div>
                         <div class="bal-op">−</div>
                         <div class="bal-row">
-                            <span class="bal-label">👥 Salarios</span>
-                            <span class="bal-val rojo">− ${fmt(salarios)}${pl(salarios)}</span>
+                            <span class="bal-label">👥 Salarios${d.salarios_aprobado === false ? ' (estimado)' : ''}</span>
+                            <span class="bal-val rojo">− ${fmt(salariosT)}${pl(salariosT)}${salExtra}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">📦 Materia prima / insumos</span>
+                            <span class="bal-val rojo">− ${fmt(materia)}${pl(materia)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">🏠 Gastos corrientes</span>
+                            <span class="bal-val rojo">− ${fmt(corr)}${pl(corr)}</span>
+                        </div>
+                        <div class="bal-op">−</div>
+                        <div class="bal-row">
+                            <span class="bal-label">⚡ Gastos extraordinarios</span>
+                            <span class="bal-val rojo">− ${fmt(extra)}${pl(extra)}</span>
                         </div>
                         <div class="bal-op">=</div>
                         <div class="bal-row bal-total">
-                            <span class="bal-label">⚖️ Balance mensual</span>
-                            <span class="bal-val" style="color:${bal >= 0 ? '#4ade80' : '#f87171'}">${fmt(bal)}${vn > 0 ? ` <span style="font-size:11px;color:#9ca3af;font-weight:400;">(${(bal / vn * 100).toFixed(1)}% de la facturación)</span>` : ""}</span>
+                            <span class="bal-label">⚖️ Resultado del mes</span>
+                            <span class="bal-val" style="color:${res >= 0 ? '#4ade80' : '#f87171'}">${fmt(res)}${vn > 0 ? ` <span style="font-size:11px;color:#9ca3af;font-weight:400;">(${(res / vn * 100).toFixed(1)}% de la facturación)</span>` : ""}</span>
                         </div>
+                        <div class="bill-sub" style="margin-top:10px;">La merma del mes ${fmt(d.merma_total || d.desechos || 0)} NO resta (el insumo ya se contó al comprarlo) — está detallada en la tarjeta de Stock.</div>
                     </div>`;
                 break;
             }

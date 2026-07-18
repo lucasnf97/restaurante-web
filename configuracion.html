@@ -1037,6 +1037,35 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
+    <!-- ═══ CARGAS SOCIALES / SEGUROS (NÓMINA) ════════════════════ -->
+    <div class="cfg-section" id="sec-cargassoc">
+        <div class="cfg-section-head" onclick="toggleSection('cargassoc')">
+            <span class="cfg-section-icon">🏛️</span>
+            <span class="cfg-section-title">Cargas sociales / seguros</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
+                Porcentaje <strong>patronal</strong> que se suma al costo de salarios del balance mensual
+                (cargas sociales, seguros, aportes del empleador). Se aplica sobre el salario bruto de
+                cada empleado. Un empleado puede tener su propio % en <strong>Salarios</strong>
+                (columna "% cargas"); si no, usa este global.
+            </p>
+            <div class="cfg-grid" style="margin-top:18px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">% global de cargas sociales</label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input class="cfg-input" type="number" id="cs-pct" min="0" step="0.01"
+                               placeholder="Ej: 31.42" style="max-width:140px;">
+                        <span style="font-size:20px;color:#9ca3af;">%</span>
+                        <button class="btn-primary" onclick="guardarCargasSociales()" style="margin-left:8px;">Guardar</button>
+                    </div>
+                    <div style="font-size:12px;color:#9ca3af;margin-top:4px;">Vacío = sin cargas (0%). Ej.: Suecia 31,42 · Dinamarca según el caso.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ DESCUENTO PERSONAL / TICKET PERSONAL ══════════════════ -->
     <div class="cfg-section" id="sec-descpersonal">
         <div class="cfg-section-head" onclick="toggleSection('descpersonal')">
@@ -1440,6 +1469,27 @@ function _cargarSeccionLazy(id) {
     if (id === 'roles')            cargarPermisosDef().then(cargarRoles);
     else if (id === 'dashboard')   cargarDashboardCfg();
     else if (id === 'descpersonal') cargarSeccionDescuentoPersonal();
+    else if (id === 'cargassoc')   cargarCargasSociales();
+}
+
+// ── Cargas sociales / seguros (% patronal global) ─────────────
+async function cargarCargasSociales() {
+    try {
+        const d = await apiFetch('/config/cargas-sociales');
+        const inp = document.getElementById('cs-pct');
+        if (inp) inp.value = d.pct != null ? d.pct : '';
+    } catch (e) { /* sin permiso o server viejo: dejar vacío */ }
+}
+async function guardarCargasSociales() {
+    const raw = (document.getElementById('cs-pct')?.value || '').trim();
+    const pct = raw === '' ? null : parseFloat(raw);
+    if (pct !== null && (isNaN(pct) || pct < 0)) { alert('Porcentaje inválido'); return; }
+    try {
+        await apiFetch('/config/cargas-sociales', {
+            method: 'PUT', body: JSON.stringify({ pct }),
+        });
+        alert('Cargas sociales guardadas ✓');
+    } catch (e) { alert('Error al guardar: ' + (e.message || e)); }
 }
 // ── Advertencia al navegar con cambios de rol sin guardar ─────
 let _navOkCfg = false;
