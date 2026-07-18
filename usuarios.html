@@ -209,8 +209,11 @@
                 <input type="password" id="fn-password" placeholder="Contraseña inicial">
             </div>
             <div class="form-group">
-                <label>Rol *</label>
-                <select id="fn-rol"></select>
+                <label>Roles * <span style="color:#94a3b8;font-weight:400;">(puede tener varios)</span></label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div id="fn-roles-lista" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;min-height:26px;align-items:center;"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="abrirRolesPopup('fn')">＋ Roles</button>
+                </div>
             </div>
             <div class="form-group">
                 <label>Estado</label>
@@ -227,7 +230,7 @@
                 <input type="file" id="fn-foto" accept="image/*" style="flex:1;">
             </div>
         </div>
-        <small style="color:#6b7280;font-size:11px;display:block;">El rol y el estado valen para ESTE restaurante. Los permisos se asignan automáticamente según el rol. El programa nombra a la persona por Nombre y Apellido; el usuario es solo la credencial de login.</small>
+        <small style="color:#6b7280;font-size:11px;display:block;">Los roles y el estado valen para ESTE restaurante. Los permisos son la suma de lo que dan TODOS sus roles. El programa nombra a la persona por Nombre y Apellido; el usuario es solo la credencial de login.</small>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo')">Cancelar</button>
             <button class="btn btn-primary" id="fn-crear-btn" onclick="crearUsuario()">Crear</button>
@@ -273,10 +276,6 @@
                        style="text-transform:uppercase;">
             </div>
             <div class="form-group">
-                <label>Rol</label>
-                <select id="fe-rol"></select>
-            </div>
-            <div class="form-group">
                 <label>Estado</label>
                 <select id="fe-activo">
                     <option value="true">Activo</option>
@@ -285,15 +284,15 @@
             </div>
         </div>
         <div class="form-group">
-            <label>Roles secundarios <span style="color:#94a3b8;font-weight:400;">(subroles — puestos que puede cubrir)</span></label>
+            <label>Roles <span style="color:#94a3b8;font-weight:400;">(puestos del empleado — puede tener varios)</span></label>
             <div style="display:flex;align-items:center;gap:8px;">
                 <div id="fe-subroles-lista" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;min-height:26px;align-items:center;"></div>
-                <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="abrirSubrolesPopup()">＋ Agregar</button>
+                <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="abrirRolesPopup('fe')">＋ Roles</button>
             </div>
             <small style="color:#6b7280;font-size:11px;display:block;margin-top:4px;">
-                Le dan los permisos, la documentación, las capacitaciones y los grupos de ese rol
-                (las notificaciones siguen siendo solo del rol principal). Necesario para asignarle
-                turnos de ese rol en Horarios.</small>
+                Tiene los permisos, la documentación, las capacitaciones, el muro y las menciones de
+                TODOS sus roles (si un rol da acceso a algo, gana el Sí). La pantalla del ejecutable
+                la decide el turno agendado del día.</small>
         </div>
         <div class="form-group">
             <label>Foto <span style="color:#94a3b8;font-weight:400;">(opcional · tipo carnet)</span></label>
@@ -314,9 +313,9 @@
 <!-- Ventanita de subroles: listado de roles con toggle on/off -->
 <div class="modal-overlay" id="modal-subroles" style="z-index:300;">
     <div class="modal" style="max-width:360px;">
-        <h3 style="margin-bottom:6px;">Roles secundarios</h3>
+        <h3 style="margin-bottom:6px;">Roles del empleado</h3>
         <div style="font-size:12.5px;color:#6b7280;margin-bottom:12px;">
-            Prendé los puestos que <b id="ms-nombre"></b> puede cubrir.</div>
+            Prendé los puestos de <b id="ms-nombre"></b>. Puede tener varios.</div>
         <div id="ms-lista"></div>
         <div class="modal-footer">
             <button class="btn btn-primary" onclick="cerrarSubrolesPopup()">Listo</button>
@@ -385,11 +384,6 @@
         // 'gerente' lo asigna sólo el super-admin; 'admin' es oculto. No se ofrecen acá.
         const asignables = rolesDisp.filter(r => r.nombre !== 'gerente' && r.nombre !== 'admin');
         // Los nombres de rol son editables por el usuario → escapar (value = atributo).
-        opcionesRolHTML = asignables.map(r =>
-            `<option value="${escAttr(r.nombre)}">${esc(r.nombre.charAt(0).toUpperCase()+r.nombre.slice(1))}${r.es_sistema?' ⭐':''}</option>`
-        ).join('');
-        document.getElementById('fn-rol').innerHTML = opcionesRolHTML;
-        document.getElementById('fe-rol').innerHTML = opcionesRolHTML;
     }
 
     async function cargarUsuarios() {
@@ -413,8 +407,8 @@
                         ? `<img src="${escAttr(u.foto_url)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;">`
                         : `<span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">${u.iniciales || u.username.substring(0,3).toUpperCase()}</span>`}
                 </td>
-                <td><span class="badge ${rolBadge(u.rol)}">${esc(u.rol)}</span>${(u.roles_secundarios || []).map(r =>
-                    `<span class="badge" style="background:#f3f4f6;color:#6b7280;font-size:10px;margin-left:4px;" title="Rol secundario (puede cubrir este puesto)">+ ${esc(r)}</span>`).join('')}</td>
+                <td>${[u.rol, ...(u.roles_secundarios || [])].map(r =>
+                    `<span class="badge ${rolBadge(r)}" style="margin-right:4px;">${esc(r)}</span>`).join('')}</td>
                 <td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
                 <td>${formatFecha(u.creado_en)}</td>
                 <td>
@@ -452,7 +446,9 @@
     function abrirModalNuevo() {
         for (const c of ["nombre", "apellido", "dni", "telefono", "email", "username", "password"])
             document.getElementById("fn-" + c).value = "";
-        document.getElementById("fn-rol").value = "empleado";
+        _rolesSel.fn = _rolesAsignables().includes("empleado") ? ["empleado"] : [];
+        _rolesFijos.fn = [];
+        _renderRolesLista('fn');
         document.getElementById("fn-activo").value = "true";
         // Reset foto
         const fnFoto = document.getElementById("fn-foto"); fnFoto.value = "";
@@ -482,13 +478,17 @@
             email: v("fn-email"),
             username: normalizarUsername(v("fn-username")) || null,
             password: document.getElementById("fn-password").value,
-            rol: document.getElementById("fn-rol").value,
+            rol: (_rolesSel.fn[0] || ""),
             activo: document.getElementById("fn-activo").value === "true"
         };
+        if (!body.rol) { alert("Elegí al menos un rol."); return; }
         if (!body.email || !body.email.includes("@")) { alert("El correo es obligatorio (y debe ser válido)."); return; }
         if (!body.password) { alert("La contraseña es obligatoria."); return; }
         try {
             const r = await api.post("/auth/usuarios", body);
+            // Roles adicionales (multi-rol): se agregan tras el alta
+            if (_rolesSel.fn.length > 1 && r && r.id)
+                await api.patch(`/auth/usuarios/${r.id}`, { roles_secundarios: _rolesSel.fn.slice(1) });
             // Foto (si se eligió): se sube tras crear, con el id del usuario recién creado.
             const f = document.getElementById("fn-foto").files[0];
             if (f && r && r.id) {
@@ -510,17 +510,12 @@
         document.getElementById("fe-telefono").value = u.telefono || "";
         document.getElementById("fe-username").value = u.username || "";
         document.getElementById("fe-iniciales").value = u.iniciales || "";
-        const feRol = document.getElementById("fe-rol");
-        feRol.innerHTML = opcionesRolHTML;
-        if (![...feRol.options].some(o => o.value === u.rol)) {
-            // rol no asignable (p.ej. gerente): mostrarlo para no perder el valor actual
-            feRol.insertAdjacentHTML('afterbegin', `<option value="${escAttr(u.rol)}">${esc(u.rol)}</option>`);
-        }
-        feRol.value = u.rol;
-        // Roles secundarios (subroles): checkboxes de los asignables, sin el principal.
-        // Al cambiar el rol principal se re-renderizan conservando la selección.
-        _renderSubroles(u.roles_secundarios || []);
-        feRol.onchange = () => _renderSubroles(_subrolesSeleccionados());
+        // Roles: lista completa (todos iguales). Un rol no asignable acá (gerente)
+        // queda fijo — se conserva y no se puede quitar desde esta pantalla.
+        const asigSet = new Set(_rolesAsignables());
+        _rolesFijos.fe = asigSet.has(u.rol) ? [] : [u.rol];
+        _rolesSel.fe = [...(asigSet.has(u.rol) ? [u.rol] : []), ...(u.roles_secundarios || [])];
+        _renderRolesLista('fe');
         document.getElementById("fe-activo").value = u.activo ? "true" : "false";
         document.getElementById("fe-email").value = u.email || "";
         // Foto actual + selector
@@ -544,40 +539,47 @@
         document.getElementById("modal-editar").classList.add("active");
     }
 
-    // ── Subroles: estado + chips de los habilitados + ventanita con toggles ──
-    let _feSubroles = [];   // selección actual (nombres de rol)
+    // ── Roles del empleado (multi-rol, sin jerarquía principal/secundario) ──
+    // Estado por modal: 'fe' (edición) y 'fn' (alta). Los roles no asignables acá
+    // (gerente) quedan FIJOS: se muestran pero no se tocan.
+    let _rolesSel = { fe: [], fn: [] };
+    let _rolesFijos = { fe: [], fn: [] };
+    let _rolesTarget = 'fe';
 
-    function _subrolesSeleccionados() { return [..._feSubroles]; }
-    function _renderSubroles(seleccion) {
-        const principal = document.getElementById('fe-rol').value;
-        // Depurar la selección si el principal cambió a un rol que estaba de subrol
-        _feSubroles = (seleccion || []).filter(r => r !== principal);
-        const cont = document.getElementById('fe-subroles-lista');
-        cont.innerHTML = _feSubroles.length
-            ? _feSubroles.map(r => `<span class="subrol-chip">${esc(r)}</span>`).join('')
-            : '<span style="color:#9ca3af;font-size:12.5px;">Sin subroles habilitados</span>';
+    function _rolesAsignables() {
+        return rolesDisp.filter(r => r.nombre !== 'gerente' && r.nombre !== 'admin').map(r => r.nombre);
     }
-    function abrirSubrolesPopup() {
-        const principal = document.getElementById('fe-rol').value;
-        const u = usuarios.find(x => x.id === editandoId) || {};
-        document.getElementById('ms-nombre').textContent = u.nombre_display || u.username || '';
-        const asignables = rolesDisp.filter(r =>
-            r.nombre !== 'gerente' && r.nombre !== 'admin' && r.nombre !== principal);
+    function _renderRolesLista(target) {
+        const cont = document.getElementById(target === 'fe' ? 'fe-subroles-lista' : 'fn-roles-lista');
+        if (!cont) return;
+        const todos = [..._rolesFijos[target], ..._rolesSel[target]];
+        cont.innerHTML = todos.length
+            ? todos.map(r => `<span class="subrol-chip">${esc(r)}</span>`).join('')
+            : '<span style="color:#9ca3af;font-size:12.5px;">Sin roles — agregá al menos uno</span>';
+    }
+    function abrirRolesPopup(target) {
+        _rolesTarget = target;
+        const u = target === 'fe' ? (usuarios.find(x => x.id === editandoId) || {}) : {};
+        document.getElementById('ms-nombre').textContent = target === 'fe'
+            ? (u.nombre_display || u.username || '')
+            : (document.getElementById('fn-nombre').value.trim() || 'el nuevo usuario');
+        const asignables = _rolesAsignables();
         document.getElementById('ms-lista').innerHTML = asignables.length
-            ? asignables.map(r => `<div class="sub-row"><span>${esc(r.nombre)}</span>
-                  <label class="sw"><input type="checkbox" value="${escAttr(r.nombre)}"
-                         ${_feSubroles.includes(r.nombre) ? 'checked' : ''}
-                         onchange="_toggleSubrol(this)"><span class="tr"></span></label></div>`).join('')
-            : '<div style="color:#9ca3af;font-size:13px;padding:10px 0;">No hay otros roles definidos.</div>';
+            ? asignables.map(r => `<div class="sub-row"><span>${esc(r)}</span>
+                  <label class="sw"><input type="checkbox" value="${escAttr(r)}"
+                         ${_rolesSel[target].includes(r) ? 'checked' : ''}
+                         onchange="_toggleRolSel(this)"><span class="tr"></span></label></div>`).join('')
+            : '<div style="color:#9ca3af;font-size:13px;padding:10px 0;">No hay roles definidos.</div>';
         document.getElementById('modal-subroles').classList.add('active');
     }
-    function _toggleSubrol(chk) {
-        if (chk.checked) { if (!_feSubroles.includes(chk.value)) _feSubroles.push(chk.value); }
-        else _feSubroles = _feSubroles.filter(r => r !== chk.value);
+    function _toggleRolSel(chk) {
+        const t = _rolesTarget;
+        if (chk.checked) { if (!_rolesSel[t].includes(chk.value)) _rolesSel[t].push(chk.value); }
+        else _rolesSel[t] = _rolesSel[t].filter(r => r !== chk.value);
     }
     function cerrarSubrolesPopup() {
         document.getElementById('modal-subroles').classList.remove('active');
-        _renderSubroles(_feSubroles);
+        _renderRolesLista(_rolesTarget);
     }
 
     function marcarQuitarFoto() {
@@ -592,15 +594,21 @@
         const u = usuarios.find(x => x.id === editandoId) || {};
         const v = id => document.getElementById(id).value.trim();
         const iniciales = v("fe-iniciales").toUpperCase();
+        const rolesSel = [..._rolesSel.fe];
+        if (!_rolesFijos.fe.length && !rolesSel.length) { alert("El usuario necesita al menos un rol."); return; }
+        // El rol ALMACENADO (interno) se conserva si sigue elegido; si no, pasa a ser
+        // el primero de la selección. Para el usuario son todos roles iguales.
+        const rolAlmacenado = _rolesFijos.fe.length ? u.rol
+            : (rolesSel.includes(u.rol) ? u.rol : rolesSel[0]);
         const body = {
-            rol: document.getElementById("fe-rol").value,
+            rol: rolAlmacenado,
             activo: document.getElementById("fe-activo").value === "true",
             iniciales: iniciales || null,
         };
-        // Subroles: mandar solo si cambió la selección (lista completa, reemplaza)
-        const subroles = _subrolesSeleccionados().sort();
-        if (JSON.stringify(subroles) !== JSON.stringify((u.roles_secundarios || []).slice().sort()))
-            body.roles_secundarios = subroles;
+        const restantes = rolesSel.filter(r => r !== rolAlmacenado).sort();
+        if (rolAlmacenado !== u.rol ||
+            JSON.stringify(restantes) !== JSON.stringify((u.roles_secundarios || []).slice().sort()))
+            body.roles_secundarios = restantes;
         // Datos personales: mandar solo lo que cambió (editan la ficha única de la
         // persona — con ficha, aplican en todos sus restaurantes)
         const pares = [["nombre", "fe-nombre"], ["apellido", "fe-apellido"], ["dni", "fe-dni"],
