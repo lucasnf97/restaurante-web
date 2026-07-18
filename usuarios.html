@@ -262,6 +262,14 @@
             </div>
         </div>
         <div class="form-group">
+            <label>Roles secundarios <span style="color:#94a3b8;font-weight:400;">(subroles — puestos que puede cubrir)</span></label>
+            <div id="fe-subroles" style="display:flex;flex-wrap:wrap;gap:10px;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;"></div>
+            <small style="color:#6b7280;font-size:11px;display:block;margin-top:4px;">
+                Le dan los permisos, la documentación, las capacitaciones y los grupos de ese rol
+                (las notificaciones siguen siendo solo del rol principal). Necesario para asignarle
+                turnos de ese rol en Horarios.</small>
+        </div>
+        <div class="form-group">
             <label>Foto <span style="color:#94a3b8;font-weight:400;">(opcional · tipo carnet)</span></label>
             <div style="display:flex;align-items:center;gap:12px;">
                 <div id="fe-foto-prev" style="width:56px;height:56px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex-shrink:0;">📷</div>
@@ -366,7 +374,8 @@
                         ? `<img src="${escAttr(u.foto_url)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;">`
                         : `<span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">${u.iniciales || u.username.substring(0,3).toUpperCase()}</span>`}
                 </td>
-                <td><span class="badge ${rolBadge(u.rol)}">${esc(u.rol)}</span></td>
+                <td><span class="badge ${rolBadge(u.rol)}">${esc(u.rol)}</span>${(u.roles_secundarios || []).map(r =>
+                    `<span class="badge" style="background:#f3f4f6;color:#6b7280;font-size:10px;margin-left:4px;" title="Rol secundario (puede cubrir este puesto)">+ ${esc(r)}</span>`).join('')}</td>
                 <td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
                 <td>${formatFecha(u.creado_en)}</td>
                 <td>
@@ -469,6 +478,10 @@
             feRol.insertAdjacentHTML('afterbegin', `<option value="${escAttr(u.rol)}">${esc(u.rol)}</option>`);
         }
         feRol.value = u.rol;
+        // Roles secundarios (subroles): checkboxes de los asignables, sin el principal.
+        // Al cambiar el rol principal se re-renderizan conservando la selección.
+        _renderSubroles(u.roles_secundarios || []);
+        feRol.onchange = () => _renderSubroles(_subrolesSeleccionados());
         document.getElementById("fe-activo").value = u.activo ? "true" : "false";
         document.getElementById("fe-email").value = u.email || "";
         // Foto actual + selector
@@ -492,6 +505,19 @@
         document.getElementById("modal-editar").classList.add("active");
     }
 
+    function _subrolesSeleccionados() {
+        return [...document.querySelectorAll('#fe-subroles input:checked')].map(c => c.value);
+    }
+    function _renderSubroles(seleccion) {
+        const principal = document.getElementById('fe-rol').value;
+        const asignables = rolesDisp.filter(r =>
+            r.nombre !== 'gerente' && r.nombre !== 'admin' && r.nombre !== principal);
+        document.getElementById('fe-subroles').innerHTML = asignables.length
+            ? asignables.map(r => `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+                  <input type="checkbox" value="${escAttr(r.nombre)}" ${seleccion.includes(r.nombre) ? 'checked' : ''}> ${esc(r.nombre)}</label>`).join('')
+            : '<span style="color:#9ca3af;">No hay otros roles definidos.</span>';
+    }
+
     function marcarQuitarFoto() {
         _fotoQuitar = true;
         document.getElementById("fe-foto").value = "";
@@ -509,6 +535,10 @@
             activo: document.getElementById("fe-activo").value === "true",
             iniciales: iniciales || null,
         };
+        // Subroles: mandar solo si cambió la selección (lista completa, reemplaza)
+        const subroles = _subrolesSeleccionados().sort();
+        if (JSON.stringify(subroles) !== JSON.stringify((u.roles_secundarios || []).slice().sort()))
+            body.roles_secundarios = subroles;
         // Datos personales: mandar solo lo que cambió (editan la ficha única de la
         // persona — con ficha, aplican en todos sus restaurantes)
         const pares = [["nombre", "fe-nombre"], ["apellido", "fe-apellido"], ["dni", "fe-dni"],

@@ -106,6 +106,15 @@
 
     .tr-summary td { background:#f8f9fa !important; border-top:2px solid #dde1e8; }
     .tr-abiertos td { background:#faf5ff !important; vertical-align:top; }
+    /* Filtro por rol en 3 niveles: separadores + subrol (más chico, color de SU rol
+       principal) + sin-el-rol (gris; asignarles dispara la alarma de alta del subrol) */
+    .tr-sep td { background:#f8fafc !important; color:#64748b; font-size:10.5px; font-weight:800;
+                 text-transform:uppercase; letter-spacing:.5px; padding:5px 12px;
+                 border-top:2px solid #e2e8f0; border-bottom:1px solid #e5e7eb; }
+    .tr-tier2 .td-user-inner { transform:scale(.9); transform-origin:left center; }
+    .tr-tier3 .td-user-inner { transform:scale(.9); transform-origin:left center; }
+    .tr-tier3 .u-avatar-sm { background:#9ca3af !important; }
+    .tr-tier3 .u-name-sm, .tr-tier3 .u-area-tag, .tr-tier3 .u-rest-tag { color:#9ca3af !important; }
     .td-abiertos-label { background:#f3e8ff !important; }
     .abierto-chip { border:1px dashed #9333ea; background:#fff; border-radius:7px; padding:4px 6px; margin:2px 0; font-size:12px; color:#6b21a8; cursor:pointer; }
     .abierto-chip.postulado { background:#ede9fe; }
@@ -440,7 +449,7 @@
             // Preferir el display real (distinto del username) si algún local lo tiene
             if(e.nombre && e.nombre!==e.username && (!u.nombre || u.nombre===u.username)) u.nombre=e.nombre;
             if(!u.iniciales && e.iniciales) u.iniciales=e.iniciales;
-            u.memberships.push({ restaurante_id:r.restaurante_id, restaurante:r.restaurante, usuario_id:e.usuario_id, rol:e.rol||'' });
+            u.memberships.push({ restaurante_id:r.restaurante_id, restaurante:r.restaurante, usuario_id:e.usuario_id, rol:e.rol||'', roles_secundarios:e.roles_secundarios||[] });
             Object.entries(e.dias||{}).forEach(([date,entry])=>{
                 if(entry && entry.franjas && entry.franjas.length){
                     (u.shiftsByDate[date]=u.shiftsByDate[date]||[]).push({ restaurante_id:r.restaurante_id, restaurante:r.restaurante, usuario_id:e.usuario_id, rol:e.rol||'', entry });
@@ -510,10 +519,21 @@
         // Restaurante: muestra los usuarios que pertenezcan a alguno de los seleccionados
         if(_selRest.size) arr=arr.filter(u=>u.memberships.some(m=>_selRest.has(m.restaurante_id)));
         if(filtroNombre) arr=arr.filter(u=>u.nombre.toLowerCase().includes(filtroNombre));
-        // Rol: dentro de las membresías relevantes (acotadas por el filtro de restaurante)
-        if(rolesActivos.size) arr=arr.filter(u=>userRests(u).some(m=>rolesActivos.has(m.rol)));
-        // El usuario que entró SIEMPRE primero (no tiene que buscarse entre el personal)
+        // Filtro por ROL: ya no oculta a nadie — TRES niveles (decisión del dueño 2026-07-18):
+        //  1) rol PRINCIPAL coincide · 2) lo tienen como SUBROL (más chicos, con el color de
+        //  su rol principal) · 3) el resto en gris (asignarles un turno de ese rol dispara la
+        //  alarma de alta del subrol).
+        if(rolesActivos.size){
+            arr.forEach(u=>{
+                const ms=userRests(u);
+                if(ms.some(m=>rolesActivos.has(m.rol))) u._tier=1;
+                else if(ms.some(m=>(m.roles_secundarios||[]).some(r=>rolesActivos.has(r)))) u._tier=2;
+                else u._tier=3;
+            });
+        } else arr.forEach(u=>{ u._tier=1; });
+        // El usuario que entró SIEMPRE primero dentro de su nivel
         arr.sort((a,b)=>{
+            if(a._tier!==b._tier) return a._tier-b._tier;
             if(a.key===_miKey) return -1;
             if(b.key===_miKey) return 1;
             return a.nombre.localeCompare(b.nombre,'es',{sensitivity:'base'});
@@ -568,10 +588,18 @@
 
         const summary={}; days.forEach(d=>{ summary[formatDate(d)]={}; });
 
+        let _tierPrev=1;
         users.forEach(u=>{
+            // Separadores de nivel (solo con filtro de rol activo)
+            const tier=u._tier||1;
+            if(tier!==_tierPrev){
+                if(tier===2) html+=`<tr class="tr-sep"><td colspan="${days.length+1}">↳ También pueden cubrir este rol (subrol)</td></tr>`;
+                if(tier===3) html+=`<tr class="tr-sep"><td colspan="${days.length+1}">Sin este rol — para asignarles un turno primero hay que darles el subrol</td></tr>`;
+                _tierPrev=tier;
+            }
             const color=getRolColor(userRol(u)), ph=_fmtH(periodMins(u,days));
             const rests=userRests(u).map(m=>m.restaurante).join(', ');
-            html+=`<tr><td class="td-user"><div class="td-user-inner"><div class="u-avatar-sm" style="background:${color}">${_esc(_ini(u))}</div><div class="u-info-col"><span class="u-name-sm">${_esc(u.nombre)}</span><span class="u-area-tag">${_esc(getRolLabel(userRol(u)))}</span><span class="u-rest-tag" title="${_esc(rests)}">${_esc(rests||'—')}</span>${ph?`<span class="u-period-h">⏱ ${ph}</span>`:'<span class="u-period-h" style="color:#d1d5db">Sin horas</span>'}</div></div></td>`;
+            html+=`<tr class="${tier===2?'tr-tier2':tier===3?'tr-tier3':''}"><td class="td-user"><div class="td-user-inner"><div class="u-avatar-sm" style="background:${color}">${_esc(_ini(u))}</div><div class="u-info-col"><span class="u-name-sm">${_esc(u.nombre)}</span><span class="u-area-tag">${_esc(getRolLabel(userRol(u)))}</span><span class="u-rest-tag" title="${_esc(rests)}">${_esc(rests||'—')}</span>${ph?`<span class="u-period-h">⏱ ${ph}</span>`:'<span class="u-period-h" style="color:#d1d5db">Sin horas</span>'}</div></div></td>`;
             days.forEach(d=>{
                 const key=formatDate(d);
                 const cls=['td-day', isToday(d)?'col-hoy':'', (d.getDay()===0||d.getDay()===6)?'col-wknd':''].filter(Boolean).join(' ');
@@ -1291,12 +1319,43 @@
     function _leerFranjas(){ const out=[]; document.querySelectorAll('#m-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[type=time]'); if(t[0].value && t[1].value) out.push({inicio:t[0].value,fin:t[1].value}); }); return out; }
     function recalcTotal(){ const brk=parseInt(document.getElementById('m-break').value,10)||0; document.getElementById('m-total').innerHTML=`Total: <b>${_fmtH(Math.max(0,_totMin(_leerFranjas())-brk))||'0h'}</b>`; }
     function cerrarModal(){ document.getElementById('overlay').classList.remove('open'); _modal=null; }
+    // ── Alarma de SUBROL ──────────────────────────────────────────
+    // Asignar un turno con un rol que la persona NO tiene (ni principal ni secundario)
+    // exige darla de alta primero: el subrol le da los permisos, la documentación, las
+    // capacitaciones y los grupos de ese puesto. La alarma ofrece el alta AHÍ MISMO
+    // (decisión del dueño 2026-07-18).
+    async function _validarRolTurno(rolTurno){
+        const u=_users[_modal.userKey]; if(!u) return true;
+        const m=u.memberships.find(x=>x.restaurante_id===_modal.restaurante_id); if(!m) return true;
+        if(m.rol===rolTurno || (m.roles_secundarios||[]).includes(rolTurno)) return true;
+        const ok=confirm(
+            `⚠ ${u.nombre} no está dado de alta en el rol "${getRolLabel(rolTurno)}".\n\n`+
+            `Para asignarle este turno primero hay que darle ese rol como SECUNDARIO: `+
+            `eso le da acceso a los permisos, la documentación y las capacitaciones del puesto.\n\n`+
+            `¿Darlo de alta AHORA como rol secundario y guardar el turno?`);
+        if(!ok) return false;
+        if(!_SINGLE){
+            alert('En el modo cadena el alta del subrol se hace desde Usuarios del local. Dale el subrol ahí y volvé a guardar el turno.');
+            return false;
+        }
+        try{
+            await apiFetch(`/auth/usuarios/${m.usuario_id}`, { method:'PATCH',
+                body: JSON.stringify({ roles_secundarios:[...(m.roles_secundarios||[]), rolTurno] }) });
+            m.roles_secundarios=[...(m.roles_secundarios||[]), rolTurno];
+            return true;
+        }catch(e){
+            alert('No se pudo dar de alta el subrol: '+(e.message||e)+'\nPedile a un gerente que lo asigne desde Usuarios.');
+            return false;
+        }
+    }
     async function guardarTurno(){
         if(!_modal || !_modal.usuario_id) return;
         const franjas=_leerFranjas();
+        const rolTurno=document.getElementById('m-rol').value||null;
+        if(franjas.length && rolTurno && !(await _validarRolTurno(rolTurno))) return;
         try{
             if(!franjas.length){ if(_modal.entryId) await _delTurno(_modal.restaurante_id, _modal.entryId); }
-            else await _saveTurno({ restaurante_id:_modal.restaurante_id, usuario_id:_modal.usuario_id, fecha:_modal.fecha, franjas, rol_turno:document.getElementById('m-rol').value||null, break_mins:parseInt(document.getElementById('m-break').value,10)||0 });
+            else await _saveTurno({ restaurante_id:_modal.restaurante_id, usuario_id:_modal.usuario_id, fecha:_modal.fecha, franjas, rol_turno:rolTurno, break_mins:parseInt(document.getElementById('m-break').value,10)||0 });
             cerrarModal(); await cargarYRenderizar();
         }catch(e){ alert('No se pudo guardar: '+(e.message||e)); }
     }
