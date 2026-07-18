@@ -29,6 +29,33 @@
     tbody tr:hover { background:#faf5ff; }
     tfoot td { font-weight:700; background:#f8fafc; border-top:2px solid #e5e7eb; }
     .empty { text-align:center; color:#94a3b8; padding:30px; }
+
+    /* Modales de herramientas de cadena (muro / documentos) */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none;
+                     align-items:center; justify-content:center; z-index:200; padding:16px; }
+    .modal-overlay.active { display:flex; }
+    .modal { background:#fff; border-radius:16px; padding:26px; width:100%; max-width:520px;
+             max-height:92vh; overflow-y:auto; }
+    .modal h3 { font-size:17px; font-weight:700; color:#1a1a2e; margin-bottom:6px; }
+    .modal .sub { font-size:12.5px; color:#6b7280; margin-bottom:14px; line-height:1.5; }
+    .modal label.fl { display:block; font-size:12px; font-weight:700; color:#6b7280;
+                      text-transform:uppercase; letter-spacing:.4px; margin:14px 0 6px; }
+    .modal input[type=text], .modal textarea { width:100%; border:1.5px solid #e0e0e0;
+                      border-radius:8px; padding:9px 12px; font-size:13.5px; outline:none; font-family:inherit; }
+    .modal input[type=text]:focus, .modal textarea:focus { border-color:#4f46e5; }
+    .modal textarea { min-height:90px; resize:vertical; }
+    .selchips { display:flex; flex-wrap:wrap; gap:6px; }
+    .selchip { border:1.5px solid #d1d5db; background:#fff; color:#4b5563; border-radius:20px;
+               padding:6px 14px; font-size:12.5px; font-weight:700; cursor:pointer; }
+    .selchip.active { background:#4f46e5; border-color:#4f46e5; color:#fff; }
+    .m-foot { display:flex; gap:10px; justify-content:flex-end; margin-top:18px;
+              position:sticky; bottom:-26px; background:#fff; padding:12px 0 4px;
+              border-top:1px solid #eef0f3; }
+    .m-btn { padding:9px 18px; border-radius:9px; border:1px solid #d7dbe3; background:#fff;
+             color:#4f46e5; font-size:13.5px; font-weight:700; cursor:pointer; }
+    .m-btn.primario { background:#4f46e5; border-color:#4f46e5; color:#fff; }
+    .m-btn.primario:disabled { opacity:.6; cursor:default; }
+    .m-err { color:#dc2626; font-size:12.5px; min-height:16px; margin-top:8px; }
 </style>
 </head>
 <body>
@@ -66,6 +93,64 @@
                 <div class="rn">👥 Gestión de personal</div>
                 <div class="rc">Mirá el personal de cada local y copiá un empleado a otro restaurante (login, datos, rol y permisos).</div>
                 <button onclick="window.location.href='cadena-personal.html'">Abrir →</button>
+            </div>
+            <div class="rcard">
+                <div class="rn">📣 Publicaciones de muro</div>
+                <div class="rc">Publicá en el muro Social de todos tus restaurantes, de algunos o de uno solo — una sola vez.</div>
+                <button onclick="abrirModalMuro()">Abrir →</button>
+            </div>
+            <div class="rcard">
+                <div class="rn">📁 Documentos</div>
+                <div class="rc">Creá grupos y carpetas y subí archivos de Documentos en todos tus restaurantes, en algunos o en uno.</div>
+                <button onclick="abrirModalDocs()">Abrir →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: publicación de muro en cadena -->
+    <div class="modal-overlay" id="modal-muro">
+        <div class="modal">
+            <h3>📣 Publicación de muro</h3>
+            <div class="sub">Se publica en el feed <b>General</b> del muro Social de cada restaurante elegido, a tu nombre.</div>
+            <label class="fl">¿En qué restaurantes?</label>
+            <div class="selchips" id="mu-rests"></div>
+            <label class="fl">Publicación</label>
+            <textarea id="mu-contenido" maxlength="4000" placeholder="Escribí la publicación…"></textarea>
+            <label class="fl">Enlace (opcional)</label>
+            <input type="text" id="mu-enlace" placeholder="https://…">
+            <label class="fl">Adjuntos (opcional)</label>
+            <input type="file" id="mu-files" multiple>
+            <div class="m-err" id="mu-err"></div>
+            <div class="m-foot">
+                <button class="m-btn" onclick="cerrarModal('modal-muro')">Cancelar</button>
+                <button class="m-btn primario" id="mu-btn" onclick="publicarMuro()">Publicar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: documentos en cadena -->
+    <div class="modal-overlay" id="modal-docs">
+        <div class="modal">
+            <h3>📁 Documentos en cadena</h3>
+            <div class="sub">Elegí el destino y qué crear: el <b>grupo</b> se busca por nombre en cada restaurante
+                (si no existe, se crea con los roles que marques); la <b>carpeta</b> igual; y los archivos se
+                suben ahí. Podés usarlo solo para crear grupos/carpetas, sin archivos.</div>
+            <label class="fl">¿En qué restaurantes?</label>
+            <div class="selchips" id="dc-rests"></div>
+            <label class="fl">Grupo (vacío = categoría General)</label>
+            <input type="text" id="dc-grupo" maxlength="120" placeholder="Ej: Cocina" oninput="_dcRolesVisibilidad()">
+            <div id="dc-roles-wrap" style="display:none;">
+                <label class="fl">Roles del grupo (si hay que crearlo)</label>
+                <div class="selchips" id="dc-roles"></div>
+            </div>
+            <label class="fl">Carpeta (opcional, en la raíz del destino)</label>
+            <input type="text" id="dc-carpeta" maxlength="120" placeholder="Ej: Manuales">
+            <label class="fl">Archivos (opcional)</label>
+            <input type="file" id="dc-files" multiple>
+            <div class="m-err" id="dc-err"></div>
+            <div class="m-foot">
+                <button class="m-btn" onclick="cerrarModal('modal-docs')">Cancelar</button>
+                <button class="m-btn primario" id="dc-btn" onclick="aplicarDocs()">Aplicar</button>
             </div>
         </div>
     </div>
@@ -145,6 +230,106 @@
             alert('No se pudo entrar al restaurante: ' + (e.message || e));
             if (btn) { btn.disabled = false; btn.textContent = 'Entrar →'; }
         }
+    }
+
+    // ══ Herramientas en cadena: selector de destino compartido ═══════════════
+    // "Todos" activo = restaurante_ids [] (el backend lo expande a toda la cadena).
+    // Tocar un local puntual desactiva Todos; tocar Todos limpia los puntuales.
+    const _dest = { muro: new Set(), docs: new Set() };   // ids elegidos (vacío = Todos)
+
+    function _esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    function renderDestino(clave, contId) {
+        const sel = _dest[clave];
+        const cont = document.getElementById(contId);
+        cont.innerHTML = `<span class="selchip ${sel.size ? '' : 'active'}" onclick="destTodos('${clave}','${contId}')">Todos</span>` +
+            _restaurantes.map(r =>
+                `<span class="selchip ${sel.has(r.id) ? 'active' : ''}" onclick="destToggle('${clave}','${contId}',${r.id})">${_esc(r.nombre)}</span>`).join('');
+    }
+    function destTodos(clave, contId) { _dest[clave].clear(); renderDestino(clave, contId); }
+    function destToggle(clave, contId, id) {
+        const sel = _dest[clave];
+        if (sel.has(id)) sel.delete(id); else sel.add(id);
+        renderDestino(clave, contId);
+    }
+    function _destIds(clave) { return JSON.stringify([..._dest[clave]]); }   // [] = todos
+
+    function cerrarModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    // ── Publicaciones de muro ──
+    function abrirModalMuro() {
+        _dest.muro.clear();
+        renderDestino('muro', 'mu-rests');
+        document.getElementById('mu-contenido').value = '';
+        document.getElementById('mu-enlace').value = '';
+        document.getElementById('mu-files').value = '';
+        document.getElementById('mu-err').textContent = '';
+        document.getElementById('modal-muro').classList.add('active');
+    }
+    async function publicarMuro() {
+        const err = document.getElementById('mu-err');
+        const contenido = document.getElementById('mu-contenido').value.trim();
+        const files = document.getElementById('mu-files').files;
+        if (!contenido && !files.length) { err.textContent = 'Escribí la publicación o adjuntá un archivo.'; return; }
+        const fd = new FormData();
+        fd.append('restaurante_ids', _destIds('muro'));
+        fd.append('contenido', contenido);
+        fd.append('enlace', document.getElementById('mu-enlace').value.trim());
+        for (const f of files) fd.append('files', f);
+        const btn = document.getElementById('mu-btn');
+        btn.disabled = true; btn.textContent = 'Publicando…';
+        try {
+            const r = await apiFetch('/cadena/social/publicar', { method: 'POST', body: fd });
+            cerrarModal('modal-muro');
+            alert(r.mensaje || 'Publicado.');
+        } catch (e) { err.textContent = e.message || 'No se pudo publicar.'; }
+        finally { btn.disabled = false; btn.textContent = 'Publicar'; }
+    }
+
+    // ── Documentos ──
+    let _rolesCadena = null;
+    function _dcRolesVisibilidad() {
+        document.getElementById('dc-roles-wrap').style.display =
+            document.getElementById('dc-grupo').value.trim() ? '' : 'none';
+    }
+    async function abrirModalDocs() {
+        _dest.docs.clear();
+        renderDestino('docs', 'dc-rests');
+        document.getElementById('dc-grupo').value = '';
+        document.getElementById('dc-carpeta').value = '';
+        document.getElementById('dc-files').value = '';
+        document.getElementById('dc-err').textContent = '';
+        _dcRolesVisibilidad();
+        document.getElementById('modal-docs').classList.add('active');
+        if (_rolesCadena === null) {
+            try { _rolesCadena = (await api.get('/cadena/roles')).roles || []; }
+            catch (e) { _rolesCadena = []; }
+        }
+        document.getElementById('dc-roles').innerHTML = _rolesCadena.length
+            ? _rolesCadena.map(r => `<span class="selchip" data-rol="${_esc(r)}" onclick="this.classList.toggle('active')">${_esc(r)}</span>`).join('')
+            : '<span style="color:#9ca3af;font-size:12px;">Sin roles definidos en la cadena.</span>';
+    }
+    async function aplicarDocs() {
+        const err = document.getElementById('dc-err');
+        const grupo = document.getElementById('dc-grupo').value.trim();
+        const carpeta = document.getElementById('dc-carpeta').value.trim();
+        const files = document.getElementById('dc-files').files;
+        if (!grupo && !carpeta && !files.length) { err.textContent = 'Indicá un grupo, una carpeta o archivos para subir.'; return; }
+        const roles = [...document.querySelectorAll('#dc-roles .selchip.active')].map(c => c.dataset.rol);
+        const fd = new FormData();
+        fd.append('restaurante_ids', _destIds('docs'));
+        fd.append('grupo_nombre', grupo);
+        fd.append('grupo_roles', JSON.stringify(roles));
+        fd.append('carpeta_nombre', carpeta);
+        for (const f of files) fd.append('files', f);
+        const btn = document.getElementById('dc-btn');
+        btn.disabled = true; btn.textContent = 'Aplicando…';
+        try {
+            const r = await apiFetch('/cadena/documentos/publicar', { method: 'POST', body: fd });
+            cerrarModal('modal-docs');
+            alert(r.mensaje || 'Aplicado.');
+        } catch (e) { err.textContent = e.message || 'No se pudo aplicar.'; }
+        finally { btn.disabled = false; btn.textContent = 'Aplicar'; }
     }
 
     cargar();
