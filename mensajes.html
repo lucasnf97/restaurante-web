@@ -488,17 +488,36 @@ function renderChipsCat() {
         const cnt = count ? `<span class="cat-count">${count}</span>` : "";
         return `<button class="cat-chip ${esp ? "esp" : ""} ${_catFiltro === key ? "active" : ""}" onclick="filtrarCat('${key}')">${icono ? icono + " " : ""}${label}${cnt}</button>`;
     };
-    // "Nuevos" = no leídos (preseleccionada al entrar); el contador vive acá
+    // Vista compacta (2026-07-19): visibles solo Nuevos / Todos / Favoritos / 📂 Categorías.
+    // "Categorías" despliega el resto (las categorías + Archivados). Si el filtro activo
+    // es uno de los ocultos, el desplegable queda abierto solo.
+    const ocultas = [...cats, "_arch"];
+    if (ocultas.includes(_catFiltro)) _catsAbiertas = true;
+    const noLeidosCats = cats.reduce((s, c) => s + (noLeidos[c] || 0), 0);
     let html = chip("_nuevos", "Nuevos", "🆕", totalNoLeidos);
     html += chip("todos", "Todos", "", 0);
-    cats.forEach(c => { const i = _CAT_INFO[c]; html += chip(c, i.label, i.icono, noLeidos[c] || 0); });
-    // Favoritos y Archivados (los flags viven en la copia del destinatario; no en modo empleado-cadena)
-    if (!_emp) {
-        html += chip("_fav", "Favoritos", "⭐", 0, true);
-        html += chip("_arch", `Archivados${nArch ? ` (${nArch})` : ""}`, "🗂️", 0, true);
+    // Favoritos (los flags viven en la copia del destinatario; no en modo empleado-cadena)
+    if (!_emp) html += chip("_fav", "Favoritos", "⭐", 0, true);
+    const cntCats = noLeidosCats ? `<span class="cat-count">${noLeidosCats}</span>` : "";
+    html += `<button class="cat-chip ${_catsAbiertas || ocultas.includes(_catFiltro) ? "active" : ""}"
+                     onclick="toggleCatsDesplegable()">📂 Categorías${cntCats} ${_catsAbiertas ? "▴" : "▾"}</button>`;
+    if (_catsAbiertas) {
+        cats.forEach(c => { const i = _CAT_INFO[c]; html += chip(c, i.label, i.icono, noLeidos[c] || 0); });
+        if (!_emp) html += chip("_arch", `Archivados${nArch ? ` (${nArch})` : ""}`, "🗂️", 0, true);
     }
     cont.innerHTML = html;
     cont.style.display = "flex";
+}
+
+let _catsAbiertas = false;
+function toggleCatsDesplegable() {
+    _catsAbiertas = !_catsAbiertas;
+    // Al cerrar el desplegable con un filtro oculto activo, volver a "Nuevos"
+    if (!_catsAbiertas) {
+        const ocultas = ["horarios", "social", "personal", "documentos", "tareas", "stock", "_arch"];
+        if (ocultas.includes(_catFiltro)) { _catFiltro = "_nuevos"; renderLista(); return; }
+    }
+    renderChipsCat();
 }
 
 function filtrarCat(cat) {

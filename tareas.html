@@ -255,6 +255,10 @@
             <option value="7">Domingo</option>
         </select>
         <input class="inp" type="date" id="mt-fecha" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;font-weight:600;cursor:pointer;"
+               title="Si esta tarea queda sin realizar al cerrar la jornada, se avisa por Mensajes a gerentes y a quienes gestionan tareas. Es la única notificación de tareas.">
+            <input type="checkbox" id="mt-prioritaria"> ⭐ Prioritaria (avisar por mensaje si NO se realiza)
+        </label>
         <div class="m-error" id="mt-error"></div>
         <div class="m-foot">
             <button class="btn" onclick="cerrarTareaModal()">Cancelar</button>
@@ -291,6 +295,10 @@
             <div class="diaselect" id="md-dias-mes-grid"></div>
             <span style="font-size:11.5px;color:#9ca3af;">«Últ.» = último día del mes (31, 30 o 28/29 según el mes). Si un mes no tiene el día elegido (ej: 31), ese mes la tarea no aparece.</span>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;font-weight:600;cursor:pointer;"
+               title="Si el día que toca nadie la marca, al corte del día se avisa por Mensajes a gerentes y a quienes gestionan tareas. Es la única notificación de tareas.">
+            <input type="checkbox" id="md-prioritaria"> ⭐ Prioritaria (avisar por mensaje si NO se realiza)
+        </label>
         <div class="m-error" id="md-error"></div>
         <div class="m-foot">
             <button class="btn" onclick="document.getElementById('m-diaria').classList.remove('open')">Cancelar</button>
@@ -558,7 +566,7 @@ function renderTurno() {
                               title="Click: seleccionar · Arrastrar: mover de grupo">
                     <span style="flex-shrink:0;font-size:13px;width:18px;text-align:center;">${_sel.has(t.id) ? '☑' : '⠿'}</span>
                     <div class="tx">
-                        <div class="t">${esc(t.texto)}</div>
+                        <div class="t">${t.prioritaria ? '⭐ ' : ''}${esc(t.texto)}</div>
                         <div class="b"><span class="chip">${dest}</span>${moms}${_badgeFreq(t)}</div>
                     </div>
                     ${flechas}
@@ -583,7 +591,7 @@ function renderCaja() {
             const ambos = (t.momentos || []).length > 1 ? '<span class="chip mom">A+C</span>' : '';
             return `<div class="fila-tarea">
                 <div class="tx">
-                    <div class="t">${esc(t.texto)}</div>
+                    <div class="t">${t.prioritaria ? '⭐ ' : ''}${esc(t.texto)}</div>
                     <div class="b">${ambos}${_badgeFreq(t)}</div>
                 </div>
                 <button class="mini" ${i === 0 ? 'disabled' : ''} onclick="moverTareaCaja('${mom}',${t.id},-1)">↑</button>
@@ -653,7 +661,7 @@ async function renderDiarias() {
         }
         return `<div class="fila-tarea">
             <div class="tx">
-                <div class="t">${esc(t.texto)}</div>
+                <div class="t">${t.prioritaria ? '⭐ ' : ''}${esc(t.texto)}</div>
                 <div class="b"><span class="chip">${quien}</span><span class="chip freq">${_progLabel(t)}</span></div>
             </div>
             ${estado}
@@ -725,6 +733,7 @@ function abrirDiariaModal(id) {
                      onclick="this.classList.toggle('on')">${d}</button>`).join('') +
         `<button type="button" class="${dmSel.includes(DIA_MES_ULTIMO) ? 'on' : ''}" data-dia="${DIA_MES_ULTIMO}"
                  onclick="this.classList.toggle('on')" title="Último día del mes">Últ.</button>`;
+    document.getElementById('md-prioritaria').checked = !!(t && t.prioritaria);
     _mdProg();
     document.getElementById('m-diaria').classList.add('open');
     setTimeout(() => document.getElementById('md-texto').focus(), 60);
@@ -734,7 +743,8 @@ async function guardarDiariaModal() {
     const err = document.getElementById('md-error');
     const texto = document.getElementById('md-texto').value.trim();
     if (!texto) { err.textContent = 'Escribí la tarea.'; return; }
-    const body = { texto, momentos: ['diaria'] };
+    const body = { texto, momentos: ['diaria'],
+                   prioritaria: document.getElementById('md-prioritaria').checked };
     // Quién
     if (document.querySelector('input[name="md-quien"]:checked').value === 'roles') {
         body.roles = [...document.querySelectorAll('#md-roles input:checked')].map(c => c.value);
@@ -865,6 +875,7 @@ function abrirTareaModal(id, mundo) {
     document.querySelector(`input[name="mt-freq"][value="${freq}"]`).checked = true;
     document.getElementById('mt-dia').value = t && t.puntual_dia_semana ? String(t.puntual_dia_semana) : '1';
     document.getElementById('mt-fecha').value = (t && t.puntual_fecha) || '';
+    document.getElementById('mt-prioritaria').checked = !!(t && t.prioritaria);
     _mtFreq();
     document.getElementById('m-tarea').classList.add('open');
     setTimeout(() => document.getElementById('mt-texto').focus(), 60);
@@ -894,6 +905,7 @@ async function guardarTareaModal() {
     // Frecuencia → puntual
     const freq = document.querySelector('input[name="mt-freq"]:checked').value;
     body.puntual = freq !== 'siempre';
+    body.prioritaria = document.getElementById('mt-prioritaria').checked;
     if (freq === 'dia') body.puntual_dia_semana = parseInt(document.getElementById('mt-dia').value, 10);
     if (freq === 'fecha') {
         body.puntual_fecha = document.getElementById('mt-fecha').value || null;
