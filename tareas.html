@@ -69,6 +69,15 @@
         .m-error { color: #dc2626; font-size: 12.5px; min-height: 16px; margin-top: 10px; }
         .m-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
         .filtros-h { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 14px; font-size: 13px; }
+
+        /* Diarias: selector de días (semana / mes) + estado del check comunitario */
+        .diaselect { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+        .diaselect button { border: 1.5px solid #e0e0e0; background: #fff; border-radius: 8px; padding: 7px 0; width: 44px; font-size: 12.5px; font-weight: 700; color: #6b7280; cursor: pointer; }
+        .diaselect button.on { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+        .chk-com { border: none; border-radius: 10px; padding: 3px 10px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .chk-com.hecha { background: #dcfce7; color: #166534; }
+        .chk-com.pend { background: #fef3c7; color: #92400e; }
+        .chk-com.notoca { background: #f3f4f6; color: #9ca3af; cursor: default; }
     </style>
 </head>
 <body>
@@ -121,6 +130,19 @@
             </div>
         </div>
         <button class="btn btn-primary" style="margin-top:12px;" onclick="abrirTareaModal(null,'caja')">＋ Nueva tarea de caja</button>
+    </div>
+
+    <!-- ═══ DIARIAS (comunitarias del local) ═══ -->
+    <div id="tab-diarias" style="display:none;">
+        <p style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.6;">
+            Tareas del <strong>local</strong>, no de una persona: las ve todo el personal
+            (o los roles que elijas) para hacerlas a lo largo del día. El check es
+            <strong>comunitario</strong>: la marca uno y todos la ven marcada, con
+            <strong>quién</strong> la hizo y a qué hora. Se programan cada X días,
+            por días de la semana o por días del mes.
+        </p>
+        <div class="card" id="lista-diarias"><div class="vacio">Cargando...</div></div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="abrirDiariaModal(null)">＋ Nueva tarea diaria</button>
     </div>
 
     <!-- ═══ PLANTILLAS ═══ -->
@@ -223,6 +245,42 @@
     </div>
 </div>
 
+<!-- ═══ MODAL TAREA DIARIA (comunitaria, con programación) ═══ -->
+<div class="modal-overlay" id="m-diaria">
+    <div class="modal">
+        <h3 id="md-titulo">Nueva tarea diaria</h3>
+        <label class="lbl">Tarea</label>
+        <input class="inp" type="text" id="md-texto" maxlength="300" placeholder="Ej: Limpiar los vidrios exteriores">
+        <label class="lbl">¿Quién la puede hacer?</label>
+        <div class="radios">
+            <label><input type="radio" name="md-quien" value="todos" checked onchange="_mdQuien()"> Todo el personal</label>
+            <label><input type="radio" name="md-quien" value="roles" onchange="_mdQuien()"> Solo algunos roles</label>
+        </div>
+        <div class="checksmom" id="md-roles" style="display:none;"></div>
+        <label class="lbl">¿Cuándo hay que hacerla?</label>
+        <div class="radios">
+            <label><input type="radio" name="md-prog" value="cada_n" checked onchange="_mdProg()"> Cada X días</label>
+            <label><input type="radio" name="md-prog" value="dias_semana" onchange="_mdProg()"> Días de la semana</label>
+            <label><input type="radio" name="md-prog" value="dias_mes" onchange="_mdProg()"> Días del mes</label>
+        </div>
+        <div id="md-prog-cada_n" style="font-size:13px;color:#374151;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            Cada <input class="inp" type="number" id="md-cada-n" min="1" max="365" value="1" style="width:74px;"> día(s),
+            contando desde <input class="inp" type="date" id="md-inicio" style="width:160px;">
+            <span style="font-size:11.5px;color:#9ca3af;width:100%;">1 = todos los días. Ej: cada 3 días aparece el día de inicio, a los 3, a los 6…</span>
+        </div>
+        <div id="md-prog-dias_semana" class="diaselect" style="display:none;"></div>
+        <div id="md-prog-dias_mes" style="display:none;">
+            <div class="diaselect" id="md-dias-mes-grid"></div>
+            <span style="font-size:11.5px;color:#9ca3af;">«Últ.» = último día del mes (31, 30 o 28/29 según el mes). Si un mes no tiene el día elegido (ej: 31), ese mes la tarea no aparece.</span>
+        </div>
+        <div class="m-error" id="md-error"></div>
+        <div class="m-foot">
+            <button class="btn" onclick="document.getElementById('m-diaria').classList.remove('open')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarDiariaModal()">Guardar</button>
+        </div>
+    </div>
+</div>
+
 <!-- ═══ MODAL APLICAR PLANTILLAS (acá se eligen momentos y destinatario) ═══ -->
 <div class="modal-overlay" id="m-aplicar">
     <div class="modal" style="width:460px;">
@@ -297,6 +355,7 @@ const V = hasPermiso('ver_tareas') || G;           // historial
 
 const MUNDO_TURNO = ['dia', 'checkin', 'checkout'];   // checkin/checkout: legacy fusionado a 'dia'
 const MUNDO_CAJA = ['apertura_caja', 'cierre_caja'];
+const MUNDO_DIARIA = ['diaria'];                      // comunitarias del local
 const MOM_LABELS = { dia: '📋 Del día', checkin: '🟢 Entrada', checkout: '🔴 Salida', apertura_caja: '🔓 Apertura', cierre_caja: '🔒 Cierre' };
 const DIAS_ISO = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' };
 
@@ -314,11 +373,12 @@ function _badgeFreq(t) {
 }
 function _esTurno(t) { return (t.momentos || []).some(m => MUNDO_TURNO.includes(m)); }
 function _esCaja(t) { return (t.momentos || []).some(m => MUNDO_CAJA.includes(m)); }
+function _esDiaria(t) { return (t.momentos || []).some(m => MUNDO_DIARIA.includes(m)); }
 
 // ── Tabs ──────────────────────────────────────────────────────
 function renderTabs() {
     const tabs = [];
-    if (G) tabs.push(['turno', '📋 Turno'], ['caja', '💰 Caja'], ['plantillas', '🗂 Plantillas']);
+    if (G) tabs.push(['turno', '📋 Turno'], ['caja', '💰 Caja'], ['diarias', '🧽 Diarias'], ['plantillas', '🗂 Plantillas']);
     if (V) tabs.push(['historial', '📜 Historial']);
     document.getElementById('tabs').innerHTML = tabs.map(([k, l]) =>
         `<button class="tab-btn ${_tab === k ? 'active' : ''}" onclick="setTab('${k}')">${l}</button>`).join('');
@@ -327,7 +387,7 @@ async function setTab(t) {
     _tab = t;
     if (t !== 'turno') _sel.clear();   // la selección múltiple vive solo en Turno
     renderTabs();
-    ['turno', 'caja', 'plantillas', 'historial'].forEach(k =>
+    ['turno', 'caja', 'diarias', 'plantillas', 'historial'].forEach(k =>
         document.getElementById('tab-' + k).style.display = k === t ? '' : 'none');
     if (t === 'historial') {
         if (!_histCargado) { _histCargado = true; _initFiltrosHistorial(); setVistaHistorial('jornadas'); }
@@ -336,6 +396,7 @@ async function setTab(t) {
     if (!_baseCargada) { _baseCargada = true; await cargarBase(); }
     if (t === 'turno') renderTurno();
     else if (t === 'caja') renderCaja();
+    else if (t === 'diarias') renderDiarias();
     else if (t === 'plantillas') renderPlantillas();
 }
 
@@ -368,6 +429,7 @@ async function _reload() {
     await cargarBase();
     if (_tab === 'turno') renderTurno();
     else if (_tab === 'caja') renderCaja();
+    else if (_tab === 'diarias') renderDiarias();
     else if (_tab === 'plantillas') renderPlantillas();
 }
 
@@ -513,6 +575,174 @@ function renderCaja() {
             </div>`;
         }).join('');
     });
+}
+
+// ══════════════ SOLAPA DIARIAS (comunitarias del local) ══════════════
+const DIAS_CORTOS = { 1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom' };
+const DIA_MES_ULTIMO = 99;   // valor especial: "último día del mes"
+let _diariasHoy = null;      // estado comunitario de HOY: {id: {hecha, hecha_por, hecha_en}}
+
+function _fechaLocalHoy() { return new Date().toLocaleDateString('sv-SE'); }
+
+function _progLabel(t) {
+    if (t.prog_tipo === 'cada_n') {
+        const n = t.prog_cada_n || 1;
+        const desde = t.prog_inicio ? ' desde ' + t.prog_inicio.split('-').reverse().join('/') : '';
+        return n === 1 ? '🔁 Todos los días' : `🔁 Cada ${n} días${desde}`;
+    }
+    if (t.prog_tipo === 'dias_semana') {
+        const ds = t.prog_dias_semana || [];
+        if (ds.length === 7) return '🔁 Todos los días';
+        return '📅 ' + ds.map(d => DIAS_CORTOS[d]).join(' · ');
+    }
+    if (t.prog_tipo === 'dias_mes') {
+        const dm = (t.prog_dias_mes || []).map(d => d === DIA_MES_ULTIMO ? 'último' : d);
+        return `🗓 Días ${dm.join(', ')} del mes`;
+    }
+    return '';
+}
+
+async function renderDiarias() {
+    const cont = document.getElementById('lista-diarias');
+    const ts = _cfg.tareas.filter(_esDiaria);
+    // Estado comunitario de HOY (quién marcó cada una) — mejor esfuerzo: sin esto
+    // la lista igual se muestra, solo que sin la columna de estado.
+    try {
+        const hoy = await apiFetch(`/tareas/diarias?fecha=${_fechaLocalHoy()}`);
+        _diariasHoy = {};
+        (hoy.tareas || []).forEach(t => _diariasHoy[t.id] = t);
+    } catch (_) { _diariasHoy = null; }
+    if (!ts.length) {
+        cont.innerHTML = '<div class="vacio">Sin tareas diarias. Creá la primera con el botón de abajo.</div>';
+        return;
+    }
+    cont.innerHTML = ts.map((t, i) => {
+        const quien = (t.roles && t.roles.length)
+            ? '👥 ' + t.roles.map(esc).join(', ')
+            : '👥 Todo el personal';
+        let estado = '';
+        if (_diariasHoy) {
+            const e = _diariasHoy[t.id];
+            if (!e) estado = `<span class="chk-com notoca" title="Según su programación, hoy no aparece">— Hoy no toca</span>`;
+            else if (e.hecha) {
+                const hora = e.hecha_en ? new Date(e.hecha_en).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '';
+                estado = `<button class="chk-com hecha" title="Desmarcar (se marcó por error)"
+                                  onclick="toggleDiariaHoy(${t.id}, false)">✔ ${esc(e.hecha_por || '')} ${hora}</button>`;
+            } else {
+                estado = `<button class="chk-com pend" title="Marcar como hecha hoy"
+                                  onclick="toggleDiariaHoy(${t.id}, true)">⭕ Pendiente hoy</button>`;
+            }
+        }
+        return `<div class="fila-tarea">
+            <div class="tx">
+                <div class="t">${esc(t.texto)}</div>
+                <div class="b"><span class="chip">${quien}</span><span class="chip freq">${_progLabel(t)}</span></div>
+            </div>
+            ${estado}
+            <button class="mini" ${i === 0 ? 'disabled' : ''} onclick="moverDiaria(${t.id},-1)">↑</button>
+            <button class="mini" ${i === ts.length - 1 ? 'disabled' : ''} onclick="moverDiaria(${t.id},1)">↓</button>
+            <button class="mini" title="Editar" onclick="abrirDiariaModal(${t.id})">✏️</button>
+            <button class="mini rojo" title="Eliminar" onclick="eliminarTarea(${t.id})">🗑</button>
+        </div>`;
+    }).join('');
+}
+
+async function toggleDiariaHoy(id, marcar) {
+    if (!marcar && !confirm('¿Desmarcar esta tarea? Quedará pendiente para todo el personal.')) return;
+    try {
+        await apiFetch(`/tareas/diarias/${id}/${marcar ? 'marcar' : 'desmarcar'}`,
+            { method: 'POST', body: JSON.stringify({ fecha: _fechaLocalHoy() }) });
+        renderDiarias();
+    } catch (e) { alert('No se pudo: ' + (e.message || e)); }
+}
+
+async function moverDiaria(id, delta) {
+    const ids = _cfg.tareas.filter(_esDiaria).map(t => t.id);
+    const i = ids.indexOf(id), j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    try { await apiFetch('/tareas/reorder', { method: 'PUT', body: JSON.stringify({ orden: ids }) }); _reload(); }
+    catch (e) { alert('Error: ' + (e.message || e)); }
+}
+
+// ── Modal de tarea diaria ──
+let _mdEditId = null;
+
+function _mdQuien() {
+    const soloRoles = document.querySelector('input[name="md-quien"]:checked').value === 'roles';
+    document.getElementById('md-roles').style.display = soloRoles ? '' : 'none';
+}
+function _mdProg() {
+    const p = document.querySelector('input[name="md-prog"]:checked').value;
+    document.getElementById('md-prog-cada_n').style.display = p === 'cada_n' ? '' : 'none';
+    document.getElementById('md-prog-dias_semana').style.display = p === 'dias_semana' ? '' : 'none';
+    document.getElementById('md-prog-dias_mes').style.display = p === 'dias_mes' ? '' : 'none';
+}
+
+function abrirDiariaModal(id) {
+    _mdEditId = id;
+    const t = id ? _cfg.tareas.find(x => x.id === id) : null;
+    document.getElementById('md-titulo').textContent = id ? 'Editar tarea diaria' : 'Nueva tarea diaria';
+    document.getElementById('md-texto').value = t ? t.texto : '';
+    document.getElementById('md-error').textContent = '';
+    // Quién: todos o roles elegidos
+    const rolesSel = (t && t.roles) || [];
+    document.querySelector(`input[name="md-quien"][value="${rolesSel.length ? 'roles' : 'todos'}"]`).checked = true;
+    document.getElementById('md-roles').innerHTML = _roles.map(r =>
+        `<label><input type="checkbox" value="${escAttr(r)}" ${rolesSel.includes(r) ? 'checked' : ''}> ${esc(r)}</label>`).join('');
+    _mdQuien();
+    // Programación
+    const prog = (t && t.prog_tipo) || 'cada_n';
+    document.querySelector(`input[name="md-prog"][value="${prog}"]`).checked = true;
+    document.getElementById('md-cada-n').value = (t && t.prog_cada_n) || 1;
+    document.getElementById('md-inicio').value = (t && t.prog_inicio) || _fechaLocalHoy();
+    const dsSel = (t && t.prog_dias_semana) || [];
+    document.getElementById('md-prog-dias_semana').innerHTML = [1, 2, 3, 4, 5, 6, 7].map(d =>
+        `<button type="button" class="${dsSel.includes(d) ? 'on' : ''}" data-dia="${d}"
+                 onclick="this.classList.toggle('on')">${DIAS_CORTOS[d]}</button>`).join('');
+    const dmSel = (t && t.prog_dias_mes) || [];
+    document.getElementById('md-dias-mes-grid').innerHTML =
+        Array.from({ length: 31 }, (_, i) => i + 1).map(d =>
+            `<button type="button" class="${dmSel.includes(d) ? 'on' : ''}" data-dia="${d}"
+                     onclick="this.classList.toggle('on')">${d}</button>`).join('') +
+        `<button type="button" class="${dmSel.includes(DIA_MES_ULTIMO) ? 'on' : ''}" data-dia="${DIA_MES_ULTIMO}"
+                 onclick="this.classList.toggle('on')" title="Último día del mes">Últ.</button>`;
+    _mdProg();
+    document.getElementById('m-diaria').classList.add('open');
+    setTimeout(() => document.getElementById('md-texto').focus(), 60);
+}
+
+async function guardarDiariaModal() {
+    const err = document.getElementById('md-error');
+    const texto = document.getElementById('md-texto').value.trim();
+    if (!texto) { err.textContent = 'Escribí la tarea.'; return; }
+    const body = { texto, momentos: ['diaria'] };
+    // Quién
+    if (document.querySelector('input[name="md-quien"]:checked').value === 'roles') {
+        body.roles = [...document.querySelectorAll('#md-roles input:checked')].map(c => c.value);
+        if (!body.roles.length) { err.textContent = 'Elegí al menos un rol (o marcá "Todo el personal").'; return; }
+    }
+    // Programación
+    body.prog_tipo = document.querySelector('input[name="md-prog"]:checked').value;
+    if (body.prog_tipo === 'cada_n') {
+        body.prog_cada_n = parseInt(document.getElementById('md-cada-n').value, 10);
+        if (!body.prog_cada_n || body.prog_cada_n < 1) { err.textContent = 'Cada cuántos días (mínimo 1).'; return; }
+        body.prog_inicio = document.getElementById('md-inicio').value || null;
+    } else if (body.prog_tipo === 'dias_semana') {
+        body.prog_dias_semana = [...document.querySelectorAll('#md-prog-dias_semana button.on')]
+            .map(b => parseInt(b.dataset.dia, 10));
+        if (!body.prog_dias_semana.length) { err.textContent = 'Elegí al menos un día de la semana.'; return; }
+    } else {
+        body.prog_dias_mes = [...document.querySelectorAll('#md-dias-mes-grid button.on')]
+            .map(b => parseInt(b.dataset.dia, 10));
+        if (!body.prog_dias_mes.length) { err.textContent = 'Elegí al menos un día del mes.'; return; }
+    }
+    try {
+        if (_mdEditId) await apiFetch(`/tareas/${_mdEditId}`, { method: 'PUT', body: JSON.stringify(body) });
+        else await apiFetch('/tareas', { method: 'POST', body: JSON.stringify(body) });
+        document.getElementById('m-diaria').classList.remove('open');
+        _reload();
+    } catch (e) { err.textContent = e.message || 'No se pudo guardar.'; }
 }
 
 // ── Grupos (solo turno) ──
