@@ -213,8 +213,8 @@
             📤 Enviados
         </button>
         <button class="tab-btn" id="tab-papelera" onclick="setTab('papelera')"
-                title="Mensajes borrados — se guardan 30 días y se pueden recuperar">
-            🗑 Papelera
+                title="Mensajes eliminados — se guardan 30 días y se pueden recuperar">
+            🗑 Eliminados
         </button>
         <button class="tab-btn" id="tab-cadena" onclick="toggleCadena()" style="display:none; margin-left:auto;"
                 title="Ver tus mensajes recibidos de todos tus restaurantes">
@@ -368,7 +368,7 @@ let _tabActual   = "recibidos";
 let _cadena      = false;   // ver recibidos de todos mis locales
 let _misLocales  = [];
 let _mensajes    = [];
-let _catFiltro   = "todos";   // filtro por categoría ("_fav" = favoritos, "_arch" = archivados)
+let _catFiltro   = "_nuevos"; // filtro por categoría — por defecto NUEVOS (no leídos); "_fav"/"_arch" especiales
 let _busqueda    = "";        // filtro de búsqueda (asunto/cuerpo/persona)
 let _maxMostrar  = parseInt(localStorage.getItem("msg_max") || "25", 10) || 25;  // cantidad por página
 let _mostrando   = _maxMostrar;   // cuántos se están mostrando (crece con "Mostrar más")
@@ -488,7 +488,9 @@ function renderChipsCat() {
         const cnt = count ? `<span class="cat-count">${count}</span>` : "";
         return `<button class="cat-chip ${esp ? "esp" : ""} ${_catFiltro === key ? "active" : ""}" onclick="filtrarCat('${key}')">${icono ? icono + " " : ""}${label}${cnt}</button>`;
     };
-    let html = chip("todos", "Todos", "", totalNoLeidos);
+    // "Nuevos" = no leídos (preseleccionada al entrar); el contador vive acá
+    let html = chip("_nuevos", "Nuevos", "🆕", totalNoLeidos);
+    html += chip("todos", "Todos", "", 0);
     cats.forEach(c => { const i = _CAT_INFO[c]; html += chip(c, i.label, i.icono, noLeidos[c] || 0); });
     // Favoritos y Archivados (los flags viven en la copia del destinatario; no en modo empleado-cadena)
     if (!_emp) {
@@ -540,7 +542,8 @@ function _mensajesFiltrados() {
         if (_catFiltro === "_arch")     visibles = visibles.filter(m => m.archivado);
         else {
             visibles = visibles.filter(m => !m.archivado);   // archivados fuera de la bandeja
-            if (_catFiltro === "_fav")           visibles = visibles.filter(m => m.favorito);
+            if (_catFiltro === "_nuevos")        visibles = visibles.filter(m => !m.leido);
+            else if (_catFiltro === "_fav")      visibles = visibles.filter(m => m.favorito);
             else if (_catFiltro !== "todos")     visibles = visibles.filter(m => _catDe(m) === _catFiltro);
         }
     }
@@ -563,13 +566,15 @@ function renderLista() {
 
     if (!visibles.length) {
         const filtrando = _busqueda || (_mostrarFiltroCat() && _catFiltro !== "todos");
-        const etq = { _fav: "favoritos", _arch: "archivados" }[_catFiltro] || (_CAT_INFO[_catFiltro]?.label);
+        const etq = { _fav: "favoritos", _arch: "archivados", _nuevos: "nuevos" }[_catFiltro] || (_CAT_INFO[_catFiltro]?.label);
         lista.innerHTML = `<div class="empty-state">
             <div class="empty-icon">${_busqueda ? "🔍" : (_tabActual === "papelera" ? "🗑" : (_catFiltro === "_arch" ? "🗂️" : (_tabActual === "recibidos" ? "📭" : "📤")))}</div>
             ${_busqueda
                 ? `Sin resultados para "${_esc(_busqueda)}"`
                 : _tabActual === "papelera"
-                    ? `La papelera está vacía.<div style="font-size:12px;color:#9ca3af;margin-top:6px;">Los mensajes borrados se guardan acá 30 días.</div>`
+                    ? `No hay mensajes eliminados.<div style="font-size:12px;color:#9ca3af;margin-top:6px;">Los mensajes que elimines se guardan acá 30 días y después se borran del sistema.</div>`
+                    : _catFiltro === "_nuevos" && !_busqueda
+                        ? `No tenés mensajes nuevos ✔<div style="font-size:12px;color:#9ca3af;margin-top:6px;">Los ya leídos están en Todos.</div>`
                     : filtrando
                         ? `No tenés mensajes ${_catFiltro === "_fav" || _catFiltro === "_arch" ? etq : "de " + etq}`
                         : `No tenés ${_tabActual === "recibidos" ? "mensajes recibidos" : "mensajes enviados"}`}
