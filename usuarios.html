@@ -75,13 +75,36 @@
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.5);
             display: none; align-items: center; justify-content: center; z-index: 200;
+            padding: 16px;
         }
         .modal-overlay.active { display: flex; }
         .modal {
             background: white; border-radius: 16px; padding: 32px;
             width: 100%; max-width: 440px;
+            /* Fichas largas: el modal scrollea por dentro (nunca se corta contra el
+               viewport) y el pie con Guardar/Cancelar queda FIJO abajo (sticky). */
+            max-height: 92vh; overflow-y: auto;
         }
         .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 24px; }
+        .modal .modal-footer {
+            position: sticky; bottom: -32px; background: white; z-index: 2;
+            margin: 24px -32px -32px; padding: 14px 32px 20px;
+            border-top: 1px solid #eef0f3;
+        }
+
+        /* Subroles: chips de los habilitados + ventanita con toggles */
+        .subrol-chip { display: inline-flex; align-items: center; background: #eef2ff; color: #4338ca;
+                       border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; }
+        .sub-row { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                   padding: 10px 4px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #1f2937; }
+        .sub-row:last-child { border-bottom: none; }
+        .sw { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+        .sw input { opacity: 0; width: 0; height: 0; }
+        .sw .tr { position: absolute; inset: 0; background: #e5e7eb; border-radius: 24px; cursor: pointer; transition: background .15s; }
+        .sw .tr::before { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%;
+                          background: white; top: 3px; left: 3px; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+        .sw input:checked + .tr { background: #4f46e5; }
+        .sw input:checked + .tr::before { transform: translateX(18px); }
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
         .form-group input, .form-group select {
@@ -263,7 +286,10 @@
         </div>
         <div class="form-group">
             <label>Roles secundarios <span style="color:#94a3b8;font-weight:400;">(subroles — puestos que puede cubrir)</span></label>
-            <div id="fe-subroles" style="display:flex;flex-wrap:wrap;gap:10px;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;"></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div id="fe-subroles-lista" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;min-height:26px;align-items:center;"></div>
+                <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="abrirSubrolesPopup()">＋ Agregar</button>
+            </div>
             <small style="color:#6b7280;font-size:11px;display:block;margin-top:4px;">
                 Le dan los permisos, la documentación, las capacitaciones y los grupos de ese rol
                 (las notificaciones siguen siendo solo del rol principal). Necesario para asignarle
@@ -281,6 +307,19 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-editar')">Cancelar</button>
             <button class="btn btn-primary" id="fe-guardar-btn" onclick="guardarEdicion()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Ventanita de subroles: listado de roles con toggle on/off -->
+<div class="modal-overlay" id="modal-subroles" style="z-index:300;">
+    <div class="modal" style="max-width:360px;">
+        <h3 style="margin-bottom:6px;">Roles secundarios</h3>
+        <div style="font-size:12.5px;color:#6b7280;margin-bottom:12px;">
+            Prendé los puestos que <b id="ms-nombre"></b> puede cubrir.</div>
+        <div id="ms-lista"></div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="cerrarSubrolesPopup()">Listo</button>
         </div>
     </div>
 </div>
@@ -505,17 +544,40 @@
         document.getElementById("modal-editar").classList.add("active");
     }
 
-    function _subrolesSeleccionados() {
-        return [...document.querySelectorAll('#fe-subroles input:checked')].map(c => c.value);
-    }
+    // ── Subroles: estado + chips de los habilitados + ventanita con toggles ──
+    let _feSubroles = [];   // selección actual (nombres de rol)
+
+    function _subrolesSeleccionados() { return [..._feSubroles]; }
     function _renderSubroles(seleccion) {
         const principal = document.getElementById('fe-rol').value;
+        // Depurar la selección si el principal cambió a un rol que estaba de subrol
+        _feSubroles = (seleccion || []).filter(r => r !== principal);
+        const cont = document.getElementById('fe-subroles-lista');
+        cont.innerHTML = _feSubroles.length
+            ? _feSubroles.map(r => `<span class="subrol-chip">${esc(r)}</span>`).join('')
+            : '<span style="color:#9ca3af;font-size:12.5px;">Sin subroles habilitados</span>';
+    }
+    function abrirSubrolesPopup() {
+        const principal = document.getElementById('fe-rol').value;
+        const u = usuarios.find(x => x.id === editandoId) || {};
+        document.getElementById('ms-nombre').textContent = u.nombre_display || u.username || '';
         const asignables = rolesDisp.filter(r =>
             r.nombre !== 'gerente' && r.nombre !== 'admin' && r.nombre !== principal);
-        document.getElementById('fe-subroles').innerHTML = asignables.length
-            ? asignables.map(r => `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
-                  <input type="checkbox" value="${escAttr(r.nombre)}" ${seleccion.includes(r.nombre) ? 'checked' : ''}> ${esc(r.nombre)}</label>`).join('')
-            : '<span style="color:#9ca3af;">No hay otros roles definidos.</span>';
+        document.getElementById('ms-lista').innerHTML = asignables.length
+            ? asignables.map(r => `<div class="sub-row"><span>${esc(r.nombre)}</span>
+                  <label class="sw"><input type="checkbox" value="${escAttr(r.nombre)}"
+                         ${_feSubroles.includes(r.nombre) ? 'checked' : ''}
+                         onchange="_toggleSubrol(this)"><span class="tr"></span></label></div>`).join('')
+            : '<div style="color:#9ca3af;font-size:13px;padding:10px 0;">No hay otros roles definidos.</div>';
+        document.getElementById('modal-subroles').classList.add('active');
+    }
+    function _toggleSubrol(chk) {
+        if (chk.checked) { if (!_feSubroles.includes(chk.value)) _feSubroles.push(chk.value); }
+        else _feSubroles = _feSubroles.filter(r => r !== chk.value);
+    }
+    function cerrarSubrolesPopup() {
+        document.getElementById('modal-subroles').classList.remove('active');
+        _renderSubroles(_feSubroles);
     }
 
     function marcarQuitarFoto() {
