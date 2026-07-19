@@ -262,10 +262,7 @@ async function buscar(){
     const telefono = document.getElementById('f-telefono').value.trim();
     const email    = document.getElementById('f-email').value.trim();
     const cont = document.getElementById('resultados');
-    if(!nombre && !telefono && !email){
-        cont.innerHTML = '<div class="estado-vacio">Ingresá al menos un filtro para buscar.</div>';
-        return;
-    }
+    // Sin filtros = TODOS los clientes, ordenados por visitas (lo hace el backend).
     cont.innerHTML = '<div class="estado-vacio">Buscando…</div>';
     const qs = new URLSearchParams();
     if(nombre) qs.set('nombre', nombre);
@@ -276,6 +273,7 @@ async function buscar(){
         render(lista);
     }catch(err){ cont.innerHTML = '<div class="estado-vacio">Error: '+esc(err.message)+'</div>'; }
 }
+window.addEventListener('load', buscar);   // listado completo al entrar
 
 function render(lista){
     const cont = document.getElementById('resultados');
@@ -292,6 +290,7 @@ function render(lista){
                 '<span class="cli-star'+(c.vip?' on':'')+'" title="'+(c.vip?'Cliente VIP':'No VIP')+'">★</span>'+
                 '<span class="cli-id">#'+c.id+'</span>'+
                 '<span class="cli-nombre">'+esc(c.nombre||'(sin nombre)')+'</span>'+
+                (c.visitas != null ? '<span class="chip" title="Visitas (reservas y consumos)">🍽 '+c.visitas+' visita'+(c.visitas==1?'':'s')+'</span>' : '')+
                 '<span class="cli-contactos">'+esc(resumen)+'</span>'+
                 editBtn+
                 '<span class="cli-arrow">▸</span>'+
