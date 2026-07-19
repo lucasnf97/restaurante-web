@@ -745,10 +745,85 @@
         render();
     }
 
+    // ── TÉRMINOS Y CONDICIONES (aceptación del gerente, 1 vez por versión) ──
+    // Solo cuentas gerente/admin de un restaurante. Si el restaurante no aceptó la
+    // versión vigente, overlay bloqueante con enlaces a los documentos + checkbox.
+    // Fail-silent: un error acá jamás debe bloquear la página.
+    async function _initLegal() {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            if (sessionStorage.getItem("legal_ok")) return;   // ya confirmado en esta sesión
+            let user = null;
+            try { user = JSON.parse(localStorage.getItem("user") || "null"); } catch (e) {}
+            if (!user || !["gerente", "admin"].includes(user.rol)) {
+                sessionStorage.setItem("legal_ok", "1"); return;   // no le toca aceptar
+            }
+            const API_URL = window._API_URL || "https://restaurante-backend-production-459b.up.railway.app";
+            const res = await fetch(`${API_URL}/legal/estado`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) return;
+            const est = await res.json();
+            if (!est.requiere_aceptacion) { sessionStorage.setItem("legal_ok", "1"); return; }
+            _mostrarLegal(est, API_URL, token);
+        } catch (e) { /* fail-silent */ }
+    }
+
+    function _mostrarLegal(est, API_URL, token) {
+        const ov = document.createElement("div");
+        ov.id = "legal-overlay";
+        ov.style.cssText = "position:fixed;inset:0;background:rgba(10,10,25,.78);z-index:5200;" +
+            "display:flex;align-items:center;justify-content:center;padding:16px;";
+        ov.innerHTML = `
+          <div style="background:#fff;border-radius:16px;width:540px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.4);">
+            <div style="background:#4f46e5;color:#fff;padding:14px 20px;font-weight:800;font-size:15px;">
+                📜 Términos y Condiciones — versión ${est.version}</div>
+            <div style="padding:20px 22px;overflow-y:auto;font-size:14px;color:#374151;line-height:1.6;">
+                <p style="margin-bottom:10px;">Para seguir usando el sistema, el restaurante debe aceptar los
+                Términos y Condiciones del Servicio y tomar conocimiento de la Política de Privacidad
+                (incluye el encargo de tratamiento de datos RGPD y la lista de subencargados).</p>
+                <p style="margin-bottom:10px;">
+                    <a href="terminos.html" target="_blank" rel="noopener" style="color:#4f46e5;font-weight:700;">📄 Leer los Términos y Condiciones</a><br>
+                    <a href="privacidad.html" target="_blank" rel="noopener" style="color:#4f46e5;font-weight:700;">🔒 Leer la Política de Privacidad</a></p>
+                <p style="font-size:12.5px;color:#9ca3af;">La aceptación queda registrada (usuario, fecha y versión)
+                a nombre de este restaurante. Solo la ven las cuentas de gerencia.</p>
+                <label style="display:flex;gap:9px;align-items:flex-start;margin-top:12px;font-size:13.5px;font-weight:600;cursor:pointer;">
+                    <input type="checkbox" id="legal-check" style="margin-top:3px;">
+                    Leí y acepto los Términos y Condiciones en nombre del restaurante</label>
+                <div id="legal-err" style="color:#dc2626;font-size:12.5px;margin-top:8px;"></div>
+            </div>
+            <div style="padding:14px 20px;border-top:1px solid #eee;text-align:right;">
+                <button id="legal-btn" style="background:#4f46e5;color:#fff;border:none;border-radius:9px;
+                    padding:10px 22px;font-size:14px;font-weight:700;cursor:pointer;">Aceptar y continuar</button>
+            </div>
+          </div>`;
+        document.body.appendChild(ov);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        ov.querySelector("#legal-btn").addEventListener("click", async () => {
+            if (!ov.querySelector("#legal-check").checked) {
+                ov.querySelector("#legal-err").textContent = "Marcá la casilla para aceptar.";
+                return;
+            }
+            try {
+                const r = await fetch(`${API_URL}/legal/aceptar`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!r.ok) throw new Error("No se pudo registrar la aceptación");
+                sessionStorage.setItem("legal_ok", "1");
+                ov.remove();
+                document.body.style.overflow = prevOverflow;
+            } catch (e) {
+                ov.querySelector("#legal-err").textContent = e.message || "Error de conexión";
+            }
+        });
+    }
+
     // ── INIT ─────────────────────────────────────────────────────
     function _initSidebar() {
         injectHamburger();
         initMarca();
+        _initLegal();
         _initPrioritarias();
     }
     if (document.readyState === "loading") {
