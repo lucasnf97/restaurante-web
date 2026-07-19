@@ -389,6 +389,8 @@ function renderPost(p) {
     _postsCache[k] = p;
     const imgs = (p.adjuntos || []).filter(a => a.tipo === 'imagen')
         .map(a => `<img class="post-img" src="${esc(a.url)}" alt="" loading="lazy">`).join('');
+    const vids = (p.adjuntos || []).filter(a => a.tipo === 'video')
+        .map(a => `<video class="post-video" src="${esc(a.url)}" controls preload="metadata" playsinline style="max-width:100%;border-radius:10px;margin-top:8px;display:block;"></video>`).join('');
     const files = (p.adjuntos || []).filter(a => a.tipo === 'archivo')
         .map(a => `<a class="post-file" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="fi">📄</span>${esc(a.nombre)}</a>`).join('');
     const filesBlock = files ? `<div class="post-files">${files}</div>` : '';
@@ -444,7 +446,7 @@ function renderPost(p) {
             </div>
             ${acc}
         </div>
-        ${texto}${solBlock}${imgs}${filesBlock}${enlace}
+        ${texto}${solBlock}${imgs}${vids}${filesBlock}${enlace}
         ${_barraAcciones(p)}
         <div class="post-comments" id="coments-${p.id}" style="display:none"></div>
     </div>`;

@@ -223,7 +223,9 @@ function fmtFecha(ts) { if (!ts) return ''; const d = new Date(ts); return d.toL
 function _ext(n) { const m = /\.([a-z0-9]+)$/i.exec(n || ''); return m ? m[1].toLowerCase() : ''; }
 function _icono(a) {
     if (a.resource_type === 'image') return '🖼️';
+    if (a.resource_type === 'video' || a.tipo === 'video') return '🎬';
     const e = _ext(a.nombre);
+    if (['mp4','webm','mov','m4v','mkv','ogv'].includes(e)) return '🎬';
     if (e === 'pdf') return '📄';
     if (['doc','docx','txt','rtf','odt'].includes(e)) return '📝';
     if (['xls','xlsx','csv','ods'].includes(e)) return '📊';
@@ -419,7 +421,7 @@ function renderContenido() {
             return `<div class="doc-file">
                 ${thumb}
                 <div class="fnm">${esc(a.nombre)}<div class="fdt">${fmtFecha(a.creado_en)}</div></div>
-                <a class="dl" href="${esc(a.url)}" target="_blank" rel="noopener">${a.resource_type === 'image' ? 'Ver' : 'Descargar'}</a>
+                <a class="dl" href="${esc(a.url)}" target="_blank" rel="noopener">${(a.resource_type === 'image' || a.resource_type === 'video') ? 'Ver' : 'Descargar'}</a>
                 ${puedeEditar ? `<button class="del" title="Mover a otra carpeta o grupo" style="color:#4f46e5;" onclick="abrirMover(${a.id}, '${esc(a.nombre).replace(/'/g,'')}')">📂</button>
                 <button class="del" onclick="eliminarArchivo(${a.id})">🗑</button>` : ''}
             </div>`;
@@ -517,7 +519,7 @@ function renderPersonalCadena(files) {
             const thumb = a.resource_type === 'image' ? `<img class="thumb" src="${esc(a.url)}" alt="">` : `<span class="fic">${_icono(a)}</span>`;
             return `<div class="doc-file">${thumb}
                 <div class="fnm">${esc(a.nombre)}<div class="fdt">${fmtFecha(a.creado_en)}</div></div>
-                <a class="dl" href="${esc(a.url)}" target="_blank" rel="noopener">${a.resource_type === 'image' ? 'Ver' : 'Descargar'}</a>
+                <a class="dl" href="${esc(a.url)}" target="_blank" rel="noopener">${(a.resource_type === 'image' || a.resource_type === 'video') ? 'Ver' : 'Descargar'}</a>
             </div>`;
         }).join('');
         html += '</div>';
@@ -628,7 +630,7 @@ function renderCapacitaciones() {
     html += _caps.map(c => {
         const pendienteMia = c.soy_destinatario && !c.mi_firmado_en;
         const clase = pendienteMia ? 'pendiente' : (c.soy_destinatario && c.mi_firmado_en ? 'firmada' : '');
-        const verDoc = `<a class="dl" href="${esc(c.url)}" target="_blank" rel="noopener">📄 ${c.resource_type === 'image' ? 'Ver' : 'Abrir'} documento</a>`;
+        const verDoc = `<a class="dl" href="${esc(c.url)}" target="_blank" rel="noopener">📄 ${(c.resource_type === 'image' || c.resource_type === 'video') ? 'Ver' : 'Abrir'} documento</a>`;
         let estado = '';
         if (c.soy_destinatario) {
             estado = c.mi_firmado_en
