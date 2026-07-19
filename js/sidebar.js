@@ -698,7 +698,12 @@
                 `<img src="${_escS(a.url)}" alt="" style="max-width:100%;border-radius:10px;margin-top:10px;display:block;">`).join("");
             const files = (p.adjuntos || []).filter(a => a.tipo === "archivo").map(a =>
                 `<a href="${_escS(a.url)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:#4f46e5;font-weight:600;font-size:13px;text-decoration:none;">📄 ${_escS(a.nombre)}</a>`).join("");
-            const enlace = p.enlace ? `<a href="${_escS(p.enlace)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:#4f46e5;font-size:13px;word-break:break-all;">🔗 ${_escS(p.enlace)}</a>` : "";
+            // Solo linkear si el enlace es http(s): un enlace 'javascript:...' guardado en
+            // la publicación ejecutaría JS en el origen de la app al hacer clic (robo de token).
+            const _urlOk = p.enlace && /^https?:\/\//i.test(String(p.enlace).trim());
+            const enlace = _urlOk
+                ? `<a href="${_escS(p.enlace)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:#4f46e5;font-size:13px;word-break:break-all;">🔗 ${_escS(p.enlace)}</a>`
+                : (p.enlace ? `<div style="margin-top:8px;color:#6b7280;font-size:13px;word-break:break-all;">🔗 ${_escS(p.enlace)}</div>` : "");
             const grupo = (p.grupo_nombre ? ` · grupo ${_escS(p.grupo_nombre)}` : "")
                 + (p.restaurante ? ` · 🏠 ${_escS(p.restaurante)}` : "");
             ov.innerHTML = `
