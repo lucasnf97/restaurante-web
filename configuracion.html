@@ -1037,6 +1037,36 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
         </div>
     </div>
 
+    <!-- ═══ 💳 PAGOS CON TARJETA (DATÁFONO) ═══════════════════════ -->
+    <div class="cfg-section" id="sec-datafono">
+        <div class="cfg-section-head" onclick="toggleSection('datafono')">
+            <span class="cfg-section-icon">💳</span>
+            <span class="cfg-section-title">Pagos con tarjeta (datáfono)</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color:#6b7280;margin-top:14px;line-height:1.6;">
+                Conexión del POS con el <strong>datáfono</strong>. Con un proveedor integrado, al cobrar
+                con tarjeta el importe se manda solo al aparato y el sistema espera el resultado
+                (aprobado / rechazado). Con <strong>"Sin integrar"</strong> (default) el importe se tipea
+                a mano como siempre. Cambiar de proveedor es solo cambiar esta configuración —
+                los proveedores nuevos se agregan al sistema como módulos, sin tocar nada de acá.
+            </p>
+            <div class="cfg-grid" style="margin-top:18px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Proveedor</label>
+                    <select class="cfg-input" id="df-proveedor" onchange="_dfRenderCampos()" style="max-width:420px;"></select>
+                </div>
+            </div>
+            <div id="df-campos" style="margin-top:14px;max-width:420px;"></div>
+            <div style="display:flex;gap:10px;align-items:center;margin-top:16px;">
+                <button class="btn-primary" onclick="guardarDatafono()">Guardar</button>
+                <button class="btn-gear" id="df-probar" onclick="probarDatafono()" style="display:none;">🧪 Probar cobro de prueba</button>
+                <span id="df-estado" style="font-size:13px;color:#6b7280;"></span>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ CARGAS SOCIALES / SEGUROS (NÓMINA) ════════════════════ -->
     <div class="cfg-section" id="sec-cargassoc">
         <div class="cfg-section-head" onclick="toggleSection('cargassoc')">
@@ -1470,6 +1500,110 @@ function _cargarSeccionLazy(id) {
     else if (id === 'dashboard')   cargarDashboardCfg();
     else if (id === 'descpersonal') cargarSeccionDescuentoPersonal();
     else if (id === 'cargassoc')   cargarCargasSociales();
+    else if (id === 'datafono')    cargarDatafono();
+}
+
+// ── 💳 Pagos con tarjeta (datáfono) ───────────────────────────
+// El catálogo de proveedores y sus campos vienen del backend (capa de drivers):
+// esta pantalla NO conoce a ningún proveedor — el formulario se arma solo.
+let _dfProveedores = [];
+let _dfConfig = {};
+
+async function cargarDatafono() {
+    try {
+        const [provs, cfg] = await Promise.all([
+            apiFetch('/datafono/proveedores'),
+            apiFetch('/datafono/config'),
+        ]);
+        _dfProveedores = provs || [];
+        _dfConfig = (cfg && cfg.config) || {};
+        const sel = document.getElementById('df-proveedor');
+        sel.innerHTML = _dfProveedores.map(p =>
+            `<option value="${p.key}">${p.nombre}</option>`).join('');
+        sel.value = (cfg && cfg.proveedor) || 'manual';
+        _dfRenderCampos();
+    } catch (e) {
+        document.getElementById('df-estado').textContent = 'No se pudo cargar (¿API vieja?)';
+    }
+}
+
+function _dfRenderCampos() {
+    const key = document.getElementById('df-proveedor').value;
+    const p = _dfProveedores.find(x => x.key === key);
+    const cont = document.getElementById('df-campos');
+    document.getElementById('df-probar').style.display = (p && p.integrado) ? '' : 'none';
+    document.getElementById('df-estado').textContent = '';
+    if (!p || !(p.campos || []).length) {
+        cont.innerHTML = p && !p.integrado
+            ? '<div style="font-size:12.5px;color:#9ca3af;">Sin configuración: el importe se tipea a mano en el datáfono.</div>'
+            : '';
+        return;
+    }
+    cont.innerHTML = p.campos.map(c => {
+        const val = _dfConfig[c.key] != null ? _dfConfig[c.key] : (c.default != null ? c.default : '');
+        const ayuda = c.ayuda ? `<div style="font-size:11.5px;color:#9ca3af;margin-top:3px;">${c.ayuda}</div>` : '';
+        let input;
+        if (c.tipo === 'select') {
+            input = `<select class="cfg-input" id="df-c-${c.key}">` +
+                (c.opciones || []).map(o => `<option value="${o.v}" ${String(val) === o.v ? 'selected' : ''}>${o.l}</option>`).join('') +
+                `</select>`;
+        } else {
+            const tipo = c.tipo === 'password' ? 'password' : (c.tipo === 'number' ? 'number' : 'text');
+            input = `<input class="cfg-input" type="${tipo}" id="df-c-${c.key}" value="${String(val).replace(/"/g, '&quot;')}">`;
+        }
+        return `<div class="cfg-field" style="margin-bottom:10px;">
+            <label class="cfg-label">${c.label}${c.requerido ? ' *' : ''}</label>${input}${ayuda}</div>`;
+    }).join('');
+}
+
+async function guardarDatafono() {
+    const key = document.getElementById('df-proveedor').value;
+    const p = _dfProveedores.find(x => x.key === key);
+    const config = {};
+    (p && p.campos || []).forEach(c => {
+        const el = document.getElementById(`df-c-${c.key}`);
+        if (el) config[c.key] = el.value;
+    });
+    try {
+        await apiFetch('/datafono/config', { method: 'PUT', body: JSON.stringify({ proveedor: key, config }) });
+        _dfConfig = config;
+        document.getElementById('df-estado').textContent = '✓ Guardado';
+        setTimeout(() => { document.getElementById('df-estado').textContent = ''; }, 2500);
+    } catch (e) {
+        alert('Error al guardar: ' + (e.message || e));
+    }
+}
+
+// Cobro de prueba: inicia una operación de 1.00 y la sigue hasta el resultado
+// (mismo flujo que va a usar el POS: iniciar → polling → aprobado/rechazado).
+let _dfProbando = false;
+async function probarDatafono() {
+    if (_dfProbando) return;
+    const est = document.getElementById('df-estado');
+    _dfProbando = true;
+    try {
+        est.textContent = '⏳ Iniciando cobro de prueba de 1.00…';
+        const r = await apiFetch('/datafono/iniciar', {
+            method: 'POST', body: JSON.stringify({ monto: 1.0, terminal: 'config-web' }) });
+        if (!r.integrado) { est.textContent = 'El proveedor actual no está integrado.'; return; }
+        const opId = r.operacion.id;
+        for (let i = 0; i < 60; i++) {
+            await new Promise(res => setTimeout(res, 1500));
+            const op = await apiFetch(`/datafono/operaciones/${opId}`);
+            if (op.estado !== 'pendiente') {
+                est.textContent = op.estado === 'aprobado'
+                    ? '✅ Aprobado — el flujo completo funciona'
+                    : `❌ ${op.estado}${op.detalle ? ' — ' + op.detalle : ''}`;
+                return;
+            }
+            est.textContent = `⏳ Esperando al datáfono… (${op.estado})`;
+        }
+        est.textContent = '⌛ Sin respuesta (timeout de prueba)';
+    } catch (e) {
+        est.textContent = 'Error: ' + (e.message || e);
+    } finally {
+        _dfProbando = false;
+    }
 }
 
 // ── Cargas sociales / seguros (% patronal global) ─────────────
