@@ -609,6 +609,10 @@ function dibujar(){
     canvas.width=CANVAS_W; canvas.height=canvasH;
     canvasTime.width=CANVAS_W; canvasTime.height=HEADER_H;
     canvasWrap.style.height=canvasH+'px';
+    // La barra de scroll horizontal se dibuja DENTRO del alto fijado y tapaba la
+    // última mesa: sumarle su alto real para que quede DEBAJO de la grilla.
+    const _sb=canvasWrap.offsetHeight-canvasWrap.clientHeight;
+    if(_sb>0) canvasWrap.style.height=(canvasH+_sb)+'px';
 
     // Row backgrounds (solo mesas — y ya empieza en 0)
     let mesaIdx=0;
