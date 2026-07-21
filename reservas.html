@@ -294,7 +294,7 @@
             <div class="form-group"><label>Hora fin</label><input type="time" id="fr-hora-fin"></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>Mesa</label><select id="fr-mesa"><option value="">Sin asignar</option></select></div>
+            <div class="form-group"><label>Mesa</label><select id="fr-mesa"><option value="auto">⚙ Auto — asignar automáticamente</option><option value="">Sin asignar</option></select></div>
             <div class="form-group"><label>Alérgeno</label><input type="text" id="fr-alergeno" placeholder="Opcional"></div>
         </div>
         <div class="form-group"><label>Notas</label><textarea id="fr-notas" rows="2" placeholder="Opcional"></textarea></div>
@@ -689,21 +689,28 @@ function dibujar(){
         }
     }
 
-    // Reservas
+    // Reservas. Una reserva COMBINADA (mesas_ids con >1 mesa, mesas unidas por una
+    // agrupación) dibuja una barra en CADA fila miembro: texto completo en la mesa
+    // ancla (mesa_id) y "🔗" en las secundarias. Cada barra entra a rBounds → el
+    // click-para-editar funciona igual en cualquiera de ellas.
     rBounds=[];
     for(const r of reservas){
-        if(r.mesa_id==null||!(r.mesa_id in mesaYMap)) continue;
+        if(r.mesa_id==null) continue;
         if(r.estado==='cancelada') continue;   // canceladas no se muestran en la grilla
-        const rowY=mesaYMap[r.mesa_id];
         const sm=minsDesdeInicio(r.hora_inicio);
         let em;
         if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}
         else em=sm+60;
+        const mids=(r.mesas_ids&&r.mesas_ids.length)?r.mesas_ids:[r.mesa_id];
+        for(const mid of mids){
+        if(!(mid in mesaYMap)) continue;
+        const esSecundaria=(mids.length>1&&mid!==r.mesa_id);
+        const rowY=mesaYMap[mid];
         const x=Math.max(0,(sm/SLOT_MIN)*COL_W), w=Math.max(COL_W,((em-sm)/SLOT_MIN)*COL_W)-2;
         const y=rowY+2, h=ROW_H-4, color=colorReserva(r);
         const esTerminada=(r.estado==='terminada'||r.estado==='cancelada');
         ctxC.shadowColor='rgba(0,0,0,0.12)';ctxC.shadowBlur=3;ctxC.shadowOffsetY=1;
-        ctxC.fillStyle=color;ctxC.globalAlpha=esTerminada?0.6:1;
+        ctxC.fillStyle=color;ctxC.globalAlpha=esTerminada?0.6:(esSecundaria?0.8:1);
         roundRect(ctxC,x,y,w,h,5);ctxC.fill();
         ctxC.globalAlpha=1;ctxC.shadowBlur=0;ctxC.shadowOffsetY=0;
         // Reserva online sin ver → borde punteado (se vuelve sólido al interactuar).
@@ -716,14 +723,18 @@ function dibujar(){
         // Texto (VIP: estrella a la izquierda del nombre)
         ctxC.fillStyle=esTerminada?'#64748b':'#1e293b';ctxC.font='bold 10px Segoe UI';
         ctxC.save();ctxC.beginPath();ctxC.rect(x+3,y+1,w-6,h-2);ctxC.clip();
-        ctxC.fillText((r.vip?'⭐ ':'')+r.nombre_cliente+' ('+r.comensales+')'+(r.alergeno?' ⚠':'')+(r.notas?' 📝':''),x+5,y+h/2+4);
+        const _txt=esSecundaria
+            ? '🔗 '+r.nombre_cliente
+            : (mids.length>1?'🔗 ':'')+(r.vip?'⭐ ':'')+r.nombre_cliente+' ('+r.comensales+')'+(r.alergeno?' ⚠':'')+(r.notas?' 📝':'');
+        ctxC.fillText(_txt,x+5,y+h/2+4);
         ctxC.restore();
-        // Handle de resize (indicador en borde derecho)
-        if(!esTerminada&&w>20){
+        // Handle de resize (indicador en borde derecho; solo en la barra ancla)
+        if(!esTerminada&&!esSecundaria&&w>20){
             ctxC.fillStyle='rgba(255,255,255,0.5)';
             ctxC.fillRect(x+w-5,y+h/2-8,3,16);
         }
         rBounds.push({r,x,y,w,h});
+        }
     }
 
     // ── Overlay de placement mode (elegir mesa) ────────────────
@@ -1080,6 +1091,12 @@ function _dibujarResizePreview(newEndCol){
 }
 
 async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
+    // Las reservas combinadas (mesas unidas) no se arrastran: mover una sola pata
+    // rompería la unión. Se editan desde el modal (el motor re-asigna con "Auto").
+    if(r.mesas_ids&&r.mesas_ids.length>1){
+        alert('Esta reserva ocupa mesas unidas ('+(r.mesas_ids.length)+'). Editala desde el modal para reubicarla.');
+        dibujar();return;
+    }
     const sm=minsDesdeInicio(r.hora_inicio);
     let em;if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
     const durMins=em-sm;
@@ -1126,10 +1143,12 @@ async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
         }
     }
 
-    // ── Validar colisión con otras reservas ──────────────────
+    // ── Validar colisión con otras reservas (member-aware: una combinada ocupa
+    //    TODAS sus mesas, no solo la ancla) ─────────────────────
     for(const rv of reservas){
         if(rv.id===r.id)continue;
-        if(rv.mesa_id!==nuevaMesaId)continue;
+        const rvMesas=(rv.mesas_ids&&rv.mesas_ids.length)?rv.mesas_ids:[rv.mesa_id];
+        if(!rvMesas.includes(nuevaMesaId))continue;
         const rvSm=minsDesdeInicio(rv.hora_inicio);
         let rvEm;if(rv.hora_fin){rvEm=minsDesdeInicio(rv.hora_fin);if(rvEm<=rvSm)rvEm+=24*60;}else rvEm=rvSm+60;
         if(hiM<rvEm&&hfM>rvSm){
@@ -1349,7 +1368,9 @@ function abrirModalNuevo(mesaId,hora){
     document.getElementById('fr-fecha').value=fechaISO(fechaActual);
     document.getElementById('fr-comensales').value='2';
     document.getElementById('fr-hora-inicio').value=hora||'';
-    document.getElementById('fr-mesa').value=mesaId||'';
+    // Desde una celda de la grilla (mesa concreta) → intención manual: esa mesa.
+    // Alta suelta → "Auto": el motor elige (y puede reacomodar) al guardar.
+    document.getElementById('fr-mesa').value=mesaId||'auto';
     document.getElementById('fr-notas').value='';
     document.getElementById('modal-reserva').classList.add('active');
 }
@@ -1374,6 +1395,7 @@ function abrirModalEditar(r){
 }
 function cerrarModal(id){document.getElementById(id).classList.remove('active');}
 async function guardarReserva(){
+    const mesaVal=document.getElementById('fr-mesa').value;
     const body={
         nombre_cliente:document.getElementById('fr-nombre').value.trim(),
         telefono:document.getElementById('fr-telefono').value.trim()||null,
@@ -1382,7 +1404,8 @@ async function guardarReserva(){
         comensales:parseInt(document.getElementById('fr-comensales').value),
         hora_inicio:document.getElementById('fr-hora-inicio').value,
         hora_fin:document.getElementById('fr-hora-fin').value||null,
-        mesa_id:parseInt(document.getElementById('fr-mesa').value)||null,
+        mesa_id:mesaVal==='auto'?null:(parseInt(mesaVal)||null),
+        auto_asignar:mesaVal==='auto',
         alergeno:document.getElementById('fr-alergeno').value.trim()||null,
         notas:document.getElementById('fr-notas').value.trim()||null,
     };
@@ -1397,8 +1420,30 @@ async function guardarReserva(){
     // mesa y horario, y había que cancelar una a mano.
     const _btnG = document.getElementById('btn-guardar-reserva');
     if (_btnG) { if (_btnG.disabled) return; _btnG.disabled = true; _btnG.textContent = 'Guardando…'; }
-    try{if(editandoId)await api.patch('/reservas/'+editandoId,body);else await api.post('/reservas/',body);cerrarModal('modal-reserva');await cargarDatos();}
-    catch(err){alert('Error: '+err.message);}
+    try{
+        const res=editandoId?await api.patch('/reservas/'+editandoId,body):await api.post('/reservas/',body);
+        cerrarModal('modal-reserva');
+        // El motor puede haber reubicado reservas existentes para hacer lugar → avisar.
+        let msg='';
+        if(res&&res.movimientos&&res.movimientos.length){
+            msg='Para hacer lugar se reubicó:\n'+res.movimientos.map(m=>
+                `• ${m.nombre_cliente||'Reserva'} (${m.comensales}p): Mesa ${m.mesa_numero_anterior??'—'} → `+
+                (m.mesas_numeros&&m.mesas_numeros.length?'Mesas '+m.mesas_numeros.join('+'):'Mesa '+(m.mesa_numero??'—'))
+            ).join('\n');
+        }
+        if(res&&res.mesas_numeros&&res.mesas_numeros.length){
+            msg=(msg?msg+'\n\n':'')+`La reserva quedó en las mesas ${res.mesas_numeros.join('+')} (unidas).`;
+        }
+        if(res&&res.advertencia) msg=(msg?msg+'\n\n':'')+res.advertencia;
+        if(msg) alert(msg);
+        await cargarDatos();
+    }
+    catch(err){
+        // 409 del motor = no hay arreglo posible ni moviendo reservas
+        alert(err.message&&err.message.includes('No hay espacio')
+            ? 'No hay espacio: no se encontró mesa (ni combinación ni reacomodo) para esa cantidad de personas en ese horario.'
+            : 'Error: '+err.message);
+    }
     finally{ if(_btnG){ _btnG.disabled=false; _btnG.textContent='Guardar'; } }
 }
 
@@ -1408,7 +1453,9 @@ function abrirListadoPrint(){
     const sorted=[...reservas].sort((a,b)=>a.hora_inicio>b.hora_inicio?1:-1);
     const Th='padding:8px 10px;border:1px solid #cbd5e1;background:#f1f5f9;text-align:left;font-size:12px;';
     const Td='padding:8px 10px;border:1px solid #e2e8f0;font-size:12px;';
-    const filas=sorted.map(r=>`<tr><td style="${Td}">${r.hora_inicio.substring(0,5)}${r.hora_fin?' – '+r.hora_fin.substring(0,5):''}</td><td style="${Td}"><strong>${esc(r.nombre_cliente)}</strong>${r.telefono?'<br><small style="color:#888">'+esc(r.telefono)+'</small>':''}</td><td style="${Td};text-align:center;">${r.comensales}</td><td style="${Td}">${r.mesa_numero?'Mesa '+r.mesa_numero:'—'}</td><td style="${Td}">${r.alergeno?'<span style="color:#854d0e">⚠ '+esc(r.alergeno)+'</span>':'—'}</td><td style="${Td}">${esc(r.estado)}</td><td style="${Td};max-width:140px;font-size:11px;">${esc(r.notas||'')}</td></tr>`).join('');
+    const _numMesa=id=>{const m=mesas.find(x=>x.id===id);return m?m.numero:('#'+id);};
+    const _mesaTxt=r=>(r.mesas_ids&&r.mesas_ids.length>1)?('🔗 Mesas '+r.mesas_ids.map(_numMesa).join('+')):(r.mesa_numero?'Mesa '+r.mesa_numero:'—');
+    const filas=sorted.map(r=>`<tr><td style="${Td}">${r.hora_inicio.substring(0,5)}${r.hora_fin?' – '+r.hora_fin.substring(0,5):''}</td><td style="${Td}"><strong>${esc(r.nombre_cliente)}</strong>${r.telefono?'<br><small style="color:#888">'+esc(r.telefono)+'</small>':''}</td><td style="${Td};text-align:center;">${r.comensales}</td><td style="${Td}">${_mesaTxt(r)}</td><td style="${Td}">${r.alergeno?'<span style="color:#854d0e">⚠ '+esc(r.alergeno)+'</span>':'—'}</td><td style="${Td}">${esc(r.estado)}</td><td style="${Td};max-width:140px;font-size:11px;">${esc(r.notas||'')}</td></tr>`).join('');
     const html=`<div style="text-align:center;margin-bottom:16px;"><div style="font-size:18px;font-weight:700;color:#1a1a2e;">🍽️ Reservas del día</div><div style="font-size:13px;color:#555;margin-top:4px;">${fecha}</div></div>${sorted.length?`<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="${Th}">Horario</th><th style="${Th}">Cliente</th><th style="${Th};text-align:center;">Pers.</th><th style="${Th}">Mesa</th><th style="${Th}">Alérgeno</th><th style="${Th}">Estado</th><th style="${Th}">Notas</th></tr></thead><tbody>${filas}</tbody></table><p style="font-size:11px;color:#888;margin-top:10px;">${sorted.length} reserva(s)</p>`:'<p style="text-align:center;color:#888;padding:24px;">Sin reservas para este día.</p>'}`;
     document.getElementById('print-preview').innerHTML=html;
     document.getElementById('print-section').innerHTML=html;
@@ -1604,7 +1651,8 @@ function _esMesaDisponible(mesaId){
     const now=new Date();
     const nowM=(now.getHours()-HORA_INICIO)*60+now.getMinutes();
     for(const r of reservas){
-        if(r.mesa_id!==mesaId) continue;
+        const rMesas=(r.mesas_ids&&r.mesas_ids.length)?r.mesas_ids:[r.mesa_id];
+        if(!rMesas.includes(mesaId)) continue;
         if(r.estado==='terminada'||r.estado==='cancelada') continue;
         const sm=minsDesdeInicio(r.hora_inicio);
         let em; if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
