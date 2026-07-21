@@ -331,14 +331,11 @@
                     <button class="btn btn-primary btn-sm" id="btn-nueva-mesa-diseno"
                             onclick="crearMesaRapida()" style="display:none;margin-left:auto">+ Nueva mesa</button>
                 </div>
-                <!-- Herramientas del plano arquitectónico (paredes, textos, figuras, puertas, escaleras) -->
+                <!-- Herramienta de bloques: rectángulos con texto que se ajusta solo al tamaño -->
                 <div class="editor-toolbar" id="plano-toolbar" style="padding:8px 0;margin-bottom:8px;">
                     <label>Plano:</label>
                     <button class="shape-btn plano-tool sel" id="pt-seleccionar" onclick="setHerramienta('seleccionar')" title="Seleccionar / mover / panear">↖</button>
-                    <button class="shape-btn plano-tool" id="pt-pared" onclick="setHerramienta('pared')" title="Dibujar pared (clics = puntos; Enter o doble clic termina; Shift = libre)">▬ Pared</button>
-                    <button class="shape-btn plano-tool" id="pt-texto" onclick="setHerramienta('texto')" title="Texto de sector">T Texto</button>
-                    <button class="shape-btn plano-tool" id="pt-rect" onclick="setHerramienta('rect')" title="Rectángulo (columna/mueble): arrastrá">▭</button>
-                    <button class="shape-btn plano-tool" id="pt-circulo" onclick="setHerramienta('circulo')" title="Círculo (columna): arrastrá">●</button>
+                    <button class="shape-btn plano-tool" id="pt-rect" onclick="setHerramienta('rect')" title="Bloque con texto: arrastrá para dibujarlo y escribile un nombre">▭ Bloque</button>
                     <div style="width:1px;height:28px;background:#e0e0e0;"></div>
                     <span id="plano-props"><span style="font-size:12px;color:#9ca3af;">Rueda = zoom · arrastrar el vacío = mover el plano</span></span>
                     <span style="margin-left:auto;display:flex;gap:8px;">
@@ -630,11 +627,10 @@ async function seleccionarSala(id) {
     let pl = sala && sala.plano;
     if (typeof pl === 'string') { try { pl = JSON.parse(pl); } catch { pl = null; } }
     plano = (pl && Array.isArray(pl.elementos)) ? JSON.parse(JSON.stringify(pl)) : { v: 1, elementos: [] };
-    // Tipos retirados (puerta/escalera): se filtran al cargar; el próximo guardado limpia
-    plano.elementos = plano.elementos.filter(e =>
-        ['pared', 'texto', 'rect', 'circulo'].includes(e && e.tipo));
+    // Solo quedan los BLOQUES (rect con texto); los demás tipos se filtran al cargar
+    plano.elementos = plano.elementos.filter(e => e && e.tipo === 'rect');
     planoDirty = false; undoStack = []; elemSel = null;
-    paredEnCurso = null; dibujando = null; movElem = null;
+    dibujando = null; movElem = null;
     scale = 1; panX = 0; panY = 0;
     aplicarTransform();
     if (typeof renderProps === 'function') renderProps();
@@ -883,8 +879,7 @@ let herramienta = 'seleccionar';    // seleccionar|pared|texto|rect|circulo|puer
 let elemSel = null;                 // id del elemento del plano seleccionado
 let scale = 1, panX = 0, panY = 0;  // transform del mundo (zoom/pan)
 let panning = null;                 // {x0,y0,px,py,movio}
-let paredEnCurso = null;            // {puntos:[[x,y],...]}
-let dibujando = null;               // {x0,y0,tipo} rect/circulo en curso
+let dibujando = null;               // {x0,y0} bloque en curso
 let movElem = null;                 // {id,x0,y0,orig,pushed} arrastre de elemento
 const GRID = 20;
 const WORLD = 4000;
@@ -905,14 +900,6 @@ function aplicarTransform() {
 function snapV(v, ev) {                       // ajuste a cuadrícula (Shift = libre)
     const s = (ev && ev.shiftKey) ? v : Math.round(v / GRID) * GRID;
     return Math.min(WORLD, Math.max(0, s));   // dentro del lienzo (el SVG no pinta fuera)
-}
-function ajustarPunto(p, ev) {                // snap + orto contra el último punto de la pared
-    let x = snapV(p.x, ev), y = snapV(p.y, ev);
-    if (paredEnCurso && paredEnCurso.puntos.length && !(ev && ev.shiftKey)) {
-        const [px, py] = paredEnCurso.puntos[paredEnCurso.puntos.length - 1];
-        if (Math.abs(x - px) > Math.abs(y - py)) y = py; else x = px;   // orto H/V
-    }
-    return { x, y };
 }
 function pushUndo() {
     undoStack.push(JSON.stringify(plano.elementos));
@@ -959,7 +946,6 @@ function ensureWorld() {
         btnFull.onclick = toggleFullscreen;
         canvas.appendChild(btnFull);
         canvas.addEventListener('mousedown', onCanvasMouseDown);
-        canvas.addEventListener('dblclick', onCanvasDblClick);
         canvas.addEventListener('wheel', onCanvasWheel, { passive: false });
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
@@ -1078,21 +1064,16 @@ function onMouseMove(e) {
         if (!e.shiftKey) { dx = Math.round(dx / GRID) * GRID; dy = Math.round(dy / GRID) * GRID; }
         if (!movElem.pushed && (dx || dy)) { pushUndo(); movElem.pushed = true; }
         const o = movElem.orig;
-        if (el.tipo === 'pared') el.puntos = o.puntos.map(([x, y]) => [x + dx, y + dy]);
-        else if (el.tipo === 'circulo') { el.cx = o.cx + dx; el.cy = o.cy + dy; }
-        else { el.x = o.x + dx; el.y = o.y + dy; }
+        el.x = o.x + dx; el.y = o.y + dy;
         if (dx || dy) planoDirty = true;
         renderPlano();
         return;
     }
 
-    // Previews de dibujo (pared en curso / figura arrastrada)
-    if (paredEnCurso && herramienta === 'pared') {
-        const q = ajustarPunto(screenToWorld(e.clientX, e.clientY), e);
-        dibujarPreview({ tipo: 'pared', hasta: q });
-    } else if (dibujando) {
+    // Preview del bloque en curso
+    if (dibujando) {
         const p = screenToWorld(e.clientX, e.clientY);
-        dibujarPreview({ tipo: dibujando.tipo, x0: dibujando.x0, y0: dibujando.y0,
+        dibujarPreview({ x0: dibujando.x0, y0: dibujando.y0,
                          x1: snapV(p.x, e), y1: snapV(p.y, e) });
     }
 }
@@ -1113,20 +1094,18 @@ function onMouseUp(e) {
         const w = Math.abs(x1 - dibujando.x0), h = Math.abs(y1 - dibujando.y0);
         if (w >= 10 && h >= 10) {
             pushUndo();
-            let el;
-            if (dibujando.tipo === 'circulo') {
-                const r = Math.min(w, h) / 2;
-                el = { id: nuevoId(), tipo: 'circulo', cx: x + w / 2, cy: y + h / 2, r,
-                       color: PLANO_COLORES[1], relleno: true };
-            } else {
-                el = { id: nuevoId(), tipo: 'rect', x, y, w, h,
-                       color: PLANO_COLORES[1], relleno: true };
-            }
+            const el = { id: nuevoId(), tipo: 'rect', x, y, w, h,
+                         texto: '', color: PLANO_COLORES[1], relleno: true };
             plano.elementos.push(el);
             planoDirty = true;
             setHerramienta('seleccionar');
             renderPlano();
             seleccionarElem(el.id);
+            // Ir directo a escribir el texto del bloque
+            setTimeout(() => {
+                const inp = document.getElementById('pp-texto');
+                if (inp) { inp.focus(); inp.select(); }
+            }, 50);
         } else {
             dibujarPreview(null);
         }
@@ -1153,62 +1132,10 @@ function onCanvasMouseDown(e) {
     }
 
     const p = screenToWorld(e.clientX, e.clientY);
-    if (herramienta === 'pared') {
-        const q = ajustarPunto(p, e);
-        if (!paredEnCurso) { pushUndo(); paredEnCurso = { puntos: [[q.x, q.y]] }; }
-        else paredEnCurso.puntos.push([q.x, q.y]);
-        renderPlano();
-        e.preventDefault();
-    } else if (herramienta === 'texto') {
-        pushUndo();
-        const el = { id: nuevoId(), tipo: 'texto', x: snapV(p.x, e), y: snapV(p.y, e),
-                     texto: 'Texto', tamano: 14, color: PLANO_COLORES[0] };
-        plano.elementos.push(el);
-        planoDirty = true;
-        setHerramienta('seleccionar');
-        renderPlano();
-        seleccionarElem(el.id);
-        setTimeout(() => {
-            const inp = document.getElementById('pp-texto');
-            if (inp) { inp.focus(); inp.select(); }
-        }, 50);
-    } else if (herramienta === 'rect' || herramienta === 'circulo') {
-        dibujando = { x0: snapV(p.x, e), y0: snapV(p.y, e), tipo: herramienta };
+    if (herramienta === 'rect') {
+        dibujando = { x0: snapV(p.x, e), y0: snapV(p.y, e) };
         e.preventDefault();
     }
-}
-
-function onCanvasDblClick(e) {
-    if (herramienta === 'pared' && paredEnCurso) {
-        // El doble clic disparó dos mousedown → el último punto está duplicado
-        commitPared();
-        e.preventDefault();
-    }
-}
-
-function commitPared() {
-    if (!paredEnCurso) return;
-    // Dedupe de puntos consecutivos iguales
-    const pts = paredEnCurso.puntos.filter((p, i, a) =>
-        i === 0 || p[0] !== a[i - 1][0] || p[1] !== a[i - 1][1]);
-    if (pts.length >= 2) {
-        plano.elementos.push({ id: nuevoId(), tipo: 'pared', puntos: pts,
-                               grosor: 10, color: PLANO_COLORES[0] });
-        planoDirty = true;
-    } else {
-        undoStack.pop();   // pared de 1 punto: revertir el pushUndo del inicio
-    }
-    paredEnCurso = null;
-    dibujarPreview(null);
-    renderPlano();
-}
-
-function cancelarPared() {
-    if (!paredEnCurso) return;
-    paredEnCurso = null;
-    undoStack.pop();
-    dibujarPreview(null);
-    renderPlano();
 }
 
 function onCanvasWheel(e) {
@@ -1231,11 +1158,8 @@ function onPlanoKeyDown(e) {
     if (!document.getElementById('canvas-world')) return;
     if (_tabPanel !== 'salas' || _tabModo !== 'diseno') return;
     if (e.key === 'Escape') {
-        if (paredEnCurso) cancelarPared();
-        else if (elemSel || mesaSelEditor) { deseleccionarElem(); deseleccionarMesas(); }
-        else if (editorFull) toggleFullscreen();   // sin nada que cancelar → salir de pantalla completa
-    } else if (e.key === 'Enter' && paredEnCurso) {
-        commitPared();
+        if (elemSel || mesaSelEditor) { deseleccionarElem(); deseleccionarMesas(); }
+        else if (editorFull) toggleFullscreen();   // sin nada que deseleccionar → salir de pantalla completa
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && elemSel) {
         eliminarElemSel();
         e.preventDefault();
@@ -1246,7 +1170,6 @@ function onPlanoKeyDown(e) {
 }
 
 function setHerramienta(t) {
-    if (paredEnCurso) commitPared();   // cambiar de herramienta cierra la pared en curso
     herramienta = t;
     dibujando = null;
     document.querySelectorAll('.plano-tool').forEach(b =>
@@ -1308,15 +1231,6 @@ function renderPlano() {
         const g = construirElementoSVG(el);
         if (g) svg.appendChild(g);
     }
-    // Pared en curso (punteada)
-    if (paredEnCurso && paredEnCurso.puntos.length) {
-        svg.appendChild(svgEl('polyline', {
-            points: paredEnCurso.puntos.map(p => p.join(',')).join(' '),
-            fill: 'none', stroke: '#4f46e5', 'stroke-width': 10,
-            'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-            'stroke-dasharray': '2 8', opacity: 0.8,
-        }));
-    }
     svg.appendChild(svgEl('g', { id: 'svg-preview' }));
     svg.classList.toggle('modo-sel', herramienta === 'seleccionar');
     if (elemSel) {
@@ -1330,25 +1244,16 @@ function dibujarPreview(prev) {
     if (!cont) return;
     while (cont.firstChild) cont.removeChild(cont.firstChild);
     if (!prev) return;
-    if (prev.tipo === 'pared' && paredEnCurso && paredEnCurso.puntos.length) {
-        const [lx, ly] = paredEnCurso.puntos[paredEnCurso.puntos.length - 1];
-        cont.appendChild(svgEl('line', {
-            x1: lx, y1: ly, x2: prev.hasta.x, y2: prev.hasta.y,
-            stroke: '#4f46e5', 'stroke-width': 10, 'stroke-linecap': 'round',
-            'stroke-dasharray': '2 8', opacity: 0.5,
-        }));
-    } else if (prev.tipo === 'rect' || prev.tipo === 'circulo') {
-        const x = Math.min(prev.x0, prev.x1), y = Math.min(prev.y0, prev.y1);
-        const w = Math.abs(prev.x1 - prev.x0), h = Math.abs(prev.y1 - prev.y0);
-        if (prev.tipo === 'circulo') {
-            const r = Math.min(w, h) / 2;
-            cont.appendChild(svgEl('circle', { cx: x + w / 2, cy: y + h / 2, r,
-                fill: 'none', stroke: '#4f46e5', 'stroke-width': 2, 'stroke-dasharray': '4 4' }));
-        } else {
-            cont.appendChild(svgEl('rect', { x, y, width: w, height: h,
-                fill: 'none', stroke: '#4f46e5', 'stroke-width': 2, 'stroke-dasharray': '4 4' }));
-        }
-    }
+    const x = Math.min(prev.x0, prev.x1), y = Math.min(prev.y0, prev.y1);
+    const w = Math.abs(prev.x1 - prev.x0), h = Math.abs(prev.y1 - prev.y0);
+    cont.appendChild(svgEl('rect', { x, y, width: w, height: h,
+        fill: 'none', stroke: '#4f46e5', 'stroke-width': 2, 'stroke-dasharray': '4 4' }));
+}
+
+// Tamaño de letra que entra en el bloque: limitado por el alto y por el ancho
+// (≈0.62 × tamaño por carácter). MISMA fórmula en el exe (paridad visual).
+function fuenteBloque(w, h, texto) {
+    return Math.max(8, Math.min(48, h - 10, (w - 10) / (0.62 * Math.max(1, texto.length))));
 }
 
 function construirElementoSVG(el) {
@@ -1356,37 +1261,28 @@ function construirElementoSVG(el) {
     g.dataset.id = el.id;
     const col = el.color || PLANO_COLORES[0];
 
-    if (el.tipo === 'pared') {
-        if (!Array.isArray(el.puntos) || el.puntos.length < 2) return null;
-        g.appendChild(svgEl('polyline', {
-            points: el.puntos.map(p => p.join(',')).join(' '),
-            fill: 'none', stroke: col, 'stroke-width': el.grosor || 10,
-            'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-        }));
-    } else if (el.tipo === 'texto') {
-        const t = svgEl('text', {
-            x: el.x, y: el.y, 'font-size': el.tamano || 14, fill: col,
-            'font-family': 'Segoe UI, sans-serif', 'font-weight': 600,
-            'dominant-baseline': 'text-before-edge',
-        });
-        t.textContent = el.texto || '';   // textContent, nunca innerHTML (XSS)
-        g.appendChild(t);
-    } else if (el.tipo === 'rect') {
+    if (el.tipo === 'rect') {
         g.appendChild(svgEl('rect', {
             x: el.x, y: el.y, width: el.w, height: el.h, rx: 2,
             fill: el.relleno === false ? 'transparent' : col,
             'fill-opacity': el.relleno === false ? 0 : 0.85,
             stroke: col, 'stroke-width': 2,
         }));
-    } else if (el.tipo === 'circulo') {
-        g.appendChild(svgEl('circle', {
-            cx: el.cx, cy: el.cy, r: el.r,
-            fill: el.relleno === false ? 'transparent' : col,
-            'fill-opacity': el.relleno === false ? 0 : 0.85,
-            stroke: col, 'stroke-width': 2,
-        }));
+        // Texto del bloque, centrado, con tamaño que se ajusta solo al espacio
+        const texto = String(el.texto || '').trim();
+        if (texto) {
+            const t = svgEl('text', {
+                x: el.x + el.w / 2, y: el.y + el.h / 2,
+                'font-size': fuenteBloque(el.w, el.h, texto),
+                fill: el.relleno === false ? col : '#ffffff',
+                'font-family': 'Segoe UI, sans-serif', 'font-weight': 600,
+                'text-anchor': 'middle', 'dominant-baseline': 'central',
+            });
+            t.textContent = texto;   // textContent, nunca innerHTML (XSS)
+            g.appendChild(t);
+        }
     } else {
-        return null;   // tipos desconocidos (o retirados, ej. puerta/escalera) no se dibujan
+        return null;   // tipos retirados (pared/texto/circulo/puerta/escalera) no se dibujan
     }
 
     g.addEventListener('mousedown', ev => {
@@ -1444,19 +1340,13 @@ function renderProps() {
     const cambio = fn => { pushUndo(); fn(); planoDirty = true; renderPlano(); renderProps(); };
     const cambioVivo = fn => { fn(); planoDirty = true; renderPlano(); };
 
-    if (el.tipo === 'texto') {
+    if (el.tipo === 'rect') {
+        addLabel('Texto:');
         const i = document.createElement('input');
-        i.type = 'text'; i.id = 'pp-texto'; i.value = el.texto || ''; i.style.width = '150px';
+        i.type = 'text'; i.id = 'pp-texto'; i.value = el.texto || ''; i.style.width = '160px';
+        i.placeholder = 'Nombre del bloque';
         i.oninput = () => cambioVivo(() => el.texto = i.value);
         cont.appendChild(i);
-        addSelect([[12, '12px'], [14, '14px'], [18, '18px'], [24, '24px'], [32, '32px']],
-                  el.tamano || 14, v => cambio(() => el.tamano = parseInt(v)));
-        addSwatches();
-    } else if (el.tipo === 'pared') {
-        addLabel('Grosor:');
-        addNum(el.grosor || 10, 4, v => cambioVivo(() => el.grosor = v), '52px');
-        addSwatches();
-    } else if (el.tipo === 'rect' || el.tipo === 'circulo') {
         addSwatches();
         addBtn(el.relleno === false ? '▢ Sin relleno' : '▨ Relleno',
                () => cambio(() => el.relleno = el.relleno === false));
@@ -1487,10 +1377,7 @@ function ajustarVista() {
         punto(l.x, l.y); punto(l.x + l.w, l.y + l.h);
     });
     for (const el of plano.elementos) {
-        if (el.tipo === 'pared') (el.puntos || []).forEach(([x, y]) => punto(x, y));
-        else if (el.tipo === 'circulo') { punto(el.cx - el.r, el.cy - el.r); punto(el.cx + el.r, el.cy + el.r); }
-        else if (el.tipo === 'texto') { punto(el.x, el.y); punto(el.x + (el.texto || '').length * (el.tamano || 14) * 0.62, el.y + (el.tamano || 14) * 1.4); }
-        else { punto(el.x, el.y); punto(el.x + (el.w || 0), el.y + (el.h || 0)); }
+        punto(el.x, el.y); punto(el.x + (el.w || 0), el.y + (el.h || 0));
     }
     if (!isFinite(minX)) { scale = 1; panX = panY = 0; aplicarTransform(); return; }
     const M = 40;
@@ -1566,7 +1453,6 @@ function resetLayout() {
 }
 
 async function guardarLayout() {
-    if (paredEnCurso) commitPared();
     if (!Object.keys(layoutLocal).length && !planoDirty) {
         alert('No hay cambios para guardar.');
         return;
