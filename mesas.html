@@ -295,8 +295,12 @@
             <div id="vista-salas-config">
                 <div class="mesas-header">
                     <h3 id="mesas-titulo">Seleccioná una sala</h3>
-                    <button class="btn btn-primary btn-sm" id="btn-nueva-mesa"
-                            onclick="crearMesaRapida()" style="display:none">+ Nueva mesa</button>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-secondary btn-sm" id="btn-agrupaciones" onclick="abrirAgrupaciones()"
+                                style="display:none;border:1.5px dashed #c4b5fd;color:#7c3aed;background:#faf5ff;font-weight:700;">🔗 Agrupaciones</button>
+                        <button class="btn btn-primary btn-sm" id="btn-nueva-mesa"
+                                onclick="crearMesaRapida()" style="display:none">+ Nueva mesa</button>
+                    </div>
                 </div>
                 <div class="mesas-grid" id="mesas-grid">
                     <div class="empty" style="grid-column:1/-1">Seleccioná una sala para ver sus mesas</div>
@@ -324,9 +328,6 @@
                     <div class="size-control">
                         <input type="number" id="inp-h" value="90" min="60" max="400" oninput="aplicarTamano()">px
                     </div>
-                    <div style="width:1px;height:28px;background:#e0e0e0;margin:0 4px"></div>
-                    <button class="btn btn-secondary btn-sm" onclick="abrirAgrupaciones()"
-                            style="border:1.5px dashed #c4b5fd;color:#7c3aed;background:#faf5ff;font-weight:700;">🔗 Agrupaciones</button>
                     <button class="btn btn-primary btn-sm" id="btn-nueva-mesa-diseno"
                             onclick="crearMesaRapida()" style="display:none;margin-left:auto">+ Nueva mesa</button>
                 </div>
@@ -338,8 +339,6 @@
                     <button class="shape-btn plano-tool" id="pt-texto" onclick="setHerramienta('texto')" title="Texto de sector">T Texto</button>
                     <button class="shape-btn plano-tool" id="pt-rect" onclick="setHerramienta('rect')" title="Rectángulo (columna/mueble): arrastrá">▭</button>
                     <button class="shape-btn plano-tool" id="pt-circulo" onclick="setHerramienta('circulo')" title="Círculo (columna): arrastrá">●</button>
-                    <button class="shape-btn plano-tool" id="pt-puerta" onclick="setHerramienta('puerta')" title="Puerta (batiente/corrediza)">🚪 Puerta</button>
-                    <button class="shape-btn plano-tool" id="pt-escalera" onclick="setHerramienta('escalera')" title="Escalera">🪜</button>
                     <div style="width:1px;height:28px;background:#e0e0e0;"></div>
                     <span id="plano-props"><span style="font-size:12px;color:#9ca3af;">Rueda = zoom · arrastrar el vacío = mover el plano</span></span>
                     <span style="margin-left:auto;display:flex;gap:8px;">
@@ -624,12 +623,16 @@ async function seleccionarSala(id) {
     mesas = await api.get(`/mesas/?sala_id=${id}`);
     document.getElementById('mesas-titulo').textContent = `Mesas — ${sala.nombre}`;
     document.getElementById('btn-nueva-mesa').style.display = 'block';
+    document.getElementById('btn-agrupaciones').style.display = '';
     document.getElementById('btn-nueva-mesa-diseno').style.display = '';
     document.getElementById('editor-sala-label').textContent = sala.nombre;
     // Cargar el plano arquitectónico de ESTA sala (defensivo si viene como string)
     let pl = sala && sala.plano;
     if (typeof pl === 'string') { try { pl = JSON.parse(pl); } catch { pl = null; } }
-    plano = (pl && Array.isArray(pl.elementos)) ? structuredClone(pl) : { v: 1, elementos: [] };
+    plano = (pl && Array.isArray(pl.elementos)) ? JSON.parse(JSON.stringify(pl)) : { v: 1, elementos: [] };
+    // Tipos retirados (puerta/escalera): se filtran al cargar; el próximo guardado limpia
+    plano.elementos = plano.elementos.filter(e =>
+        ['pared', 'texto', 'rect', 'circulo'].includes(e && e.tipo));
     planoDirty = false; undoStack = []; elemSel = null;
     paredEnCurso = null; dibujando = null; movElem = null;
     scale = 1; panX = 0; panY = 0;
@@ -1172,25 +1175,6 @@ function onCanvasMouseDown(e) {
     } else if (herramienta === 'rect' || herramienta === 'circulo') {
         dibujando = { x0: snapV(p.x, e), y0: snapV(p.y, e), tipo: herramienta };
         e.preventDefault();
-    } else if (herramienta === 'puerta') {
-        pushUndo();
-        const el = { id: nuevoId(), tipo: 'puerta', x: snapV(p.x, e), y: snapV(p.y, e),
-                     ancho: 80, rot: 0, espejo: false, clase: 'batiente', hojas: 1,
-                     sentido: 'una', color: PLANO_COLORES[0] };
-        plano.elementos.push(el);
-        planoDirty = true;
-        setHerramienta('seleccionar');
-        renderPlano();
-        seleccionarElem(el.id);
-    } else if (herramienta === 'escalera') {
-        pushUndo();
-        const el = { id: nuevoId(), tipo: 'escalera', x: snapV(p.x, e), y: snapV(p.y, e),
-                     w: 100, h: 60, rot: 0, espejo: false, color: PLANO_COLORES[0] };
-        plano.elementos.push(el);
-        planoDirty = true;
-        setHerramienta('seleccionar');
-        renderPlano();
-        seleccionarElem(el.id);
     }
 }
 
@@ -1401,19 +1385,8 @@ function construirElementoSVG(el) {
             'fill-opacity': el.relleno === false ? 0 : 0.85,
             stroke: col, 'stroke-width': 2,
         }));
-    } else if (el.tipo === 'puerta') {
-        const gp = _puertaSVG(el, col);
-        gp.setAttribute('transform',
-            `translate(${el.x} ${el.y}) rotate(${el.rot || 0}) scale(1 ${el.espejo ? -1 : 1})`);
-        g.appendChild(gp);
-    } else if (el.tipo === 'escalera') {
-        const ge = _escaleraSVG(el, col);
-        const cx = el.x + el.w / 2, cy = el.y + el.h / 2;
-        ge.setAttribute('transform',
-            `translate(${cx} ${cy}) rotate(${el.rot || 0}) scale(${el.espejo ? -1 : 1} 1) translate(${-el.w / 2} ${-el.h / 2})`);
-        g.appendChild(ge);
     } else {
-        return null;
+        return null;   // tipos desconocidos (o retirados, ej. puerta/escalera) no se dibujan
     }
 
     g.addEventListener('mousedown', ev => {
@@ -1425,72 +1398,6 @@ function construirElementoSVG(el) {
         ev.preventDefault();
         ev.stopPropagation();
     });
-    return g;
-}
-
-// Símbolo de puerta en coords LOCALES: bisagra en (0,0), vano sobre +X,
-// apertura hacia −Y. La rotación/espejo se aplican por transform (paridad exe).
-function _puertaSVG(el, col) {
-    const A = el.ancho || 80;
-    const g = svgEl('g', {});
-    const L = (x1, y1, x2, y2, w) => g.appendChild(svgEl('line',
-        { x1, y1, x2, y2, stroke: col, 'stroke-width': w || 2.5, 'stroke-linecap': 'round' }));
-    const P = d => g.appendChild(svgEl('path',
-        { d, fill: 'none', stroke: col, 'stroke-width': 1.2 }));
-    // "Corte" del muro: tapa la pared debajo del vano (color del fondo del canvas)
-    g.appendChild(svgEl('line', { x1: 0, y1: 0, x2: A, y2: 0,
-        stroke: '#fafafa', 'stroke-width': 14 }));
-
-    if (el.clase === 'corrediza') {
-        L(0, 0, A, 0, 1.5);                                      // riel
-        const flecha = (x1, x2, y) => {
-            L(x1, y, x2, y, 2);
-            const d = x2 > x1 ? 1 : -1;
-            g.appendChild(svgEl('polygon', {
-                points: `${x2 - 6 * d},${y - 4} ${x2},${y} ${x2 - 6 * d},${y + 4}`, fill: col }));
-        };
-        if ((el.hojas || 1) === 2) {
-            L(0, -5, A * 0.55, -5, 4);  flecha(A * 0.25, A * 0.52, -11);
-            L(A, 5, A * 0.45, 5, 4);    flecha(A * 0.75, A * 0.48, 11);
-        } else {
-            L(0, -5, A * 0.6, -5, 4);
-            flecha(A * 0.62, A * 0.95, -5);
-            if (el.sentido === 'ambas') flecha(A * 0.38, A * 0.05, -12);
-        }
-    } else {   // batiente
-        const ambas = el.sentido === 'ambas';
-        if ((el.hojas || 1) === 2) {
-            const h = A / 2;
-            L(0, 0, 0, -h);  P(`M 0 ${-h} A ${h} ${h} 0 0 1 ${h} 0`);
-            L(A, 0, A, -h);  P(`M ${h} 0 A ${h} ${h} 0 0 1 ${A} ${-h}`);
-            if (ambas) {
-                L(0, 0, 0, h);  P(`M 0 ${h} A ${h} ${h} 0 0 0 ${h} 0`);
-                L(A, 0, A, h);  P(`M ${h} 0 A ${h} ${h} 0 0 0 ${A} ${h}`);
-            }
-        } else {
-            L(0, 0, 0, -A);  P(`M 0 ${-A} A ${A} ${A} 0 0 1 ${A} 0`);
-            if (ambas) { L(0, 0, 0, A);  P(`M 0 ${A} A ${A} ${A} 0 0 0 ${A} 0`); }
-        }
-    }
-    return g;
-}
-
-// Escalera en coords locales (0,0,w,h): contorno + escalones + flecha de subida.
-function _escaleraSVG(el, col) {
-    const w = el.w || 100, h = el.h || 60;
-    const g = svgEl('g', {});
-    g.appendChild(svgEl('rect', { x: 0, y: 0, width: w, height: h,
-        fill: 'none', stroke: col, 'stroke-width': 1.5 }));
-    const paso = 15;
-    for (let x = paso; x < w; x += paso) {
-        g.appendChild(svgEl('line', { x1: x, y1: 0, x2: x, y2: h,
-            stroke: col, 'stroke-width': 1 }));
-    }
-    g.appendChild(svgEl('line', { x1: w * 0.1, y1: h / 2, x2: w * 0.82, y2: h / 2,
-        stroke: col, 'stroke-width': 2 }));
-    g.appendChild(svgEl('polygon', {
-        points: `${w * 0.82},${h / 2 - 6} ${w * 0.95},${h / 2} ${w * 0.82},${h / 2 + 6}`,
-        fill: col }));
     return g;
 }
 
@@ -1553,24 +1460,6 @@ function renderProps() {
         addSwatches();
         addBtn(el.relleno === false ? '▢ Sin relleno' : '▨ Relleno',
                () => cambio(() => el.relleno = el.relleno === false));
-    } else if (el.tipo === 'puerta') {
-        addSelect([['batiente', 'Batiente'], ['corrediza', 'Corrediza']],
-                  el.clase || 'batiente', v => cambio(() => el.clase = v));
-        addSelect([['1', '1 hoja'], ['2', '2 hojas']],
-                  el.hojas || 1, v => cambio(() => el.hojas = parseInt(v)));
-        addSelect([['una', 'Un sentido'], ['ambas', 'Vaivén']],
-                  el.sentido || 'una', v => cambio(() => el.sentido = v));
-        addLabel('Ancho:');
-        addNum(el.ancho || 80, 30, v => cambioVivo(() => el.ancho = v), '56px');
-        addBtn('⟳ 90°', () => cambio(() => el.rot = ((el.rot || 0) + 90) % 360));
-        addBtn('⇄ Espejar', () => cambio(() => el.espejo = !el.espejo));
-    } else if (el.tipo === 'escalera') {
-        addLabel('Ancho:');
-        addNum(el.w || 100, 30, v => cambioVivo(() => el.w = v), '56px');
-        addLabel('Alto:');
-        addNum(el.h || 60, 20, v => cambioVivo(() => el.h = v), '56px');
-        addBtn('⟳ 90°', () => cambio(() => el.rot = ((el.rot || 0) + 90) % 360));
-        addBtn('⇄ Espejar', () => cambio(() => el.espejo = !el.espejo));
     }
 }
 
@@ -1601,8 +1490,6 @@ function ajustarVista() {
         if (el.tipo === 'pared') (el.puntos || []).forEach(([x, y]) => punto(x, y));
         else if (el.tipo === 'circulo') { punto(el.cx - el.r, el.cy - el.r); punto(el.cx + el.r, el.cy + el.r); }
         else if (el.tipo === 'texto') { punto(el.x, el.y); punto(el.x + (el.texto || '').length * (el.tamano || 14) * 0.62, el.y + (el.tamano || 14) * 1.4); }
-        else if (el.tipo === 'puerta') { const A = el.ancho || 80; punto(el.x - A, el.y - A); punto(el.x + A, el.y + A); }
-        else if (el.tipo === 'escalera') { const m2 = Math.max(el.w || 100, el.h || 60); const cx = el.x + (el.w || 100) / 2, cy = el.y + (el.h || 60) / 2; punto(cx - m2, cy - m2); punto(cx + m2, cy + m2); }
         else { punto(el.x, el.y); punto(el.x + (el.w || 0), el.y + (el.h || 0)); }
     }
     if (!isFinite(minX)) { scale = 1; panX = panY = 0; aplicarTransform(); return; }
@@ -1701,9 +1588,12 @@ async function guardarLayout() {
         if (planoDirty) {
             await api.patch(`/mesas/salas/${salaSelId}/plano`, { plano });
             const s = salas.find(x => x.id === salaSelId);
-            if (s) s.plano = structuredClone(plano);
+            if (s) s.plano = JSON.parse(JSON.stringify(plano));
             planoDirty = false;
         }
+        // Al guardar, el zoom se ajusta solo para que entre TODO en una pantalla
+        renderEditor();
+        ajustarVista();
         alert('✓ Diseño guardado correctamente.');
     } catch (err) {
         alert('Error al guardar: ' + err.message);
