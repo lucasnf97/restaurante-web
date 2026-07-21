@@ -1012,16 +1012,45 @@ document.addEventListener('mouseup',e=>{
     isDragging=false;canvasWrap.classList.remove('grabbing');
 });
 
-/** ¿La mesa puede recibir a `personas`? Por capacidad propia, o "estirada" por una
- *  agrupación de UNA sola mesa (ej: capacidad ideal 2, máx 3 con la agrupación).
- *  Se usa al arrastrar una reserva: las filas que no admiten se pintan de gris
- *  y soltar ahí se rechaza. */
+/** ¿La mesa puede recibir a `personas`? Por capacidad propia, o vía una AGRUPACIÓN
+ *  que la incluya (una sola mesa "estirada", o varias mesas unidas: soltar sobre un
+ *  miembro ocupa la unión completa). Se usa al arrastrar: las filas que no admiten
+ *  se pintan de gris y soltar ahí se rechaza. */
 function _mesaAdmite(mesa, personas){
     if(!mesa) return false;
     if((mesa.capacidad||0) >= personas) return true;
     return (gruposMesas||[]).some(g =>
-        (g.mesas_ids||[]).length === 1 && g.mesas_ids[0] === mesa.id
-        && g.max_personas >= personas);
+        (g.mesas_ids||[]).includes(mesa.id) && g.max_personas >= personas);
+}
+
+/** Mejor agrupación que incluya la mesa y admita a `personas` (menos mesas primero,
+ *  después menor máximo — mismo criterio de mejor ajuste que el motor). */
+function _grupoPara(mesaId, personas){
+    const cand=(gruposMesas||[]).filter(g =>
+        (g.mesas_ids||[]).includes(mesaId) && g.max_personas >= personas);
+    cand.sort((a,b)=>(a.mesas_ids.length-b.mesas_ids.length)||(a.max_personas-b.max_personas));
+    return cand[0]||null;
+}
+
+/** Primera reserva que se solape con [hiM,hfM) (minutos ABSOLUTOS desde medianoche)
+ *  en alguna de `mesasIds` (member-aware: una combinada ocupa todas sus mesas).
+ *  Devuelve la reserva en conflicto o null. */
+function _conflictoEn(mesasIds, hiM, hfM, excluirId){
+    for(const rv of reservas){
+        if(rv.id===excluirId) continue;
+        if(rv.estado==='terminada'||rv.estado==='cancelada') continue;
+        const rvMesas=(rv.mesas_ids&&rv.mesas_ids.length)?rv.mesas_ids:[rv.mesa_id];
+        if(!rvMesas.some(id=>mesasIds.includes(id))) continue;
+        const[ih,im]=rv.hora_inicio.substring(0,5).split(':').map(Number);
+        const rvSm=ih*60+im;
+        let rvEm;
+        if(rv.hora_fin){
+            const[fh,fm]=rv.hora_fin.substring(0,5).split(':').map(Number);
+            rvEm=fh*60+fm; if(rvEm<=rvSm)rvEm+=24*60;
+        } else rvEm=rvSm+60;
+        if(hiM<rvEm&&hfM>rvSm) return rv;
+    }
+    return null;
 }
 
 /** Devuelve true si la posición (horaInicioMins, durMins) es válida ese día. */
@@ -1077,9 +1106,14 @@ function _dibujarConIndicador(){
     const rowY=mesaYMap[targetMesa.id];
     if(rowY===undefined)return;
     const x=dropCol*COL_W,y=rowY+2,w=durCols*COL_W-2,h=ROW_H-4;
-    // Validar posición durante el preview (horario + capacidad de la mesa destino)
+    // Validar posición durante el preview (horario + capacidad de la mesa destino;
+    // si hace falta la agrupación, también que sus otras mesas estén libres ahí)
     const hiM=HORA_INICIO*60+dropCol*SLOT_MIN;
-    const valido=_posicionValida(hiM, durMins)&&_mesaAdmite(targetMesa, pers);
+    let valido=_posicionValida(hiM, durMins)&&_mesaAdmite(targetMesa, pers);
+    if(valido&&((targetMesa.capacidad||0)<pers)){
+        const g=_grupoPara(targetMesa.id, pers);
+        valido=!!g&&!_conflictoEn(g.mesas_ids, hiM, hiM+durMins, r.id);
+    }
     ctxC.save();
     ctxC.globalAlpha=0.55;
     ctxC.fillStyle=valido?colorReserva(r):'#dc2626';
@@ -1166,22 +1200,36 @@ async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
         }
     }
 
-    // ── Validar colisión con otras reservas (member-aware: una combinada ocupa
-    //    TODAS sus mesas, no solo la ancla) ─────────────────────
-    for(const rv of reservas){
-        if(rv.id===r.id)continue;
-        const rvMesas=(rv.mesas_ids&&rv.mesas_ids.length)?rv.mesas_ids:[rv.mesa_id];
-        if(!rvMesas.includes(nuevaMesaId))continue;
-        const rvSm=minsDesdeInicio(rv.hora_inicio);
-        let rvEm;if(rv.hora_fin){rvEm=minsDesdeInicio(rv.hora_fin);if(rvEm<=rvSm)rvEm+=24*60;}else rvEm=rvSm+60;
-        if(hiM<rvEm&&hfM>rvSm){
-            alert('Colisión con la reserva de '+rv.nombre_cliente+' ('+rv.hora_inicio.substring(0,5)+' – '+(rv.hora_fin?rv.hora_fin.substring(0,5):'')+'.)');
-            dibujar();return;
-        }
+    // ── Destino: mesa sola si alcanza la capacidad; si no, la AGRUPACIÓN que la
+    //    incluye (soltar sobre un miembro ocupa la unión completa) ──
+    const pers=r.comensales||1;
+    const mesaDest=mesas.find(m=>m.id===nuevaMesaId);
+    let mesasDestino=[nuevaMesaId], grupoDest=null;
+    if(((mesaDest&&mesaDest.capacidad)||0) < pers){
+        grupoDest=_grupoPara(nuevaMesaId,pers);
+        if(!grupoDest){dibujar();return;}   // fila gris: no admite (no debería llegar acá)
+        mesasDestino=grupoDest.mesas_ids.slice();
+    }
+
+    // ── Colisión con otras reservas en TODAS las mesas destino (member-aware,
+    //    minutos ABSOLUTOS — el chequeo viejo mezclaba unidades y no detectaba) ──
+    const conf=_conflictoEn(mesasDestino,hiM,hfM,r.id);
+    if(conf){
+        alert('Colisión con la reserva de '+conf.nombre_cliente+' ('+conf.hora_inicio.substring(0,5)+' – '+(conf.hora_fin?conf.hora_fin.substring(0,5):'')+').');
+        dibujar();return;
     }
 
     try{
-        await api.patch('/reservas/'+r.id,{mesa_id:nuevaMesaId,hora_inicio:nuevaHoraInicio,hora_fin:nuevaHoraFin,visto:true});
+        const body={mesa_id:nuevaMesaId,hora_inicio:nuevaHoraInicio,hora_fin:nuevaHoraFin,visto:true};
+        if(grupoDest){
+            // Ancla = la mesa de menor número de la unión (mismo criterio que el motor)
+            const orden=mesas.filter(m=>mesasDestino.includes(m.id))
+                             .sort((a,b)=>(a.numero||0)-(b.numero||0));
+            body.mesa_id=orden.length?orden[0].id:nuevaMesaId;
+            body.mesas_ids=mesasDestino;
+            body.grupo_id=grupoDest.id;
+        }
+        await api.patch('/reservas/'+r.id,body);
         await cargarDatos();
     }catch(err){alert('Error al mover reserva: '+err.message);}
 }
