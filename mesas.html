@@ -106,9 +106,14 @@
         .mesa-card {
             background: white; border-radius: 12px; padding: 18px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center;
-            border: 2px solid #e0e0e0; transition: all 0.2s;
+            border: 2px solid #e0e0e0; transition: all 0.2s; cursor: pointer;
         }
         .mesa-card:hover { border-color: #4f46e5; }
+        /* Selección múltiple para borrado en lote (clic en la tarjeta) */
+        .mesa-card.multi-sel {
+            border-color: #dc2626; background: #fef2f2;
+            box-shadow: 0 0 0 3px rgba(220,38,38,0.15);
+        }
         .mesa-numero { font-size: 26px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
         .mesa-capacidad { font-size: 12px; color: #888; margin-bottom: 10px; }
         .mesa-estado { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 10px; display: inline-block; }
@@ -295,7 +300,10 @@
             <div id="vista-salas-config">
                 <div class="mesas-header">
                     <h3 id="mesas-titulo">Seleccioná una sala</h3>
-                    <div style="display:flex;gap:8px;">
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <span id="hint-multisel" style="display:none;font-size:12px;color:#9ca3af;">clic en las tarjetas para seleccionar</span>
+                        <button class="btn btn-danger btn-sm" id="btn-eliminar-sel"
+                                onclick="eliminarMesasSel()" style="display:none;font-weight:700;">🗑 Eliminar (0)</button>
                         <button class="btn btn-secondary btn-sm" id="btn-agrupaciones" onclick="abrirAgrupaciones()"
                                 style="display:none;border:1.5px dashed #c4b5fd;color:#7c3aed;background:#faf5ff;font-weight:700;">🔗 Agrupaciones</button>
                         <button class="btn btn-primary btn-sm" id="btn-nueva-mesa"
@@ -631,6 +639,7 @@ async function seleccionarSala(id) {
     plano.elementos = plano.elementos.filter(e => e && e.tipo === 'rect');
     planoDirty = false; undoStack = []; elemSel = null;
     dibujando = null; movElem = null;
+    mesasSel = new Set();   // la selección de borrado no cruza salas
     scale = 1; panX = 0; panY = 0;
     aplicarTransform();
     if (typeof renderProps === 'function') renderProps();
@@ -645,16 +654,54 @@ function renderMesasConfig() {
         return;
     }
     grid.innerHTML = mesas.map(m => `
-        <div class="mesa-card">
+        <div class="mesa-card ${mesasSel.has(m.id) ? 'multi-sel' : ''}" onclick="toggleSelMesa(${m.id})">
             <div class="mesa-numero">${m.numero}${prioBadge(m)}${grupoBadge(m.id)}</div>
             <div class="mesa-capacidad">${m.capacidad} personas</div>
             <div class="mesa-estado estado-${m.estado}">${estadoLabel(m.estado)}</div>
             <div class="mesa-acciones">
-                <button class="btn btn-secondary btn-sm" onclick="abrirModalMesa(${m.id})">✏️</button>
-                <button class="btn btn-danger btn-sm" onclick="eliminarMesa(${m.id})">🗑️</button>
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();abrirModalMesa(${m.id})">✏️</button>
+                <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarMesa(${m.id})">🗑️</button>
             </div>
         </div>
     `).join('');
+    _actualizarBotonEliminarSel();
+}
+
+// ── Selección múltiple de mesas (clic en la tarjeta) + borrado en lote ──
+let mesasSel = new Set();
+
+function toggleSelMesa(id) {
+    if (mesasSel.has(id)) mesasSel.delete(id); else mesasSel.add(id);
+    renderMesasConfig();
+}
+
+function _actualizarBotonEliminarSel() {
+    const btn = document.getElementById('btn-eliminar-sel');
+    const hint = document.getElementById('hint-multisel');
+    if (!btn) return;
+    // Solo ids que sigan existiendo en la sala actual
+    mesasSel = new Set([...mesasSel].filter(id => mesas.some(m => m.id === id)));
+    btn.style.display = mesasSel.size ? '' : 'none';
+    btn.textContent = `🗑 Eliminar (${mesasSel.size})`;
+    if (hint) hint.style.display = (salaSelId && mesas.length && !mesasSel.size) ? '' : 'none';
+}
+
+async function eliminarMesasSel() {
+    if (!mesasSel.size) return;
+    const nums = mesas.filter(m => mesasSel.has(m.id)).map(m => m.numero).sort((a, b) => a - b);
+    if (!confirm(`¿Eliminar ${mesasSel.size} mesa(s): ${nums.join(', ')}? El historial de ventas se conserva.`)) return;
+    try {
+        const res = await api.post('/mesas/eliminar-lote', { mesas_ids: [...mesasSel] });
+        mesasSel = new Set();
+        if (res.rechazadas && res.rechazadas.length) {
+            alert('No se pudieron eliminar:\n' + res.rechazadas.map(r =>
+                `• Mesa ${r.numero}: ${r.motivo}`).join('\n'));
+        }
+        await cargarGrupos();   // un grupo puede haberse vaciado y desactivado
+        mesas = await api.get(`/mesas/?sala_id=${salaSelId}`);
+        renderMesasConfig();
+        if (_tabModo === 'diseno') renderEditor();
+    } catch (err) { alert('Error: ' + err.message); }
 }
 
 // Badges de la config de reservas: prioridad de la mesa + pertenencia a agrupación.
@@ -777,9 +824,11 @@ async function guardarMesa() {
 }
 
 async function eliminarMesa(id) {
-    if (!confirm('¿Eliminar esta mesa?')) return;
+    if (!confirm('¿Eliminar esta mesa? El historial de ventas se conserva.')) return;
     try {
         await api.delete(`/mesas/${id}`);
+        mesasSel.delete(id);
+        await cargarGrupos();   // un grupo puede haberse vaciado y desactivado
         mesas = await api.get(`/mesas/?sala_id=${salaSelId}`);
         renderMesasConfig();
         if (_tabModo === 'diseno') renderEditor();
