@@ -778,8 +778,8 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
 // ── AGRUPACIONES DE MESAS (reservas) ───────────────────────────
 // Unir mesas para grupos grandes o estirar una mesa sola; las usa el asignador
 // automático de reservas. CRUD contra /mesas/grupos (DELETE = soft-delete).
-const esc = s => String(s ?? '').replace(/[&<>"']/g,
-    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// (esc() viene de js/api.js — NO redeclararla acá: los <script> comparten el
+// scope léxico global y un const duplicado mata el script entero en el parse.)
 
 function _numeroMesa(id) {
     const m = mesas.find(x => x.id === id);
