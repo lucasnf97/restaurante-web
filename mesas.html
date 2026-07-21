@@ -124,6 +124,21 @@
         #editor-container {
             display: none; flex-direction: column; height: calc(100vh - 260px);
         }
+        /* Pantalla completa: el editor (toolbars + lienzo + footer) tapa toda la
+           ventana. z-index 150 < modales (200) → los modales siguen por encima. */
+        #editor-container.fullscreen {
+            position: fixed; inset: 0; z-index: 150;
+            height: 100vh; margin: 0; padding: 10px 16px;
+            background: white; box-sizing: border-box;
+        }
+        #btn-fullscreen {
+            position: absolute; right: 14px; bottom: 14px; z-index: 30;
+            width: 42px; height: 42px; border-radius: 10px;
+            background: white; border: 2px solid #e0e0e0; font-size: 19px;
+            cursor: pointer; color: #444; line-height: 1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12); transition: all 0.15s;
+        }
+        #btn-fullscreen:hover { border-color: #4f46e5; color: #4f46e5; }
 
         /* Diseño de menú: altura fija igual al editor de salas */
         #vista-menus-diseno {
@@ -933,6 +948,13 @@ function ensureWorld() {
         world.appendChild(svg);
         canvas.innerHTML = '';
         canvas.appendChild(world);
+        // Botón de pantalla completa (abajo a la derecha, flotando sobre el lienzo)
+        const btnFull = document.createElement('button');
+        btnFull.id = 'btn-fullscreen';
+        btnFull.textContent = '⛶';
+        btnFull.title = 'Pantalla completa';
+        btnFull.onclick = toggleFullscreen;
+        canvas.appendChild(btnFull);
         canvas.addEventListener('mousedown', onCanvasMouseDown);
         canvas.addEventListener('dblclick', onCanvasDblClick);
         canvas.addEventListener('wheel', onCanvasWheel, { passive: false });
@@ -1114,6 +1136,7 @@ function onMouseUp(e) {
 // ── Plano: interacción de canvas ──────────────────────────────
 function onCanvasMouseDown(e) {
     if (e.button !== 0) return;
+    if (e.target.closest && e.target.closest('#btn-fullscreen')) return;   // el botón no panea
     const overMesa = e.target.closest && e.target.closest('.mesa-editor');
     const overElem = e.target.closest && e.target.closest('.el');
 
@@ -1225,7 +1248,8 @@ function onPlanoKeyDown(e) {
     if (_tabPanel !== 'salas' || _tabModo !== 'diseno') return;
     if (e.key === 'Escape') {
         if (paredEnCurso) cancelarPared();
-        else { deseleccionarElem(); deseleccionarMesas(); }
+        else if (elemSel || mesaSelEditor) { deseleccionarElem(); deseleccionarMesas(); }
+        else if (editorFull) toggleFullscreen();   // sin nada que cancelar → salir de pantalla completa
     } else if (e.key === 'Enter' && paredEnCurso) {
         commitPared();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && elemSel) {
@@ -1254,6 +1278,19 @@ function deseleccionarMesas() {
     mesaSelEditor = null;
     document.querySelectorAll('.mesa-editor').forEach(el => el.classList.remove('sel'));
     document.getElementById('lbl-mesa-sel').textContent = 'ninguna';
+}
+
+// ── Pantalla completa del editor ──────────────────────────────
+let editorFull = false;
+function toggleFullscreen() {
+    editorFull = !editorFull;
+    document.getElementById('editor-container').classList.toggle('fullscreen', editorFull);
+    const b = document.getElementById('btn-fullscreen');
+    if (b) {
+        b.textContent = editorFull ? '⤡' : '⛶';
+        b.title = editorFull ? 'Salir de pantalla completa' : 'Pantalla completa';
+    }
+    document.body.style.overflow = editorFull ? 'hidden' : '';
 }
 
 function seleccionarElem(id) {
