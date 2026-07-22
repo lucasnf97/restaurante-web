@@ -235,10 +235,10 @@
         <div id="mt-quien">
             <label class="lbl">¿Quién debe hacerla?</label>
             <div class="radios">
-                <label><input type="radio" name="mt-dest" value="rol" checked onchange="_mtDestino()"> Un rol</label>
+                <label><input type="radio" name="mt-dest" value="rol" checked onchange="_mtDestino()"> Rol(es)</label>
                 <label><input type="radio" name="mt-dest" value="usuario" onchange="_mtDestino()"> Un empleado</label>
             </div>
-            <select class="inp" id="mt-rol"></select>
+            <div class="checksmom" id="mt-roles"></div>
             <select class="inp" id="mt-usuario" style="display:none;"></select>
             <label class="lbl">Grupo</label>
             <select class="inp" id="mt-grupo"></select>
@@ -321,10 +321,10 @@
         <div id="ma-quien">
             <label class="lbl">¿Quién debe hacerlas?</label>
             <div class="radios">
-                <label><input type="radio" name="ma-dest" value="rol" checked onchange="_maDestino()"> Un rol</label>
+                <label><input type="radio" name="ma-dest" value="rol" checked onchange="_maDestino()"> Rol(es)</label>
                 <label><input type="radio" name="ma-dest" value="usuario" onchange="_maDestino()"> Un empleado</label>
             </div>
-            <select class="inp" id="ma-rol"></select>
+            <div class="checksmom" id="ma-roles"></div>
             <select class="inp" id="ma-usuario" style="display:none;"></select>
         </div>
         <div class="m-error" id="ma-error"></div>
@@ -535,7 +535,7 @@ function renderTurno() {
     let html = _barraSeleccionHtml();
     grupos.forEach((g, gi) => {
         let ts = base.filter(t => (t.grupo_id ?? null) === g.id);
-        if (fRol) ts = ts.filter(t => t.rol === fRol);
+        if (fRol) ts = ts.filter(t => t.rol === fRol || (t.roles || []).includes(fRol));
         if (fEmp) ts = ts.filter(t => String(t.puntual_usuario_id || '') === fEmp);
         const accG = g.id !== null ? `
             <button class="mini" title="Renombrar" onclick="renombrarGrupo(${g.id})">✏️</button>
@@ -553,9 +553,10 @@ function renderTurno() {
             html += `<div class="vacio" style="padding:10px;">Sin tareas${filtrando ? ' con este filtro' : ''} — soltá acá para mover.</div>`;
         } else {
             ts.forEach((t, i) => {
+                const rolesT = (t.roles && t.roles.length) ? t.roles : (t.rol ? [t.rol] : []);
                 const dest = t.puntual_usuario_id
                     ? '👤 ' + esc((_usuarios.find(u => u.id === t.puntual_usuario_id) || {}).username || '#' + t.puntual_usuario_id)
-                    : esc(t.rol || '—');
+                    : esc(rolesT.join(', ') || '—');
                 const moms = (t.momentos || []).filter(m => MUNDO_TURNO.includes(m))
                     .map(m => `<span class="chip mom">${MOM_LABELS[m]}</span>`).join('');
                 const flechas = filtrando ? '' : `
@@ -828,7 +829,7 @@ let _mtEditId = null, _mtMundo = 'turno';
 
 function _mtDestino() {
     const esRol = document.querySelector('input[name="mt-dest"]:checked').value === 'rol';
-    document.getElementById('mt-rol').style.display = esRol ? '' : 'none';
+    document.getElementById('mt-roles').style.display = esRol ? '' : 'none';
     document.getElementById('mt-usuario').style.display = esRol ? 'none' : '';
 }
 function _mtFreq() {
@@ -856,13 +857,14 @@ function abrirTareaModal(id, mundo) {
     // Destinatario + grupo (solo turno)
     document.getElementById('mt-quien').style.display = esTurno ? '' : 'none';
     if (esTurno) {
-        document.getElementById('mt-rol').innerHTML =
-            _roles.map(r => `<option value="${escAttr(r)}">${esc(r)}</option>`).join('');
+        // Multi-rol: checkboxes (las filas viejas con un solo `rol` se muestran igual)
+        const rolesSel = t ? ((t.roles && t.roles.length) ? t.roles : (t.rol ? [t.rol] : [])) : [];
+        document.getElementById('mt-roles').innerHTML = _roles.map(r =>
+            `<label><input type="checkbox" value="${escAttr(r)}" ${rolesSel.includes(r) ? 'checked' : ''}> ${esc(r)}</label>`).join('');
         document.getElementById('mt-usuario').innerHTML =
             _usuarios.map(u => `<option value="${u.id}">${esc(u.username)} (${esc(u.rol)})</option>`).join('');
         const esUsuario = !!(t && t.puntual_usuario_id);
         document.querySelector(`input[name="mt-dest"][value="${esUsuario ? 'usuario' : 'rol'}"]`).checked = true;
-        if (t && t.rol) document.getElementById('mt-rol').value = t.rol;
         if (esUsuario) document.getElementById('mt-usuario').value = String(t.puntual_usuario_id);
         _mtDestino();
         document.getElementById('mt-grupo').innerHTML =
@@ -894,8 +896,8 @@ async function guardarTareaModal() {
     if (_mtMundo === 'turno') {
         const esRol = document.querySelector('input[name="mt-dest"]:checked').value === 'rol';
         if (esRol) {
-            body.rol = document.getElementById('mt-rol').value;
-            if (!body.rol) { err.textContent = 'Elegí un rol.'; return; }
+            body.roles = [...document.querySelectorAll('#mt-roles input:checked')].map(c => c.value);
+            if (!body.roles.length) { err.textContent = 'Elegí al menos un rol.'; return; }
         } else {
             body.puntual_usuario_id = parseInt(document.getElementById('mt-usuario').value, 10) || null;
             if (!body.puntual_usuario_id) { err.textContent = 'Elegí un empleado.'; return; }
@@ -977,15 +979,15 @@ async function eliminarPlantilla(id, nombre) {
 // solo el listado). Turno → rol o empleado; caja → queda para quien la opere.
 function _maDestino() {
     const esRol = document.querySelector('input[name="ma-dest"]:checked').value === 'rol';
-    document.getElementById('ma-rol').style.display = esRol ? '' : 'none';
+    document.getElementById('ma-roles').style.display = esRol ? '' : 'none';
     document.getElementById('ma-usuario').style.display = esRol ? 'none' : '';
 }
 function abrirAplicarPlantillas() {
     if (!_plantillas.length) { alert('No hay plantillas creadas todavía.'); return; }
     document.getElementById('ma-error').textContent = '';
     const rolFiltro = document.getElementById('f-rol').value;
-    document.getElementById('ma-rol').innerHTML =
-        _roles.map(r => `<option value="${escAttr(r)}" ${r === rolFiltro ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    document.getElementById('ma-roles').innerHTML = _roles.map(r =>
+        `<label><input type="checkbox" value="${escAttr(r)}" ${r === rolFiltro ? 'checked' : ''}> ${esc(r)}</label>`).join('');
     document.getElementById('ma-usuario').innerHTML =
         _usuarios.map(u => `<option value="${u.id}">${esc(u.username)} (${esc(u.rol)})</option>`).join('');
     document.querySelector('input[name="ma-dest"][value="rol"]').checked = true;
@@ -1004,8 +1006,8 @@ async function confirmarAplicarPlantillas() {
     const body = { plantilla_ids: ids, momentos: ['dia'] };   // turno = lista del día
     const esRol = document.querySelector('input[name="ma-dest"]:checked').value === 'rol';
     if (esRol) {
-        body.rol_destino = document.getElementById('ma-rol').value;
-        if (!body.rol_destino) { err.textContent = 'Elegí el rol.'; return; }
+        body.roles_destino = [...document.querySelectorAll('#ma-roles input:checked')].map(c => c.value);
+        if (!body.roles_destino.length) { err.textContent = 'Elegí al menos un rol.'; return; }
     } else {
         body.usuario_destino = parseInt(document.getElementById('ma-usuario').value, 10) || null;
         if (!body.usuario_destino) { err.textContent = 'Elegí el empleado.'; return; }
