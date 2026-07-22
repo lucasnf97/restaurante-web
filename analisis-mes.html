@@ -875,6 +875,12 @@ function abrirDetalle(tipo) {
     document.getElementById('detalle-overlay').classList.add('visible');
     cargarDetalle(tipo);
 }
+// Lápiz del modal: los detalles hechos de FACTURAS permiten saltar al historial de
+// facturas (facturas.html?periodo= — deep-link ya existente) para corregir errores.
+const _DET_CON_FACTURAS = new Set(['gastos', 'corrientes', 'extraordinarios', 'insumos', 'servicios']);
+function abrirHistorialFacturas() {
+    window.open(`facturas.html?periodo=${anioActual}-${String(mesActual).padStart(2, '0')}`, '_blank', 'noopener');
+}
 function cerrarDetalle() {
     document.getElementById('detalle-overlay').classList.remove('visible');
 }
@@ -883,6 +889,15 @@ function _escH(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&am
 
 // Tabla de facturas del mes AGRUPADA POR PROVEEDOR (subtotal por proveedor) con
 // acceso directo al comprobante en Cloudinary (📄, mismo patrón que facturas.html).
+// Los grupos con varias facturas arrancan PLEGADOS: click en la cabecera para abrir/cerrar.
+let _fgSeq = 0;
+function _fgToggle(id, th) {
+    const filas = document.querySelectorAll(`tr[data-fg="${id}"]`);
+    const abrir = filas.length && filas[0].style.display === 'none';
+    filas.forEach(f => f.style.display = abrir ? '' : 'none');
+    const car = th.querySelector('.fg-caret');
+    if (car) car.textContent = abrir ? '▾' : '▸';
+}
 function _tablaFactProv(items, opts) {
     opts = opts || {};
     if (!items || !items.length) return '';
@@ -903,9 +918,11 @@ function _tablaFactProv(items, opts) {
             return `<tr><td>${_escH(g.p)} <span style="color:#9ca3af;">· ${r.fecha}</span></td>
                 <td class="num">${r.n_lineas}</td>${montoTd(r.monto)}${docCell(r)}</tr>`;
         }
-        return `<tr style="background:#f8fafc;"><td style="font-weight:700;">${_escH(g.p)} <span style="color:#9ca3af;font-weight:400;">· ${g.rs.length} facturas</span></td>
+        const fg = ++_fgSeq;
+        return `<tr style="background:#f8fafc;cursor:pointer;" onclick="_fgToggle(${fg}, this)" title="Ver/ocultar facturas">
+                <td style="font-weight:700;"><span class="fg-caret" style="display:inline-block;width:14px;color:#9ca3af;">▸</span>${_escH(g.p)} <span style="color:#9ca3af;font-weight:400;">· ${g.rs.length} facturas</span></td>
                 <td></td>${montoTd(g.sub)}<td></td></tr>` +
-            g.rs.map(r => `<tr><td style="padding-left:22px;color:#666;">${r.fecha}</td>
+            g.rs.map(r => `<tr data-fg="${fg}" style="display:none;"><td style="padding-left:30px;color:#666;">${r.fecha}</td>
                 <td class="num">${r.n_lineas}</td>${montoTd(r.monto)}${docCell(r)}</tr>`).join('');
     }).join('');
     const total = opts.total != null ? opts.total : items.reduce((s, r) => s + r.monto, 0);
@@ -970,6 +987,7 @@ async function cargarDetalle(tipo) {
     const body   = document.getElementById('detalle-body');
     const titulo = document.getElementById('detalle-titulo');
     titulo.textContent = _DET_TITLES[tipo] || 'Detalle';
+    document.getElementById('detalle-editar').style.display = _DET_CON_FACTURAS.has(tipo) ? '' : 'none';
     body.innerHTML = '<div class="det-loading">Cargando…</div>';
 
     const y = anioActual, m = mesActual;
@@ -1761,7 +1779,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     <div class="detalle-modal" onclick="event.stopPropagation()">
         <div class="detalle-hdr">
             <h3 id="detalle-titulo">Detalle</h3>
-            <button class="det-close" onclick="cerrarDetalle()">✕</button>
+            <div style="display:flex;align-items:center;gap:4px;">
+                <button class="det-close" id="detalle-editar" title="Corregir en el historial de facturas (abre en otra pestaña)" style="display:none;font-size:16px;" onclick="abrirHistorialFacturas()">✏️</button>
+                <button class="det-close" onclick="cerrarDetalle()">✕</button>
+            </div>
         </div>
         <div id="detalle-body" class="detalle-body">
             <div class="det-loading">Cargando…</div>
