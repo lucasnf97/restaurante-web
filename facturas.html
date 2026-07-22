@@ -307,6 +307,7 @@
                     <option value="">— O seleccioná un proveedor ya registrado —</option>
                 </select>
             </div>
+            <div id="conf-prov-warn" style="display:none;margin-top:8px;font-size:12.5px;line-height:1.45;border-radius:8px;padding:8px 12px;"></div>
         </div>
 
         <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -1247,7 +1248,9 @@ function abrirModalConfirmacion(datos) {
 
     const selProv = document.getElementById("conf-prov-existente");
     selProv.innerHTML = `<option value="">— O seleccioná uno ya registrado —</option>` +
+        `<option value="__nuevo__">➕ Crear proveedor nuevo</option>` +
         _proveedores.map(p => `<option value="${p.id}" data-nombre="${esc(p.nombre)}" data-cuit="${esc(p.cuit || '')}">${esc(p.nombre)}${p.cuit ? ' ('+esc(p.cuit)+')' : ''}</option>`).join("");
+    _autoMatchProveedor();   // CUIT y NOMBRE contra los registrados; ambigüedad → aviso
 
     const items = datos.items || [];
     // Impuesto: UN solo % por factura, que gobierna el campo global Y todas las filas
@@ -1383,12 +1386,97 @@ function actualizarIconoItem(idx) {
     }
 }
 
+// ── Matching de proveedor: CUIT primero, NOMBRE después ──────────────────────
+// La IA a veces lee mal el CUIT: con match solo-por-CUIT se creaba un proveedor
+// duplicado con el mismo nombre. Ahora se busca también por nombre normalizado; si
+// el nombre coincide con VARIOS registrados y el CUIT no desempata, se pide elegir.
+function _normCuit(c) { return (c || '').replace(/\D+/g, ''); }
+function _normNombre(n) {
+    return (n || '').toLowerCase().replace(/[ø]/g, 'o').replace(/[æ]/g, 'ae').replace(/[ß]/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^\p{L}\p{N}]+/gu, '');   // sin separadores: 'A/S' ≡ 'AS', 'S.L.' ≡ 'SL'
+}
+function _matchProveedor(nombre, cuit) {
+    const nc = _normCuit(cuit);
+    if (nc) {
+        const porCuit = _proveedores.filter(p => _normCuit(p.cuit) === nc);
+        if (porCuit.length === 1) return { tipo: 'cuit', prov: porCuit[0] };
+        if (porCuit.length > 1) return { tipo: 'ambiguo', candidatos: porCuit };
+    }
+    const nn = _normNombre(nombre);
+    if (!nn) return { tipo: 'ninguno' };
+    const porNombre = _proveedores.filter(p => _normNombre(p.nombre) === nn);
+    if (porNombre.length === 1) return { tipo: 'nombre', prov: porNombre[0] };
+    if (porNombre.length > 1) return { tipo: 'ambiguo', candidatos: porNombre };
+    return { tipo: 'ninguno' };
+}
+function _provWarn(html, esAlerta) {
+    const el = document.getElementById('conf-prov-warn');
+    if (!el) return;
+    if (!html) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = '';
+    el.style.background = esAlerta ? '#fef3c7' : 'transparent';
+    el.style.border = esAlerta ? '1.5px solid #fbbf24' : 'none';
+    el.style.color = esAlerta ? '#92400e' : '#166534';
+    el.innerHTML = html;
+}
+// Al abrir la confirmación: preseleccionar el proveedor que coincida (o avisar la ambigüedad)
+function _autoMatchProveedor() {
+    const nombre = document.getElementById('conf-prov-nombre').value.trim();
+    const cuit = document.getElementById('conf-prov-cuit').value.trim();
+    const sel = document.getElementById('conf-prov-existente');
+    const m = _matchProveedor(nombre, cuit);
+    if (m.prov) {
+        sel.value = String(m.prov.id);
+        _provWarn(`✔ Coincide con el proveedor registrado <b>${esc(m.prov.nombre)}</b>${m.tipo === 'nombre' ? ' (por nombre)' : ''} — se usará ese.`);
+    } else if (m.tipo === 'ambiguo') {
+        sel.value = '';
+        _provWarn(`⚠ <b>${esc(nombre)}</b> coincide con <b>${m.candidatos.length} proveedores registrados</b> y el CUIT no permite desempatar.<br>` +
+            `Elegí en el desplegable a cuál pertenece esta factura — o <b>➕ Crear proveedor nuevo</b> si no es ninguno.`, true);
+    } else {
+        _provWarn(null);
+    }
+}
+// Resolución al GUARDAR: elegido a mano > match por CUIT > match por NOMBRE >
+// ambiguo (devuelve candidatos, el caller exige elegir) > crear nuevo
+// ("__nuevo__" saltea el matching a propósito). Devuelve {id} o {ambiguo:[...]}.
+async function _resolverProveedorId(provNombre, provCuit) {
+    const selVal = document.getElementById("conf-prov-existente").value;
+    if (selVal && selVal !== '__nuevo__') return { id: parseInt(selVal) || null };
+    if (selVal !== '__nuevo__') {
+        const m = _matchProveedor(provNombre, provCuit);
+        if (m.tipo === 'ambiguo') return { ambiguo: m.candidatos };
+        if (m.prov) {
+            // Enriquecer: si el registrado no tiene CUIT y la factura trae uno, guardarlo
+            // (evita futuras ambigüedades). Silencioso: si falla, no bloquea la factura.
+            if (_normCuit(provCuit) && !_normCuit(m.prov.cuit)) {
+                try {
+                    await api.patch(`/stock/proveedores/${m.prov.id}`, {
+                        nombre: m.prov.nombre, cuit: provCuit,
+                        telefono: m.prov.telefono || null, email: m.prov.email || null });
+                    await cargarProveedores();
+                } catch (e) {}
+            }
+            return { id: m.prov.id };
+        }
+    }
+    if (!provNombre) return { id: null };
+    const nuevo = await api.post("/stock/proveedores", { nombre: provNombre, cuit: provCuit || null });
+    await cargarProveedores();
+    return { id: nuevo.id };
+}
 function seleccionarProveedorExistente() {
     const sel = document.getElementById("conf-prov-existente");
+    if (sel.value === '__nuevo__') {
+        _provWarn('➕ Se creará un proveedor nuevo con el nombre y CUIT de arriba.');
+        return;
+    }
     const opt = sel.options[sel.selectedIndex];
     if (opt.value) {
         document.getElementById("conf-prov-nombre").value = opt.dataset.nombre;
         document.getElementById("conf-prov-cuit").value   = opt.dataset.cuit || "";
+        _provWarn(`✔ Se usará el proveedor registrado <b>${esc(opt.dataset.nombre)}</b>.`);
+    } else {
+        _provWarn(null);
     }
 }
 
@@ -1661,6 +1749,16 @@ async function confirmarFactura() {
     const provNombre = document.getElementById("conf-prov-nombre").value.trim();
     if (!provNombre) { alert("El nombre del proveedor es obligatorio."); return; }
     const provCuit = document.getElementById("conf-prov-cuit").value.trim();
+    // Ambigüedad de proveedor: se corta ACÁ, antes de validar ítems — hay que elegir a mano.
+    if (!document.getElementById("conf-prov-existente").value) {
+        const _m0 = _matchProveedor(provNombre, provCuit);
+        if (_m0.tipo === 'ambiguo') {
+            _autoMatchProveedor();
+            alert(`⚠ "${provNombre}" coincide con ${_m0.candidatos.length} proveedores registrados y el CUIT no permite desempatar.\n\n` +
+                  `Elegí en el desplegable a cuál pertenece esta factura, o "➕ Crear proveedor nuevo" si no es ninguno.`);
+            return;
+        }
+    }
     const numeroFactura = document.getElementById("conf-numero")?.value.trim() || null;
     const entradaActiva = _archivoActivo !== null ? getEntrada(_archivoActivo) : null;
     const moneda   = document.getElementById("conf-moneda-codigo").value.trim() || entradaActiva?.datos?.moneda || null;
@@ -1765,17 +1863,14 @@ async function confirmarFactura() {
     const rango        = periodoMes ? _periodoRango(periodoMes) : { desde: null, hasta: null };
 
     try {
-        // Resolver proveedor
-        let proveedorId = parseInt(document.getElementById("conf-prov-existente").value) || null;
-        if (!proveedorId) {
-            const existing = _proveedores.find(p => p.cuit && p.cuit === provCuit);
-            if (existing) proveedorId = existing.id;
-            else if (provNombre) {
-                const nuevo = await api.post("/stock/proveedores", { nombre: provNombre, cuit: provCuit || null });
-                proveedorId = nuevo.id;
-                await cargarProveedores();
-            }
+        const _provRes = await _resolverProveedorId(provNombre, provCuit);
+        if (_provRes.ambiguo) {
+            _autoMatchProveedor();
+            alert(`⚠ "${provNombre}" coincide con ${_provRes.ambiguo.length} proveedores registrados y el CUIT no permite desempatar.\n\n` +
+                  `Elegí en el desplegable a cuál pertenece esta factura, o "➕ Crear proveedor nuevo" si no es ninguno.`);
+            return;
         }
+        const proveedorId = _provRes.id;
 
         // Subir archivo (desde IA, adjunto manual, o generado automáticamente)
         let facturaUrl  = null;
