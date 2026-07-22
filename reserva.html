@@ -61,14 +61,25 @@ input[type=date], input[type=text], input[type=email], textarea{
 textarea{ resize:vertical; min-height:62px; }
 input:focus, textarea:focus{ border-color:var(--wine); box-shadow:0 0 0 3px rgba(138,43,58,.12); }
 
-/* Stepper de comensales */
-.stepper{ display:flex; align-items:center; border:1.5px solid var(--line); border-radius:10px;
-    overflow:hidden; height:46px; }
-.stepper button{ width:48px; flex:0 0 48px; border:none; background:#faf7f2; color:var(--wine);
-    font-size:22px; cursor:pointer; transition:background .12s; }
-.stepper button:hover{ background:#f3ece2; }
-.stepper button:disabled{ color:#cdc9c0; cursor:default; background:#fafafa; }
-.stepper .val{ flex:1; text-align:center; font-weight:600; font-variant-numeric:tabular-nums; }
+/* Selector de comensales (teclado numérico desplegable) */
+.numwrap{ position:relative; }
+.numpick{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+    width:100%; height:46px; padding:0 13px; font:inherit; font-size:15px; cursor:pointer;
+    border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);
+    transition:border-color .15s, box-shadow .15s; }
+.numpick:hover{ border-color:var(--wine); }
+.numpick[aria-expanded=true]{ border-color:var(--wine); box-shadow:0 0 0 3px rgba(138,43,58,.12); }
+.numpick .val{ font-weight:600; font-variant-numeric:tabular-nums; }
+.numpick svg{ color:var(--wine); flex:0 0 auto; }
+.numpad{ position:absolute; z-index:30; top:calc(100% + 8px); right:0; min-width:100%;
+    background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px;
+    box-shadow:var(--shadow); display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+.numpad.cols4{ grid-template-columns:repeat(4,1fr); }
+.numpad button{ font:inherit; font-weight:600; font-variant-numeric:tabular-nums;
+    min-width:44px; padding:10px 0; cursor:pointer; border:1.5px solid var(--line);
+    border-radius:9px; background:#fff; color:var(--ink); transition:all .12s; }
+.numpad button:hover{ border-color:var(--wine); color:var(--wine); }
+.numpad button.sel{ background:var(--wine); border-color:var(--wine); color:#fff; }
 
 /* Botón primario */
 .btn{ width:100%; border:none; border-radius:11px; padding:14px 18px; font:inherit;
@@ -156,10 +167,17 @@ input:focus, textarea:focus{ border-color:var(--wine); box-shadow:0 0 0 3px rgba
                 </div>
                 <div>
                     <label class="label">Personas</label>
-                    <div class="stepper">
-                        <button type="button" id="p-menos" aria-label="Menos personas" onclick="cambiarPersonas(-1)">−</button>
-                        <span class="val" id="f-personas" aria-live="polite">2</span>
-                        <button type="button" id="p-mas" aria-label="Más personas" onclick="cambiarPersonas(1)">+</button>
+                    <div class="numwrap">
+                        <button type="button" class="numpick" id="btn-personas" onclick="toggleNumpad()"
+                                aria-haspopup="true" aria-expanded="false" aria-label="Cantidad de personas">
+                            <span class="val" id="f-personas" aria-live="polite">2</span>
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
+                                <circle cx="3" cy="3" r="1.8"/><circle cx="9" cy="3" r="1.8"/><circle cx="15" cy="3" r="1.8"/>
+                                <circle cx="3" cy="9" r="1.8"/><circle cx="9" cy="9" r="1.8"/><circle cx="15" cy="9" r="1.8"/>
+                                <circle cx="3" cy="15" r="1.8"/><circle cx="9" cy="15" r="1.8"/><circle cx="15" cy="15" r="1.8"/>
+                            </svg>
+                        </button>
+                        <div class="numpad hidden" id="numpad" role="listbox" aria-label="Elegí la cantidad de personas"></div>
                     </div>
                 </div>
             </div>
@@ -324,20 +342,46 @@ function aplicarConfigOnline(){
         $('tope-leyenda').textContent = `Para reservas más numerosas, contactate con el personal del restaurante${c ? ': ' + c : ''}.`;
         $('tope-leyenda').classList.remove('hidden');
     }
-    _refrescarStepper();
+    _renderNumpad();
 }
 
-function _refrescarStepper(){
-    $('p-menos').disabled = state.personas <= 1;
-    $('p-mas').disabled = state.personas >= MAX_P;
+// ── Teclado numérico de comensales: solo ofrece cantidades válidas (1..MAX_P) ──
+function _renderNumpad(){
+    const np = $('numpad'); if(!np) return;
+    np.classList.toggle('cols4', MAX_P > 12);
+    let html = '';
+    for(let n = 1; n <= MAX_P; n++){
+        html += `<button type="button" class="${n === state.personas ? 'sel' : ''}" onclick="elegirPersonas(${n})">${n}</button>`;
+    }
+    np.innerHTML = html;
 }
-
-function cambiarPersonas(d){
-    state.personas = Math.min(MAX_P, Math.max(1, state.personas + d));
+function toggleNumpad(){
+    const np = $('numpad'); if(!np) return;
+    const abrir = np.classList.contains('hidden');
+    if(abrir) _renderNumpad();
+    np.classList.toggle('hidden', !abrir);
+    $('btn-personas').setAttribute('aria-expanded', String(abrir));
+    postHeight();
+}
+function cerrarNumpad(){
+    const np = $('numpad'); if(!np) return;
+    np.classList.add('hidden');
+    const bp = $('btn-personas');
+    if(bp) bp.setAttribute('aria-expanded', 'false');
+}
+function elegirPersonas(n){
+    state.personas = Math.min(MAX_P, Math.max(1, n));
     $('f-personas').textContent = state.personas;
-    _refrescarStepper();
+    cerrarNumpad();
     resetDisponibilidad();
+    postHeight();
 }
+document.addEventListener('click', e => {
+    const np = $('numpad'), bp = $('btn-personas');
+    if(np && bp && !np.classList.contains('hidden')
+        && !np.contains(e.target) && !bp.contains(e.target)) cerrarNumpad();
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') cerrarNumpad(); });
 
 function resetDisponibilidad(){
     $('sec-horarios').classList.add('hidden');
