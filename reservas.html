@@ -81,6 +81,13 @@
         .checkbox-row label { font-size: 13px; font-weight: 600; color: #444; cursor: pointer; }
         .horas-bloqueo { display: flex; gap: 8px; align-items: center; }
         .horas-bloqueo input { flex: 1; }
+        .b-radios { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: #334155; margin-bottom: 6px; }
+        .b-radios label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .b-checks { display: none; flex-wrap: wrap; gap: 6px; max-height: 132px; overflow-y: auto;
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; margin-top: 6px; }
+        .b-chip { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #334155;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+        .b-chip input { margin: 0; }
         .bloqueo-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #fff1f2; border: 1px solid #fca5a5; border-radius: 8px; margin-bottom: 7px; }
         .bloqueo-fecha { font-size: 13px; font-weight: 700; color: #dc2626; }
         .bloqueo-detalle { font-size: 11px; color: #9f1239; margin-top: 1px; }
@@ -247,7 +254,25 @@
         <div class="bloqueos-layout">
             <div class="card">
                 <h3>🚫 Nuevo bloqueo</h3>
-                <div class="form-group"><label>Fecha</label><input type="date" id="b-fecha"></div>
+                <div class="form-group"><label>Repetición</label>
+                    <select id="b-tipo" onchange="onTipoBloqueo()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                        <option value="fecha">Una fecha puntual</option>
+                        <option value="dia_semana">Todas las semanas (día fijo)</option>
+                        <option value="cada_n">Cada N días</option>
+                    </select>
+                </div>
+                <div class="form-group" id="b-fecha-wrap"><label>Fecha</label><input type="date" id="b-fecha"></div>
+                <div class="form-group" id="b-dsem-wrap" style="display:none;"><label>Día de la semana</label>
+                    <select id="b-dsem" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                        <option value="0">Lunes</option><option value="1">Martes</option><option value="2">Miércoles</option>
+                        <option value="3">Jueves</option><option value="4">Viernes</option><option value="5">Sábado</option>
+                        <option value="6">Domingo</option>
+                    </select>
+                </div>
+                <div class="form-group" id="b-cadan-wrap" style="display:none;">
+                    <label>Cada cuántos días</label><input type="number" id="b-cadan" min="1" max="365" value="30">
+                    <label style="margin-top:8px;display:block;">Desde (primera vez)</label><input type="date" id="b-desde">
+                </div>
                 <div class="checkbox-row">
                     <input type="checkbox" id="b-todo-dia" checked onchange="toggleHorasBloqueo()">
                     <label for="b-todo-dia">Todo el día</label>
@@ -259,6 +284,16 @@
                         <span style="color:#94a3b8;">→</span>
                         <input type="time" id="b-hora-fin" value="23:00">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Alcance</label>
+                    <div class="b-radios">
+                        <label><input type="radio" name="b-alcance" value="todo" checked onchange="onAlcanceBloqueo()"> Todo el restaurante</label>
+                        <label><input type="radio" name="b-alcance" value="salas" onchange="onAlcanceBloqueo()"> Salas</label>
+                        <label><input type="radio" name="b-alcance" value="mesas" onchange="onAlcanceBloqueo()"> Mesas</label>
+                    </div>
+                    <div class="b-checks" id="b-salas-wrap"></div>
+                    <div class="b-checks" id="b-mesas-wrap"></div>
                 </div>
                 <div class="form-group">
                     <label>Motivo <span style="color:#94a3b8;font-weight:400;">(opcional)</span></label>
@@ -708,11 +743,29 @@ function dibujar(){
             if(e<=s&&e+24*60/SLOT_MIN*COL_W>0){/* todo el día */x1=0;x2=CANVAS_W;}
             else{x1=(s/SLOT_MIN)*COL_W;x2=(Math.min(totalMinsGrilla,e)/SLOT_MIN)*COL_W;}
         }
-        const bh=canvasH;
-        ctxC.fillStyle='rgba(220,38,38,0.10)';ctxC.fillRect(x1,0,x2-x1,bh);
-        ctxC.fillStyle=hatchPat;ctxC.fillRect(x1,0,x2-x1,bh);
-        ctxC.strokeStyle='rgba(185,28,28,0.65)';ctxC.lineWidth=1.5;ctxC.strokeRect(x1,0,x2-x1,bh);
-        if(x2-x1>50){ctxC.fillStyle='rgba(159,18,57,0.9)';ctxC.font='bold 10px Segoe UI';ctxC.fillText('🚫 '+(b.motivo||'Bloqueado'),x1+5,14);}
+        // Bloqueo con ALCANCE (mesas puntuales): pintar solo las filas alcanzadas;
+        // sin alcance: la columna entera como siempre.
+        const zonas=[];
+        if(b.mesas_ids&&b.mesas_ids.length){
+            for(const mid of b.mesas_ids){
+                const rowY=mesaYMap[mid];
+                if(rowY!==undefined) zonas.push([rowY, ROW_H]);
+            }
+            if(!zonas.length) continue;
+        }else{
+            zonas.push([0, canvasH]);
+        }
+        let etiquetado=false;
+        for(const[zy,zh]of zonas){
+            ctxC.fillStyle='rgba(220,38,38,0.10)';ctxC.fillRect(x1,zy,x2-x1,zh);
+            ctxC.fillStyle=hatchPat;ctxC.fillRect(x1,zy,x2-x1,zh);
+            ctxC.strokeStyle='rgba(185,28,28,0.65)';ctxC.lineWidth=1.5;ctxC.strokeRect(x1,zy,x2-x1,zh);
+            if(!etiquetado&&x2-x1>50){
+                ctxC.fillStyle='rgba(159,18,57,0.9)';ctxC.font='bold 10px Segoe UI';
+                ctxC.fillText('🚫 '+(b.motivo||'Bloqueado'),x1+5,zy+14);
+                etiquetado=true;
+            }
+        }
     }
 
     // Líneas verticales (desde y=0)
@@ -1022,7 +1075,8 @@ document.addEventListener('mouseup',e=>{
         // Validar antes de guardar (igual que en el preview)
         const hiM2=HORA_INICIO*60+smCol*SLOT_MIN;
         const durMins2=(newEndCol-smCol)*SLOT_MIN;
-        if(!_posicionValida(hiM2,durMins2)){
+        const _mesasR=(resizeReserva.r.mesas_ids&&resizeReserva.r.mesas_ids.length)?resizeReserva.r.mesas_ids:[resizeReserva.r.mesa_id];
+        if(!_posicionValida(hiM2,durMins2,_mesasR)){
             resizeModo=false;resizeReserva=null;
             canvasWrap.classList.remove('grabbing');dibujar();return;
         }
@@ -1041,7 +1095,7 @@ document.addEventListener('mouseup',e=>{
             const r=dragReserva.r;
             const sm=minsDesdeInicio(r.hora_inicio);
             let em;if(r.hora_fin){em=minsDesdeInicio(r.hora_fin);if(em<=sm)em+=24*60;}else em=sm+60;
-            if(_posicionValida(hiM, em-sm)&&_mesaAdmite(mesas[dropRow], r.comensales||1)){
+            if(_posicionValida(hiM, em-sm, [mesas[dropRow].id])&&_mesaAdmite(mesas[dropRow], r.comensales||1)){
                 const hh=Math.floor(hiM/60)%24,mm=hiM%60;
                 _moverReserva(r,mesas[dropRow].id,
                     hh.toString().padStart(2,'0')+':'+mm.toString().padStart(2,'0'));
@@ -1097,7 +1151,15 @@ function _conflictoEn(mesasIds, hiM, hfM, excluirId){
 }
 
 /** Devuelve true si la posición (horaInicioMins, durMins) es válida ese día. */
-function _posicionValida(hiM, durMins){
+// ¿Un bloqueo alcanza a alguna de estas mesas? Sin alcance (mesas_ids null) = a todas.
+// Sin mesas consultadas (mesaIds null), un bloqueo con alcance NO invalida (aplica solo
+// a sus mesas — el chequeo fino se hace donde se conoce la mesa destino).
+function _bloqueoAlcanza(b, mesaIds){
+    if(!b.mesas_ids||!b.mesas_ids.length) return true;
+    if(!mesaIds||!mesaIds.length) return false;
+    return mesaIds.some(id=>b.mesas_ids.includes(id));
+}
+function _posicionValida(hiM, durMins, mesaIds){
     const hfM=hiM+durMins;
     const fechaStr=fechaISO(fechaActual);
     const diaSem=(fechaActual.getDay()+6)%7;
@@ -1118,6 +1180,7 @@ function _posicionValida(hiM, durMins){
     }
     for(const b of bloqueos){
         if((b.fecha||'').substring(0,10)!==fechaStr) continue;
+        if(!_bloqueoAlcanza(b, mesaIds)) continue;
         if(!b.hora_inicio||!b.hora_fin) return false;
         const[bsh,bsm]=b.hora_inicio.substring(0,5).split(':').map(Number);
         const[beh,bem]=b.hora_fin.substring(0,5).split(':').map(Number);
@@ -1152,7 +1215,7 @@ function _dibujarConIndicador(){
     // Validar posición durante el preview (horario + capacidad de la mesa destino;
     // si hace falta la agrupación, también que sus otras mesas estén libres ahí)
     const hiM=HORA_INICIO*60+dropCol*SLOT_MIN;
-    let valido=_posicionValida(hiM, durMins)&&_mesaAdmite(targetMesa, pers);
+    let valido=_posicionValida(hiM, durMins, [targetMesa.id])&&_mesaAdmite(targetMesa, pers);
     if(valido&&((targetMesa.capacidad||0)<pers)){
         const g=_grupoPara(targetMesa.id, pers);
         valido=!!g&&!_conflictoEn(g.mesas_ids, hiM, hiM+durMins, r.id);
@@ -1181,7 +1244,8 @@ function _dibujarResizePreview(newEndCol){
     // Validar nueva posición
     const hiM=HORA_INICIO*60+smCol*SLOT_MIN;
     const durMins=(newEndCol-smCol)*SLOT_MIN;
-    const valido=durMins>0&&_posicionValida(hiM,durMins);
+    const _mR=(r.mesas_ids&&r.mesas_ids.length)?r.mesas_ids:[r.mesa_id];
+    const valido=durMins>0&&_posicionValida(hiM,durMins,_mR);
     ctxC.save();
     ctxC.globalAlpha=0.7;
     ctxC.fillStyle=valido?colorReserva(r):'#dc2626';
@@ -1225,24 +1289,6 @@ async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
         }
     }
 
-    // ── Validar bloqueos ─────────────────────────────────────
-    const fechaStr=fechaISO(fechaActual);
-    const hiM=sh*60+smm, hfM=sh*60+smm+durMins;
-    for(const b of bloqueos){
-        // Comparar solo los primeros 10 chars (por si fecha incluye hora "2026-05-31T00:00")
-        if((b.fecha||'').substring(0,10)!==fechaStr)continue;
-        if(!b.hora_inicio||!b.hora_fin){
-            alert('El restaurante está bloqueado ese día'+(b.motivo?' ('+b.motivo+')':'')+'.');dibujar();return;
-        }
-        const[bsh,bsm]=b.hora_inicio.substring(0,5).split(':').map(Number);
-        const[beh,bem]=b.hora_fin.substring(0,5).split(':').map(Number);
-        const bIni=bsh*60+bsm, bFin=beh*60+bem;
-        if(hiM<bFin&&hfM>bIni){
-            alert('El horario coincide con un bloqueo de '+b.hora_inicio.substring(0,5)+' – '+b.hora_fin.substring(0,5)+(b.motivo?' ('+b.motivo+')':'')+'.');
-            dibujar();return;
-        }
-    }
-
     // ── Destino: mesa sola si alcanza la capacidad; si no, la AGRUPACIÓN que la
     //    incluye (soltar sobre un miembro ocupa la unión completa) ──
     const pers=r.comensales||1;
@@ -1252,6 +1298,27 @@ async function _moverReserva(r,nuevaMesaId,nuevaHoraInicio){
         grupoDest=_grupoPara(nuevaMesaId,pers);
         if(!grupoDest){dibujar();return;}   // fila gris: no admite (no debería llegar acá)
         mesasDestino=grupoDest.mesas_ids.slice();
+    }
+
+    // ── Validar bloqueos (contra TODAS las mesas del destino: una unión también
+    //    choca si cualquiera de sus mesas está bloqueada) ──
+    const fechaStr=fechaISO(fechaActual);
+    const hiM=sh*60+smm, hfM=sh*60+smm+durMins;
+    for(const b of bloqueos){
+        // Comparar solo los primeros 10 chars (por si fecha incluye hora "2026-05-31T00:00")
+        if((b.fecha||'').substring(0,10)!==fechaStr)continue;
+        if(!_bloqueoAlcanza(b, mesasDestino))continue;
+        const esParcial=b.mesas_ids&&b.mesas_ids.length;
+        if(!b.hora_inicio||!b.hora_fin){
+            alert((esParcial?'Esa mesa está bloqueada ese día':'El restaurante está bloqueado ese día')+(b.motivo?' ('+b.motivo+')':'')+'.');dibujar();return;
+        }
+        const[bsh,bsm]=b.hora_inicio.substring(0,5).split(':').map(Number);
+        const[beh,bem]=b.hora_fin.substring(0,5).split(':').map(Number);
+        const bIni=bsh*60+bsm, bFin=beh*60+bem;
+        if(hiM<bFin&&hfM>bIni){
+            alert('El horario coincide con un bloqueo de '+b.hora_inicio.substring(0,5)+' – '+b.hora_fin.substring(0,5)+(esParcial?' sobre esa mesa':'')+(b.motivo?' ('+b.motivo+')':'')+'.');
+            dibujar();return;
+        }
     }
 
     // ── Colisión con otras reservas en TODAS las mesas destino (member-aware,
@@ -1653,22 +1720,79 @@ async function cargarBloqueos(){
     try{const d=await api.get('/horarios/bloqueos');renderBloqueos(d);}
     catch(e){document.getElementById('bloqueos-lista').innerHTML='<p style="color:#dc2626;">Error al cargar.</p>';}
 }
+const _DIAS_SEM=['lunes','martes','miércoles','jueves','viernes','sábados','domingos'];
+function _descAlcance(b){
+    if(b.mesas_ids&&b.mesas_ids.length){
+        const nums=b.mesas_ids.map(id=>{const m=mesas.find(x=>x.id===id);return m?('M'+m.numero):('#'+id);});
+        return '🪑 '+nums.join(', ');
+    }
+    if(b.salas_ids&&b.salas_ids.length){
+        const noms=b.salas_ids.map(id=>{const s=salas.find(x=>x.id===id);return s?s.nombre:('sala #'+id);});
+        return '🏠 '+noms.join(', ');
+    }
+    return null;   // todo el restaurante: no hace falta aclararlo
+}
+function _descCuando(b){
+    const tipo=b.tipo||'fecha';
+    if(tipo==='dia_semana') return '🔁 Todos los '+(_DIAS_SEM[b.dia_semana]||'?');
+    if(tipo==='cada_n'){
+        const desde=b.fecha_inicio?(' desde '+b.fecha_inicio.substring(0,10).split('-').reverse().join('/')):'';
+        return '🔁 Cada '+b.cada_n+' días'+desde;
+    }
+    const[y,m,d]=(b.fecha||'').substring(0,10).split('-');
+    return '📅 '+d+'/'+m+'/'+y;
+}
 function renderBloqueos(list){
     const c=document.getElementById('bloqueos-lista');
     if(!list.length){c.innerHTML='<div class="sin-bloqueos">Sin bloqueos activos 🟢</div>';return;}
-    list.sort((a,b)=>a.fecha>b.fecha?1:-1);
     c.innerHTML=list.map(b=>{
-        const[y,m,d]=b.fecha.split('-');
         const horario=(b.hora_inicio&&b.hora_fin)?b.hora_inicio.substring(0,5)+' → '+b.hora_fin.substring(0,5):'Todo el día';
-        return `<div class="bloqueo-item"><div><div class="bloqueo-fecha">📅 ${d}/${m}/${y}</div><div class="bloqueo-detalle">${horario}${b.motivo?' · '+b.motivo:''}</div></div><button class="btn-del-bloqueo" onclick="eliminarBloqueo(${b.id})">×</button></div>`;
+        const alcance=_descAlcance(b);
+        const detalle=[horario,alcance,b.motivo].filter(Boolean).join(' · ');
+        return `<div class="bloqueo-item"><div><div class="bloqueo-fecha">${_descCuando(b)}</div><div class="bloqueo-detalle">${detalle}</div></div><button class="btn-del-bloqueo" onclick="eliminarBloqueo(${b.id})">×</button></div>`;
     }).join('');
 }
 function toggleHorasBloqueo(){document.getElementById('b-horas-wrap').style.display=document.getElementById('b-todo-dia').checked?'none':'block';}
+function onTipoBloqueo(){
+    const t=document.getElementById('b-tipo').value;
+    document.getElementById('b-fecha-wrap').style.display=t==='fecha'?'':'none';
+    document.getElementById('b-dsem-wrap').style.display=t==='dia_semana'?'':'none';
+    document.getElementById('b-cadan-wrap').style.display=t==='cada_n'?'':'none';
+}
+function onAlcanceBloqueo(){
+    const a=document.querySelector('input[name="b-alcance"]:checked').value;
+    const sw=document.getElementById('b-salas-wrap'), mw=document.getElementById('b-mesas-wrap');
+    sw.style.display=a==='salas'?'flex':'none';
+    mw.style.display=a==='mesas'?'flex':'none';
+    if(a==='salas'&&!sw.childElementCount)
+        sw.innerHTML=salas.map(s=>`<label class="b-chip"><input type="checkbox" value="${s.id}"> ${esc(s.nombre)}</label>`).join('')||'<span style="color:#94a3b8;font-size:12px;">Sin salas.</span>';
+    if(a==='mesas'&&!mw.childElementCount)
+        mw.innerHTML=[...mesas].sort((x,y)=>(x.numero||0)-(y.numero||0)).map(m=>`<label class="b-chip"><input type="checkbox" value="${m.id}"> M${m.numero}</label>`).join('')||'<span style="color:#94a3b8;font-size:12px;">Sin mesas.</span>';
+}
 async function crearBloqueo(){
-    const fecha=document.getElementById('b-fecha').value;
-    if(!fecha){alert('La fecha es obligatoria.');return;}
+    const tipo=document.getElementById('b-tipo').value;
+    const body={tipo,motivo:document.getElementById('b-motivo').value.trim()||null};
+    if(tipo==='fecha'){
+        body.fecha=document.getElementById('b-fecha').value;
+        if(!body.fecha){alert('La fecha es obligatoria.');return;}
+    }else if(tipo==='dia_semana'){
+        body.dia_semana=parseInt(document.getElementById('b-dsem').value,10);
+    }else{
+        body.cada_n=parseInt(document.getElementById('b-cadan').value,10)||null;
+        if(!body.cada_n){alert('Indicá cada cuántos días.');return;}
+        body.fecha_inicio=document.getElementById('b-desde').value||null;
+    }
     const todoDia=document.getElementById('b-todo-dia').checked;
-    const body={fecha,hora_inicio:todoDia?null:(document.getElementById('b-hora-inicio').value||null),hora_fin:todoDia?null:(document.getElementById('b-hora-fin').value||null),motivo:document.getElementById('b-motivo').value.trim()||null};
+    body.hora_inicio=todoDia?null:(document.getElementById('b-hora-inicio').value||null);
+    body.hora_fin=todoDia?null:(document.getElementById('b-hora-fin').value||null);
+    const alcance=document.querySelector('input[name="b-alcance"]:checked').value;
+    if(alcance==='salas'){
+        body.salas_ids=[...document.querySelectorAll('#b-salas-wrap input:checked')].map(c=>Number(c.value));
+        if(!body.salas_ids.length){alert('Elegí al menos una sala (o "Todo el restaurante").');return;}
+    }else if(alcance==='mesas'){
+        body.mesas_ids=[...document.querySelectorAll('#b-mesas-wrap input:checked')].map(c=>Number(c.value));
+        if(!body.mesas_ids.length){alert('Elegí al menos una mesa (o "Todo el restaurante").');return;}
+    }
     try{await api.post('/horarios/bloqueos',body);document.getElementById('b-motivo').value='';await cargarBloqueos();await cargarDatos();}
     catch(err){
         const msg=err.message||'';
