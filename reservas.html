@@ -184,6 +184,7 @@
         <button class="tab-btn active" onclick="cambiarTab('reservas',this)">📋 Reservas</button>
         <button class="tab-btn tab-solo-editor" onclick="cambiarTab('horarios',this)">🕐 Horarios</button>
         <button class="tab-btn tab-solo-editor" onclick="cambiarTab('bloqueos',this)">🚫 Bloqueos</button>
+        <button class="tab-btn tab-solo-editor" onclick="cambiarTab('online',this)">🌐 Online</button>
     </div>
 
     <!-- TAB RESERVAS -->
@@ -271,6 +272,48 @@
                     <button class="btn btn-secondary btn-sm" onclick="limpiarBloqueos()">🗑 Limpiar vencidos</button>
                 </div>
                 <div id="bloqueos-lista"><p style="color:#888;">Cargando...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB RESERVAS ONLINE (config del widget público) -->
+    <div class="tab-panel" id="panel-online">
+        <div class="bloqueos-layout">
+            <div class="card">
+                <h3>🌐 Límites de las reservas online</h3>
+                <p style="font-size:12.5px;color:#64748b;margin:0 0 14px;">
+                    Aplican SOLO a la página pública de reservas. El personal sigue pudiendo
+                    reservar cualquier cosa desde acá o desde el programa. Vacío = sin límite.</p>
+                <div class="form-group">
+                    <label>Máximo de personas por reserva online</label>
+                    <input type="number" id="ol-max" min="1" max="50" step="1" placeholder="Sin límite (ej: 6)">
+                </div>
+                <div class="form-group">
+                    <label>Anticipación mínima (horas)</label>
+                    <input type="number" id="ol-ant" min="0" max="720" step="1" placeholder="Sin mínimo (ej: 30)">
+                    <span style="font-size:11.5px;color:#94a3b8;">Con menos anticipación solo puede reservar el personal.</span>
+                </div>
+                <div class="form-group">
+                    <label>Agenda abierta hasta (días)</label>
+                    <input type="number" id="ol-hor" min="1" max="365" step="1" placeholder="Sin límite (ej: 30)">
+                    <span style="font-size:11.5px;color:#94a3b8;">No se aceptan reservas online más allá de hoy + estos días.</span>
+                </div>
+            </div>
+            <div class="card">
+                <h3>📞 Contacto para reservas grandes</h3>
+                <p style="font-size:12.5px;color:#64748b;margin:0 0 14px;">
+                    Se muestra en la página pública cuando el cliente necesita más personas
+                    que el máximo (o menos anticipación que la mínima).</p>
+                <div class="form-group"><label>Teléfono</label>
+                    <input type="text" id="ol-tel" maxlength="60" placeholder="Ej: +45 12 34 56 78"></div>
+                <div class="form-group"><label>Correo</label>
+                    <input type="text" id="ol-email" maxlength="200" placeholder="Ej: reservas@turestaurante.com"></div>
+                <div class="form-group"><label>Redes sociales</label>
+                    <input type="text" id="ol-redes" maxlength="200" placeholder="Ej: @turestaurante en Instagram"></div>
+                <div id="ol-preview" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
+                    padding:10px 12px;font-size:12.5px;color:#475569;margin-bottom:14px;"></div>
+                <button class="btn btn-primary" style="width:100%;" id="btn-guardar-online" onclick="guardarConfigOnline()">Guardar</button>
+                <div id="ol-msg" style="font-size:12.5px;margin-top:8px;text-align:center;"></div>
             </div>
         </div>
     </div>
@@ -1885,6 +1928,73 @@ function cambiarTab(tab,btn){
     if(tab==='reservas'){recalcularRango();dibujar();}
     if(tab==='horarios') horarios.length ? renderHorarios() : cargarHorarios();
     if(tab==='bloqueos') cargarBloqueos();
+    if(tab==='online') cargarConfigOnline();
+}
+
+// ── Config de reservas ONLINE (topes del widget público + contacto) ──
+// Guardada en el server (endpoint dedicado, no la pisa ninguna otra pantalla).
+// Permiso: gerente o gestion_reservas (mismo gate que esta solapa).
+let _olCargada = false;
+async function cargarConfigOnline(){
+    if(_olCargada){ _olPreview(); return; }
+    try{
+        const c = await api.get('/config/reservas-online');
+        document.getElementById('ol-max').value   = c.max_personas ?? '';
+        document.getElementById('ol-ant').value   = c.anticipacion_horas ?? '';
+        document.getElementById('ol-hor').value   = c.horizonte_dias ?? '';
+        document.getElementById('ol-tel').value   = c.contacto_telefono || '';
+        document.getElementById('ol-email').value = c.contacto_email || '';
+        document.getElementById('ol-redes').value = c.contacto_redes || '';
+        _olCargada = true;
+        ['ol-max','ol-tel','ol-email','ol-redes'].forEach(id =>
+            document.getElementById(id).addEventListener('input', _olPreview));
+        _olPreview();
+    }catch(e){
+        document.getElementById('ol-msg').textContent = 'No se pudo cargar la configuración: ' + (e.message || e);
+        document.getElementById('ol-msg').style.color = '#dc2626';
+    }
+}
+function _olPreview(){
+    const pv = document.getElementById('ol-preview');
+    const max = document.getElementById('ol-max').value;
+    const partes = [];
+    const tel = document.getElementById('ol-tel').value.trim();
+    const em  = document.getElementById('ol-email').value.trim();
+    const rd  = document.getElementById('ol-redes').value.trim();
+    if(tel) partes.push('Tel: ' + tel);
+    if(em)  partes.push('Correo: ' + em);
+    if(rd)  partes.push(rd);
+    if(max){
+        pv.style.display = '';
+        pv.textContent = 'El cliente verá: "Para reservas más numerosas, contactate con el personal del restaurante' +
+            (partes.length ? ': ' + partes.join(' · ') : '') + '."';
+    }else{
+        pv.style.display = 'none';
+    }
+}
+async function guardarConfigOnline(){
+    const num = id => { const v = document.getElementById(id).value.trim(); return v === '' ? null : parseInt(v, 10); };
+    const txt = id => document.getElementById(id).value.trim() || null;
+    const msg = document.getElementById('ol-msg');
+    const btn = document.getElementById('btn-guardar-online');
+    btn.disabled = true; msg.textContent = '';
+    try{
+        await api.put('/config/reservas-online', {
+            max_personas: num('ol-max'),
+            anticipacion_horas: num('ol-ant'),
+            horizonte_dias: num('ol-hor'),
+            contacto_telefono: txt('ol-tel'),
+            contacto_email: txt('ol-email'),
+            contacto_redes: txt('ol-redes'),
+        });
+        msg.textContent = '✅ Guardado — la página pública ya lo aplica.';
+        msg.style.color = '#16a34a';
+    }catch(e){
+        msg.textContent = 'Error: ' + (e.message || e);
+        msg.style.color = '#dc2626';
+    }finally{
+        btn.disabled = false;
+    }
 }
 
 init();

@@ -157,12 +157,13 @@ input:focus, textarea:focus{ border-color:var(--wine); box-shadow:0 0 0 3px rgba
                 <div>
                     <label class="label">Personas</label>
                     <div class="stepper">
-                        <button type="button" aria-label="Menos personas" onclick="cambiarPersonas(-1)">−</button>
+                        <button type="button" id="p-menos" aria-label="Menos personas" onclick="cambiarPersonas(-1)">−</button>
                         <span class="val" id="f-personas" aria-live="polite">2</span>
-                        <button type="button" aria-label="Más personas" onclick="cambiarPersonas(1)">+</button>
+                        <button type="button" id="p-mas" aria-label="Más personas" onclick="cambiarPersonas(1)">+</button>
                     </div>
                 </div>
             </div>
+            <p class="note hidden" id="tope-leyenda"></p>
             <button class="btn" id="btn-buscar" onclick="buscarDisponibilidad()">Ver horarios</button>
         </div>
 
@@ -206,6 +207,7 @@ input:focus, textarea:focus{ border-color:var(--wine); box-shadow:0 0 0 3px rgba
             <!-- honeypot anti-bots -->
             <div class="hp" aria-hidden="true"><label>No completar<input type="text" id="d-website" tabindex="-1" autocomplete="off"></label></div>
 
+            <div class="err" id="dup-aviso" style="background:#fdf8ec;border-color:#e7d29a;color:#7a5b18;"></div>
             <div class="err" id="err"></div>
             <button class="btn" id="btn-confirmar" onclick="confirmar()">Confirmar reserva</button>
         </div>
@@ -217,18 +219,26 @@ input:focus, textarea:focus{ border-color:var(--wine); box-shadow:0 0 0 3px rgba
 <script>
 const API  = "https://restaurante-backend-production-459b.up.railway.app";
 const CODE = new URLSearchParams(location.search).get('r') || '';
+const GTOKEN = new URLSearchParams(location.search).get('c') || '';   // modo gestión (link del email)
 
-const state = { info:null, personas:2, hora:null, horarios:[] };
+const state = { info:null, personas:2, hora:null, horarios:[], motivo:null };
+let CFG = {};        // config online del restaurante (topes/contacto) — llega en /publico/info
+let MAX_P = 20;      // tope del stepper (config o el 20 histórico)
 
 // ── Fetch con header de restaurante (sin login) ──
 async function api(path, opts={}){
     const headers = {'Content-Type':'application/json','X-Restaurant-Code':CODE, ...(opts.headers||{})};
     const res = await fetch(API + path, {...opts, headers});
     let data = null; try{ data = await res.json(); }catch{}
-    if(!res.ok) throw new Error((data && data.detail) || ('Error ' + res.status));
+    if(!res.ok){
+        const err = new Error((data && data.detail) || ('Error ' + res.status));
+        err.status = res.status; err.data = data;   // p/ distinguir el 409 de duplicado
+        throw err;
+    }
     return data;
 }
 const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // ── Iframe: avisar la altura al contenedor anfitrión ──
 function postHeight(){
@@ -248,6 +258,27 @@ function fmtFechaLarga(iso){
     const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
     return `${dias[d.getDay()]} ${dd} de ${meses[m-1]}`;
 }
+// Aritmética de calendario en la hora del RESTAURANTE (info.hoy/info.ahora): el Date
+// local se usa solo como calculadora de componentes, nunca se convierte de zona.
+function _fmtYMD(d){ const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+function sumarHoras(isoMin, horas){
+    const [f,t] = isoMin.split('T'); const [y,m,dd] = f.split('-').map(Number);
+    const [H,M] = (t||'0:0').split(':').map(Number);
+    const d = new Date(y, m-1, dd, H, M); d.setHours(d.getHours() + horas);
+    return _fmtYMD(d);
+}
+function sumarDias(isoFecha, dias){
+    const [y,m,dd] = isoFecha.split('-').map(Number);
+    const d = new Date(y, m-1, dd); d.setDate(d.getDate() + dias);
+    return _fmtYMD(d);
+}
+function contactoTxt(){
+    const c = CFG.contacto || {}; const p = [];
+    if(c.telefono) p.push('Tel: ' + c.telefono);
+    if(c.email) p.push('Correo: ' + c.email);
+    if(c.redes) p.push(c.redes);
+    return p.join(' · ');
+}
 
 // ── Init ──
 async function init(){
@@ -258,10 +289,12 @@ async function init(){
         $('form-wrap').classList.add('hidden');
         return;
     }
+    if(GTOKEN){ modoGestion(); return; }   // link de cancelación del email
     try{
         state.info = await api('/publico/info');
         $('rest-name').textContent = state.info.restaurante || 'Reservá tu mesa';
         document.title = 'Reservá en ' + (state.info.restaurante || '');
+        aplicarConfigOnline();
     }catch(e){
         $('rest-name').textContent = 'No encontramos el restaurante';
         $('sub').textContent = 'Verificá el enlace de reservas.';
@@ -270,9 +303,39 @@ async function init(){
     postHeight();
 }
 
-function cambiarPersonas(d){
-    state.personas = Math.min(20, Math.max(1, state.personas + d));
+// Topes/contacto del restaurante → fechas min/max, tope del stepper y leyenda.
+// Con un server viejo (sin `online`) todo queda como antes.
+function aplicarConfigOnline(){
+    CFG = state.info.online || {};
+    const f = $('f-fecha');
+    const hoyRest = state.info.hoy || hoyStr();
+    let minF = hoyRest;
+    if(CFG.anticipacion_horas != null && state.info.ahora){
+        minF = sumarHoras(state.info.ahora, CFG.anticipacion_horas);
+    }
+    f.min = minF;
+    if(f.value < minF) f.value = minF;
+    if(CFG.horizonte_dias != null) f.max = sumarDias(hoyRest, CFG.horizonte_dias);
+    MAX_P = CFG.max_personas || 20;
+    if(state.personas > MAX_P) state.personas = MAX_P;
     $('f-personas').textContent = state.personas;
+    if(CFG.max_personas != null){
+        const c = contactoTxt();
+        $('tope-leyenda').textContent = `Para reservas más numerosas, contactate con el personal del restaurante${c ? ': ' + c : ''}.`;
+        $('tope-leyenda').classList.remove('hidden');
+    }
+    _refrescarStepper();
+}
+
+function _refrescarStepper(){
+    $('p-menos').disabled = state.personas <= 1;
+    $('p-mas').disabled = state.personas >= MAX_P;
+}
+
+function cambiarPersonas(d){
+    state.personas = Math.min(MAX_P, Math.max(1, state.personas + d));
+    $('f-personas').textContent = state.personas;
+    _refrescarStepper();
     resetDisponibilidad();
 }
 
@@ -289,13 +352,16 @@ async function buscarDisponibilidad(){
     try{
         const data = await api(`/publico/disponibilidad?fecha=${fecha}&comensales=${state.personas}`);
         let horas = data.horarios || [];
-        // Para hoy, ocultar horarios ya pasados (hora local del cliente)
-        if(fecha === hoyStr()){
+        // Para hoy, ocultar horarios ya pasados (hora local del cliente) — solo si NO hay
+        // anticipación configurada: con anticipación el server ya filtró con el huso del
+        // restaurante, que es el que manda.
+        if(fecha === hoyStr() && CFG.anticipacion_horas == null){
             const ahora = new Date();
             const hm = ahora.getHours()*60 + ahora.getMinutes();
             horas = horas.filter(h => { const [H,M]=h.split(':').map(Number); return H*60+M > hm; });
         }
         state.horarios = horas;
+        state.motivo = data.motivo || null;
         renderHorarios();
     }catch(e){
         alert(e.message || 'No se pudieron cargar los horarios.');
@@ -310,7 +376,18 @@ function renderHorarios(){
     $('sec-datos').classList.add('hidden');
     state.hora = null;
     const vacio = $('sin-horarios');
-    if(!state.horarios.length){ vacio.classList.remove('hidden'); postHeight(); return; }
+    if(!state.horarios.length){
+        const c = contactoTxt();
+        if(state.motivo === 'anticipacion'){
+            vacio.textContent = `Las reservas online se toman con al menos ${CFG.anticipacion_horas} h de anticipación. `
+                + `Probá con una fecha posterior${c ? ', o contactanos: ' + c : '.'}`;
+        }else if(state.motivo === 'horizonte'){
+            vacio.textContent = `Por ahora tomamos reservas hasta ${CFG.horizonte_dias} días adelante. Probá con una fecha más cercana.`;
+        }else{
+            vacio.textContent = 'No hay horarios disponibles ese día. Probá con otra fecha.';
+        }
+        vacio.classList.remove('hidden'); postHeight(); return;
+    }
     vacio.classList.add('hidden');
     state.horarios.forEach(h => {
         const b = document.createElement('button');
@@ -351,20 +428,32 @@ async function confirmar(){
     if(!nombre){ mostrarErr('Indicá tu nombre.'); $('d-nombre').focus(); return; }
     if(!tel && !email){ mostrarErr('Dejá un teléfono o un email para confirmar.'); $('d-tel').focus(); return; }
     if(!state.hora){ mostrarErr('Elegí un horario.'); return; }
+    await enviarReserva(null);
+}
 
+async function enviarReserva(accion){
     const btn = $('btn-confirmar'); btn.disabled = true; btn.textContent = 'Confirmando…';
     $('err').style.display = 'none';
+    $('dup-aviso').style.display = 'none';
     try{
         const r = await api('/publico/reservas', { method:'POST', body: JSON.stringify({
-            nombre, telefono: tel || null, email: email || null,
+            nombre: $('d-nombre').value.trim(),
+            telefono: $('d-tel').value.trim() || null,
+            email: $('d-email').value.trim() || null,
             comensales: state.personas, fecha: $('f-fecha').value, hora_inicio: state.hora,
             alergeno: $('d-alergeno').value.trim() || null,
             notas: $('d-notas').value.trim() || null,
             website: $('d-website').value || null,
+            accion: accion || null,
         })});
         mostrarConfirmacion(r);
     }catch(e){
         btn.disabled = false; btn.textContent = 'Confirmar reserva';
+        // Duplicado por contacto: ya hay una reserva ese día a nombre de este tel/email
+        if(e.status === 409 && e.data && e.data.duplicada){
+            mostrarDuplicado(e.data);
+            return;
+        }
         // Si justo se ocupó la última mesa, refrescar horarios
         if(/disponibles|409/.test(e.message||'')){
             mostrarErr('Ese horario se acaba de ocupar. Elegí otro, por favor.');
@@ -373,6 +462,21 @@ async function confirmar(){
             mostrarErr(e.message || 'No pudimos confirmar la reserva. Probá de nuevo.');
         }
     }
+}
+
+function mostrarDuplicado(data){
+    const dv = $('dup-aviso');
+    dv.innerHTML = `${esc(data.detail || 'Ya tenemos una reserva a tu nombre para ese día.')}<br>
+        <span style="font-size:13px;">¿Querés cambiarla por esta nueva, o agregar una reserva más?</span>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button type="button" class="btn" style="margin:0;flex:1;min-width:140px;font-size:14px;padding:11px 12px;"
+                onclick="enviarReserva('reemplazar')">Cambiar la reserva</button>
+            <button type="button" class="btn" style="margin:0;flex:1;min-width:140px;font-size:14px;padding:11px 12px;background:#8b8d94;"
+                onclick="enviarReserva('nueva')">Agregar una nueva</button>
+        </div>`;
+    dv.style.display = 'block';
+    dv.scrollIntoView({behavior:'smooth', block:'nearest'});
+    postHeight();
 }
 
 function mostrarConfirmacion(r){
@@ -391,10 +495,82 @@ function mostrarConfirmacion(r){
             <p class="post">${r.email_enviado
                 ? 'Te enviamos la confirmación por email. La mesa se asigna al llegar.'
                 : 'Tu reserva quedó registrada. La mesa se asigna al llegar.'}</p>
+            ${(!r.email_enviado && r.cancelar_url) ? `
+            <p class="post" style="margin-top:12px;">Guardá este enlace por si necesitás cancelar:<br>
+                <a href="${esc(r.cancelar_url)}" style="color:var(--wine);word-break:break-all;">${esc(r.cancelar_url)}</a></p>` : ''}
         </div>
         <div class="foot">Reservas en línea</div>`;
     postHeight();
     try{ window.scrollTo({top:0, behavior:'smooth'}); }catch{}
+}
+
+// ── Modo GESTIÓN: el link "Cancelar reserva" del email abre esta misma página con ?c=token ──
+const _ESTADOS_GESTION = { programada:'Confirmada', en_espera:'En espera', sentado:'En curso',
+                           terminada:'Finalizada', cancelada:'Cancelada' };
+async function modoGestion(){
+    $('form-wrap').classList.add('hidden');
+    $('sub').textContent = 'Tu reserva';
+    let g = null;
+    try{ g = await api(`/publico/reservas/gestion/${encodeURIComponent(GTOKEN)}`); }
+    catch(e){
+        $('rest-name').textContent = 'Reserva no encontrada';
+        $('sub').textContent = (e.status === 404)
+            ? 'El enlace no es válido o la reserva ya no existe.'
+            : (e.message || 'No pudimos cargar la reserva.');
+        postHeight(); return;
+    }
+    $('rest-name').textContent = g.restaurante || 'Tu reserva';
+    document.title = 'Tu reserva en ' + (g.restaurante || '');
+    renderGestion(g);
+}
+
+function renderGestion(g){
+    const estado = _ESTADOS_GESTION[g.estado] || g.estado || '—';
+    $('form-wrap').innerHTML = `
+        <div class="section">
+            <div class="ticket">
+                <div class="li"><span>A nombre de</span><b>${esc(g.nombre || '—')}</b></div>
+                <div class="li"><span>Día</span><b>${esc(fmtFechaLarga(g.fecha))}</b></div>
+                <div class="li"><span>Hora</span><b>${esc(g.hora)}</b></div>
+                <div class="li"><span>Personas</span><b>${esc(g.comensales)}</b></div>
+                <div class="li"><span>Estado</span><b>${esc(estado)}</b></div>
+            </div>
+            <div class="err" id="g-err"></div>
+            ${g.cancelable
+                ? `<button class="btn" id="btn-g-cancelar" onclick="pedirCancelacion()">Cancelar reserva</button>`
+                : `<p class="muted">${g.estado === 'cancelada'
+                        ? 'Esta reserva ya fue cancelada.'
+                        : 'Esta reserva ya no se puede cancelar online. Si necesitás algo, contactá al restaurante.'}</p>`}
+        </div>`;
+    $('form-wrap').classList.remove('hidden');
+    postHeight();
+}
+
+function pedirCancelacion(){
+    const btn = $('btn-g-cancelar');
+    btn.textContent = '¿Seguro? Sí, cancelar la reserva';
+    btn.onclick = confirmarCancelacion;
+    btn.style.background = '#6f2230';
+    postHeight();
+}
+
+async function confirmarCancelacion(){
+    const btn = $('btn-g-cancelar');
+    btn.disabled = true; btn.textContent = 'Cancelando…';
+    try{
+        await api(`/publico/reservas/gestion/${encodeURIComponent(GTOKEN)}/cancelar`, { method:'POST' });
+        $('form-wrap').innerHTML = `
+            <div class="done" style="padding:10px 0 6px;">
+                <h2>Reserva cancelada</h2>
+                <p class="post">Gracias por avisar — liberamos el lugar. ¡Te esperamos en otra ocasión!</p>
+            </div>`;
+        postHeight();
+    }catch(e){
+        btn.disabled = false; btn.textContent = 'Cancelar reserva';
+        const ge = $('g-err');
+        if(ge){ ge.textContent = e.message || 'No pudimos cancelar la reserva. Probá de nuevo.'; ge.style.display = 'block'; }
+        postHeight();
+    }
 }
 
 init();
