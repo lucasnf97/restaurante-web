@@ -227,6 +227,7 @@
                 <div class="mfield" style="margin-top:0"><label>Nombre</label><input type="text" id="t-nombre" placeholder="Ej: Apertura"></div>
                 <div style="margin-top:12px" id="t-franjas"></div>
                 <button class="add-fr" onclick="tplAddFranja()">+ Franja</button>
+                <div class="mfield"><label>Rol del turno (opcional)</label><select id="t-rol"></select><div style="font-size:11px;color:#94a3b8;margin-top:4px;">Si lo definís, el turno se guarda con ese rol (la tarea del día). Vacío = rol del empleado.</div></div>
                 <div class="mfield"><label>Descanso (min)</label><input type="number" id="t-break" min="0" step="5" value="0"></div>
             </div>
             <div class="modal-foot">
@@ -322,6 +323,7 @@
             }
         }
         _applyRO();
+        await cargarRolesCatalogo();
         init();
     }
 
@@ -332,15 +334,27 @@
     const MESES_C = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
     const COLOR_PALETTE = ['#10b981','#3b82f6','#f59e0b','#ec4899','#14b8a6','#f97316','#8b5cf6','#84cc16','#ef4444','#06b6d4','#a78bfa','#fb923c'];
     const ROL_LABELS = { gerente:'Gerencia', empleado:'Personal', bartender:'Bartender', cocinero:'Cocina', camarero:'Sala' };
-    let rolColorMap = {}, rolesDisponibles = [];
+    let rolColorMap = {}, rolesDisponibles = [], rolesGrilla = [], _rolesCatalogo = [];
     function getRolColor(rol){ return rolColorMap[rol] || '#9ca3af'; }
     function getRolLabel(rol){ return ROL_LABELS[rol] || (rol ? rol.charAt(0).toUpperCase()+rol.slice(1) : 'Sin rol'); }
     function hexToRgba(hex,a){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
+    async function cargarRolesCatalogo(){
+        // Catálogo completo (roles_definicion): sin esto un rol-tarea (amasador, panero…)
+        // que nadie tiene todavía asignado no aparecería en ningún desplegable de rol.
+        // Solo en modo un-restaurante (en cadena el catálogo es por local).
+        if(!_SINGLE) return;
+        try{ _rolesCatalogo=(await apiFetch('/roles')).map(r=>r.nombre).filter(Boolean); }catch(e){}
+    }
     function buildRolColors(){
         const set = new Set();
-        Object.values(_users).forEach(u=>u.memberships.forEach(m=>{ if(m.rol) set.add(m.rol); }));
+        Object.values(_users).forEach(u=>u.memberships.forEach(m=>{
+            if(m.rol) set.add(m.rol);
+            (m.roles_secundarios||[]).forEach(r=>{ if(r) set.add(r); });
+        }));
         const orden = ['gerente','empleado','bartender','cocinero','camarero'];
-        rolesDisponibles = [...orden.filter(r=>set.has(r)), ...[...set].filter(r=>!orden.includes(r)).sort()];
+        rolesGrilla = [...orden.filter(r=>set.has(r)), ...[...set].filter(r=>!orden.includes(r)).sort()];
+        // Los del catálogo que nadie tiene aún van al final (no corren los colores en uso)
+        rolesDisponibles = [...rolesGrilla, ..._rolesCatalogo.filter(r=>!set.has(r)).sort()];
         rolColorMap = {};
         rolesDisponibles.forEach((rol,i)=>{ rolColorMap[rol]=COLOR_PALETTE[i%COLOR_PALETTE.length]; });
     }
@@ -504,7 +518,9 @@
     }
     function toggleRest(id){ if(_selRest.has(id)) _selRest.delete(id); else _selRest.add(id); renderRestChips(); renderGrid(); }
     function renderRolChips(){
-        document.getElementById('chips-rol').innerHTML = rolesDisponibles.map(rol=>{
+        // Chips de filtro: solo roles presentes en la grilla (los del catálogo sin titular
+        // no filtran a nadie); los desplegables de rol sí usan rolesDisponibles completo.
+        document.getElementById('chips-rol').innerHTML = rolesGrilla.map(rol=>{
             const active=rolesActivos.has(rol), col=getRolColor(rol);
             const style=active?`background:${col};border-color:${col};color:white;`:`border-color:${col};color:${col};`;
             return `<span class="area-chip${active?' active':''}" onclick="toggleRol('${_esc(rol)}')" style="${style}">${_esc(getRolLabel(rol))}</span>`;
@@ -1321,6 +1337,10 @@
     async function _validarRolTurno(rolTurno){
         const u=_users[_modal.userKey]; if(!u) return true;
         const m=u.memberships.find(x=>x.restaurante_id===_modal.restaurante_id); if(!m) return true;
+        return _validarRol(rolTurno, u, m);
+    }
+    async function _validarRol(rolTurno, u, m){
+        if(!u || !m) return true;
         if(m.rol===rolTurno || (m.roles_secundarios||[]).includes(rolTurno)) return true;
         const ok=confirm(
             `⚠ ${u.nombre} no tiene el rol "${getRolLabel(rolTurno)}".\n\n`+
@@ -1392,7 +1412,8 @@
         c.innerHTML=_templates.map(t=>{
             const tiempos=t.franjas.map(f=>`${f.inicio}–${f.fin}`).join(', ');
             const brk=t.break_mins>0?` ☕${t.break_mins}m`:'';
-            return `<span class="tpl-chip" draggable="true" ondragstart="tplDragStart(event,'${t.id}')" ondragend="tplDragEnd(event)" onclick="abrirTplModal('${t.id}')">${_esc(t.nombre)}<span class="tpl-chip-times">${_esc(tiempos)}${brk}</span><button class="tpl-chip-del" onclick="event.stopPropagation();confirmarEliminarTpl('${t.id}')">✕</button></span>`;
+            const rolTag=t.rol?` <span style="font-size:10px;font-weight:600;color:${getRolColor(t.rol)};white-space:nowrap;">●&nbsp;${_esc(getRolLabel(t.rol))}</span>`:'';
+            return `<span class="tpl-chip" draggable="true" ondragstart="tplDragStart(event,'${t.id}')" ondragend="tplDragEnd(event)" onclick="abrirTplModal('${t.id}')">${_esc(t.nombre)}${rolTag}<span class="tpl-chip-times">${_esc(tiempos)}${brk}</span><button class="tpl-chip-del" onclick="event.stopPropagation();confirmarEliminarTpl('${t.id}')">✕</button></span>`;
         }).join('');
     }
     let _dragTplId=null;
@@ -1411,17 +1432,19 @@
             abrirTplRest(tpl, allowed, fecha, u);
             return;
         }
-        await _aplicarTpl(tpl, m, fecha);
+        await _aplicarTpl(tpl, m, fecha, u);
     }
-    async function _aplicarTpl(tpl, m, fecha){
-        try{ await _saveTurno({ restaurante_id:m.restaurante_id, usuario_id:m.usuario_id, fecha, franjas:tpl.franjas, rol_turno:null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
+    async function _aplicarTpl(tpl, m, fecha, u){
+        // Plantilla con rol: misma alarma que el modal si el empleado no tiene ese rol
+        if(tpl.rol && !(await _validarRol(tpl.rol, u, m))) return;
+        try{ await _saveTurno({ restaurante_id:m.restaurante_id, usuario_id:m.usuario_id, fecha, franjas:tpl.franjas, rol_turno:tpl.rol||null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
         catch(err){ alert('Error al aplicar plantilla: '+(err.message||err)); }
     }
 
     // ── Elegir restaurante al soltar una plantilla (empleado multi-local sin filtro) ──
-    let _tplRestCtx=null;   // { tpl, allowed, fecha }
+    let _tplRestCtx=null;   // { tpl, allowed, fecha, u }
     function abrirTplRest(tpl, allowed, fecha, u){
-        _tplRestCtx={ tpl, allowed, fecha };
+        _tplRestCtx={ tpl, allowed, fecha, u };
         const tiempos=tpl.franjas.map(f=>`${f.inicio}–${f.fin}`).join(', ');
         document.getElementById('tr-sub').textContent=`${u.nombre||u.username||''} · "${tpl.nombre}" (${tiempos}) · ${fecha}`;
         document.getElementById('tr-opts').innerHTML=allowed.map(x=>
@@ -1432,7 +1455,7 @@
     async function elegirTplRest(restId){
         const ctx=_tplRestCtx; cerrarTplRest(); if(!ctx) return;
         const m=ctx.allowed.find(x=>x.restaurante_id===restId); if(!m) return;
-        await _aplicarTpl(ctx.tpl, m, ctx.fecha);
+        await _aplicarTpl(ctx.tpl, m, ctx.fecha, ctx.u);
     }
     let _editingTplId=null;
     function abrirTplModal(id){
@@ -1441,6 +1464,9 @@
         document.getElementById('t-title').textContent=tpl?'Editar plantilla':'Nueva plantilla';
         document.getElementById('t-nombre').value=tpl?tpl.nombre:'';
         document.getElementById('t-break').value=tpl?(tpl.break_mins||0):0;
+        const rolSel=(tpl&&tpl.rol)||'';
+        const roles=rolSel&&!rolesDisponibles.includes(rolSel)?[rolSel,...rolesDisponibles]:rolesDisponibles;
+        document.getElementById('t-rol').innerHTML='<option value="">(rol del empleado)</option>'+roles.map(r=>`<option value="${_esc(r)}"${r===rolSel?' selected':''}>${_esc(getRolLabel(r))}</option>`).join('');
         const franjas=tpl?tpl.franjas:[{inicio:'09:00',fin:'17:00'}];
         document.getElementById('t-franjas').innerHTML=franjas.map(f=>tplFranjaRow(f.inicio,f.fin)).join('');
         document.getElementById('t-del').style.display=tpl?'':'none';
@@ -1456,8 +1482,9 @@
         document.querySelectorAll('#t-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[type=time]'); if(t[0].value && t[1].value) franjas.push({inicio:t[0].value,fin:t[1].value}); });
         if(!franjas.length){ alert('Agregá al menos una franja.'); return; }
         const brk=parseInt(document.getElementById('t-break').value,10)||0;
-        if(_editingTplId){ const t=_templates.find(x=>x.id===_editingTplId); if(t){ t.nombre=nombre; t.franjas=franjas; t.break_mins=brk; } }
-        else _templates.push({ id:'tpl_'+Date.now(), nombre, franjas, break_mins:brk });
+        const rol=document.getElementById('t-rol').value||null;
+        if(_editingTplId){ const t=_templates.find(x=>x.id===_editingTplId); if(t){ t.nombre=nombre; t.franjas=franjas; t.break_mins=brk; t.rol=rol; } }
+        else _templates.push({ id:'tpl_'+Date.now(), nombre, franjas, break_mins:brk, rol });
         saveTemplates(); renderTemplatesBar(); cerrarTplModal();
     }
     function confirmarEliminarTpl(id){ if(confirm('¿Eliminar esta plantilla?')){ _templates=_templates.filter(t=>t.id!==id); saveTemplates(); renderTemplatesBar(); } }
