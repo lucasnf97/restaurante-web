@@ -1110,7 +1110,7 @@ function _fechaLargaLocal(ymd) {
 }
 async function cargarDiariasHist() {
     const cont = document.getElementById('td-lista');
-    cont.innerHTML = '<div class="vacio">Cargando...</div>';
+    if (cont.children.length <= 1) cont.innerHTML = '<div class="vacio">Cargando...</div>';
     const p = new URLSearchParams();
     const d = document.getElementById('td-desde').value;
     const h = document.getElementById('td-hasta').value;
@@ -1166,7 +1166,7 @@ function _horaJ(iso) {
 }
 async function cargarJornadas(offset) {
     const cont = document.getElementById('tj-lista');
-    cont.innerHTML = '<div class="vacio">Cargando...</div>';
+    if (cont.children.length <= 1) cont.innerHTML = '<div class="vacio">Cargando...</div>';
     const p = new URLSearchParams({ limit: _JOR_PAG, offset: offset || 0 });
     const u = document.getElementById('tj-usuario').value;
     const d = document.getElementById('tj-desde').value;
@@ -1233,7 +1233,7 @@ function _toggleJornada(id) {
 async function cargarConfirmaciones(offset) {
     _taOffset = offset || 0;
     const cont = document.getElementById('ta-lista');
-    cont.innerHTML = '<div class="vacio">Cargando...</div>';
+    if (cont.children.length <= 1) cont.innerHTML = '<div class="vacio">Cargando...</div>';
     let q = `limit=${TA_LIMIT}&offset=${_taOffset}`;
     const uid = document.getElementById('ta-f-usuario').value;
     const rol = document.getElementById('ta-f-rol').value;

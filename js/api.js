@@ -603,8 +603,13 @@ async function abrirDocumento(url) {
             }
         },
         // Rellena un <tbody> con filas "shimmer" mientras carga la tabla.
+        // SOLO en la primera carga: en un REFRESCO (ya hay filas de datos) se deja el
+        // contenido viejo hasta que llegue el nuevo — reemplazarlo por el esqueleto
+        // acortaba la página, el scroll se clampaba al tope y tras cada edición había
+        // que volver a bajar hasta donde se estaba.
         skeleton(tbody, rows = 6, cols = 4) {
             if (!tbody) return;
+            if (tbody.children.length > 1 && !tbody.querySelector(".ui-skel")) return;
             let html = "";
             for (let r = 0; r < rows; r++) {
                 let tds = "";
@@ -615,9 +620,10 @@ async function abrirDocumento(url) {
             }
             tbody.innerHTML = html;
         },
-        // Tarjetas grises (para grids de stats/dashboard).
+        // Tarjetas grises (para grids de stats/dashboard). Misma regla: solo 1ª carga.
         skeletonCards(cont, n = 4) {
             if (!cont) return;
+            if (cont.children.length > 1 && !cont.querySelector(".ui-skel-card")) return;
             cont.innerHTML = Array.from({ length: n }, () => `<div class="ui-skel-card"></div>`).join("");
         },
         // Overlay bloqueante con spinner + texto (acciones: cobrar/guardar/importar/IA).

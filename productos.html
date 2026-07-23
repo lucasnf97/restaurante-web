@@ -916,7 +916,9 @@ function setTab(tab) {
 let _costos = [];
 async function cargarCostos() {
     const tbody = document.getElementById("tbody-costos");
-    tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
+    // Placeholder solo en la primera carga (en refrescos la tabla vieja queda hasta
+    // que llegan los datos — así el scroll no salta al tope).
+    if (tbody.children.length <= 1) tbody.innerHTML = `<tr><td colspan="7" class="empty">Cargando...</td></tr>`;
     try { _costos = await api.get("/stock/costos-productos"); renderCostos(); }
     catch (e) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Error: ${e.message}</td></tr>`; }
 }

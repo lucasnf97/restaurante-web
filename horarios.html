@@ -498,7 +498,11 @@
         updateNavLabel();
         const days=getDays(), desde=formatDate(days[0]), hasta=formatDate(days[days.length-1]);
         const area=document.getElementById('grid-area');
-        area.innerHTML='<div class="grid-loading">Cargando…</div>';
+        // "Cargando…" SOLO la primera vez: en los refrescos (guardar/mover/eliminar un
+        // turno) la grilla vieja queda visible hasta que llega la nueva — colapsarla
+        // mandaba el scroll al tope en cada edición.
+        if(!area.children.length || area.querySelector('.grid-loading, .grid-empty'))
+            area.innerHTML='<div class="grid-loading">Cargando…</div>';
         try { _data = await _get(_epHorarios(`desde=${desde}&hasta=${hasta}`)); }
         catch(e){ area.innerHTML='<div class="grid-empty">Error cargando horarios.</div>'; return; }
         // Deduplicar por username (la identidad compartida entre locales; `nombre` ahora
