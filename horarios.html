@@ -188,6 +188,8 @@
 
         <div class="templates-bar" id="templates-bar">
             <span class="tpl-bar-label">📋 Plantillas</span>
+            <input type="text" id="tpl-buscar" placeholder="🔍 Buscar…" oninput="renderTemplatesBar()"
+                   style="flex-shrink:0;width:130px;padding:4px 10px;border:1.5px solid #e9d5ff;border-radius:14px;font-size:12px;outline:none;background:#fff;color:#6d28d9;">
             <div class="tpl-chips" id="tpl-chips"></div>
             <button class="tpl-add-btn" onclick="abrirTplModal()">+ Nueva</button>
         </div>
@@ -225,6 +227,7 @@
             <div class="modal-head"><div><div class="mt" id="t-title">Nueva plantilla</div><div class="ms">Arrastrá la plantilla a una celda para aplicarla.</div></div></div>
             <div class="modal-body">
                 <div class="mfield" style="margin-top:0"><label>Nombre</label><input type="text" id="t-nombre" placeholder="Ej: Apertura"></div>
+                <div class="mfield" id="t-rest-wrap" style="display:none;"><label>Restaurante (opcional)</label><select id="t-rest"></select><div style="font-size:11px;color:#94a3b8;margin-top:4px;">Si lo asignás, la plantilla solo se ve al filtrar ese local (o sin filtro).</div></div>
                 <div style="margin-top:12px" id="t-franjas"></div>
                 <button class="add-fr" onclick="tplAddFranja()">+ Franja</button>
                 <div class="mfield"><label>Rol del turno (opcional)</label><select id="t-rol"></select><div style="font-size:11px;color:#94a3b8;margin-top:4px;">Si lo definís, el turno se guarda con ese rol (la tarea del día). Vacío = rol del empleado.</div></div>
@@ -516,7 +519,7 @@
             `<span class="rchip ${_selRest.has(r.id)?'active':''}" onclick="toggleRest(${r.id})">${_esc(r.nombre||'—')}</span>`).join('')
             || '<span style="color:#9ca3af;font-size:12px;">Sin restaurantes.</span>';
     }
-    function toggleRest(id){ if(_selRest.has(id)) _selRest.delete(id); else _selRest.add(id); renderRestChips(); renderGrid(); }
+    function toggleRest(id){ if(_selRest.has(id)) _selRest.delete(id); else _selRest.add(id); renderRestChips(); renderGrid(); if(!_RO) renderTemplatesBar(); }
     function renderRolChips(){
         // Chips de filtro: solo roles presentes en la grilla (los del catálogo sin titular
         // no filtran a nadie); los desplegables de rol sí usan rolesDisponibles completo.
@@ -643,15 +646,20 @@
                         const _seld = (_selRecibe && _ixRecibe.some(x=>x.id===e.id)) || (_selPropio && _ixOwnSel.turnos.some(x=>x.id===e.id));
                         const _solId = _sol ? _sol.id : 0;
                         let _handlers;
-                        if(_selRecibe)            _handlers=`onclick="event.stopPropagation();_ixSeleccionarTurno(${e.id})"`;
+                        const _edSeld=_edSel && _edSel.ids.has(e.id);
+                        if(_edSel)                _handlers=`onclick="event.stopPropagation();_edToggle(${e.id},${s.restaurante_id})"`;
+                        else if(_selRecibe)       _handlers=`onclick="event.stopPropagation();_ixSeleccionarTurno(${e.id})"`;
                         else if(_selPropio)       _handlers=`onclick="event.stopPropagation();_ixTogglePropio(${e.id})"`;
                         // En modo selección, los turnos NO elegibles (pasados/borrador) quedan inertes
                         else if(_enModoSel)       _handlers=`onclick="event.stopPropagation();" title="Este turno no se puede ofrecer (pasado, sin publicar o ya ofrecido/en intercambio)"`;
                         else if(_ofDisp && !esMio)_handlers=`onclick="event.stopPropagation();_tomarOferta(${_sol.id},${s.restaurante_id})"`;
-                        else if(esMio)            _handlers=`onclick="event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id},${_ofId})"`;
-                        // Editor sobre turno ajeno: 1 click = gestionar solicitud, doble click = editar config.
+                        else if(esMio)            _handlers=`onclick="event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id},${_ofId},true)"`;
+                        // Editor sobre turno ajeno: 1 click = menú (editar/eliminar/gestionar), doble = editar config.
+                        else if(!_RO)             _handlers=`onclick="event.stopPropagation();abrirMenuTurno(event,'${u.key}','${key}',${s.restaurante_id},${e.id},0,false,${_solId})" ondblclick="event.stopPropagation();_turnoDbl('${u.key}','${key}',${s.restaurante_id})"`;
                         else                      _handlers=`onclick="event.stopPropagation();_turnoClick('${u.key}','${key}',${s.restaurante_id},${_solId})" ondblclick="event.stopPropagation();_turnoDbl('${u.key}','${key}',${s.restaurante_id})"`;
-                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}${_selable?' ix-selectable':''}${_seld?' ix-selected':''}${_ofDisp?' ix-oferta':''}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" ${_handlers}>${_seld?'✓ ':''}${_ofDisp?'<span class="cell-oferta-tag">📣 En oferta</span>':_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
+                        // Editores: el turno se puede ARRASTRAR a otra celda (mueve dueño/día)
+                        const _drag=(!_RO && !_edSel)?` draggable="true" ondragstart="turnoDragStart(event,'${u.key}','${key}',${s.restaurante_id},${e.id})" ondragend="turnoDragEnd(event)"`:'';
+                        html+=`<div class="cell-content ${e.publicado?'published':'draft'}${_selable?' ix-selectable':''}${_seld?' ix-selected':''}${_edSel?' ix-selectable':''}${_edSeld?' ix-selected':''}${_ofDisp?' ix-oferta':''}" style="border-color:${cc};background:${hexToRgba(cc,.08)};color:${cc};" ${_handlers}${_drag}>${(_seld||_edSeld)?'✓ ':''}${_ofDisp?'<span class="cell-oferta-tag">📣 En oferta</span>':_mk}${rolB}${fr}<div class="shift-rest">— ${_esc(s.restaurante)}</div><div class="cell-total-h">${_fmtH(net)} ${brk}</div></div>`;
                         const rE=e.rol_turno||s.rol;
                         if(!summary[key][rE]) summary[key][rE]={mins:0,count:0};
                         summary[key][rE].mins+=net; summary[key][rE].count+=1;
@@ -787,16 +795,85 @@
             _mostrarWidgetSolicitud(d, R);
         }catch(e){ console.warn('No se pudo gestionar la solicitud:', e); }
     }
-    function abrirMenuTurno(ev, userKey, fecha, restauranteId, origenHorarioId, ofertaId){
+    function abrirMenuTurno(ev, userKey, fecha, restauranteId, origenHorarioId, ofertaId, esMio, solId){
         ev.stopPropagation(); cerrarMenuTurno();
         const m=document.createElement('div'); m.className='cell-menu'; m.id='cell-menu';
-        let items=`<div class="it" onclick="_ixIniciarSelPropio(${restauranteId},${origenHorarioId})">✓ Seleccionar turnos…</div>`;
-        if(ofertaId) items+=`<div class="it" onclick="cerrarMenuTurno();_cancelarOferta(${ofertaId},${restauranteId})">📣 Cancelar oferta</div>`;
-        if(!_RO) items+=`<div class="it" onclick="cerrarMenuTurno();abrirModal('${userKey}','${fecha}',${restauranteId})">✏️ Editar turno</div>`;
+        let items='';
+        if(esMio) items+=`<div class="it" onclick="_ixIniciarSelPropio(${restauranteId},${origenHorarioId})">✓ Seleccionar turnos…</div>`;
+        if(esMio && ofertaId) items+=`<div class="it" onclick="cerrarMenuTurno();_cancelarOferta(${ofertaId},${restauranteId})">📣 Cancelar oferta</div>`;
+        if(!esMio && solId) items+=`<div class="it" onclick="cerrarMenuTurno();_gestionarSolicitud(${solId},${restauranteId})">🔁 Gestionar solicitud</div>`;
+        if(!_RO){
+            items+=`<div class="it" onclick="cerrarMenuTurno();abrirModal('${userKey}','${fecha}',${restauranteId})">✏️ Editar turno</div>`;
+            items+=`<div class="it" onclick="cerrarMenuTurno();_eliminarTurnoDirecto(${restauranteId},${origenHorarioId})" style="color:#dc2626;">🗑 Eliminar turno</div>`;
+            items+=`<div class="it" onclick="cerrarMenuTurno();_edIniciar(${origenHorarioId},${restauranteId})">☑ Seleccionar varios…</div>`;
+        }
         m.innerHTML=items; document.body.appendChild(m);
         const r=ev.currentTarget.getBoundingClientRect();
         m.style.left=(r.left+window.scrollX)+'px'; m.style.top=(r.bottom+window.scrollY+2)+'px';
         setTimeout(()=>document.addEventListener('click', cerrarMenuTurno, {once:true}), 0);
+    }
+    // ── Eliminar directo + selección múltiple del EDITOR (independiente del intercambio) ──
+    async function _eliminarTurnoDirecto(R, entryId){
+        if(!confirm('¿Eliminar este turno?')) return;
+        try{ await _delTurno(R, entryId); await cargarYRenderizar(); }
+        catch(e){ alert('No se pudo eliminar: '+(e.message||e)); }
+    }
+    let _edSel=null;   // { ids:Map(entryId → restaurante_id) } — modo selección del editor
+    function _edIniciar(entryId, R){
+        cerrarMenuTurno();
+        _edSel={ ids:new Map() };
+        if(entryId) _edSel.ids.set(entryId, R);
+        _edBanner(); renderGrid();
+    }
+    function _edToggle(entryId, R){
+        if(!_edSel) return;
+        if(_edSel.ids.has(entryId)) _edSel.ids.delete(entryId); else _edSel.ids.set(entryId, R);
+        _edBanner(); renderGrid();
+    }
+    function _edBanner(){
+        _ixClearBanner();
+        const n=_edSel?_edSel.ids.size:0;
+        const b=document.createElement('div'); b.id='ix-banner';
+        b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9600;background:#7c2d12;color:#fff;padding:10px 16px;display:flex;justify-content:center;align-items:center;gap:14px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);';
+        b.innerHTML=`☑ Tocá los turnos para seleccionarlos · <b>${n}</b> seleccionado(s) <button onclick="_edEliminarSel()" style="background:#fff;color:#b91c1c;border:0;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer;">🗑 Eliminar seleccionados</button> <button onclick="_edCancelar()" style="background:transparent;color:#fff;border:1px solid #fff;border-radius:6px;padding:4px 11px;font-weight:700;cursor:pointer;">✕ Cancelar</button>`;
+        document.body.appendChild(b);
+    }
+    function _edCancelar(){ _edSel=null; _ixClearBanner(); renderGrid(); }
+    async function _edEliminarSel(){
+        if(!_edSel || !_edSel.ids.size){ alert('Seleccioná al menos un turno.'); return; }
+        const n=_edSel.ids.size;
+        if(!confirm(`¿Eliminar ${n} turno(s) seleccionados?`)) return;
+        const pares=[..._edSel.ids.entries()];
+        _edSel=null; _ixClearBanner();
+        let errores=0;
+        for(const[id,R] of pares){
+            try{ await _delTurno(R, id); }catch(e){ errores++; }
+        }
+        if(errores) alert(`${errores} turno(s) no se pudieron eliminar.`);
+        await cargarYRenderizar();
+    }
+    // ── Drag & drop de TURNOS (editor): mover un turno a otro empleado y/o día ──
+    let _dragTurno=null;   // { srcKey, fecha, R, entryId }
+    function turnoDragStart(ev, srcKey, fecha, R, entryId){
+        _dragTurno={ srcKey, fecha, R, entryId };
+        ev.dataTransfer.effectAllowed='move';
+        try{ ev.dataTransfer.setData('text/plain','turno:'+entryId); }catch(e){}
+        ev.currentTarget.classList.add('dragging');
+        ev.stopPropagation();
+    }
+    function turnoDragEnd(ev){ ev.currentTarget.classList.remove('dragging'); setTimeout(()=>{ _dragTurno=null; }, 50); }
+    async function _moverTurnoA(destKey, destFecha){
+        const d=_dragTurno; _dragTurno=null;
+        if(!d) return;
+        const u=_users[destKey]; if(!u) return;
+        if(destKey===d.srcKey && destFecha===d.fecha) return;   // mismo lugar: nada
+        const m=u.memberships.find(x=>x.restaurante_id===d.R);
+        if(!m){ alert(`${u.nombre} no pertenece al restaurante de ese turno.`); return; }
+        try{
+            if(_SINGLE) await apiFetch(`/horarios-personal/${d.entryId}/reasignar`, { method:'PATCH', body: JSON.stringify({ usuario_id:m.usuario_id, fecha:destFecha }) });
+            else        await apiFetch(`/cadena/horarios/${d.R}/${d.entryId}/reasignar`, { method:'PATCH', body: JSON.stringify({ usuario_id:m.usuario_id, fecha:destFecha }), token:_TOK });
+            await cargarYRenderizar();
+        }catch(e){ alert(e.message||'No se pudo mover el turno.'); }
     }
     function _ixHoyISO(){ const t=new Date(); t.setHours(0,0,0,0); return formatDate(t); }
     function _ixTurnosDe(u, R){
@@ -1291,6 +1368,7 @@
     // ── Modal turno ─────────────────────────────────────────────
     function abrirModal(userKey, fecha, preRestId){
         if(_RO) return;   // empleado: grilla de solo lectura
+        if(_edSel) return;   // en modo selección múltiple no se abren modales
         const u=_users[userKey]; if(!u) return;
         const allowed=userRests(u); if(!allowed.length) return;
         let restId=preRestId;
@@ -1406,14 +1484,29 @@
     }
     function saveTemplates(){ localStorage.setItem(TPL_KEY, JSON.stringify(_templates)); }
     let _templates=loadTemplates();
+    function _restNombre(id){ const r=_rests.find(x=>x.id===id); return r?(r.nombre||('#'+id)):('#'+id); }
+    // Visibles = las del/los restaurantes filtrados + las sin asignar; y el buscador
+    // matchea por nombre, rol o restaurante.
+    function _templatesVisibles(){
+        const q=(document.getElementById('tpl-buscar')?.value||'').trim().toLowerCase();
+        return _templates.filter(t=>{
+            if(_selRest.size && t.restaurante_id!=null && !_selRest.has(t.restaurante_id)) return false;
+            if(!q) return true;
+            const txt=(t.nombre+' '+(t.rol?(t.rol+' '+getRolLabel(t.rol)):'')+' '+(t.restaurante_id!=null?_restNombre(t.restaurante_id):'')).toLowerCase();
+            return txt.includes(q);
+        });
+    }
     function renderTemplatesBar(){
         const c=document.getElementById('tpl-chips');
         if(!_templates.length){ c.innerHTML='<span style="font-size:11px;color:#a78bfa;">Sin plantillas — creá la primera</span>'; return; }
-        c.innerHTML=_templates.map(t=>{
+        const vis=_templatesVisibles();
+        if(!vis.length){ c.innerHTML='<span style="font-size:11px;color:#a78bfa;">Sin plantillas que coincidan con el filtro</span>'; return; }
+        c.innerHTML=vis.map(t=>{
             const tiempos=t.franjas.map(f=>`${f.inicio}–${f.fin}`).join(', ');
             const brk=t.break_mins>0?` ☕${t.break_mins}m`:'';
             const rolTag=t.rol?` <span style="font-size:10px;font-weight:600;color:${getRolColor(t.rol)};white-space:nowrap;">●&nbsp;${_esc(getRolLabel(t.rol))}</span>`:'';
-            return `<span class="tpl-chip" draggable="true" ondragstart="tplDragStart(event,'${t.id}')" ondragend="tplDragEnd(event)" onclick="abrirTplModal('${t.id}')">${_esc(t.nombre)}${rolTag}<span class="tpl-chip-times">${_esc(tiempos)}${brk}</span><button class="tpl-chip-del" onclick="event.stopPropagation();confirmarEliminarTpl('${t.id}')">✕</button></span>`;
+            const restTag=t.restaurante_id!=null?` <span style="font-size:10px;color:#a78bfa;white-space:nowrap;">🏠 ${_esc(_restNombre(t.restaurante_id))}</span>`:'';
+            return `<span class="tpl-chip" draggable="true" ondragstart="tplDragStart(event,'${t.id}')" ondragend="tplDragEnd(event)" onclick="abrirTplModal('${t.id}')">${_esc(t.nombre)}${rolTag}${restTag}<span class="tpl-chip-times">${_esc(tiempos)}${brk}</span><button class="tpl-chip-del" onclick="event.stopPropagation();confirmarEliminarTpl('${t.id}')">✕</button></span>`;
         }).join('');
     }
     let _dragTplId=null;
@@ -1421,11 +1514,15 @@
     function tplDragEnd(e){ e.currentTarget.classList.remove('dragging'); _dragTplId=null; }
     async function handleTemplateDrop(e, userKey, fecha){
         e.preventDefault(); e.currentTarget.classList.remove('drop-over');
+        // Un TURNO arrastrado (no una plantilla): moverlo a esta celda
+        if(_dragTurno){ await _moverTurnoA(userKey, fecha); return; }
         if(!_dragTplId) return;
         const tpl=_templates.find(t=>t.id===_dragTplId); _dragTplId=null; if(!tpl) return;
         const u=_users[userKey]; if(!u) return;
         const allowed=userRests(u);
+        // La plantilla con restaurante propio elige ese local si el empleado pertenece
         let restId = _selRest.size===1 ? [..._selRest][0] : (allowed.length===1 ? allowed[0].restaurante_id : null);
+        if(tpl.restaurante_id!=null && allowed.some(x=>x.restaurante_id===tpl.restaurante_id)) restId=tpl.restaurante_id;
         const m = allowed.find(x=>x.restaurante_id===restId);
         if(restId==null || !m){
             // Empleado en varios restaurantes y sin filtro: elegir a cuál va el turno
@@ -1464,6 +1561,15 @@
         document.getElementById('t-title').textContent=tpl?'Editar plantilla':'Nueva plantilla';
         document.getElementById('t-nombre').value=tpl?tpl.nombre:'';
         document.getElementById('t-break').value=tpl?(tpl.break_mins||0):0;
+        // Restaurante propio (solo en modo cadena con varios locales)
+        const rw=document.getElementById('t-rest-wrap');
+        if(!_SINGLE && _rests.length>1){
+            rw.style.display='';
+            document.getElementById('t-rest').innerHTML='<option value="">(todos los locales)</option>'+
+                _rests.map(r=>`<option value="${r.id}"${tpl&&tpl.restaurante_id===r.id?' selected':''}>${_esc(r.nombre||('#'+r.id))}</option>`).join('');
+        }else{
+            rw.style.display='none';
+        }
         const rolSel=(tpl&&tpl.rol)||'';
         const roles=rolSel&&!rolesDisponibles.includes(rolSel)?[rolSel,...rolesDisponibles]:rolesDisponibles;
         document.getElementById('t-rol').innerHTML='<option value="">(rol del empleado)</option>'+roles.map(r=>`<option value="${_esc(r)}"${r===rolSel?' selected':''}>${_esc(getRolLabel(r))}</option>`).join('');
@@ -1483,8 +1589,9 @@
         if(!franjas.length){ alert('Agregá al menos una franja.'); return; }
         const brk=parseInt(document.getElementById('t-break').value,10)||0;
         const rol=document.getElementById('t-rol').value||null;
-        if(_editingTplId){ const t=_templates.find(x=>x.id===_editingTplId); if(t){ t.nombre=nombre; t.franjas=franjas; t.break_mins=brk; t.rol=rol; } }
-        else _templates.push({ id:'tpl_'+Date.now(), nombre, franjas, break_mins:brk, rol });
+        const rid=(!_SINGLE && _rests.length>1)?(parseInt(document.getElementById('t-rest').value,10)||null):null;
+        if(_editingTplId){ const t=_templates.find(x=>x.id===_editingTplId); if(t){ t.nombre=nombre; t.franjas=franjas; t.break_mins=brk; t.rol=rol; t.restaurante_id=rid; } }
+        else _templates.push({ id:'tpl_'+Date.now(), nombre, franjas, break_mins:brk, rol, restaurante_id:rid });
         saveTemplates(); renderTemplatesBar(); cerrarTplModal();
     }
     function confirmarEliminarTpl(id){ if(confirm('¿Eliminar esta plantilla?')){ _templates=_templates.filter(t=>t.id!==id); saveTemplates(); renderTemplatesBar(); } }
