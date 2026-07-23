@@ -362,6 +362,51 @@
         rolesDisponibles.forEach((rol,i)=>{ rolColorMap[rol]=COLOR_PALETTE[i%COLOR_PALETTE.length]; });
     }
 
+    // ── Roles POR RESTAURANTE (los roles viven en cada local: no se cruzan) ──
+    // Catálogos por local (cadena): GET /cadena/roles/{rid} con el token de cadena
+    // (GET /roles con header NO sirve: el esquema sale del token, no del header).
+    // Si el fetch falla (permisos/red) se degrada a los roles vistos en la grilla.
+    let _catalogos = {};   // restaurante_id → [nombres] | null (falló)
+    async function cargarCatalogoRest(rid){
+        if(_catalogos[rid] !== undefined) return;
+        try{ _catalogos[rid]=(await _get('/cadena/roles/'+rid)).map(x=>x.nombre).filter(Boolean); }
+        catch(e){ _catalogos[rid]=null; }
+    }
+    function _ordenarRoles(set){
+        const orden = ['gerente','empleado','bartender','cocinero','camarero'];
+        return [...orden.filter(r=>set.has(r)), ...[...set].filter(r=>!orden.includes(r)).sort()];
+    }
+    // Roles que EXISTEN en un restaurante: los de sus empleados (principal+secundarios)
+    // + su catálogo (roles-tarea sin titular todavía).
+    function rolesDeRestaurante(rid){
+        const set = new Set();
+        Object.values(_users).forEach(u=>u.memberships.forEach(m=>{
+            if(m.restaurante_id!==rid) return;
+            if(m.rol) set.add(m.rol);
+            (m.roles_secundarios||[]).forEach(r=>{ if(r) set.add(r); });
+        }));
+        if(_SINGLE) _rolesCatalogo.forEach(r=>set.add(r));
+        else (_catalogos[rid]||[]).forEach(r=>set.add(r));
+        return _ordenarRoles(set);
+    }
+    // Opciones para los desplegables de rol: acotadas a UN restaurante, o (cadena sin
+    // filtro) TODAS con el/los locales de cada rol entre paréntesis.
+    function opcionesRol(rid){
+        if(rid!=null) return rolesDeRestaurante(rid).map(r=>({ value:r, label:getRolLabel(r) }));
+        const porRol = new Map();   // rol → [nombres de restaurante]
+        _rests.forEach(rest=>{
+            rolesDeRestaurante(rest.id).forEach(r=>{
+                if(!porRol.has(r)) porRol.set(r, []);
+                porRol.get(r).push(rest.nombre||('#'+rest.id));
+            });
+        });
+        return _ordenarRoles(new Set(porRol.keys())).map(r=>({
+            value:r, label:`${getRolLabel(r)} (${(porRol.get(r)||[]).join(', ')})` }));
+    }
+    function _optsRolHTML(opciones, seleccionado){
+        return opciones.map(o=>`<option value="${_esc(o.value)}"${o.value===seleccionado?' selected':''}>${_esc(o.label)}</option>`).join('');
+    }
+
     // ── Estado ──────────────────────────────────────────────────
     let viewMode = 'semana';
     let anchorDate = (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d; })();
@@ -444,6 +489,8 @@
         } catch(e){ _rests=[]; }
         renderRestChips();
         if (!_RO) renderTemplatesBar();
+        // Catálogos de roles por local (cadena): en paralelo, sin bloquear la grilla
+        if(!_SINGLE) _rests.forEach(r=>cargarCatalogoRest(r.id));
         await cargarYRenderizar();
         _chequearSolicitudURL();
     }
@@ -1113,8 +1160,10 @@
         if(_selRest.size===1) sel.value=[..._selRest][0];
         document.getElementById('ab-fecha').value=fecha||'';
         document.getElementById('ab-inicio').value='09:00'; document.getElementById('ab-fin').value='17:00';
-        // Rol: desplegable con los roles del restaurante (en vez de texto libre).
-        document.getElementById('ab-rol').innerHTML='<option value="">(sin rol)</option>'+rolesDisponibles.map(r=>`<option value="${_esc(r)}">${_esc(getRolLabel(r))}</option>`).join('');
+        // Rol: desplegable con los roles DEL RESTAURANTE elegido (se re-puebla al cambiarlo).
+        const _abPoblarRol=(cur)=>{ document.getElementById('ab-rol').innerHTML='<option value="">(sin rol)</option>'+_optsRolHTML(opcionesRol(parseInt(sel.value,10)||null), cur||''); };
+        _abPoblarRol('');
+        sel.onchange=()=>_abPoblarRol(document.getElementById('ab-rol').value);
         document.getElementById('ab-rol').value=''; document.getElementById('ab-muro').checked=false;
         document.getElementById('abierto-modal').style.display='flex';
     }
@@ -1398,7 +1447,10 @@
         document.getElementById('m-franjas').innerHTML=franjas.map(f=>franjaRow(f.inicio,f.fin)).join('');
         const rolEmp=m?m.rol:'';
         const sel=(e && e.rol_turno)||'';
-        document.getElementById('m-rol').innerHTML=`<option value="">(rol del empleado: ${_esc(getRolLabel(rolEmp))})</option>`+rolesDisponibles.map(r=>`<option value="${_esc(r)}" ${r===sel?'selected':''}>${_esc(getRolLabel(r))}</option>`).join('');
+        // Roles SOLO del restaurante del turno (un rol de otro local no se puede asignar)
+        const _ops=opcionesRol(restId);
+        if(sel && !_ops.some(o=>o.value===sel)) _ops.unshift({ value:sel, label:getRolLabel(sel) });
+        document.getElementById('m-rol').innerHTML=`<option value="">(rol del empleado: ${_esc(getRolLabel(rolEmp))})</option>`+_optsRolHTML(_ops, sel);
         document.getElementById('m-break').value=(e && e.break_mins)||0;
         document.getElementById('m-del').style.display=_modal.entryId?'':'none';
         recalcTotal();
@@ -1532,6 +1584,12 @@
         await _aplicarTpl(tpl, m, fecha, u);
     }
     async function _aplicarTpl(tpl, m, fecha, u){
+        // El rol de la plantilla tiene que EXISTIR en el restaurante del turno (los
+        // roles son de cada local: no se cruza un rol de un restaurante a otro).
+        if(tpl.rol && !rolesDeRestaurante(m.restaurante_id).includes(tpl.rol)){
+            alert(`El rol "${getRolLabel(tpl.rol)}" no existe en ${m.restaurante||'ese restaurante'}. Crealo en ese local o usá otra plantilla.`);
+            return;
+        }
         // Plantilla con rol: misma alarma que el modal si el empleado no tiene ese rol
         if(tpl.rol && !(await _validarRol(tpl.rol, u, m))) return;
         try{ await _saveTurno({ restaurante_id:m.restaurante_id, usuario_id:m.usuario_id, fecha, franjas:tpl.franjas, rol_turno:tpl.rol||null, break_mins:tpl.break_mins||0 }); await cargarYRenderizar(); }
@@ -1561,22 +1619,39 @@
         document.getElementById('t-title').textContent=tpl?'Editar plantilla':'Nueva plantilla';
         document.getElementById('t-nombre').value=tpl?tpl.nombre:'';
         document.getElementById('t-break').value=tpl?(tpl.break_mins||0):0;
-        // Restaurante propio (solo en modo cadena con varios locales)
+        // Restaurante propio (solo en modo cadena con varios locales). Al cambiarlo se
+        // re-puebla el rol con los roles de ESE local.
         const rw=document.getElementById('t-rest-wrap');
         if(!_SINGLE && _rests.length>1){
             rw.style.display='';
             document.getElementById('t-rest').innerHTML='<option value="">(todos los locales)</option>'+
                 _rests.map(r=>`<option value="${r.id}"${tpl&&tpl.restaurante_id===r.id?' selected':''}>${_esc(r.nombre||('#'+r.id))}</option>`).join('');
+            document.getElementById('t-rest').onchange=()=>_tplPoblarRol(document.getElementById('t-rol').value||'');
         }else{
             rw.style.display='none';
         }
-        const rolSel=(tpl&&tpl.rol)||'';
-        const roles=rolSel&&!rolesDisponibles.includes(rolSel)?[rolSel,...rolesDisponibles]:rolesDisponibles;
-        document.getElementById('t-rol').innerHTML='<option value="">(rol del empleado)</option>'+roles.map(r=>`<option value="${_esc(r)}"${r===rolSel?' selected':''}>${_esc(getRolLabel(r))}</option>`).join('');
+        _tplPoblarRol((tpl&&tpl.rol)||'');
         const franjas=tpl?tpl.franjas:[{inicio:'09:00',fin:'17:00'}];
         document.getElementById('t-franjas').innerHTML=franjas.map(f=>tplFranjaRow(f.inicio,f.fin)).join('');
         document.getElementById('t-del').style.display=tpl?'':'none';
         document.getElementById('tpl-overlay').classList.add('open');
+    }
+    // Contexto de restaurante del modal de plantilla: el elegido en el propio modal >
+    // el filtro de la grilla (uno solo) > null (cadena sin filtro → todos con paréntesis)
+    function _tplRidContexto(){
+        if(_SINGLE) return _rests.length?_rests[0].id:null;
+        const rw=document.getElementById('t-rest-wrap');
+        if(rw.style.display!=='none'){
+            const v=parseInt(document.getElementById('t-rest').value,10);
+            if(v) return v;
+        }
+        if(_selRest.size===1) return [..._selRest][0];
+        return null;
+    }
+    function _tplPoblarRol(sel){
+        const ops=opcionesRol(_tplRidContexto());
+        if(sel && !ops.some(o=>o.value===sel)) ops.unshift({ value:sel, label:getRolLabel(sel) });
+        document.getElementById('t-rol').innerHTML='<option value="">(rol del empleado)</option>'+_optsRolHTML(ops, sel||'');
     }
     function cerrarTplModal(){ document.getElementById('tpl-overlay').classList.remove('open'); _editingTplId=null; }
     function tplFranjaRow(ini,fin){ return `<div class="fr-row"><input type="time" value="${(ini||'').slice(0,5)}"><span style="color:#94a3b8;">a</span><input type="time" value="${(fin||'').slice(0,5)}"><button class="fr-del" onclick="this.closest('.fr-row').remove()">✕</button></div>`; }
