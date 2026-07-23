@@ -443,12 +443,14 @@ async function cargarUbicaciones() {
 }
 
 function poblarSelectUbicacion(selectId, selectedId) {
+    // Pone EXACTAMENTE lo pedido: selectedId o "Sin ubicación". Nada de preservar la
+    // selección anterior acá: eso hacía que un insumo SIN ubicación (o uno nuevo)
+    // mostrara la ubicación del último producto tocado. Quien necesita conservar la
+    // selección al repoblar (_refrescarTodosLosSelects) ya la pasa como selectedId.
     const sel = document.getElementById(selectId);
     if (!sel) return;
-    const cur = sel.value;  // preservar selección actual si no viene selectedId
     sel.innerHTML = '<option value="">Sin ubicación</option>' +
         _ubicaciones.map(u => `<option value="${u.id}" ${u.id === selectedId ? 'selected' : ''}>${esc(u.nombre)}</option>`).join('');
-    if (selectedId == null && cur) sel.value = cur;
 }
 
 function _refrescarTodosLosSelects() {
