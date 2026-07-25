@@ -752,6 +752,25 @@ async function eliminarDefinitivo(id, lado) {
     } catch (e) { alert("Error al eliminar: " + (e.message || e)); }
 }
 
+async function reactivarDesdeMensaje() {
+    const m = _msgActual;
+    if (!m || !m.accion) return;
+    let acc = null;
+    try { acc = typeof m.accion === "string" ? JSON.parse(m.accion) : m.accion; } catch (_) { return; }
+    const pass = prompt(`Para reactivar a ${acc.nombre || "este usuario"}, confirmá con TU contraseña:`);
+    if (!pass) return;
+    try {
+        const body = { password: pass };
+        if (acc.tipo === "reactivar_usuario") body.usuario_id = acc.usuario_id;
+        else body.empleado_id = acc.empleado_id;
+        const r = await apiFetch("/auth/usuarios/reactivar-bloqueo", {
+            method: "POST", body: JSON.stringify(body) });
+        alert((r && r.mensaje) || "Usuario reactivado ✔");
+    } catch (e) {
+        alert(e.message || "No se pudo reactivar.");
+    }
+}
+
 function recuperarDesdeModal()  { if (_msgActual) recuperarMensaje(_msgActual.id, _msgActual.lado || "recibido"); }
 function eliminarDefDesdeModal() { if (_msgActual) eliminarDefinitivo(_msgActual.id, _msgActual.lado || "recibido"); }
 
@@ -829,6 +848,16 @@ async function verMensaje(idx) {
         cuerpoEl.innerHTML = _linkify(m.cuerpo || "");
     }
     if (m.solicitud_id) { cuerpoEl.innerHTML += _tarjetaSolicitud(m); _rellenarInfoSolicitud(m); }
+
+    // Acción embebida: aviso de bloqueo por 3 intentos → botón Reactivar (pide
+    // re-ingresar TU contraseña para confirmar; el backend valida el permiso).
+    let _accion = null;
+    try { _accion = m.accion ? (typeof m.accion === "string" ? JSON.parse(m.accion) : m.accion) : null; } catch (_) {}
+    if (_accion && ["reactivar_usuario", "reactivar_empleado"].includes(_accion.tipo) && !_cadena && !esPap) {
+        cuerpoEl.innerHTML += `
+            <button class="btn-responder" style="width:100%;margin-top:16px;justify-content:center;"
+                    onclick="reactivarDesdeMensaje()">🔓 Reactivar usuario${_accion.nombre ? " — " + _esc(_accion.nombre) : ""}</button>`;
+    }
 
     // Adjuntos: imágenes inline, el resto como link de descarga (URLs absolutas de Cloudinary)
     if (m.adjuntos && m.adjuntos.length) {
