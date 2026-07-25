@@ -68,13 +68,22 @@
     const K_MAX = "notif_max_" + _uid();
     const K_BASE = "notif_base_" + _uid();
     const K_CNT = "notif_cnt_" + _uid();
+    const K_COLA = "notif_cola_" + _uid();
     let _maxId = parseInt(sessionStorage.getItem(K_MAX) || "0", 10) || 0;
     let _lastCount = parseInt(sessionStorage.getItem(K_CNT) || "0", 10) || 0;
     let _baseSet = sessionStorage.getItem(K_BASE) === "1";
+    // La cola se PERSISTE en sessionStorage: así el aviso SOBREVIVE al cambio de
+    // página (antes vivía solo en memoria y se perdía al navegar). Solo se vacía
+    // con la ✕ del globo/ventana o al ejecutar una acción.
+    try { _cola = JSON.parse(sessionStorage.getItem(K_COLA) || "[]") || []; } catch (_) { _cola = []; }
+    if (!Array.isArray(_cola)) _cola = [];
 
     function _persist() {
         sessionStorage.setItem(K_MAX, String(_maxId));
         sessionStorage.setItem(K_CNT, String(_lastCount));
+    }
+    function _guardarCola() {
+        try { sessionStorage.setItem(K_COLA, JSON.stringify(_cola)); } catch (_) {}
     }
     function _maxOf(lista, actual) {
         return (lista || []).reduce((a, m) => Math.max(a, m.id || 0), actual || 0);
@@ -94,6 +103,10 @@
         #notif-bubble-count{position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:11px;
             min-width:22px;height:22px;padding:0 6px;font-size:12px;font-weight:800;display:flex;align-items:center;
             justify-content:center;border:2px solid #fff;box-sizing:border-box;}
+        #notif-bubble-x{position:absolute;top:-6px;left:-6px;width:21px;height:21px;border-radius:50%;background:#fff;
+            color:#6b7280;border:1px solid #e5e7eb;font-size:11px;font-weight:800;line-height:1;display:flex;
+            align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 2px 6px rgba(0,0,0,.22);}
+        #notif-bubble-x:hover{background:#fee2e2;color:#b91c1c;}
         #notif-win{position:fixed;width:372px;max-width:94vw;max-height:76vh;background:#fff;border-radius:14px;
             box-shadow:0 18px 60px rgba(0,0,0,.35);z-index:4001;display:none;flex-direction:column;overflow:hidden;}
         #notif-win.show{display:flex;}
@@ -140,11 +153,21 @@
     let _bubble, _win, _head, _body, _foot;
     function _crearDom() {
         _css();
-        _bubble = document.createElement("button");
+        _bubble = document.createElement("div");
         _bubble.id = "notif-bubble";
+        _bubble.setAttribute("role", "button");
         _bubble.setAttribute("aria-label", "Mensajes nuevos");
-        _bubble.innerHTML = `✉️<span id="notif-bubble-count">0</span>`;
-        _bubble.addEventListener("click", () => { _idx = 0; _abrir(); });
+        _bubble.innerHTML = `<span aria-hidden="true">✉️</span><span id="notif-bubble-count">0</span>` +
+            `<button id="notif-bubble-x" title="Descartar" aria-label="Descartar aviso">✕</button>`;
+        _bubble.addEventListener("click", (e) => {
+            if (e.target.closest("#notif-bubble-x")) return;   // la × tiene su propio handler
+            _idx = 0; _abrir();
+        });
+        // ✕ del globo: descarta el/los aviso(s) sin abrir y sin tocar el backend.
+        _bubble.querySelector("#notif-bubble-x").addEventListener("click", (e) => {
+            e.stopPropagation();
+            _cola = []; _idx = 0; _guardarCola(); _renderBubble();
+        });
         document.body.appendChild(_bubble);
 
         _win = document.createElement("div");
@@ -222,10 +245,10 @@
         _pintar();
     }
     function _cerrar() {
-        // ✕ = cerrar sin realizar ninguna acción de backend. Se descarta el aviso
-        // actual de la cola (ya lo viste) y, si quedan otros, el globo los mantiene.
+        // ✕ de la ventana = cerrar sin acción de backend. Descarta el aviso actual
+        // de la cola (ya lo viste); si quedan otros, el globo los mantiene.
         _win.classList.remove("show");
-        if (_cola.length) { _cola.splice(_idx, 1); _idx = 0; }
+        if (_cola.length) { _cola.splice(_idx, 1); _idx = 0; _guardarCola(); }
         _renderBubble();
     }
     // Tras una ACCIÓN (responder/reenviar/eliminar/solicitud/reactivar): quitar el
@@ -234,6 +257,7 @@
         const i = _cola.findIndex(x => x.id === m.id);
         if (i !== -1) _cola.splice(i, 1);
         _idx = 0;
+        _guardarCola();
         _win.classList.remove("show");
         _renderBubble();
         if (txt) _toast(txt);
@@ -531,7 +555,7 @@
             const nuevos = (lista || []).filter(m => (m.id || 0) > _maxId && m.leido === false && !m.archivado);
             _maxId = _maxOf(lista, _maxId);
             for (const m of nuevos) if (!_cola.some(x => x.id === m.id)) _cola.push(m);
-            if (nuevos.length) _renderBubble();
+            if (nuevos.length) { _guardarCola(); _renderBubble(); }
             _persist();
         }
         _lastCount = n; _persist();
