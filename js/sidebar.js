@@ -824,12 +824,25 @@
         });
     }
 
+    // ── NOTIFICACIONES EMERGENTES DE MENSAJES ───────────────────
+    // Globo + ventana flotante que avisa de mensajes nuevos en cualquier página.
+    // Vive en su propio archivo (IIFE aislado) y se inyecta desde acá para no
+    // tener que agregar el <script> en las ~20 páginas.
+    function _injectNotificaciones() {
+        if (document.getElementById("notif-script")) return;
+        const s = document.createElement("script");
+        s.id = "notif-script";
+        s.src = "js/notificaciones.js";
+        document.body.appendChild(s);
+    }
+
     // ── INIT ─────────────────────────────────────────────────────
     function _initSidebar() {
         injectHamburger();
         initMarca();
         _initLegal();
         _initPrioritarias();
+        _injectNotificaciones();
     }
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", _initSidebar);
