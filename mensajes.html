@@ -264,7 +264,7 @@
             <div class="modal-cuerpo" id="det-cuerpo">—</div>
         </div>
         <div class="modal-foot" id="modal-ver-foot" style="display:none; align-items:center; flex-wrap:wrap;">
-            <button class="btn-responder" onclick="responderMensaje()">↩️ Responder</button>
+            <button class="btn-responder" id="det-responder" onclick="responderOReenviar()">↩️ Responder</button>
             <button class="icon-btn" id="det-fav" style="font-size:17px;" onclick="toggleFavoritoModal()" title="Favorito">☆</button>
             <button class="icon-btn" id="det-arch" style="font-size:16px;" onclick="toggleArchivadoModal()" title="Archivar">🗂️</button>
             <button class="icon-btn" style="font-size:16px;" onclick="eliminarDesdeModal()" title="Eliminar">🗑️</button>
@@ -794,6 +794,8 @@ async function cambiarEtiqueta(cat) {
 function _syncFootModal() {
     const m = _msgActual;
     if (!m) return;
+    const btnResp = document.getElementById("det-responder");
+    if (btnResp) btnResp.textContent = ((m.de_username || "") === "sistema") ? "↪️ Reenviar" : "↩️ Responder";
     const fav = document.getElementById("det-fav");
     const arc = document.getElementById("det-arch");
     if (fav) { fav.textContent = m.favorito ? "⭐" : "☆"; fav.classList.toggle("fav-on", !!m.favorito); fav.title = m.favorito ? "Quitar de favoritos" : "Marcar favorito"; }
@@ -1020,6 +1022,24 @@ async function accionSolicitud(id, accion, restauranteId, permitir){
 function cerrarVer() {
     document.getElementById("modal-ver").classList.remove("open");
     _msgActual = null;
+}
+
+// Mensajes del SISTEMA (avisos automáticos): nadie lee esa casilla → no se
+// responden; se REENVÍAN a otra persona (consulta/confirmación).
+function responderOReenviar() {
+    if (!_msgActual) return;
+    if ((_msgActual.de_username || "") === "sistema") reenviarMensaje();
+    else responderMensaje();
+}
+
+function reenviarMensaje() {
+    const m = _msgActual;
+    if (!m) return;
+    cerrarVer();
+    const asuntoBase = (m.asunto || "").startsWith("[CC] ") ? (m.asunto || "").slice(5) : (m.asunto || "");
+    const asunto = asuntoBase.startsWith("RV: ") ? asuntoBase : `RV: ${asuntoBase}`;
+    const citaHeader = `Mensaje de ${m.de_nombre_display || m.de_username || "Sistema"} (${_formatFechaFull(m.creado_en)}):`;
+    abrirCompose([], asunto, `\n\n---\n${citaHeader}\n${m.cuerpo || ""}`, /* cursorAlInicio */ true);
 }
 
 function responderMensaje() {
