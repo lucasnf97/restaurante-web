@@ -52,6 +52,8 @@
         /* El modal del ticket se abre DESDE el de productos: va un nivel arriba
            (con el mismo z-index, el orden del DOM lo dejaba atrás e invisible). */
         #modal-ticket { z-index: 300; }
+        /* El buscador de clientes se abre desde el modal de Revisión: va por encima. */
+        #modal-cliente-buscar { z-index: 300; }
         .modal { background: white; border-radius: 16px; padding: 32px; width: 100%; max-width: 660px; max-height: 85vh; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
         .modal-overlay { padding: 16px; box-sizing: border-box; }
         .modal .tabla-wrapper { border-radius: 8px; overflow: hidden; }
@@ -86,6 +88,18 @@
         .rev-del-btn { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 16px; padding: 4px; border-radius: 4px; }
         .rev-del-btn:hover { background: #fee2e2; }
         .rev-header-grid { display: grid; grid-template-columns: 2fr 80px 110px 80px 40px; gap: 8px; padding: 8px 0; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid #e2e8f0; margin-bottom: 4px; }
+        /* ── Barra de filtros de Revisión (label sobre el campo, una línea) ── */
+        .rev-filtros { display: flex; flex-wrap: wrap; gap: 14px 16px; align-items: flex-end; margin: 0 0 16px; padding: 16px 18px; background: #fafbfc; border: 1px solid #e2e8f0; border-radius: 12px; }
+        .rev-fgrupo { display: flex; flex-direction: column; gap: 5px; }
+        .rev-fgrupo > label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .4px; }
+        .rev-fgrupo input { padding: 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; background: #fff; }
+        .rev-fgrupo input:focus { border-color: #4f46e5; }
+        .rev-fcombo { display: flex; gap: 6px; align-items: center; }
+        .rev-fcombo .btn-sm { padding: 8px 10px; }
+        .rev-cliente-chip { font-size: 12px; color: #4f46e5; font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Resultados de la búsqueda de clientes */
+        .rev-cli-row { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: all .15s; }
+        .rev-cli-row:hover { border-color: #4f46e5; background: #f5f3ff; }
     </style>
 </head>
 <body>
@@ -227,20 +241,44 @@
             <button onclick="cerrarModal('modal-revision')" style="background:transparent;border:1px solid #4f46e5;color:#a5b4fc;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">Cerrar</button>
         </div>
         <div style="padding:20px 28px 0;">
-            <div class="filtros" style="margin:0 0 16px;flex-wrap:wrap;box-shadow:none;padding:14px 16px;">
-                <label>Fecha:</label>
-                <input type="date" id="rev-f-fecha" onchange="revCargar()">
-                <label>Desde:</label>
-                <input type="time" id="rev-f-desde" onchange="revCargar()">
-                <label>Hasta:</label>
-                <input type="time" id="rev-f-hasta" onchange="revCargar()">
-                <label>Mesa:</label>
-                <input type="number" id="rev-f-mesa" placeholder="—" style="width:70px;" onchange="revCargar()">
-                <label>Cuenta #:</label>
-                <input type="number" id="rev-f-pedido" placeholder="—" style="width:90px;"
-                    onkeydown="if(event.key==='Enter'){event.preventDefault();revCargar();}">
-                <button class="btn btn-secondary btn-sm" onclick="revCargar()" title="Buscar por número de cuenta">🔍</button>
-                <button class="btn btn-secondary btn-sm" onclick="revLimpiarFiltros()">Caja actual</button>
+            <div class="rev-filtros">
+                <div class="rev-fgrupo">
+                    <label>Fecha</label>
+                    <input type="date" id="rev-f-fecha" onchange="revCargar()">
+                </div>
+                <div class="rev-fgrupo">
+                    <label>Desde</label>
+                    <input type="time" id="rev-f-desde" onchange="revCargar()">
+                </div>
+                <div class="rev-fgrupo">
+                    <label>Hasta</label>
+                    <input type="time" id="rev-f-hasta" onchange="revCargar()">
+                </div>
+                <div class="rev-fgrupo">
+                    <label>Mesa</label>
+                    <input type="number" id="rev-f-mesa" placeholder="—" style="width:72px;" onchange="revCargar()">
+                </div>
+                <div class="rev-fgrupo">
+                    <label>Cuenta Nº</label>
+                    <div class="rev-fcombo">
+                        <input type="number" id="rev-f-pedido" placeholder="—" style="width:90px;"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();revCargar();}">
+                        <button class="btn btn-secondary btn-sm" onclick="revCargar()" title="Buscar por número de cuenta">🔍</button>
+                    </div>
+                </div>
+                <div class="rev-fgrupo">
+                    <label>Cliente Nº</label>
+                    <div class="rev-fcombo">
+                        <input type="number" id="rev-f-cliente" placeholder="—" style="width:90px;" onchange="revCargar()">
+                        <button class="btn btn-secondary btn-sm" onclick="revAbrirClienteModal()" title="Buscar cliente">🔍</button>
+                        <button class="btn btn-secondary btn-sm" onclick="revLimpiarCliente()" title="Quitar filtro de cliente">✕</button>
+                        <span id="rev-cliente-chip" class="rev-cliente-chip"></span>
+                    </div>
+                </div>
+                <div class="rev-fgrupo">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-secondary btn-sm" onclick="revLimpiarFiltros()">Caja actual</button>
+                </div>
             </div>
         </div>
         <div style="padding:0 28px 24px;max-height:60vh;overflow-y:auto;">
@@ -259,6 +297,7 @@
             <span style="text-align:right;">Precio unit.</span>
             <span style="text-align:right;">Desc.%</span><span></span>
         </div>
+        <datalist id="refund-productos-list"></datalist>
         <div id="refund-items-lista"></div>
         <button onclick="revRefundAgregarItem()" style="margin-top:12px;background:#f0f9ff;color:#0369a1;border:1.5px dashed #7dd3fc;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">+ Agregar producto manual</button>
 
@@ -286,6 +325,48 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-refund')">Cancelar</button>
             <button class="btn btn-danger" id="btn-refund-confirmar" onclick="revRefundConfirmar()" style="margin-left:10px;">↩ Registrar refund</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal buscador de clientes (se abre DESDE Revisión → z-index arriba) -->
+<div class="modal-overlay" id="modal-cliente-buscar">
+    <div class="modal" style="max-width:560px;">
+        <h3>👤 Buscar cliente</h3>
+        <p class="modal-sub">Filtrá la revisión por un cliente. Buscá por nombre, correo o teléfono.</p>
+
+        <div style="display:flex;gap:8px;align-items:center;">
+            <select id="rev-cli-modo" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;">
+                <option value="nombre">Nombre</option>
+                <option value="email">Correo</option>
+                <option value="telefono">Teléfono</option>
+            </select>
+            <input type="text" id="rev-cli-q" placeholder="Buscar…"
+                style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();revBuscarClientes();}">
+            <button class="btn btn-primary btn-sm" onclick="revBuscarClientes()">Buscar</button>
+        </div>
+
+        <div id="rev-cli-resultados" style="margin-top:16px;max-height:34vh;overflow-y:auto;"></div>
+
+        <div style="margin-top:8px;border-top:1px solid #eef0f4;padding-top:16px;">
+            <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:10px;">➕ Crear perfil</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <input type="text" id="rev-cli-nuevo-nombre" placeholder="Nombre (opcional)"
+                    style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="rev-cli-nuevo-tel" placeholder="Teléfono"
+                        style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">
+                    <input type="email" id="rev-cli-nuevo-email" placeholder="Correo"
+                        style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">
+                </div>
+                <div style="font-size:11px;color:#94a3b8;">Se exige al menos un teléfono o un correo.</div>
+                <button class="btn btn-success btn-sm" style="align-self:flex-start;" onclick="revCrearCliente()">Crear y seleccionar</button>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-cliente-buscar')">Cerrar</button>
         </div>
     </div>
 </div>
@@ -318,12 +399,97 @@ async function abrirRevision() {
 }
 
 function revLimpiarFiltros() {
-    document.getElementById("rev-f-fecha").value  = "";
-    document.getElementById("rev-f-desde").value  = "";
-    document.getElementById("rev-f-hasta").value  = "";
-    document.getElementById("rev-f-mesa").value   = "";
-    document.getElementById("rev-f-pedido").value = "";
+    document.getElementById("rev-f-fecha").value   = "";
+    document.getElementById("rev-f-desde").value   = "";
+    document.getElementById("rev-f-hasta").value   = "";
+    document.getElementById("rev-f-mesa").value    = "";
+    document.getElementById("rev-f-pedido").value  = "";
+    document.getElementById("rev-f-cliente").value = "";
+    document.getElementById("rev-cliente-chip").textContent = "";
     revCargar();
+}
+
+// ── Buscador por cliente (modal) ─────────────────────────────────────────
+let revClientesResultados = [];   // último set de resultados (para elegir por id sin re-serializar)
+
+function revAbrirClienteModal() {
+    document.getElementById("rev-cli-q").value = "";
+    document.getElementById("rev-cli-nuevo-nombre").value = "";
+    document.getElementById("rev-cli-nuevo-tel").value   = "";
+    document.getElementById("rev-cli-nuevo-email").value = "";
+    revClientesResultados = [];
+    document.getElementById("rev-cli-resultados").innerHTML =
+        `<p style="color:#888;text-align:center;padding:20px;">Buscá por nombre, correo o teléfono.</p>`;
+    document.getElementById("modal-cliente-buscar").classList.add("active");
+    setTimeout(() => { try { document.getElementById("rev-cli-q").focus(); } catch(e) {} }, 50);
+}
+
+async function revBuscarClientes() {
+    const modo = document.getElementById("rev-cli-modo").value;   // nombre | email | telefono
+    const q    = document.getElementById("rev-cli-q").value.trim();
+    const cont = document.getElementById("rev-cli-resultados");
+    if (!q) { cont.innerHTML = `<p style="color:#888;text-align:center;padding:20px;">Escribí algo para buscar.</p>`; return; }
+    cont.innerHTML = `<p style="color:#888;text-align:center;padding:20px;">Buscando…</p>`;
+    try {
+        const res = await api.get(`/clientes/?${modo}=${encodeURIComponent(q)}`);
+        revClientesResultados = res || [];
+        if (!revClientesResultados.length) {
+            cont.innerHTML = `<p style="color:#888;text-align:center;padding:20px;">Sin resultados. Podés crear un perfil abajo.</p>`;
+            return;
+        }
+        cont.innerHTML = revClientesResultados.map(revClienteFila).join("");
+    } catch(e) {
+        cont.innerHTML = `<p style="color:#b91c1c;text-align:center;padding:16px;">No se pudo buscar: ${esc(e.message || "error de conexión")}.</p>`;
+    }
+}
+
+function revClienteFila(c) {
+    const tels  = (c.telefonos || []).join(", ");
+    const mails = (c.emails || []).join(", ");
+    const contactos = [tels, mails].filter(Boolean).join(" · ");
+    const visitas = (c.visitas != null) ? `${c.visitas} visita${c.visitas != 1 ? 's' : ''}` : '';
+    return `<div class="rev-cli-row" onclick="revElegirCliente(${c.id})">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <span style="font-weight:700;color:#1a1a2e;">${esc(c.nombre || 'Sin nombre')}</span>
+            ${visitas ? `<span style="font-size:12px;color:#64748b;">${visitas}</span>` : ''}
+        </div>
+        ${contactos ? `<div style="font-size:12px;color:#888;margin-top:3px;">${esc(contactos)}</div>` : ''}
+    </div>`;
+}
+
+function revElegirCliente(id) {
+    const c = revClientesResultados.find(x => x.id === id);
+    revAplicarCliente(id, c ? c.nombre : "");
+}
+
+function revAplicarCliente(id, nombre) {
+    document.getElementById("rev-f-cliente").value = id;
+    document.getElementById("rev-cliente-chip").textContent = nombre ? `👤 ${nombre}` : `#${id}`;
+    cerrarModal("modal-cliente-buscar");
+    revCargar();
+}
+
+function revLimpiarCliente() {
+    document.getElementById("rev-f-cliente").value = "";
+    document.getElementById("rev-cliente-chip").textContent = "";
+    revCargar();
+}
+
+async function revCrearCliente() {
+    const nombre = document.getElementById("rev-cli-nuevo-nombre").value.trim();
+    const tel    = document.getElementById("rev-cli-nuevo-tel").value.trim();
+    const email  = document.getElementById("rev-cli-nuevo-email").value.trim();
+    if (!tel && !email) { alert("Indicá al menos un teléfono o un correo."); return; }
+    const body = {};
+    if (nombre) body.nombre   = nombre;
+    if (tel)    body.telefono = tel;
+    if (email)  body.email    = email;
+    try {
+        const res = await api.post("/clientes/", body);
+        revAplicarCliente(res.id, res.nombre || nombre || "");
+    } catch(e) {
+        alert("No se pudo crear el perfil: " + (e.message || e));
+    }
 }
 
 async function revCargar() {
@@ -335,14 +501,16 @@ async function revCargar() {
         // El buscador exacto por número de cuenta ignora el resto de los filtros (igual que el backend).
         url += `pedido_id=${encodeURIComponent(pedido)}`;
     } else {
-        const fecha = document.getElementById("rev-f-fecha").value;
-        const desde = document.getElementById("rev-f-desde").value;
-        const hasta = document.getElementById("rev-f-hasta").value;
-        const mesa  = document.getElementById("rev-f-mesa").value.trim();
-        if (fecha) url += `fecha=${encodeURIComponent(fecha)}&`;
-        if (desde) url += `desde=${encodeURIComponent(desde)}&`;
-        if (hasta) url += `hasta=${encodeURIComponent(hasta)}&`;
-        if (mesa)  url += `mesa=${encodeURIComponent(mesa)}&`;
+        const fecha   = document.getElementById("rev-f-fecha").value;
+        const desde   = document.getElementById("rev-f-desde").value;
+        const hasta   = document.getElementById("rev-f-hasta").value;
+        const mesa    = document.getElementById("rev-f-mesa").value.trim();
+        const cliente = document.getElementById("rev-f-cliente").value.trim();
+        if (fecha)   url += `fecha=${encodeURIComponent(fecha)}&`;
+        if (desde)   url += `desde=${encodeURIComponent(desde)}&`;
+        if (hasta)   url += `hasta=${encodeURIComponent(hasta)}&`;
+        if (mesa)    url += `mesa=${encodeURIComponent(mesa)}&`;
+        if (cliente) url += `cliente_id=${encodeURIComponent(cliente)}&`;
     }
     try {
         const cuentas = await api.get(url);
@@ -371,6 +539,7 @@ function revFilaCuenta(c) {
                 ${c.refund_ticket_id ? `<button class="btn-libreta" onclick="verRefundTicket(${c.refund_ticket_id})" title="Ver refund previo">📒</button>` : ''}
             </div>
             <div style="font-size:12px;color:#888;">#${c.pedido_id} · ${personas}${fmtHora(c.cerrado_en)}</div>
+            ${c.cliente_nombre ? `<div style="font-size:12px;color:#4f46e5;font-weight:600;margin-top:2px;">👤 ${esc(c.cliente_nombre)}</div>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-weight:700;color:#16a34a;margin-right:6px;">${simboloMoneda()} ${parseFloat(c.total).toFixed(2)}</span>
@@ -419,6 +588,32 @@ let revRefundPedidoId    = null;
 let revRefundMesaNumero  = null;
 let revRefundIdemKey     = null; // generada UNA vez al abrir; se reusa en reintentos
 
+// Catálogo del menú para autocompletar el nombre del producto en el refund.
+// Se carga una sola vez (best-effort): si falla, los campos quedan como texto libre.
+let revProductosMenu     = [];   // [{id, nombre, precio}]
+let revProductosCargados = false;
+async function revCargarProductosMenu() {
+    if (revProductosCargados) return;
+    try {
+        const prods = await api.get("/productos/?en_carta=true");
+        revProductosMenu = (prods || []).map(p => ({
+            id: p.id, nombre: p.nombre || "", precio: parseFloat(p.precio) || 0
+        }));
+        const dl = document.getElementById("refund-productos-list");
+        if (dl) dl.innerHTML = revProductosMenu
+            .map(p => `<option value="${escAttr(p.nombre)}"></option>`).join("");
+        revProductosCargados = true;
+    } catch(e) {
+        // best-effort: seguimos con texto libre
+        console.warn("No se pudieron cargar productos para autocompletar:", e && e.message || e);
+    }
+}
+function revProductoPorNombre(nombre) {
+    const key = (nombre || "").trim().toLowerCase();
+    if (!key) return null;
+    return revProductosMenu.find(p => p.nombre.trim().toLowerCase() === key) || null;
+}
+
 async function revRefound(pedidoId, mesaNumero) {
     revRefundPedidoId   = pedidoId;
     revRefundMesaNumero = mesaNumero;
@@ -432,14 +627,19 @@ async function revRefound(pedidoId, mesaNumero) {
     document.getElementById("refund-motivo-error").style.display = "none";
 
     revRefundItems = [];
+    await revCargarProductosMenu();   // best-effort; para autocompletar / backfill de producto_id
     try {
         const items = await api.get(`/caja/refund/pedido/${pedidoId}`);
-        revRefundItems = items.map(i => ({
-            nombre:        i.nombre,
-            cantidad:      parseFloat(i.cantidad) || 0,
-            precio_unit:   parseFloat(i.precio_unit) || 0,
-            descuento_pct: parseFloat(i.descuento_pct) || 0
-        }));
+        revRefundItems = items.map(i => {
+            const prod = revProductoPorNombre(i.nombre);
+            return {
+                nombre:        i.nombre,
+                cantidad:      parseFloat(i.cantidad) || 0,
+                precio_unit:   parseFloat(i.precio_unit) || 0,
+                descuento_pct: parseFloat(i.descuento_pct) || 0,
+                producto_id:   (i.producto_id != null) ? i.producto_id : (prod ? prod.id : null)
+            };
+        });
     } catch(e) {
         alert("No se pudieron cargar los ítems de la cuenta: " + (e.message || e));
     }
@@ -453,11 +653,12 @@ function revRefundRender() {
     cont.innerHTML = revRefundItems.map((it, idx) => `
         <div class="rev-item-row">
             <input class="rev-input" style="text-align:left;" value="${esc(it.nombre)}"
-                oninput="revRefundItems[${idx}].nombre=this.value">
+                list="refund-productos-list" autocomplete="off"
+                oninput="revRefundNombreInput(${idx}, this)">
             <input class="rev-input" type="number" min="0"
                 value="${it.cantidad}"
                 oninput="revRefundItems[${idx}].cantidad=parseFloat(this.value)||0;revRefundActualizarTotal()">
-            <input class="rev-input" type="number" min="0" step="0.01"
+            <input class="rev-input" type="number" min="0" step="0.01" data-campo="precio"
                 value="${it.precio_unit.toFixed(2)}"
                 oninput="revRefundItems[${idx}].precio_unit=parseFloat(this.value)||0;revRefundActualizarTotal()">
             <input class="rev-input" type="number" min="0" max="100" step="0.1"
@@ -475,8 +676,29 @@ function revRefundQuitarItem(idx) {
 }
 
 function revRefundAgregarItem() {
-    revRefundItems.push({ nombre: "", cantidad: 1, precio_unit: 0, descuento_pct: 0 });
+    revRefundItems.push({ nombre: "", cantidad: 1, precio_unit: 0, descuento_pct: 0, producto_id: null });
     revRefundRender();
+}
+
+// Autocompletado del nombre contra el menú: al coincidir EXACTO (case-insensitive)
+// guarda producto_id y rellena el precio si estaba en 0. Sin coincidencia → texto libre.
+function revRefundNombreInput(idx, inputEl) {
+    const it = revRefundItems[idx];
+    if (!it) return;
+    it.nombre = inputEl.value;
+    const prod = revProductoPorNombre(it.nombre);
+    if (prod) {
+        it.producto_id = prod.id;
+        if (!it.precio_unit) {
+            it.precio_unit = prod.precio;
+            const row = inputEl.closest(".rev-item-row");
+            const precioInput = row && row.querySelector('input[data-campo="precio"]');
+            if (precioInput) precioInput.value = prod.precio.toFixed(2);
+            revRefundActualizarTotal();
+        }
+    } else {
+        it.producto_id = null;
+    }
 }
 
 function revRefundActualizarTotal() {
@@ -507,7 +729,8 @@ async function revRefundConfirmar() {
             nombre:        it.nombre,
             cantidad:      it.cantidad,
             precio_unit:   it.precio_unit,
-            descuento_pct: it.descuento_pct
+            descuento_pct: it.descuento_pct,
+            producto_id:   (it.producto_id != null) ? it.producto_id : null
         })),
         motivo,
         metodo_pago:      document.getElementById("refund-metodo").value,
