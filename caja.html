@@ -532,6 +532,7 @@ async function revRefundConfirmar() {
 // (misma fuente que precarga el refund) y arma un ticket imprimible en una ventana
 // nueva — no hace falta un endpoint de ticket "fiscal" para una simple copia.
 async function revReimprimir(pedidoId, mesaNumero) {
+    if (!confirm(`¿Reimprimir el ticket de la ${mesaNumero ? 'Mesa ' + mesaNumero : 'cuenta #' + pedidoId}?\nSe imprime marcado como COPIA.`)) return;
     let items = [];
     try {
         items = await api.get(`/caja/refund/pedido/${pedidoId}`);
