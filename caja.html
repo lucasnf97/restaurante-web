@@ -73,6 +73,15 @@
         #modal-detalle th, #modal-detalle td { white-space: nowrap; padding: 10px 12px; }
         #modal-detalle td { font-size: 13px; }
         .det-sub { font-size: 11px; color: #9ca3af; }
+        /* ── Desglose de pagos partidos (fila expandible del detalle de caja) ── */
+        .caja-exp-row { cursor: pointer; user-select: none; }
+        .caja-exp-row.expanded td { background: #f8f9ff; }
+        .caja-expand-arrow { color: #9ca3af; font-size: 10px; display: inline-block; transition: transform .2s; margin-right: 6px; }
+        .subcaja-td { padding: 0 !important; background: #f9fafb !important; border-bottom: 2px solid #e9eaf0 !important; }
+        .subcaja-row { display: flex; align-items: center; gap: 14px; padding: 6px 16px 6px 34px; border-bottom: 1px solid #eef0f3; font-size: 12px; }
+        .subcaja-row:last-child { border-bottom: none; }
+        .subcaja-badge { background: #eef2ff; color: #4f46e5; font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 20px; white-space: nowrap; }
+        .subcaja-hint { padding: 6px 16px 0 34px; color: #9ca3af; font-size: 11px; }
         /* ── Pago modal ── */
         .pago-metodo-btn { flex:1; padding:14px; border:2px solid #e0e0e0; border-radius:10px;
                            background:white; cursor:pointer; font-size:14px; font-weight:700;
@@ -1020,10 +1029,16 @@ function filaDetalleCaja(d) {
     const totalStr = `<span style="color:${totalVal < 0 ? '#dc2626' : 'inherit'};font-weight:700;">${s} ${totalVal.toFixed(2)}</span>`;
     const esRefund = d.tipo_pedido === 'refund' || !d.pedido_id;
     if (esRefund) {
+        const refId = d.refund_numero
+            ? `<span style="color:#dc2626;font-weight:700;">R-${String(d.refund_numero).padStart(4, '0')}</span>`
+            : `<span style="color:#9ca3af;">—</span>`;
+        const refHint = d.pedido_ref
+            ? ` <span style="color:#9ca3af;font-size:11px;font-weight:400;">Ref #${d.pedido_ref}</span>`
+            : '';
         return `<tr style="background:#fff1f2;">
-            <td style="color:#9ca3af;">—</td>
-            <td style="color:#9ca3af;">—</td>
-            <td style="color:#dc2626;font-weight:600;">↩ Refound</td>
+            <td style="font-size:12px;">${refId}</td>
+            <td>${d.mesa_numero ? `Mesa ${d.mesa_numero}` : '<span style="color:#9ca3af;">—</span>'}</td>
+            <td style="color:#dc2626;font-weight:600;">↩ Refound${refHint}</td>
             <td style="text-align:right;color:#9ca3af;">—</td>
             <td style="text-align:right;color:#9ca3af;">—</td>
             <td style="text-align:right;color:#9ca3af;">—</td>
@@ -1032,7 +1047,7 @@ function filaDetalleCaja(d) {
             <td>${fmtHora(d.ts_cobro)}</td>
             <td style="color:#9ca3af;">—</td>
             <td>${d.refund_ticket_id
-                ? `<button class="btn-libreta" onclick="verRefundTicket(${d.refund_ticket_id})" title="Ver detalle refund">📒</button>`
+                ? `<button class="btn-libreta" onclick="verRefundTicket(${d.refund_ticket_id})" title="Ver detalle refund">📒</button><button class="btn-libreta" onclick="verTicketRefund(${d.refund_ticket_id})" title="Ver ticket">🧾</button>`
                 : ''}</td>
         </tr>`;
     }
@@ -1049,8 +1064,12 @@ function filaDetalleCaja(d) {
         ? `${s} ${parseFloat(d.impuesto).toFixed(2)} <span class="det-sub">(${(impPct || 0).toFixed(1)}%)</span>`
         : '—';
     const sinImp = d.total_sin_imp != null ? `${s} ${parseFloat(d.total_sin_imp).toFixed(2)}` : '—';
-    return `<tr>
-        <td style="color:#666;font-size:12px;">#${d.pedido_id}</td>
+    // Pagos partidos (sub-cuentas xxxx-N o varios pagos): fila expandible con desglose.
+    const expandible = (parseInt(d.n_fracciones) || 0) > 0 || (parseInt(d.n_pagos) || 0) > 1;
+    const arrow = expandible
+        ? `<span class="caja-expand-arrow" id="arrow-caja-${d.pedido_id}">▼</span>` : '';
+    const fila = `<tr${expandible ? ` class="caja-exp-row" onclick="toggleFraccionesCaja(${d.pedido_id})"` : ''}>
+        <td style="color:#666;font-size:12px;">${arrow}#${d.pedido_id}</td>
         <td>${mesaLabel}</td>
         <td>${quien}</td>
         <td style="text-align:right;">${desc}</td>
@@ -1060,8 +1079,62 @@ function filaDetalleCaja(d) {
         <td title="${d.abierto_en || ''}">${fmtHora(d.abierto_en)}</td>
         <td title="${d.ts_cobro || ''}">${fmtHora(d.ts_cobro)}</td>
         <td>${esTakeAway ? '—' : fmtDuracion(d.abierto_en, d.ts_cobro)}</td>
-        <td><button class="btn-libreta" onclick="verItems(${d.pedido_id}, ${esTakeAway ? "'Take Away'" : d.mesa_numero})" title="Ver productos">📒</button></td>
+        <td><button class="btn-libreta" onclick="event.stopPropagation();verItems(${d.pedido_id}, ${esTakeAway ? "'Take Away'" : d.mesa_numero})" title="Ver productos">📒</button></td>
     </tr>`;
+    if (!expandible) return fila;
+    return fila + `<tr id="subcaja-${d.pedido_id}" style="display:none;">
+        <td colspan="${NCOLS_DETALLE}" class="subcaja-td"><div id="subcaja-cont-${d.pedido_id}"><div class="subcaja-hint" style="padding-bottom:6px;">Cargando…</div></div></td>
+    </tr>`;
+}
+
+// ── Desglose de pagos partidos (fracciones / varios pagos de un pedido) ────
+const _fraccionesCajaCache = {};   // pedido_id → respuesta del endpoint (no re-fetch en cada toggle)
+
+async function toggleFraccionesCaja(pedidoId) {
+    const subEl   = document.getElementById(`subcaja-${pedidoId}`);
+    const arrowEl = document.getElementById(`arrow-caja-${pedidoId}`);
+    if (!subEl) return;
+    const isOpen = subEl.style.display !== "none";
+    subEl.style.display = isOpen ? "none" : "table-row";
+    if (arrowEl) arrowEl.style.transform = isOpen ? "" : "rotate(180deg)";
+    const rowEl = subEl.previousElementSibling;
+    if (rowEl) rowEl.classList.toggle("expanded", !isOpen);
+    if (isOpen) return;
+    const cont = document.getElementById(`subcaja-cont-${pedidoId}`);
+    if (!cont || cont.dataset.cargado) return;             // ya renderizado en este DOM
+    if (_fraccionesCajaCache[pedidoId]) {                  // cacheado (p.ej. el modal se re-abrió)
+        cont.innerHTML = renderFraccionesCaja(_fraccionesCajaCache[pedidoId]);
+        cont.dataset.cargado = "1";
+        return;
+    }
+    try {
+        const data = await api.get(`/caja/pedido/${pedidoId}/fracciones`);
+        _fraccionesCajaCache[pedidoId] = data;
+        cont.innerHTML = renderFraccionesCaja(data);
+        cont.dataset.cargado = "1";
+    } catch(e) {
+        cont.innerHTML = `<div class="subcaja-hint" style="color:#dc2626;padding-bottom:6px;">No se pudo cargar el desglose: ${esc(e.message || String(e))}</div>`;
+    }
+}
+
+function renderFraccionesCaja(data) {
+    const s  = simboloMoneda();
+    const fr = (data && data.fracciones) || [];
+    if (!fr.length) return `<div class="subcaja-hint" style="padding-bottom:6px;">Sin desglose de pagos.</div>`;
+    const hint = data.reconstruido
+        ? `<div class="subcaja-hint">(reconstruido — sin ticket)</div>` : '';
+    return hint + fr.map(f => `
+        <div class="subcaja-row">
+            <span style="color:#cbd5e1;flex-shrink:0;">↳</span>
+            <span style="font-weight:600;color:#374151;min-width:90px;">${esc(f.numero_txt || '')}</span>
+            <span class="subcaja-badge">${esc(f.tipo || '')}${f.modalidad ? ' · ' + esc(f.modalidad) : ''}</span>
+            <span style="font-weight:700;min-width:80px;text-align:right;">${s} ${parseFloat(f.monto).toFixed(2)}</span>
+            <span style="color:#6b7280;">${esc(f.metodo_pago || '—')}</span>
+            <span style="color:#9ca3af;">${fmtHora(f.creado_en)}</span>
+            ${f.tiene_ticket
+                ? `<button class="btn-libreta" style="font-size:15px;" onclick="event.stopPropagation();verTicketFraccion(${f.id})" title="Ver ticket">🧾</button>`
+                : ''}
+        </div>`).join("");
 }
 
 async function verDetalleAbierta() {
@@ -1130,6 +1203,34 @@ function imprimirTicketCaja() {
     const frame = document.getElementById("ticket-frame");
     try { frame.contentWindow.focus(); frame.contentWindow.print(); }
     catch(e) { alert("No se pudo imprimir: " + (e.message || e)); }
+}
+
+// Ticket impreso del refund (mismo patrón que verTicketCaja: {datos, html} → iframe).
+async function verTicketRefund(id) {
+    document.getElementById("ticket-titulo").textContent = "Ticket — Refund";
+    const frame = document.getElementById("ticket-frame");
+    frame.srcdoc = '<div style="font-family:sans-serif;color:#888;padding:20px;">Cargando…</div>';
+    document.getElementById("modal-ticket").classList.add("active");
+    try {
+        const r = await api.get(`/caja/refund/${id}/ticket`);
+        frame.srcdoc = r.html || '<div style="padding:20px;">Sin ticket.</div>';
+    } catch(e) {
+        frame.srcdoc = '<div style="font-family:sans-serif;color:#dc2626;padding:20px;">No se pudo cargar el ticket: ' + (e.message || e) + '</div>';
+    }
+}
+
+// Ticket de una fracción de pago (sub-cuenta xxxx-N / pagador).
+async function verTicketFraccion(id) {
+    document.getElementById("ticket-titulo").textContent = "Ticket — Pago parcial";
+    const frame = document.getElementById("ticket-frame");
+    frame.srcdoc = '<div style="font-family:sans-serif;color:#888;padding:20px;">Cargando…</div>';
+    document.getElementById("modal-ticket").classList.add("active");
+    try {
+        const r = await api.get(`/pagos/fraccion/${id}/ticket`);
+        frame.srcdoc = r.html || '<div style="padding:20px;">Sin ticket.</div>';
+    } catch(e) {
+        frame.srcdoc = '<div style="font-family:sans-serif;color:#dc2626;padding:20px;">No se pudo cargar el ticket: ' + (e.message || e) + '</div>';
+    }
 }
 
 async function verItems(pedidoId, mesaNumero) {
