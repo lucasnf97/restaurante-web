@@ -1338,7 +1338,7 @@ async function guardarDescansoInline(fichajeId, dayKey) {
     if (!inp) return;
     const mins = parseInt(inp.value) || 0;
     try {
-        await apiFetch(`/turnos/${fichajeId}/editar-horario`, {
+        await apiFetch(`/turnos/${fichajeId}/descanso`, {
             method: "PATCH",
             body:   JSON.stringify({ break_mins: mins }),
         });
@@ -1384,7 +1384,7 @@ async function guardarDescanso() {
     const mins     = parseInt(input.value) || 0;
 
     try {
-        await apiFetch(`/turnos/${_revFichajeId}/editar-horario`, {
+        await apiFetch(`/turnos/${_revFichajeId}/descanso`, {
             method: "PATCH",
             body:   JSON.stringify({ break_mins: mins }),
         });
@@ -1450,6 +1450,28 @@ async function guardarHora(campo) {
     const body = campo === "entrada"
         ? { ts_entrada: isoApiStr }
         : { ts_salida:  isoApiStr };
+
+    // Igual que arriba: se registra como corrección, no se pisa la hora fichada.
+    {
+        const f2 = _fichajesData[_revFichajeId] || {};
+        const entNueva = campo === "entrada" ? isoUtc : null;
+        const salNueva = campo === "salida"  ? isoUtc : null;
+        const horasAntes   = _horasEntre(f2.ts_entrada, f2.ts_salida);
+        const horasDespues = _horasEntre(entNueva || f2.ts_entrada, salNueva || f2.ts_salida);
+        try {
+            const ok = await _mandarCorreccion(_revFichajeId, {
+                horas: horasDespues - horasAntes,
+                tsEntradaReal: entNueva,
+                tsSalidaReal:  salNueva,
+            });
+            if (!ok) return;
+            await cargarFichajes();
+            cerrarModalRevision && cerrarModalRevision();
+        } catch (e) {
+            alert("No se pudo registrar la corrección: " + (e.message || e));
+        }
+        return;
+    }
 
     try {
         const res = await apiFetch(`/turnos/${_revFichajeId}/editar-horario`, {
@@ -1574,6 +1596,71 @@ function abrirEditInlineFichaje(fichajeId) {
     document.getElementById(`ei-ent-${fichajeId}`)?.focus();
 }
 
+
+/* ── CORRECCIONES DE FICHAJE ────────────────────────────────────────────────
+   Un fichaje NO se edita: se le agrega una corrección que compensa el balance y anota la
+   hora real, con motivo obligatorio y dejando constancia de quién y cuándo.
+   Es lo que exige la normativa sueca de registro de personal (cambios "por añadido", no
+   borrando) y lo que hace que el registro sirva como prueba.
+   El backend responde 410 al viejo /editar-horario, así que este es el único camino. */
+async function _mandarCorreccion(fichajeId, { horas = 0, tsEntradaReal = null, tsSalidaReal = null }) {
+    const motivo = prompt(
+        "¿Por qué se corrige este fichaje?\n\n" +
+        "Queda registrado junto al turno con tu nombre y la fecha. Ejemplo:\n" +
+        "\"Olvidó fichar la salida; jornada acordada 8 h.\""
+    );
+    if (motivo === null) return false;                 // canceló
+    if (motivo.trim().length < 5) {
+        alert("Hace falta un motivo (mínimo 5 caracteres).");
+        return false;
+    }
+    await apiFetch(`/turnos/${fichajeId}/correccion`, {
+        method: "POST",
+        body: JSON.stringify({
+            horas: Number(horas.toFixed ? horas.toFixed(2) : horas) || 0,
+            ts_entrada_real: tsEntradaReal,
+            ts_salida_real:  tsSalidaReal,
+            motivo: motivo.trim(),
+        }),
+    });
+    return true;
+}
+
+/* Horas entre dos instantes; sirve para calcular cuánto compensa la corrección. */
+function _horasEntre(desde, hasta) {
+    if (!desde || !hasta) return 0;
+    return (new Date(hasta) - new Date(desde)) / 3600000;
+}
+
+/* Historial de correcciones de un fichaje, para mostrarlo debajo del turno. */
+async function cargarCorrecciones(fichajeId, contenedorId) {
+    const cont = document.getElementById(contenedorId);
+    if (!cont) return;
+    try {
+        const lista = await apiFetch(`/turnos/${fichajeId}/correcciones`);
+        if (!lista.length) { cont.innerHTML = ""; return; }
+        cont.innerHTML = lista.map(c => {
+            const signo = c.horas > 0 ? "+" : "";
+            const horas = c.horas ? `<b>${signo}${Number(c.horas).toFixed(2)} h</b>` : "";
+            const reales = [
+                c.ts_entrada_real ? `entrada real ${formatTs(c.ts_entrada_real)}` : "",
+                c.ts_salida_real  ? `salida real ${formatTs(c.ts_salida_real)}`   : "",
+            ].filter(Boolean).join(" · ");
+            const cuando = new Date(c.creado_en).toLocaleString();
+            return `<div style="border-left:3px solid #f0ad4e;padding:4px 8px;margin:4px 0;
+                                background:#fffaf0;font-size:12px;line-height:1.5;">
+                      ${horas} ${reales ? `<span style="color:#666;">${reales}</span>` : ""}
+                      <div style="color:#333;">${(c.motivo || "").replace(/</g, "&lt;")}</div>
+                      <div style="color:#888;font-size:11px;">
+                        ${(c.creado_por || "—")} · ${cuando}
+                      </div>
+                    </div>`;
+        }).join("");
+    } catch (e) {
+        cont.innerHTML = "";
+    }
+}
+
 async function guardarEditInlineFichaje(fichajeId) {
     const entInp = document.getElementById(`ei-ent-${fichajeId}`);
     const salInp = document.getElementById(`ei-sal-${fichajeId}`);
@@ -1599,6 +1686,28 @@ async function guardarEditInlineFichaje(fichajeId) {
     const nuevaSal = body.ts_salida  ? _wallToInstant(salInp.value) : (f.ts_salida ? new Date(f.ts_salida) : null);
     if (nuevaSal && nuevaEnt >= nuevaSal) {
         alert("⚠️ La hora de entrada debe ser anterior a la hora de salida.");
+        return;
+    }
+
+    // La hora fichada no se pisa: lo que se escribe es la hora REAL y se guarda como
+    // corrección, con el ajuste de horas que implica.
+    {
+        const entVieja = f.ts_entrada, salVieja = f.ts_salida;
+        const entNueva = body.ts_entrada ? _wallToInstant(entInp.value).toISOString() : null;
+        const salNueva = body.ts_salida  ? _wallToInstant(salInp.value).toISOString() : null;
+        const horasAntes  = _horasEntre(entVieja, salVieja);
+        const horasDespues = _horasEntre(entNueva || entVieja, salNueva || salVieja);
+        try {
+            const ok = await _mandarCorreccion(fichajeId, {
+                horas: horasDespues - horasAntes,
+                tsEntradaReal: entNueva,
+                tsSalidaReal:  salNueva,
+            });
+            if (!ok) return;
+            await cargarFichajes();
+        } catch (e) {
+            alert("No se pudo registrar la corrección: " + (e.message || e));
+        }
         return;
     }
 
