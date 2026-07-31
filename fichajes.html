@@ -368,6 +368,18 @@
                 <div class="notas-box-label">📝 Nota del empleado</div>
                 <div class="notas-box-text" id="rev-notas">—</div>
             </div>
+
+            <!-- Historial de correcciones. Se oculta solo si el fichaje no tiene ninguna,
+                 para no meter una caja vacía en el 95% de los turnos, que están bien. -->
+            <div id="rev-correcciones-box" style="display:none;margin-top:12px;">
+                <div class="notas-box-label" style="margin-bottom:6px;">
+                    🕐 Correcciones de este fichaje
+                </div>
+                <div id="rev-correcciones"></div>
+                <div style="font-size:11px;color:#888;margin-top:6px;">
+                    La hora fichada no se modifica nunca: las correcciones se suman al lado.
+                </div>
+            </div>
             <div class="anular-section">
                 <button class="anular-btn" id="btn-anular-dif" onclick="toggleAnularDif()">
                     <span class="check-icon" id="anular-check-icon">○</span>
@@ -1247,6 +1259,11 @@ function _selectRevFichaje(id) {
     const f = _fichajesData[id];
     if (!f) return;
 
+    // Historial de correcciones del turno. Va acá y no sólo al abrir el modal porque desde
+    // adentro se puede cambiar de turno del día: si se cargara una sola vez, se verían las
+    // correcciones del primero pegadas a otro fichaje.
+    cargarCorrecciones(id, "rev-correcciones");
+
     // Actualizar estado activo en la lista
     document.querySelectorAll('.rev-fich-item').forEach(el => {
         const isActive = parseInt(el.dataset.id) === id;
@@ -1601,10 +1618,15 @@ function _horasEntre(desde, hasta) {
 /* Historial de correcciones de un fichaje, para mostrarlo debajo del turno. */
 async function cargarCorrecciones(fichajeId, contenedorId) {
     const cont = document.getElementById(contenedorId);
+    const caja = document.getElementById("rev-correcciones-box");
     if (!cont) return;
+    const mostrar = (hay) => { if (caja) caja.style.display = hay ? "block" : "none"; };
     try {
         const lista = await apiFetch(`/turnos/${fichajeId}/correcciones`);
-        if (!lista.length) { cont.innerHTML = ""; return; }
+        // Sin correcciones no se muestra la caja: el 95% de los turnos están bien y una
+        // sección vacía en todos ellos es ruido.
+        if (!lista.length) { cont.innerHTML = ""; mostrar(false); return; }
+        mostrar(true);
         cont.innerHTML = lista.map(c => {
             const signo = c.horas > 0 ? "+" : "";
             const horas = c.horas ? `<b>${signo}${Number(c.horas).toFixed(2)} h</b>` : "";
@@ -1623,7 +1645,9 @@ async function cargarCorrecciones(fichajeId, contenedorId) {
                     </div>`;
         }).join("");
     } catch (e) {
+        // Que no se pueda traer el historial no puede romper el modal de revisión.
         cont.innerHTML = "";
+        mostrar(false);
     }
 }
 
