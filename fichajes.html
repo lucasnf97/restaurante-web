@@ -1465,48 +1465,14 @@ async function guardarHora(campo) {
                 tsSalidaReal:  salNueva,
             });
             if (!ok) return;
-            await cargarFichajes();
-            cerrarModalRevision && cerrarModalRevision();
+            _refreshAfterEdit(_revFichajeId);
+            cerrarRevision();
         } catch (e) {
             alert("No se pudo registrar la corrección: " + (e.message || e));
         }
         return;
     }
 
-    try {
-        const res = await apiFetch(`/turnos/${_revFichajeId}/editar-horario`, {
-            method: "PATCH",
-            body:   JSON.stringify(body),
-        });
-
-        // Actualizar datos locales con el ISO UTC (incluye Z) para que
-        // formatTs lo muestre correctamente en hora local
-        const f = _fichajesData[_revFichajeId];
-        if (f) {
-            if (campo === "entrada") {
-                f.ts_entrada = isoUtc;
-                document.getElementById("rev-entrada").textContent = formatTs(f.ts_entrada);
-            } else {
-                f.ts_salida = isoUtc;
-                document.getElementById("rev-salida").textContent = formatTs(f.ts_salida);
-            }
-            // Recalcular horas localmente desde los timestamps actualizados
-            if (f.ts_entrada && f.ts_salida) {
-                f.horas = (new Date(f.ts_salida) - new Date(f.ts_entrada)) / 3600000;
-            } else if (res.horas != null) {
-                f.horas = res.horas;
-            }
-            document.getElementById("rev-duracion").textContent =
-                f.horas != null ? formatHoras(f.horas) : "—";
-            // Invalidar ajuste forzado y marcar como pendiente de revisión
-            f.ajuste_horas = 0;
-            f.revisado     = false;
-        }
-        cancelarEditHora(campo);
-        _refreshAfterEdit(_revFichajeId);
-    } catch(e) {
-        alert("Error al guardar: " + (e.message || e));
-    }
 }
 
 function cerrarRevision() {
@@ -1704,31 +1670,13 @@ async function guardarEditInlineFichaje(fichajeId) {
                 tsSalidaReal:  salNueva,
             });
             if (!ok) return;
-            await cargarFichajes();
+            _refreshAfterEdit(fichajeId);
         } catch (e) {
             alert("No se pudo registrar la corrección: " + (e.message || e));
         }
         return;
     }
 
-    try {
-        const res = await apiFetch(`/turnos/${fichajeId}/editar-horario`, {
-            method: "PATCH",
-            body:   JSON.stringify(body),
-        });
-        if (body.ts_entrada) f.ts_entrada = _wallToInstant(entInp.value).toISOString();
-        if (body.ts_salida)  f.ts_salida  = _wallToInstant(salInp.value).toISOString();
-        if (f.ts_entrada && f.ts_salida) {
-            f.horas = (new Date(f.ts_salida) - new Date(f.ts_entrada)) / 3600000;
-        } else if (res.horas != null) {
-            f.horas = res.horas;
-        }
-        f.ajuste_horas = 0;
-        f.revisado     = false;
-        _refreshAfterEdit(fichajeId);
-    } catch(e) {
-        alert("Error al guardar: " + (e.message || e));
-    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────
