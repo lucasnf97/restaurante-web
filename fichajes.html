@@ -728,7 +728,11 @@ function renderUserCard(g) {
     // break se descuenta de fichadas; asignadas = solo franjas del horario
     let totalFichadasMins = 0, totalAsignadasMins = 0, totalBreakMins = 0, tieneAsignadas = false;
     dayGroups.forEach(dg => {
-        dg.fichajes.forEach(f => { totalFichadasMins += (f.horas || 0) * 60; });
+        // Netas: lo fichado MÁS las correcciones (que van con signo). El total del empleado
+        // tiene que ser lo que de verdad trabajó, no lo que quedó registrado por error.
+        dg.fichajes.forEach(f => {
+            totalFichadasMins += ((f.horas || 0) + (f.horas_correccion || 0)) * 60;
+        });
         totalBreakMins += (dg.break_mins || 0);
         const ha = calcHorasAsignadas(dg.franjas_asignadas, dg.ajuste_horas);
         if (ha !== null) { totalAsignadasMins += ha * 60; tieneAsignadas = true; }
@@ -819,6 +823,11 @@ function toggleCard(usuarioId) {
 function renderDayGroup(dg, usuarioId) {
     const dayKey      = `${usuarioId}-${dg.fecha}`;
     const horasFich   = dg.fichajes.reduce((s, f) => s + (f.horas || 0), 0);
+    // ⚠ Las CORRECCIONES se restan/suman a lo trabajado, NO a lo asignado. `ajuste_horas` es
+    // otra cosa (el botón *Anular diferencia*, que sí toca las asignadas) y mezclarlas hacía
+    // que una corrección de −160 h apareciera SUMANDO 160 h en la diferencia.
+    const horasCorr   = dg.fichajes.reduce((s, f) => s + (f.horas_correccion || 0), 0);
+    const horasNetas  = horasFich + horasCorr;
     const horasAsig   = calcHorasAsignadas(dg.franjas_asignadas, dg.ajuste_horas);
     const hayActivo   = dg.fichajes.some(f => f.activo);
     const pendiente   = !hayActivo && dg.fichajes.some(f => !f.revisado);
@@ -902,10 +911,13 @@ function renderDayGroup(dg, usuarioId) {
     return `
         <tr class="day-group-row" onclick="toggleDayGroup('${dayKey}')">
             <td><strong>${formatFechaShort(dg.fecha)}</strong></td>
-            <td><strong>${formatHoras(horasFich)}</strong></td>
+            <td><strong>${formatHoras(horasNetas)}</strong>${
+                    horasCorr ? `<div style="font-size:11px;color:#888;font-weight:400;">
+                        ${formatHoras(horasFich)} fichadas ${horasCorr < 0 ? "−" : "+"} ${formatHoras(Math.abs(horasCorr))} corregidas
+                    </div>` : ""}</td>
             <td>${renderFranjas(dg.franjas_asignadas)}</td>
             <td id="descanso-td-day-${dayKey}">${descansoStr}${descansoEditBtn}</td>
-            <td>${renderDiff(horasFich, horasAsig, dg.break_mins)}</td>
+            <td>${renderDiff(horasNetas, horasAsig, dg.break_mins)}</td>
             <td><span class="badge ${badgeCls}" id="status-day-${dayKey}">${badgeText}</span></td>
             <td id="nota-td-day-${dayKey}" data-uid="${usuarioId}" data-edit-id="${fichajeEdit ? fichajeEdit.id : ''}">${notaTxt}${notaEditBtn}</td>
             <td>${revBtn}</td>
