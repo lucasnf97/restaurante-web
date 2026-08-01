@@ -216,7 +216,42 @@
 </nav>
 
 <div class="content">
-    <div class="page-header"><h2>🕐 Fichajes de turno</h2></div>
+    <div class="page-header">
+        <h2>🕐 Fichajes de turno</h2>
+        <button class="btn-sec" onclick="abrirPuntos()" title="Puntos donde el personal ficha con el móvil">📍 Puntos de fichaje</button>
+    </div>
+
+    <!-- Puntos de fichaje (pegatinas NFC del local). Modal aparte: es configuración que se
+         toca una vez, no algo del día a día. -->
+    <div class="modal-overlay" id="modal-puntos">
+        <div class="modal-rev">
+            <div class="modal-rev-head">
+                <h3>📍 Puntos de fichaje</h3>
+                <button class="modal-close" onclick="cerrarPuntos()">✕</button>
+            </div>
+            <div class="modal-rev-body">
+                <p class="muted" style="font-size:13px;line-height:1.6;">
+                    Son las pegatinas NFC pegadas en el local. El empleado apoya el móvil sobre
+                    una y ficha, sin escribir usuario ni contraseña. El tag no dice quién es
+                    —eso lo sabe su sesión—: <b>prueba que está en el local</b>.
+                </p>
+                <div id="puntos-lista" class="muted">Cargando…</div>
+                <div style="border-top:1px solid #eee;margin-top:14px;padding-top:14px;">
+                    <div style="font-weight:700;margin-bottom:8px;">Agregar un punto</div>
+                    <input id="punto-nombre" class="hora-input" style="width:100%;margin-bottom:8px;"
+                           placeholder="Nombre (ej. Entrada de personal)">
+                    <input id="punto-uid" class="hora-input" style="width:100%;margin-bottom:8px;"
+                           placeholder="Identificador del tag (lo lee el móvil)">
+                    <div class="muted" style="font-size:12px;margin-bottom:10px;">
+                        Leé el tag con cualquier app de NFC del móvil y copiá acá su identificador
+                        (UID). No importa el formato: <code>04:A2:B3</code> o <code>04a2b3</code>
+                        dan lo mismo.
+                    </div>
+                    <button class="btn-rev-ok" onclick="crearPunto()">Agregar punto</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Stats -->
     <div class="stats">
@@ -1595,6 +1630,78 @@ function abrirEditInlineFichaje(fichajeId) {
     document.getElementById(`ei-ent-${fichajeId}`)?.focus();
 }
 
+
+
+/* ── PUNTOS DE FICHAJE (pegatinas NFC del local) ───────────────────────────── */
+async function abrirPuntos() {
+    document.getElementById("modal-puntos").classList.add("open");
+    await cargarPuntos();
+}
+function cerrarPuntos() {
+    document.getElementById("modal-puntos").classList.remove("open");
+}
+
+async function cargarPuntos() {
+    const cont = document.getElementById("puntos-lista");
+    if (!cont) return;
+    try {
+        const lista = await apiFetch("/turnos/puntos");
+        if (!lista.length) {
+            cont.innerHTML = `<div class="muted">Todavía no hay ningún punto. Mientras no haya,
+                el personal ficha sólo en el terminal.</div>`;
+            return;
+        }
+        cont.innerHTML = lista.map(p => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f1f1;">
+                <div style="flex:1;">
+                    <div style="font-weight:700;">${esc(p.nombre)}</div>
+                    <div class="muted" style="font-size:12px;">
+                        ${esc(p.tag_uid)} · terminal ${esc(p.terminal_id)}
+                        ${p.verificacion_fuerte
+                            ? ' · <span style="color:#16a34a;">tag verificado</span>'
+                            : ' · <span style="color:#b45309;" title="Un tag básico se puede duplicar: sirve para probar, no como garantía">tag básico</span>'}
+                    </div>
+                </div>
+                <button class="btn-sec" onclick="togglePunto(${p.id}, ${p.activo ? "false" : "true"})">
+                    ${p.activo ? "Desactivar" : "Activar"}
+                </button>
+                <button class="btn-sec" onclick="borrarPunto(${p.id})" title="Los fichajes ya hechos no se tocan">🗑</button>
+            </div>`).join("");
+    } catch (e) {
+        cont.innerHTML = `<div class="muted">No se pudieron cargar: ${esc(e.message || "")}</div>`;
+    }
+}
+
+async function crearPunto() {
+    const nombre = (document.getElementById("punto-nombre").value || "").trim();
+    const uid    = (document.getElementById("punto-uid").value || "").trim();
+    if (!nombre || !uid) { alert("Poné el nombre y el identificador del tag."); return; }
+    try {
+        await apiFetch("/turnos/puntos", { method: "POST", body: JSON.stringify({ nombre, tag_uid: uid }) });
+        document.getElementById("punto-nombre").value = "";
+        document.getElementById("punto-uid").value = "";
+        await cargarPuntos();
+    } catch (e) {
+        alert(e.message || "No se pudo agregar el punto.");
+    }
+}
+
+async function togglePunto(id, activo) {
+    try {
+        await apiFetch(`/turnos/puntos/${id}`, { method: "PATCH", body: JSON.stringify({ activo }) });
+        await cargarPuntos();
+    } catch (e) { alert(e.message || "No se pudo cambiar."); }
+}
+
+async function borrarPunto(id) {
+    /* Los fichajes hechos con ese punto NO se tocan: borrar un punto no puede reescribir
+       jornadas ya registradas. Se avisa para que nadie lo borre creyendo que "limpia". */
+    if (!confirm("¿Borrar este punto?\n\nLos fichajes que ya se hicieron con él NO se modifican.")) return;
+    try {
+        await apiFetch(`/turnos/puntos/${id}`, { method: "DELETE" });
+        await cargarPuntos();
+    } catch (e) { alert(e.message || "No se pudo borrar."); }
+}
 
 /* ── CORRECCIONES DE FICHAJE ────────────────────────────────────────────────
    Un fichaje NO se edita: se le agrega una corrección que compensa el balance y anota la
