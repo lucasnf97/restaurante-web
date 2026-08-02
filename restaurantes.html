@@ -64,6 +64,24 @@ th { color:#9ca3af; font-size:11px; text-transform:uppercase; }
         <button class="tab active" id="tab-rest" onclick="verTab('rest')">🏢 Restaurantes</button>
         <button class="tab" id="tab-ger" onclick="verTab('ger')">🧑‍💼 Gerentes</button>
         <button class="tab" id="tab-cod" onclick="verTab('cod')">🌍 Códigos</button>
+        <button class="tab" id="tab-uso" onclick="verTab('uso')">📊 Uso de datos</button>
+    </div>
+
+
+    <!-- ════════ USO DE DATOS ════════ -->
+    <div id="view-uso" style="display:none;">
+        <div class="card">
+            <h3>📊 Cuánto ocupa cada restaurante</h3>
+            <p class="hint" style="line-height:1.7;">
+                Son <strong>dos proveedores</strong> y crecen por motivos distintos.
+                <strong>Base de datos</strong> (Railway): lo manda el <strong>volumen de ventas</strong> —
+                medido en producción, las líneas de pedido y de comanda son el 78&nbsp;% de un restaurante
+                con un año de datos. <strong>Archivos</strong> (Cloudinary): lo mandan los documentos y las fotos.
+                Un cliente puede ser caro en uno y casi gratis en el otro.
+            </p>
+            <div id="uso-totales" style="margin:14px 0;"></div>
+            <div id="uso-tabla">Cargando…</div>
+        </div>
     </div>
 
     <!-- ════════ RESTAURANTES ════════ -->
@@ -318,11 +336,14 @@ function verTab(t){
     document.getElementById('view-rest').style.display = t==='rest' ? '' : 'none';
     document.getElementById('view-ger').style.display  = t==='ger'  ? '' : 'none';
     document.getElementById('view-cod').style.display  = t==='cod'  ? '' : 'none';
+    document.getElementById('view-uso').style.display  = t==='uso'  ? '' : 'none';
     document.getElementById('tab-rest').classList.toggle('active', t==='rest');
     document.getElementById('tab-ger').classList.toggle('active', t==='ger');
     document.getElementById('tab-cod').classList.toggle('active', t==='cod');
+    document.getElementById('tab-uso').classList.toggle('active', t==='uso');
     if(t==='cod'){ cargarCodigos(); cargarPaisesCiudades(); }
     if(t==='ger'){ cargarCodigoGerente(); }
+    if(t==='uso'){ cargarUso(); }
 }
 
 // ── Gerentes ──────────────────────────────────────────────────
@@ -736,6 +757,80 @@ function limpiarFiltros(){
     setTimeout(limpiarFiltros, 300);
     setTimeout(limpiarFiltros, 1200);
 })();
+
+// ── USO DE DATOS ──────────────────────────────────────────────
+function _mb(b) {
+    b = Number(b || 0);
+    if (b >= 1073741824) return (b / 1073741824).toFixed(2) + " GB";
+    if (b >= 1048576)    return (b / 1048576).toFixed(1) + " MB";
+    if (b >= 1024)       return (b / 1024).toFixed(0) + " KB";
+    return b + " B";
+}
+
+async function cargarUso() {
+    const cont = document.getElementById("uso-tabla");
+    const tot  = document.getElementById("uso-totales");
+    cont.textContent = "Cargando…";
+    let d;
+    try { d = await apiFetch("/restaurantes/uso"); }
+    catch (e) { cont.innerHTML = `<div class="hint">No se pudo cargar: ${e.message || ""}</div>`; return; }
+
+    const cta = d.cloudinary_cuenta;
+    tot.innerHTML = `
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:190px;padding:12px;background:#f8fafc;border-radius:8px;">
+                <div class="hint">Base de datos (Railway)</div>
+                <div style="font-size:22px;font-weight:800;">${_mb(d.db_total_bytes)}</div>
+                <div class="hint">${_mb(d.db_suma_esquemas)} en restaurantes</div>
+            </div>
+            <div style="flex:1;min-width:190px;padding:12px;background:#f8fafc;border-radius:8px;">
+                <div class="hint">Archivos (Cloudinary)${cta && cta.plan ? " · plan " + cta.plan : ""}</div>
+                <div style="font-size:22px;font-weight:800;">${cta ? _mb(cta.bytes) : "—"}</div>
+                <div class="hint">${cta && cta.creditos_limite
+                    ? `${cta.creditos_usados} de ${cta.creditos_limite} créditos`
+                    : "sin datos de la cuenta"}</div>
+            </div>
+        </div>
+        ${d.cloudinary_sin_atribuir_bytes > 0 ? `
+        <div class="hint" style="margin-top:10px;padding:10px;background:#fffbeb;border-radius:8px;">
+            <strong>${_mb(d.cloudinary_sin_atribuir_bytes)} sin atribuir.</strong>
+            Son los archivos subidos <em>antes</em> de empezar a medir por restaurante: no
+            faltan por cobrar, simplemente no se sabe de quién son. Lo nuevo sí se atribuye.
+        </div>` : ""}`;
+
+    const rs = (d.restaurantes || []).slice()
+        .sort((a, b) => (b.db_bytes + b.archivos_bytes) - (a.db_bytes + a.archivos_bytes));
+    if (!rs.length) { cont.innerHTML = `<div class="hint">Sin restaurantes.</div>`; return; }
+
+    cont.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead><tr style="text-align:left;border-bottom:2px solid #e5e7eb;">
+            <th style="padding:8px 6px;">Restaurante</th>
+            <th style="padding:8px 6px;">Base de datos</th>
+            <th style="padding:8px 6px;">Archivos</th>
+            <th style="padding:8px 6px;">Total</th>
+        </tr></thead>
+        <tbody>${rs.map(r => {
+            const total = (r.db_bytes || 0) + (r.archivos_bytes || 0);
+            return `<tr style="border-bottom:1px solid #f1f5f9;${r.activo ? "" : "opacity:.5;"}">
+                <td style="padding:8px 6px;">
+                    <strong>${r.codigo}</strong> · ${r.nombre || ""}
+                    ${r.activo ? "" : ' <span class="hint">(inactivo)</span>'}
+                </td>
+                <td style="padding:8px 6px;">${_mb(r.db_bytes)}</td>
+                <td style="padding:8px 6px;">${_mb(r.archivos_bytes)}
+                    ${r.archivos_n ? `<span class="hint"> · ${r.archivos_n} arch.</span>` : ""}</td>
+                <td style="padding:8px 6px;font-weight:700;">${_mb(total)}</td>
+            </tr>`;
+        }).join("")}</tbody>
+    </table>
+    <p class="hint" style="margin-top:12px;line-height:1.7;">
+        Referencias medidas en producción: un restaurante <strong>recién creado</strong> pesa
+        2,2&nbsp;MB (sólo estructura); con <strong>un año de operación</strong>, unos
+        75-80&nbsp;MB. La columna de archivos empieza en cero para todos: se mide desde ahora.
+    </p>`;
+}
+
 </script>
 </body>
 </html>
