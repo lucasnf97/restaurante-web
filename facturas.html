@@ -409,6 +409,24 @@
         </div>
         </div><!-- /modal-conf-split -->
 
+        <!-- LO QUE DE VERDAD SE PAGÓ. Se muestra aparte de la suma de líneas a propósito: son
+             dos cosas distintas y casi nunca coinciden al céntimo, porque el proveedor redondea
+             el impuesto sobre el total y no línea por línea. El que manda es este, y por eso se
+             puede corregir a mano contra el papel. -->
+        <div id="conf-declarado" style="padding:10px 16px;border-top:1px solid #e5e7eb;background:#f8fafc;font-size:13px;">
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                <span style="font-weight:700;">Total de la factura:</span>
+                <label style="display:flex;align-items:center;gap:5px;">s/imp
+                    <input id="conf-tot-neto" type="number" step="0.01" style="width:110px;padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;text-align:right;"></label>
+                <label style="display:flex;align-items:center;gap:5px;">imp.
+                    <input id="conf-tot-imp" type="number" step="0.01" style="width:100px;padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;text-align:right;"></label>
+                <label style="display:flex;align-items:center;gap:5px;">c/imp
+                    <input id="conf-tot-bruto" type="number" step="0.01" style="width:110px;padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;text-align:right;"></label>
+                <span id="conf-tot-origen" style="font-size:11px;color:#6b7280;"></span>
+            </div>
+            <div id="conf-tot-aviso" style="margin-top:6px;font-size:12px;"></div>
+        </div>
+
         <div class="modal-footer">
             <div id="conf-totales" style="margin-right:auto;display:flex;gap:16px;align-items:center;font-size:13px;color:#374151;"></div>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-confirmacion')">Cancelar</button>
@@ -1306,6 +1324,8 @@ function abrirModalConfirmacion(datos) {
     _setFechaPeriodoConf(datos.fecha, datos._periodo || null);
 
     document.getElementById("modal-confirmacion").classList.add("active");
+    // Los totales del papel: lo que leyó la IA, o la suma de líneas como propuesta.
+    _totDeclPrecargar(datos);
     _actualizarTotalesConf();
 }
 
@@ -1788,7 +1808,7 @@ async function confirmarFactura() {
             const precioUnit  = (precioNeto && cant && cant !== 0) ? precioNeto / cant : null;
             if (!bienId) { alert("Todos los ítems de bien de uso deben tener un bien asignado."); return; }
             if (!cant || cant === 0 || isNaN(cant)) { alert("Cantidad inválida en un ítem de bien de uso (puede ser negativa para reintegros)."); return; }
-            itemsBien.push({ bienId, cant, precio: _conv(precioUnit), precioPagado: _conv(precioBruto), marca });
+            itemsBien.push({ bienId, cant, precio: _conv(precioUnit), precioTotal: _conv(precioNeto), precioPagado: _conv(precioBruto), marca });
             snapItems.push({ tipo: "bien", descripcion_factura: desc, insumo_id: bienId, cantidad: cant,
                              precio_total: precioNeto, incluye_impuesto: false, impuesto_pct: pctBien, marca });
         } else if (tipo === "insumo") {
@@ -1802,7 +1822,7 @@ async function confirmarFactura() {
             const precioUnit  = (precioNeto && cant && cant !== 0) ? precioNeto / cant : null;
             if (!insId)  { alert("Todos los ítems de insumo deben tener un insumo asignado."); return; }
             if (!cant || cant === 0 || isNaN(cant)) { alert("Cantidad inválida en un ítem de insumo (puede ser negativa para reintegros)."); return; }
-            itemsInsumo.push({ insId, cant, precio: _conv(precioUnit), precioPagado: _conv(precioBruto), marca });
+            itemsInsumo.push({ insId, cant, precio: _conv(precioUnit), precioTotal: _conv(precioNeto), precioPagado: _conv(precioBruto), marca });
             snapItems.push({ tipo: "insumo", descripcion_factura: desc, insumo_id: insId, cantidad: cant,
                              precio_total: precioNeto, incluye_impuesto: false, impuesto_pct: pctIns, marca });
         } else if (tipo === "servicio") {
@@ -1969,6 +1989,13 @@ async function confirmarFactura() {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
             archivo_nombre: archivoNom,
             archivo_url: facturaUrl, moneda: monedaGuardar, total_detectado: totalDetectado || null,
+            // ⚠ Lo que se pagó, tal como figura en la factura. Va APARTE de `total_detectado`
+            // (que es la suma de las líneas) porque son dos cosas distintas y el que manda es
+            // éste. Se convierte a la moneda del sistema, como todo lo demás.
+            total_neto:     _totDeclSistema().neto,
+            total_impuesto: _totDeclSistema().imp,
+            total_bruto:    _totDeclSistema().bruto,
+            origen_total:   _totDeclOrigen,
             numero_factura: numeroFactura,
             fecha_factura: fechaFactura, periodo_desde: rango.desde, periodo_hasta: rango.hasta,
             datos_json: JSON.stringify(datosSnapshot),
@@ -1982,7 +2009,11 @@ async function confirmarFactura() {
         for (const item of itemsInsumo) {
             await api.post("/stock/recargar", {
                 insumo_id: item.insId, tipo: "agregar", cantidad: item.cant,
-                precio_unitario: item.precio, proveedor_id: proveedorId,
+                // ⚠ `precio_total` es el importe EXACTO de la línea. El unitario sigue yendo
+                // para el coste del producto, pero el gasto ya no se reconstruye multiplicando:
+                // el redondeo del unitario se multiplicaba por la cantidad.
+                precio_unitario: item.precio, precio_total: item.precioTotal,
+                proveedor_id: proveedorId,
                 referencia, moneda: monedaGuardar, factura_url: facturaUrl, factura_id: facturaId,
                 marca: item.marca || null,
             });
@@ -1992,7 +2023,8 @@ async function confirmarFactura() {
         for (const item of itemsBien) {
             await api.post("/stock/bienes-uso/recargar", {
                 bien_uso_id: item.bienId, cantidad: item.cant,
-                precio_unitario: item.precio, proveedor_id: proveedorId,
+                precio_unitario: item.precio, precio_total: item.precioTotal,
+                proveedor_id: proveedorId,
                 referencia, moneda: monedaGuardar, factura_id: facturaId,
                 marca: item.marca || null,
             });
@@ -2670,6 +2702,86 @@ function _recalcFila(pfx, idx, fuente) {
     _actualizarTotalesConf();
 }
 
+
+/* ── TOTALES DECLARADOS DE LA FACTURA ───────────────────────────────────────────
+   Lo que se pagó, tal como figura en el papel. Es un dato APARTE de la suma de las
+   líneas: casi nunca coinciden al céntimo porque el proveedor redondea el impuesto
+   sobre el total, no línea por línea. El que vale es éste. */
+let _totDeclOrigen = 'calculado';   // pasa a 'documento' si la IA los trajo o si se editan
+
+/* Los declarados, ya convertidos a la moneda del sistema — que es la que se guarda.
+   Sin esto, una factura en EUR guardaría el total en EUR junto a importes en DKK. */
+function _totDeclSistema() {
+    const d = _totDeclLeer();
+    const facCod = (document.getElementById('conf-moneda-codigo')?.value || '').trim().toUpperCase();
+    const sysCod = ((window.SISTEMA_MONEDA || {}).codigo || '').toUpperCase();
+    if (!facCod || !sysCod || facCod === sysCod || typeof convertirASistema !== 'function') return d;
+    const c = v => (v == null ? null : convertirASistema(v, facCod));
+    return { neto: c(d.neto), imp: c(d.imp), bruto: c(d.bruto) };
+}
+
+function _totDeclLeer() {
+    const g = id => { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; };
+    return { neto: g('conf-tot-neto'), imp: g('conf-tot-imp'), bruto: g('conf-tot-bruto') };
+}
+
+/* Precarga: lo que leyó la IA manda; si no vino, se propone la suma de líneas. */
+function _totDeclPrecargar(datos) {
+    const n = document.getElementById('conf-tot-neto');
+    if (!n) return;
+    const d = datos || {};
+    const hayDoc = d.total_neto != null || d.total_bruto != null;
+    if (hayDoc) {
+        _totDeclOrigen = 'documento';
+        if (d.total_neto  != null) n.value = Number(d.total_neto).toFixed(2);
+        if (d.total_impuesto != null) document.getElementById('conf-tot-imp').value = Number(d.total_impuesto).toFixed(2);
+        if (d.total_bruto != null) document.getElementById('conf-tot-bruto').value = Number(d.total_bruto).toFixed(2);
+    } else {
+        _totDeclOrigen = 'calculado';
+    }
+    ['conf-tot-neto', 'conf-tot-imp', 'conf-tot-bruto'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el._lig) {
+            el._lig = true;
+            /* Tocarlos a mano significa que se están copiando del papel. */
+            el.addEventListener('input', () => { _totDeclOrigen = 'documento'; _actualizarTotalesConf(); });
+        }
+    });
+    _actualizarTotalesConf();
+}
+
+/* Aviso de descuadre. No corrige nada: sólo lo hace visible. Ajustar una línea en
+   silencio para que cuadre falsearía el coste de ese producto. */
+function _totDeclAviso(netoLineas, brutoLineas) {
+    const av = document.getElementById('conf-tot-aviso');
+    const or = document.getElementById('conf-tot-origen');
+    if (!av) return;
+    const d = _totDeclLeer();
+    if (or) or.textContent = _totDeclOrigen === 'documento' ? '· leído del documento' : '· calculado de las líneas';
+
+    /* Sin totales declarados se proponen los de las líneas, para no obligar a tipear
+       cuando la factura no los muestra o la IA no los encontró. */
+    if (d.neto == null && d.bruto == null) {
+        const n = document.getElementById('conf-tot-neto'), b = document.getElementById('conf-tot-bruto');
+        const i = document.getElementById('conf-tot-imp');
+        if (n) n.value = netoLineas.toFixed(2);
+        if (b) b.value = brutoLineas.toFixed(2);
+        if (i) i.value = (brutoLineas - netoLineas).toFixed(2);
+        av.innerHTML = '<span style="color:#6b7280;">Se toman los totales de las líneas. Si la factura muestra otros, corregilos acá.</span>';
+        return;
+    }
+    const difN = d.neto  != null ? d.neto  - netoLineas  : 0;
+    const difB = d.bruto != null ? d.bruto - brutoLineas : 0;
+    const peor = Math.abs(difN) > Math.abs(difB) ? difN : difB;
+    if (Math.abs(peor) < 0.005) {
+        av.innerHTML = '<span style="color:#16a34a;">✓ Cuadra con la suma de las líneas.</span>';
+    } else {
+        const f = v => v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        av.innerHTML = `<span style="color:#b45309;">⚠ Difiere de la suma de las líneas en ${f(Math.abs(peor))}. `
+                     + `Se guarda el total de la factura; las líneas quedan como están.</span>`;
+    }
+}
+
 // Totales de la factura (sin/con impuesto) en el footer del modal de confirmación.
 function _actualizarTotalesConf() {
     const el = document.getElementById('conf-totales');
@@ -2700,9 +2812,10 @@ function _actualizarTotalesConf() {
         if (nS != null && bS != null)
             extra = `<span style="border-left:1px solid #e5e7eb;padding-left:14px;color:#6b7280;">Se guarda (${sysCod}): s/imp <b style="color:#1a1a2e;">${sysSym} ${f(nS)}</b> · c/imp <b style="color:#16a34a;">${sysSym} ${f(bS)}</b></span>`;
     }
-    el.innerHTML = `<span>Total s/imp: <b style="color:#1a1a2e;">${sym} ${f(neto)}</b></span>`
-                 + `<span>Total c/imp: <b style="color:#16a34a;">${sym} ${f(bruto)}</b></span>`
+    el.innerHTML = `<span>Suma de líneas: s/imp <b style="color:#1a1a2e;">${sym} ${f(neto)}</b></span>`
+                 + `<span>c/imp <b style="color:#16a34a;">${sym} ${f(bruto)}</b></span>`
                  + extra;
+    _totDeclAviso(neto, bruto);
 }
 
 // Insumos
