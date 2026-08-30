@@ -133,7 +133,6 @@
         .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
         /* Spinner */
-        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Modal de ajuste de horas */
@@ -730,7 +729,7 @@ async function confirmarPeriodo(desde, hasta, idx) {
     if (!confirm(`¿Confirmar el período ${label} con total ${fmt(total)}?\n\nEsto registrará el gasto de salarios correspondiente en los movimientos de servicio.`)) return;
 
     const btn = document.getElementById(`pend-btn-confirmar-${idx}`);
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Confirmando...'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="cp-orbit cp-mini"></span>Confirmando...'; }
 
     const pendData   = _pendientesData[idx];
     const pendNemp   = pendData ? pendData.usuarios.length : undefined;
@@ -1151,7 +1150,7 @@ async function confirmarPeriodoActual() {
 
     const btn = document.getElementById('btn-confirmar-per');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Confirmando...';
+    btn.innerHTML = '<span class="cp-orbit cp-mini"></span>Confirmando...';
 
     try {
         const notasMapAct   = {};
@@ -1220,7 +1219,7 @@ async function confirmarAuth() {
     errEl.textContent = '';
     if (!u || !p) { errEl.textContent = 'Completá usuario y contraseña.'; return; }
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Verificando...';
+    btn.innerHTML = '<span class="cp-orbit cp-mini"></span>Verificando...';
     try {
         // Validación SIN efectos secundarios: no usar login() de api.js, que pisa el
         // token/usuario de la sesión en localStorage (si el que verifica resolvía a otra

@@ -611,6 +611,22 @@ async function abrirDocumento(url) {
         .cp-pulse span { opacity: .35; transform: scale(1); }
     }
 
+    /* Indicador flotante de carga. Aparece SOLO si una peticion tarda de verdad
+       (ver UMBRAL_PILL abajo): la barra de arriba avisa que algo pasa, pero es tan
+       fina y tan rapida que en una espera larga no se sabe si el programa trabaja o
+       se colgo. No bloquea (pointer-events: none): el usuario puede seguir.  */
+    #ui-cargando {
+        position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-14px);
+        z-index: 99997; display: flex; align-items: center; gap: 9px;
+        background: var(--cp-navy); color: #E9EBE1;
+        font-family: 'Segoe UI', sans-serif; font-size: 13.5px;
+        padding: 9px 16px 9px 12px; border-radius: 999px;
+        box-shadow: 0 8px 26px rgba(0,0,0,.28);
+        pointer-events: none; opacity: 0;
+        transition: opacity .2s ease, transform .2s ease;
+    }
+    #ui-cargando.ui-ver { opacity: 1; transform: translateX(-50%) translateY(0); }
+
     #ui-progress {
         position: fixed; top: 0; left: 0; height: 3px; width: 0;
         background: linear-gradient(90deg, var(--cp-r3), var(--cp-lime));
@@ -685,6 +701,31 @@ async function abrirDocumento(url) {
     // pendiente (puede cambiar ANTES de que el overlay llegue a dibujarse).
     let _ovT = null, _ovVis = false, _ovTxt = "";
 
+    // ⚠ Mas alto que el umbral del overlay (400 ms): este indicador sale SOLO en la
+    // barra, sin que nadie lo pida, asi que tiene que ser claramente "esto tarda" y
+    // no parpadear en cada cambio de pantalla, que es lo normal y es rapido.
+    const UMBRAL_PILL = 700;
+    let _pillT = null, _pillEl = null;
+
+    // El indicador flotante. Se crea la primera vez que hace falta: una pagina donde
+    // todo responde rapido nunca llega a construirlo.
+    function _pillMostrar() {
+        if (!_pillEl || !document.body.contains(_pillEl)) {
+            _pillEl = document.createElement("div");
+            _pillEl.id = "ui-cargando";
+            _pillEl.innerHTML = _animHTML("orbit", "cp-mini") + "<span>Cargando…</span>";
+            (document.body || document.documentElement).appendChild(_pillEl);
+        }
+        // Dos cuadros: sin esto el navegador aplica opacidad y transicion a la vez y
+        // el elemento aparece de golpe, sin el fundido.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (_pillEl) _pillEl.classList.add("ui-ver");
+        }));
+    }
+    function _pillOcultar() {
+        if (_pillEl) _pillEl.classList.remove("ui-ver");
+    }
+
     // Barra de progreso ligada al contador de requests en vuelo.
     let _pending = 0, _bar = null, _trickle = null, _prog = 0;
     function _ensureBar() {
@@ -705,12 +746,16 @@ async function abrirDocumento(url) {
                 _set(8);
                 clearInterval(_trickle);
                 _trickle = setInterval(() => { if (_prog < 90) _set(_prog + (90 - _prog) * 0.12); }, 300);
+                clearTimeout(_pillT);
+                _pillT = setTimeout(_pillMostrar, UMBRAL_PILL);
             }
         },
         _reqEnd() {
             _pending = Math.max(0, _pending - 1);
             if (_pending === 0) {
                 clearInterval(_trickle);
+                clearTimeout(_pillT); _pillT = null;
+                _pillOcultar();
                 _set(100);
                 const b = _ensureBar();
                 setTimeout(() => { b.style.opacity = "0"; setTimeout(() => _set(0), 300); }, 220);
