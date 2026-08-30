@@ -299,7 +299,9 @@ function renderArchivos(){
 function _iaCargando(base){
     const t0 = Date.now();
     const tick = () => window.UI && window.UI.overlayText(`${base}  (${Math.round((Date.now()-t0)/1000)}s)`);
-    if (window.UI) window.UI.overlay(true, base);
+    // "scan" = los anillos encendiéndose de dentro hacia fuera: la IA trabajando.
+    // Es más lenta que la órbita a propósito — esta espera dura minutos, no segundos.
+    if (window.UI) window.UI.overlay(true, base, "scan");
     tick();
     const iv = setInterval(tick, 1000);
     return () => { clearInterval(iv); if (window.UI) window.UI.overlay(false); };
