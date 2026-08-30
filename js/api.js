@@ -597,6 +597,29 @@ async function abrirDocumento(url) {
                        background: var(--cp-prog-bg, #fff); }
     .cp-prog::after  { content: ""; position: absolute; inset: 36%; border-radius: 50%; background: var(--cp-lime); }
 
+    /* ── Estado de la caja ──────────────────────────────────────────────────
+       Reusa el LATIDO, que en el resto del kit significa "vivo y funcionando":
+       una caja abierta es exactamente eso, un ESTADO y no una espera. Cerrada
+       queda roja y quieta — la AUSENCIA de latido es la mitad del mensaje.
+       ⚠ El anillo oscuro fijo (primer box-shadow) no es decoracion: el lima sobre
+       un fondo pastel claro casi no contrasta, y sin el anillo el punto desaparece
+       justo en el sitio donde tiene que verse de un vistazo.                     */
+    @keyframes cp-caja-late {
+        0%, 42%, 100% { transform: scale(1);    box-shadow: 0 0 0 2px var(--cp-r4), 0 0 0 0  rgba(201,255,31,.55); }
+        12%           { transform: scale(1.14); box-shadow: 0 0 0 2px var(--cp-r4), 0 0 0 6px rgba(201,255,31,0); }
+        26%           { transform: scale(1.08); box-shadow: 0 0 0 2px var(--cp-r4), 0 0 0 9px rgba(201,255,31,0); }
+    }
+    .cp-caja {
+        display: inline-block; flex: none; width: 11px; height: 11px;
+        border-radius: 50%; background: var(--cp-lime);
+        vertical-align: -1px; margin-right: 7px;
+        box-shadow: 0 0 0 2px var(--cp-r4);
+        animation: cp-caja-late 1.9s ease-in-out infinite;
+    }
+    .cp-caja.cp-cerrada {
+        background: #dc2626; box-shadow: 0 0 0 2px #7f1d1d; animation: none;
+    }
+
     /* Dentro de un botón o una línea de texto. Los trazos se afinan con el tamaño:
        a 20px un borde de 2.5px se come el dibujo entero. */
     .cp-orbit.cp-mini, .cp-pulse.cp-mini, .cp-scan.cp-mini, .cp-prog.cp-mini {
@@ -607,7 +630,7 @@ async function abrirDocumento(url) {
 
     @media (prefers-reduced-motion: reduce) {
         /* En una herramienta que se usa ocho horas seguidas esto no es opcional. */
-        .cp-orbit::after, .cp-pulse span, .cp-scan span, .cp-beat { animation: none !important; }
+        .cp-orbit::after, .cp-pulse span, .cp-scan span, .cp-beat, .cp-caja { animation: none !important; }
         .cp-pulse span { opacity: .35; transform: scale(1); }
     }
 
