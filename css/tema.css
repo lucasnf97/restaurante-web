@@ -1,0 +1,221 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   TEMA — claro / oscuro, por usuario
+   ══════════════════════════════════════════════════════════════════════════
+
+   Cómo funciona
+   -------------
+   `js/tema.js` resuelve la preferencia del usuario ('claro' | 'oscuro' | 'auto')
+   a un valor CONCRETO y lo estampa en <html data-tema="claro|oscuro">. Un snippet
+   de ~300 bytes en el <head> de cada página hace lo mismo ANTES de que el
+   navegador pinte, para que no haya fogonazo blanco al navegar.
+
+   ⚠ Este archivo NO lleva `@media (prefers-color-scheme)` a propósito.
+     El "modo navegador" se resuelve en JS a claro/oscuro concreto, así que
+     `data-tema` SIEMPRE tiene un valor y hay un solo camino de código. La
+     preferencia GUARDADA ('auto') y el valor APLICADO ('claro'/'oscuro') son dos
+     cosas distintas; mezclarlas obligaría a razonar sobre media queries en cada
+     regla y en el codemod.
+
+   ⚠ Los valores CLAROS son el hex EXACTO que hay hoy en las páginas, sin
+     "limpiar la paleta". Eso es lo que permite verificar el cambio: tras
+     tokenizar, los estilos computados en modo claro tienen que dar diff CERO
+     contra el estado anterior. Si acá se "mejora" un color, esa prueba muere.
+
+   ⚠ El codemod escribe SIEMPRE `var(--token, #hexOriginal)`. Si este archivo
+     diera 404 (typo de ruta, caché de Pages), la web se ve exactamente como hoy
+     en vez de quedar blanco sobre blanco.
+
+   ⚠ Al cambiar este archivo hay que subir el `?v=N` del <link> en los <head>.
+     GitHub Pages cachea agresivo y el repo no versiona ningún otro asset.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── CLARO — el estado de hoy ─────────────────────────────────────────────
+   El selector va doble (`:root` + `:root[data-tema="claro"]`) para que la web
+   se vea bien incluso si tema.js no llegó a estampar el atributo.            */
+:root,
+:root[data-tema="claro"] {
+  color-scheme: light;
+
+  /* Superficies */
+  --sup-app:    #f0f2f5;   /* fondo de página (28 páginas) */
+  --sup:        #fff;      /* tarjeta, tabla, modal */
+  --sup-2:      #f8f9fa;   /* relleno sutil: th, filas alternas */
+  --sup-3:      #f0f0f0;   /* hover, separador embutido */
+  --sup-inv:    #1a1a2e;   /* navbar y sidebar: YA son oscuros hoy */
+  --sup-inv-2:  #16213e;
+
+  /* Texto */
+  --tx:         #1a1a2e;   /* principal */
+  --tx-2:       #374151;   /* secundario */
+  --tx-3:       #9ca3af;   /* apagado (382 usos, el 2º color del repo) */
+  --tx-inv:     #fff;      /* ⚠ sobre acento u oscuro: NO se invierte */
+  --tx-acc:     #4f46e5;   /* enlaces y cifras destacadas */
+
+  /* Bordes */
+  --bd:         #e5e7eb;   /* borde general */
+  --bd-2:       #d1d5db;   /* borde de campo */
+  --bd-3:       #f0f0f0;   /* separador de fila de tabla */
+
+  /* Acento */
+  --ac:         #4f46e5;   /* primario (442 usos, el color más usado) */
+  --ac-h:       #4338ca;   /* hover */
+  --ac-sf:      #eef2ff;   /* fondo teñido */
+  --ac-bd:      #c7d2fe;
+  --on-ac:      #fff;      /* ⚠ texto sobre acento: no se invierte */
+
+  /* Estado — peligro */
+  --pel:        #dc2626;
+  --pel-h:      #b91c1c;
+  --pel-sf:     #fee2e2;
+  --pel-tx:     #b91c1c;
+
+  /* Estado — éxito */
+  --ok:         #16a34a;
+  --ok-sf:      #dcfce7;
+  --ok-tx:      #15803d;
+
+  /* Estado — aviso */
+  --av:         #f59e0b;
+  --av-sf:      #fef3c7;
+  --av-tx:      #92400e;
+
+  /* Chrome oscuro (navbar / sidebar) */
+  --nav-tx:     #a5b4fc;
+  --nav-hov:    rgba(99,102,241,.18);
+
+  /* Sombras y velo */
+  --sh-1:       0 2px 8px rgba(0,0,0,0.06);   /* tarjeta (81 usos) */
+  --sh-2:       0 8px 24px rgba(0,0,0,.22);   /* elemento flotante */
+  --sh-3:       0 18px 60px rgba(0,0,0,.35);  /* modal */
+  --scrim:      rgba(0,0,0,.35);              /* velo detrás del modal */
+
+  /* La "hoja": islas que se quedan CLARAS a propósito — comprobantes,
+     gráficos, editor, canvas. Iguales en los dos temas. */
+  --hoja:       #fff;
+  --hoja-tx:    #16171e;
+}
+
+/* ── OSCURO ───────────────────────────────────────────────────────────────
+   No es negro puro: es un neutro con sesgo azul emparentado con el navy de la
+   marca (#1B1B33). El negro puro sobre pantallas OLED produce halos alrededor
+   del texto y hace que las sombras desaparezcan.
+
+   Las superficies suben de tono con la elevación (al revés que en claro): el
+   fondo de página es lo más oscuro y la tarjeta queda un escalón por encima.  */
+:root[data-tema="oscuro"] {
+  color-scheme: dark;   /* barras de scroll, <select>, casillas y fecha nativos */
+
+  --sup-app:    #12131a;
+  --sup:        #1b1d26;
+  --sup-2:      #22242f;
+  --sup-3:      #2a2d39;
+  --sup-inv:    #14151f;   /* la barra queda MÁS oscura que la tarjeta: sigue leyendo como chrome */
+  --sup-inv-2:  #1b1d2b;
+
+  --tx:         #e8e9f0;   /* no #fff: el blanco puro sobre oscuro deslumbra */
+  --tx-2:       #b6bac8;
+  --tx-3:       #868b9c;
+  --tx-inv:     #fff;      /* ⚠ igual que en claro, a propósito */
+  --tx-acc:     #a5b4fc;   /* el indigo-600 sobre oscuro no llega a contraste */
+
+  --bd:         #2e3140;
+  --bd-2:       #3c4052;
+  --bd-3:       #262936;
+
+  --ac:         #6366f1;
+  --ac-h:       #818cf8;
+  --ac-sf:      rgba(99,102,241,.16);
+  --ac-bd:      rgba(129,140,248,.42);
+  --on-ac:      #fff;
+
+  --pel:        #ef4444;
+  --pel-h:      #f87171;
+  --pel-sf:     rgba(239,68,68,.16);
+  --pel-tx:     #fca5a5;
+
+  --ok:         #22c55e;
+  --ok-sf:      rgba(34,197,94,.16);
+  --ok-tx:      #86efac;
+
+  --av:         #f59e0b;
+  --av-sf:      rgba(245,158,11,.16);
+  --av-tx:      #fcd34d;
+
+  --nav-tx:     #a5b4fc;
+  --nav-hov:    rgba(129,140,248,.22);
+
+  /* En oscuro una sombra negra al 6 % no se ve: hay que subirla mucho o la
+     tarjeta flota sin contorno. El borde hace la mayor parte del trabajo. */
+  --sh-1:       0 2px 8px rgba(0,0,0,.5);
+  --sh-2:       0 8px 24px rgba(0,0,0,.6);
+  --sh-3:       0 18px 60px rgba(0,0,0,.7);
+  --scrim:      rgba(0,0,0,.6);
+
+  --hoja:       #fff;
+  --hoja-tx:    #16171e;
+}
+
+/* ── La hoja ──────────────────────────────────────────────────────────────
+   Para las islas que NO se portan a oscuro: comprobantes y tickets en iframe,
+   gráficos, el editor de texto, el canvas de reservas. En vez de dejar un
+   rectángulo blanco suelto que parece un fallo, se enmarca como un documento
+   sobre un escritorio: la gente ya entiende ese patrón.
+
+   ⚠ `color-scheme: light` es obligatorio en los iframes: sin eso Chrome puede
+   aplicar su heurística de inversión al documento de adentro y arruinar un
+   comprobante que tiene que salir tal cual está.                             */
+.hoja {
+  background: var(--hoja);
+  color: var(--hoja-tx);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  box-shadow: var(--sh-1);
+  color-scheme: light;
+}
+.hoja iframe { color-scheme: light; background: #fff; }
+
+/* El logo del restaurante lo sube el cliente y puede ser un PNG con fondo
+   blanco. Sobre oscuro se le da un chip claro.
+   ⚠ Nada de `filter: invert` ni `mix-blend-mode`: destrozan los logos a color. */
+:root[data-tema="oscuro"] .logo-cliente {
+  background: #fff;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* La marca propia ya existe en dos versiones (img/marca/*.svg y *-claro.svg).
+   Se alternan por CSS y no por JS: así no hay parpadeo y funciona antes de que
+   cargue tema.js. */
+.marca-oscuro { display: none; }
+:root[data-tema="oscuro"] .marca-claro  { display: none; }
+:root[data-tema="oscuro"] .marca-oscuro { display: inline; }
+
+/* ── IMPRESIÓN ────────────────────────────────────────────────────────────
+   El papel es blanco. Redeclarar los tokens con sus valores CLAROS resuelve de
+   una sola vez los @media print de las páginas y cualquier impresión hecha
+   desde la página, sin tocar ni una regla más.
+
+   ⚠ El selector repite `:root[data-tema="oscuro"]` para igualar especificidad
+   (0,2,0) y ganar por orden de aparición. Con `:root` a secas perdería.
+   ⚠ Va AL FINAL del archivo por ese mismo motivo.                            */
+@media print {
+  :root,
+  :root[data-tema="claro"],
+  :root[data-tema="oscuro"] {
+    color-scheme: light;
+    --sup-app: #fff;      --sup: #fff;          --sup-2: #f8f9fa;
+    --sup-3: #f0f0f0;     --sup-inv: #1a1a2e;   --sup-inv-2: #16213e;
+    --tx: #1a1a2e;        --tx-2: #374151;      --tx-3: #9ca3af;
+    --tx-inv: #fff;       --tx-acc: #4f46e5;
+    --bd: #e5e7eb;        --bd-2: #d1d5db;      --bd-3: #f0f0f0;
+    --ac: #4f46e5;        --ac-h: #4338ca;      --ac-sf: #eef2ff;
+    --ac-bd: #c7d2fe;     --on-ac: #fff;
+    --pel: #dc2626;       --pel-h: #b91c1c;     --pel-sf: #fee2e2;   --pel-tx: #b91c1c;
+    --ok: #16a34a;        --ok-sf: #dcfce7;     --ok-tx: #15803d;
+    --av: #f59e0b;        --av-sf: #fef3c7;     --av-tx: #92400e;
+    --nav-tx: #a5b4fc;    --nav-hov: rgba(99,102,241,.18);
+    --sh-1: none;         --sh-2: none;         --sh-3: none;
+    --scrim: transparent;
+    --hoja: #fff;         --hoja-tx: #16171e;
+  }
+}

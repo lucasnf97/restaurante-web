@@ -836,8 +836,25 @@
         document.body.appendChild(s);
     }
 
+    // ── TEMA (claro / oscuro / según el navegador) ───────────────
+    // Mismo patrón que las notificaciones: vive en su propio IIFE y se inyecta
+    // desde acá para no agregar un <script> en cada página. También lo inyecta
+    // api.js, para cubrir las páginas que no cargan sidebar.js (restaurantes,
+    // cadena, cadena-personal, cocina) — la guarda del id hace que la doble
+    // inyección sea inocua.
+    // ⚠ El tema ya se APLICA antes de esto, desde el fragmento del <head>: si
+    // dependiera de este script habría fogonazo blanco en cada navegación.
+    function _injectTema() {
+        if (document.getElementById("tema-script")) return;
+        const s = document.createElement("script");
+        s.id = "tema-script";
+        s.src = "js/tema.js";
+        document.body.appendChild(s);
+    }
+
     // ── INIT ─────────────────────────────────────────────────────
     function _initSidebar() {
+        _injectTema();          // tema.js monta su propio botón en el pie del panel
         injectHamburger();
         initMarca();
         _initLegal();

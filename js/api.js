@@ -894,6 +894,22 @@ async function abrirDocumento(url) {
         },
     };
 
+    // ── Tema (claro / oscuro / según el navegador) ────────────
+    // sidebar.js también lo inyecta; la guarda del id hace que la doble
+    // inyección sea inocua. Acá se cubren las páginas que NO cargan sidebar.js
+    // —restaurantes, cadena, cadena-personal, cocina—, que son justo donde
+    // entran el superadmin y el gerente de cadena.
+    // ⚠ El tema ya se APLICÓ antes, desde el fragmento del <head>. Esto sólo
+    // trae el motor y el selector; si el pintado dependiera de este script
+    // habría fogonazo blanco en cada navegación.
+    (function () {
+        if (document.getElementById("tema-script")) return;
+        const s = document.createElement("script");
+        s.id = "tema-script";
+        s.src = "js/tema.js";
+        (document.body || document.documentElement).appendChild(s);
+    })();
+
     // ── Keep-warm ─────────────────────────────────────────────
     // Mientras la página está abierta y hay sesión, ping liviano a la raíz (sin DB)
     // cada ~3.5 min para que Railway no "duerma" el server y la próxima acción no
