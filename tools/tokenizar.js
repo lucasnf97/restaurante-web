@@ -34,68 +34,25 @@ const ARCHIVOS_EXCLUIDOS = new Set(["reserva.html"]);
 const SOBRE_OSCURO = /(navbar|sidebar|notif-head|notif-bubble|ui-toast|ui-overlay-box|\bcp-|btn-primary|btn-danger|btn-success|\.badge|tema-)/i;
 
 // ── Tablas por clase de propiedad ───────────────────────────────────────────
-const norm = v => v.trim().toLowerCase().replace(/\s+/g, "");
-
-const MAPA = {
-  bg: {
-    "#f0f2f5": "--sup-app", "#f4f5fb": "--sup-app",
-    "white": "--sup", "#fff": "--sup", "#ffffff": "--sup",
-    "#f8f9fa": "--sup-2", "#fafafa": "--sup-2", "#f9fafb": "--sup-2",
-    "#f3f4f6": "--sup-2", "#f8fafc": "--sup-2",
-    "#f0f0f0": "--sup-3", "#f1f5f9": "--sup-3",
-    "#1a1a2e": "--sup-inv", "#16213e": "--sup-inv-2",
-    "#4f46e5": "--ac", "#4338ca": "--ac-h",
-    "#eef2ff": "--ac-sf", "#ede9fe": "--ac-sf", "#f5f3ff": "--ac-sf",
-    "#faf5ff": "--ac-sf", "#eff6ff": "--ac-sf", "#e0e7ff": "--ac-sf",
-    "#6366f1": "--ac", "#22c55e": "--ok", "#ef4444": "--pel",
-    "#dc2626": "--pel", "#fee2e2": "--pel-sf", "#fef2f2": "--pel-sf",
-    "#16a34a": "--ok", "#dcfce7": "--ok-sf", "#f0fdf4": "--ok-sf",
-    "#f59e0b": "--av", "#fef3c7": "--av-sf",
-  },
-  fg: {
-    "#1a1a2e": "--tx", "#111827": "--tx", "#1f2937": "--tx", "#333": "--tx",
-    "#222": "--tx", "#1e293b": "--tx",
-    "#374151": "--tx-2", "#4b5563": "--tx-2", "#555": "--tx-2",
-    "#666": "--tx-2", "#444": "--tx-2",
-    "#9ca3af": "--tx-3", "#6b7280": "--tx-3", "#888": "--tx-3",
-    "#999": "--tx-3", "#94a3b8": "--tx-3", "#64748b": "--tx-3",
-    // Grises claros usados como texto de vacío/marcador (.tbl-empty, .nota-empty,
-    // .asig-none): verificado que están sobre superficie CLARA, no sobre la barra.
-    "#aaa": "--tx-3", "#d1d5db": "--tx-3", "#cbd5e1": "--tx-3", "#bbb": "--tx-3",
-    "#475569": "--tx-2", "#334155": "--tx-2",
-    // ⚠ NO se invierte: la mayoría de estos son texto sobre navbar o botón.
-    "white": "--tx-inv", "#fff": "--tx-inv", "#ffffff": "--tx-inv",
-    "#4f46e5": "--tx-acc", "#6366f1": "--tx-acc",
-    // Toda la familia violeta se usa como acento de texto.
-    "#4338ca": "--tx-acc", "#3730a3": "--tx-acc",
-    "#7c3aed": "--tx-acc", "#6d28d9": "--tx-acc", "#5b21b6": "--tx-acc",
-    "#a5b4fc": "--nav-tx", "#c4b5fd": "--nav-tx",
-    "#dc2626": "--pel-tx", "#b91c1c": "--pel-tx",
-    "#16a34a": "--ok-tx", "#15803d": "--ok-tx", "#166534": "--ok-tx",
-    "#92400e": "--av-tx", "#b45309": "--av-tx", "#d97706": "--av-tx",
-    "#a16207": "--av-tx", "#854d0e": "--av-tx",
-  },
-  bd: {
-    "#e5e7eb": "--bd", "#e0e0e0": "--bd", "#eee": "--bd",
-    "#ddd": "--bd", "#e2e8f0": "--bd",
-    "#d1d5db": "--bd-2", "#cbd5e1": "--bd-2", "#ccc": "--bd-2", "#9ca3af": "--bd-2",
-    "#f0f0f0": "--bd-3", "#f3f4f6": "--bd-3",
-    "#4f46e5": "--ac", "#6366f1": "--ac",
-    "#c4b5fd": "--ac-bd", "#c7d2fe": "--ac-bd", "#a5b4fc": "--ac-bd",
-    "#d7dbe3": "--bd", "#eef0f3": "--bd-3", "#f1f5f9": "--bd-3",
-    "#dc2626": "--pel", "#16a34a": "--ok", "#f59e0b": "--av",
-  },
-  // Las sombras se matchean por VALOR COMPLETO, no por el color de adentro:
-  // el token lleva también el desplazamiento y el desenfoque.
-  sh: {
-    "02px8pxrgba(0,0,0,0.06)": "--sh-1",
-    "02px8pxrgba(0,0,0,.06)": "--sh-1",
-    "08px24pxrgba(0,0,0,.22)": "--sh-2",
-    "08px24pxrgba(0,0,0,0.22)": "--sh-2",
-    "018px60pxrgba(0,0,0,.35)": "--sh-3",
-    "018px60pxrgba(0,0,0,0.35)": "--sh-3",
-  },
+// ⚠ Tiene que normalizar IGUAL que tools/generar-tokens.js o las claves no se
+// encuentran: `white` y `#ffffff` son el mismo color que `#fff`, y el mapa se
+// genera con la forma corta. Ese desajuste costó 14 puntos de cobertura.
+const norm = v => {
+  const s = v.trim().toLowerCase().replace(/\s+/g, "");
+  if (s === "white") return "#fff";
+  if (/^#[0-9a-f]{6}$/.test(s)) {
+    const [a, b, c, d, e, f] = s.slice(1);
+    if (a === b && c === d && e === f) return "#" + a + c + e;
+  }
+  return s;
 };
+
+// ⚠ El mapa NO se escribe acá: lo genera tools/generar-tokens.js desde los
+// colores que el repo usa de verdad, con la regla de que dos colores comparten
+// token sólo si son indistinguibles. Tenerlo a mano fue el primer intento y
+// consolidó 49 colores que en modo claro se veían distintos.
+const MAPA_JSON = JSON.parse(fs.readFileSync(path.join(__dirname, "tokens-mapa.json"), "utf8"));
+const MAPA = MAPA_JSON.mapa;
 
 const PROP_CLASE = [
   [/^(background|background-color)$/i, "bg"],

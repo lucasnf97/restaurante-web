@@ -133,11 +133,11 @@
 <!-- Overlay de carga para transiciones de URL (ej: abrir historial prefilterado) -->
 <div id="page-loading-overlay" style="
     display:none; position:fixed; inset:0; z-index:9999;
-    background:#f0f2f5; align-items:center; justify-content:center;
+    background: var(--sup-app, #f0f2f5); align-items:center; justify-content:center;
     flex-direction:column; gap:16px;">
-    <div style="width:40px;height:40px;border:4px solid #e0e0e0;border-top-color:#4f46e5;
+    <div style="width:40px;height:40px;border: 4px solid var(--bd-2, #e0e0e0);border-top-color: var(--ac, #4f46e5);
                 border-radius:50%;animation:spin .7s linear infinite;"></div>
-    <div style="font-size:13px;color:#64748b;font-weight:600;" id="page-loading-msg">Cargando…</div>
+    <div style="font-size:13px;color: var(--tx-9, #64748b);font-weight:600;" id="page-loading-msg">Cargando…</div>
 </div>
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
@@ -170,7 +170,7 @@
     <div id="vista-insumos">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumo()">+ Nuevo insumo</button>
-            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalDesecho()" style="border-color:#dc2626;color:#dc2626;">🗑 Registrar desecho</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalDesecho()" style="border-color: var(--pel, #dc2626);color: var(--pel-tx-2, #dc2626);">🗑 Registrar desecho</button>
             <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
@@ -199,8 +199,8 @@
     <div id="vista-produccion" style="display:none">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumoProduccion()">+ Nuevo insumo de producción</button>
-            <button class="btn btn-secondary btn-sm" onclick="abrirModalRegistrarProduccion()" style="border-color:#7c3aed;color:#7c3aed;">📋 Registrar producción</button>
-            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalDesecho()" style="border-color:#dc2626;color:#dc2626;">🗑 Registrar desecho</button>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalRegistrarProduccion()" style="border-color:#7c3aed;color: var(--tx-ac-2, #7c3aed);">📋 Registrar producción</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalDesecho()" style="border-color: var(--pel, #dc2626);color: var(--pel-tx-2, #dc2626);">🗑 Registrar desecho</button>
             <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
@@ -229,7 +229,7 @@
     <div id="vista-bienes" style="display:none">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalBien()">+ Nuevo bien de uso</button>
-            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalPerdida()" style="border-color:#dc2626;color:#dc2626;">🗑 Registrar pérdida</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalPerdida()" style="border-color: var(--pel, #dc2626);color: var(--pel-tx-2, #dc2626);">🗑 Registrar pérdida</button>
             <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevisionBienes()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
@@ -240,7 +240,7 @@
                 <option value="advertencia">En advertencia</option>
                 <option value="ok">OK</option>
             </select>
-            <span class="hint" style="color:#9ca3af;font-size:12px;align-self:center;">Materiales, herramientas y utensilios del local (vasos, platos, cubiertos, etc.).</span>
+            <span class="hint" style="color: var(--tx-4, #9ca3af);font-size:12px;align-self:center;">Materiales, herramientas y utensilios del local (vasos, platos, cubiertos, etc.).</span>
         </div>
         <div class="tabla-wrapper">
             <table>
@@ -290,12 +290,12 @@
         </div>
         <div class="form-group"><label>Cantidad mínima (alarma agotado)</label><input type="number" id="ins-minima" min="0" step="0.001" value="0"></div>
         <div class="form-group">
-            <label>Costo unitario <small style="color:#9ca3af;font-weight:400;">(para análisis y margen)</small></label>
+            <label>Costo unitario <small style="color: var(--tx-4, #9ca3af);font-weight:400;">(para análisis y margen)</small></label>
             <div style="display:flex;gap:8px;align-items:center;">
                 <input type="number" id="ins-costo" min="0" step="0.0001" placeholder="(vacío = usa último precio de compra)" style="flex:1;">
                 <button type="button" class="btn btn-secondary btn-sm" id="ins-costo-auto" onclick="autocompletarCosto()" title="Autocompletar desde el último precio de compra">↺ desde compra</button>
             </div>
-            <small id="ins-costo-hint" style="color:#9ca3af;"></small>
+            <small id="ins-costo-hint" style="color: var(--tx-4, #9ca3af);"></small>
         </div>
         <div class="form-group">
             <label>Ubicación</label>
@@ -304,13 +304,13 @@
                 <button type="button" class="btn-nueva-ub" onclick="abrirNuevaUbicacion('ins-ubicacion')" title="Nueva ubicación">✏️</button>
             </div>
         </div>
-        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background:#f8fafc;border:1px solid #eef0f3;border-radius:8px;margin-top:4px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background: var(--sup-2, #f8fafc);border: 1px solid var(--bd-4, #eef0f3);border-radius:8px;margin-top:4px;">
             <input type="checkbox" id="ins-es-extra" onchange="toggleExtraCats('ins', this.checked)" style="width:18px;height:18px;margin-top:1px;accent-color:#4f46e5;cursor:pointer;">
-            <span style="font-size:13px;color:#374151;line-height:1.4;">Se puede agregar como <b>extra</b> a un plato
-                <small style="display:block;color:#9ca3af;">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
+            <span style="font-size:13px;color: var(--tx-2, #374151);line-height:1.4;">Se puede agregar como <b>extra</b> a un plato
+                <small style="display:block;color: var(--tx-4, #9ca3af);">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
             </span>
         </label>
-        <div id="ins-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:#faf7ff;border:1px solid #e9d5ff;border-radius:8px;">
+        <div id="ins-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background: var(--sup-2, #faf7ff);border:1px solid #e9d5ff;border-radius:8px;">
             <div style="font-size:12px;font-weight:600;color:#6b21a8;margin-bottom:6px;">¿En qué categorías se puede agregar como extra?</div>
             <div id="ins-extra-cats" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
@@ -351,22 +351,22 @@
         </div>
 
         <!-- Receta -->
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;">
+        <div style="margin-top:20px;padding-top:16px;border-top: 1px solid var(--bd-4, #f0f0f0);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <label style="font-size:13px;font-weight:700;color:#444;">Receta (insumos de stock necesarios)</label>
+                <label style="font-size:13px;font-weight:700;color: var(--tx-10, #444);">Receta (insumos de stock necesarios)</label>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="agregarItemReceta()">+ Agregar insumo</button>
             </div>
             <div id="ip-receta-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
-            <div id="ip-receta-vacia" style="font-size:13px;color:#9ca3af;text-align:center;padding:12px 0;">Sin insumos en la receta</div>
+            <div id="ip-receta-vacia" style="font-size:13px;color: var(--tx-4, #9ca3af);text-align:center;padding:12px 0;">Sin insumos en la receta</div>
         </div>
 
-        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background:#f8fafc;border:1px solid #eef0f3;border-radius:8px;margin-top:14px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background: var(--sup-2, #f8fafc);border: 1px solid var(--bd-4, #eef0f3);border-radius:8px;margin-top:14px;">
             <input type="checkbox" id="ip-es-extra" onchange="toggleExtraCats('ip', this.checked)" style="width:18px;height:18px;margin-top:1px;accent-color:#4f46e5;cursor:pointer;">
-            <span style="font-size:13px;color:#374151;line-height:1.4;">Se puede agregar como <b>extra</b> a un plato
-                <small style="display:block;color:#9ca3af;">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
+            <span style="font-size:13px;color: var(--tx-2, #374151);line-height:1.4;">Se puede agregar como <b>extra</b> a un plato
+                <small style="display:block;color: var(--tx-4, #9ca3af);">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
             </span>
         </label>
-        <div id="ip-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:#faf7ff;border:1px solid #e9d5ff;border-radius:8px;">
+        <div id="ip-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background: var(--sup-2, #faf7ff);border:1px solid #e9d5ff;border-radius:8px;">
             <div style="font-size:12px;font-weight:600;color:#6b21a8;margin-bottom:6px;">¿En qué categorías se puede agregar como extra?</div>
             <div id="ip-extra-cats" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
@@ -384,7 +384,7 @@
         <h3>📋 Registrar producción</h3>
         <div class="form-group">
             <label>Insumo producido *</label>
-            <select id="rp-insumo" onchange="cargarPreviewProduccion()" style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;">
+            <select id="rp-insumo" onchange="cargarPreviewProduccion()" style="width:100%;padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:14px;">
                 <option value="">— Seleccioná —</option>
             </select>
         </div>
@@ -398,11 +398,11 @@
         </div>
 
         <!-- Preview de descuento -->
-        <div id="rp-preview" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:14px;margin-top:4px;">
-            <div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:8px;">📉 Se descontará del stock:</div>
-            <div id="rp-preview-lista" style="font-size:13px;color:#374151;"></div>
+        <div id="rp-preview" style="display:none;background: var(--ok-sf-2, #f0fdf4);border: 1.5px solid var(--ok-bd, #bbf7d0);border-radius:10px;padding:14px;margin-top:4px;">
+            <div style="font-size:12px;font-weight:700;color: var(--ok-tx-3, #166534);margin-bottom:8px;">📉 Se descontará del stock:</div>
+            <div id="rp-preview-lista" style="font-size:13px;color: var(--tx-2, #374151);"></div>
         </div>
-        <div id="rp-error" style="display:none;background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;padding:10px;margin-top:8px;font-size:13px;color:#dc2626;"></div>
+        <div id="rp-error" style="display:none;background: var(--pel-sf-2, #fef2f2);border: 1.5px solid var(--pel-bd, #fecaca);border-radius:8px;padding:10px;margin-top:8px;font-size:13px;color: var(--pel-tx-2, #dc2626);"></div>
 
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-registrar-produccion')">Cancelar</button>
@@ -478,13 +478,13 @@ function abrirNuevaUbicacion(selectId) {
 function _renderListaUbicaciones() {
     const lista = document.getElementById('ub-lista');
     if (!_ubicaciones.length) {
-        lista.innerHTML = '<div style="text-align:center;color:#9ca3af;font-size:13px;padding:12px;">Sin ubicaciones registradas</div>';
+        lista.innerHTML = '<div style="text-align:center;color: var(--tx-4, #9ca3af);font-size:13px;padding:12px;">Sin ubicaciones registradas</div>';
         return;
     }
     lista.innerHTML = _ubicaciones.map(u => `
         <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;
-                    background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">
-            <span style="flex:1;font-size:13px;font-weight:600;color:#374151;">${esc(u.nombre)}</span>
+                    background: var(--sup-2, #f9fafb);border: 1px solid var(--bd, #e5e7eb);border-radius:8px;">
+            <span style="flex:1;font-size:13px;font-weight:600;color: var(--tx-2, #374151);">${esc(u.nombre)}</span>
             <button onclick="eliminarUbicacion(${u.id})"
                     style="background:none;border:none;color:#fca5a5;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;"
                     title="Eliminar ubicación"
@@ -567,21 +567,21 @@ async function _toggleReceta(id) {
     const _e = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const sym = _monedaSimbolo || '';
     const f = v => `${sym}${(+v||0).toFixed(2)}`;
-    cont.innerHTML = '<span style="color:#9ca3af;font-size:13px;">Cargando…</span>';
+    cont.innerHTML = '<span style="color: var(--tx-4, #9ca3af);font-size:13px;">Cargando…</span>';
     try {
         const r = await api.get('/stock/produccion-receta-costo/' + id);
         const filas = (r.items || []).map(it => `
-            <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #eef0f3;font-size:13px;">
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom: 1px solid var(--bd-4, #eef0f3);font-size:13px;">
                 <span>${_e(it.insumo)}</span>
-                <span style="color:#6b7280;white-space:nowrap;">${it.cantidad} ${_e(it.unidad||'')} × ${f(it.costo_unit)} = <b style="color:#111827;">${f(it.subtotal)}</b></span>
+                <span style="color: var(--tx-3, #6b7280);white-space:nowrap;">${it.cantidad} ${_e(it.unidad||'')} × ${f(it.costo_unit)} = <b style="color: var(--tx, #111827);">${f(it.subtotal)}</b></span>
             </div>`).join('');
         cont.innerHTML =
-            `<div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🧾 Insumos de stock de la receta · costo sin impuesto</div>`
-            + (filas || '<div style="color:#9ca3af;font-size:13px;">Esta receta no tiene insumos cargados.</div>')
+            `<div style="font-size:11px;font-weight:700;color: var(--tx-3, #6b7280);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🧾 Insumos de stock de la receta · costo sin impuesto</div>`
+            + (filas || '<div style="color: var(--tx-4, #9ca3af);font-size:13px;">Esta receta no tiene insumos cargados.</div>')
             + `<div style="text-align:right;font-size:13px;font-weight:700;margin-top:8px;">Costo total: ${f(r.costo_total)}</div>`;
         cont.dataset.loaded = '1';
     } catch (e) {
-        cont.innerHTML = '<span style="color:#dc2626;font-size:13px;">No se pudo cargar el detalle.</span>';
+        cont.innerHTML = '<span style="color: var(--pel-tx-2, #dc2626);font-size:13px;">No se pudo cargar el detalle.</span>';
     }
 }
 
@@ -612,18 +612,18 @@ async function cargarInsumos() {
                 : i.en_advertencia ? `<span class="badge badge-warn">Advertencia</span>`
                 : `<span class="badge badge-ok">OK</span>`;
             const uc    = _ultimasCompras[i.id] || {};
-            const marca = uc.marca || '<span style="color:#d1d5db">—</span>';
+            const marca = uc.marca || '<span style="color: var(--tx-6, #d1d5db)">—</span>';
             const provNombre = uc.proveedor_nombre
                 ? `<span class="prov-chip">🏢 ${esc(uc.proveedor_nombre)}</span>`
-                : '<span style="color:#d1d5db">—</span>';
+                : '<span style="color: var(--tx-6, #d1d5db)">—</span>';
             const btnHistorial = `<button class="btn btn-secondary btn-sm"
                 onclick="window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
                 title="Ver historial de compras de este insumo">📋 Facturas</button>`;
-            const ubicNombre = i.ubicacion_nombre || '<span style="color:#d1d5db">—</span>';
+            const ubicNombre = i.ubicacion_nombre || '<span style="color: var(--tx-6, #d1d5db)">—</span>';
             let costoCell;
             if (i.costo_unitario != null) costoCell = `<strong>${(+i.costo_unitario).toFixed(2)}</strong>`;
-            else if (i.ultimo_precio_compra != null) costoCell = `<span style="color:#9ca3af;" title="Último precio de compra">${(+i.ultimo_precio_compra).toFixed(2)} <small>(compra)</small></span>`;
-            else costoCell = '<span style="color:#d1d5db">—</span>';
+            else if (i.ultimo_precio_compra != null) costoCell = `<span style="color: var(--tx-4, #9ca3af);" title="Último precio de compra">${(+i.ultimo_precio_compra).toFixed(2)} <small>(compra)</small></span>`;
+            else costoCell = '<span style="color: var(--tx-6, #d1d5db)">—</span>';
             return `<tr>
                 <td><span onclick="editarInsumo(${i.id})" title="Editar insumo" style="cursor:pointer;margin-right:6px;">✏️</span><strong>${esc(i.nombre)}</strong></td>
                 <td>${i.unidad}</td>
@@ -631,8 +631,8 @@ async function cargarInsumos() {
                     <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
                     <div class="stock-bar" style="width:80px;"><div class="stock-bar-fill" style="width:${pct}%;background:${fillColor};"></div></div>
                 </div></td>
-                <td style="font-size:12px;color:#374151;">${ubicNombre}</td>
-                <td style="font-size:12px;color:#374151;">${marca}</td>
+                <td style="font-size:12px;color: var(--tx-2, #374151);">${ubicNombre}</td>
+                <td style="font-size:12px;color: var(--tx-2, #374151);">${marca}</td>
                 <td>${provNombre}</td>
                 <td style="font-size:13px;">${costoCell}</td>
                 <td>${badge}</td>
@@ -650,10 +650,10 @@ function _escH(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&am
 function _mostrarImpresion(titulo, theadHtml, filasHtml, count) {
     document.getElementById('imprimir-titulo').textContent = titulo;
     document.getElementById('imprimir-body').innerHTML = `
-        <div style="font-size:12px;color:#6b7280;margin:2px 0 12px;">${count} fila(s) · ${new Date().toLocaleString('es-AR')}</div>
+        <div style="font-size:12px;color: var(--tx-3, #6b7280);margin:2px 0 12px;">${count} fila(s) · ${new Date().toLocaleString('es-AR')}</div>
         <table class="print-table">
             <thead>${theadHtml}</thead>
-            <tbody>${filasHtml || '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:16px;">Sin datos para este filtro.</td></tr>'}</tbody>
+            <tbody>${filasHtml || '<tr><td colspan="9" style="text-align:center;color: var(--tx-4, #9ca3af);padding:16px;">Sin datos para este filtro.</td></tr>'}</tbody>
         </table>`;
     document.getElementById('modal-imprimir-stock').classList.add('active');
 }
@@ -761,10 +761,10 @@ async function toggleExtraCats(prefix, show) {
         const cont = document.getElementById(prefix + '-extra-cats');
         const visibles = cats.filter(c => c.nombre !== 'Extra');
         cont.innerHTML = visibles.length ? visibles.map(c => `
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:4px 10px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;background:#fff;border: 1px solid var(--bd, #e5e7eb);border-radius:6px;padding:4px 10px;cursor:pointer;">
                 <input type="checkbox" class="${prefix}-cat-chk" value="${c.id}" ${sel.has(c.id) ? 'checked' : ''}>
                 ${esc(c.nombre)}
-            </label>`).join('') : '<span style="font-size:12px;color:#9ca3af;">No hay categorías creadas todavía.</span>';
+            </label>`).join('') : '<span style="font-size:12px;color: var(--tx-4, #9ca3af);">No hay categorías creadas todavía.</span>';
     }
 }
 function getExtraCats(prefix) {
@@ -910,13 +910,13 @@ async function cargarHistorial() {
             // Cantidad
             let cantCell;
             if (esRevision) {
-                cantCell = `<span style="color:#9ca3af">—</span>`;
+                cantCell = `<span style="color: var(--tx-4, #9ca3af)">—</span>`;
             } else if (esDesecho) {
-                cantCell = `<span style="color:#dc2626;font-weight:600;">−${fmtNum(Math.abs(m.cantidad))} <span style="font-size:10px;background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-weight:700;">DESECHO</span></span>`;
+                cantCell = `<span style="color: var(--pel-tx-2, #dc2626);font-weight:600;">−${fmtNum(Math.abs(m.cantidad))} <span style="font-size:10px;background: var(--pel-sf, #fee2e2);color: var(--pel-tx-2, #dc2626);border-radius:4px;padding:1px 5px;font-weight:700;">DESECHO</span></span>`;
             } else if (esProduccion) {
-                cantCell = `<span style="color:#7c3aed;font-weight:600;">+${fmtNum(m.cantidad)} <span style="font-size:10px;background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-weight:700;">PROD</span></span>`;
+                cantCell = `<span style="color: var(--tx-ac-2, #7c3aed);font-weight:600;">+${fmtNum(m.cantidad)} <span style="font-size:10px;background: var(--ac-sf-2, #ede9fe);color:#6d28d9;border-radius:4px;padding:1px 5px;font-weight:700;">PROD</span></span>`;
             } else {
-                cantCell = `<span style="color:#16a34a;font-weight:600;">+${fmtNum(m.cantidad)}</span>`;
+                cantCell = `<span style="color: var(--ok-tx-2, #16a34a);font-weight:600;">+${fmtNum(m.cantidad)}</span>`;
             }
 
             // Precio unificado con moneda
@@ -924,7 +924,7 @@ async function cargarHistorial() {
             if (esRevision) {
                 const p = m.precio_unitario;
                 precioCell = p != null && p > 0
-                    ? `<span style="color:#dc2626;font-weight:700;">— ${parseFloat(p).toFixed(2)}</span>`
+                    ? `<span style="color: var(--pel-tx-2, #dc2626);font-weight:700;">— ${parseFloat(p).toFixed(2)}</span>`
                     : '—';
             } else if (m.precio_unitario) {
                 const num = parseFloat(m.precio_unitario).toFixed(2);
@@ -936,9 +936,9 @@ async function cargarHistorial() {
             // Nombre e ícono
             let nombreCell;
             if (esRevision) {
-                nombreCell = `<span style="font-size:11px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;font-weight:700;margin-right:5px;">REV</span><strong>${esc(m.insumo_nombre)}</strong>`;
+                nombreCell = `<span style="font-size:11px;background: var(--av-sf, #fef3c7);color: var(--av-tx, #92400e);border-radius:4px;padding:1px 6px;font-weight:700;margin-right:5px;">REV</span><strong>${esc(m.insumo_nombre)}</strong>`;
             } else {
-                nombreCell = `<strong>${esc(m.insumo_nombre)}</strong> <span style="color:#aaa;font-size:11px;">${m.unidad || ''}</span>`;
+                nombreCell = `<strong>${esc(m.insumo_nombre)}</strong> <span style="color: var(--tx-12, #aaa);font-size:11px;">${m.unidad || ''}</span>`;
             }
 
             // Proveedor
@@ -949,11 +949,11 @@ async function cargarHistorial() {
             // Referencia
             let refCell;
             if (esRevision) {
-                refCell = `<span style="font-size:12px;color:#92400e;font-weight:600;">Revisión de stock</span>`;
+                refCell = `<span style="font-size:12px;color: var(--av-tx, #92400e);font-weight:600;">Revisión de stock</span>`;
             } else if (esProduccion) {
-                refCell = `<button class="btn btn-secondary btn-sm" onclick="verReceta(${m.insumo_produccion_id},'${escAttr(m.insumo_nombre).replace(/'/g,"\\'")}')">Ver receta</button>${m.referencia ? ` <span style="color:#9ca3af;font-size:11px;">${esc(m.referencia)}</span>` : ''}`;
+                refCell = `<button class="btn btn-secondary btn-sm" onclick="verReceta(${m.insumo_produccion_id},'${escAttr(m.insumo_nombre).replace(/'/g,"\\'")}')">Ver receta</button>${m.referencia ? ` <span style="color: var(--tx-4, #9ca3af);font-size:11px;">${esc(m.referencia)}</span>` : ''}`;
             } else {
-                refCell = `<span style="font-size:12px;color:#666;">${m.referencia || '—'}</span>`;
+                refCell = `<span style="font-size:12px;color: var(--tx-7, #666);">${m.referencia || '—'}</span>`;
             }
 
             // Factura / comprobante
@@ -961,18 +961,18 @@ async function cargarHistorial() {
             if (m.factura_url) {
                 const href = m.factura_url.startsWith('http') ? m.factura_url : `${API_URL}${m.factura_url}`;
                 const icon = esRevision ? '📋' : '📄';
-                facturaLink = `<a href="javascript:void(0)" onclick="abrirDocumento('${href.replace(/'/g,'%27')}')" style="color:#4f46e5;font-weight:600;text-decoration:none;cursor:pointer;">${icon} Ver</a>`;
+                facturaLink = `<a href="javascript:void(0)" onclick="abrirDocumento('${href.replace(/'/g,'%27')}')" style="color: var(--tx-ac, #4f46e5);font-weight:600;text-decoration:none;cursor:pointer;">${icon} Ver</a>`;
             }
 
             return `<tr${esRevision ? " style='background:#fffbeb;'" : ""}>
-                <td style="font-size:12px;color:#555;">${new Date(m.creado_en).toLocaleString("es-AR",{dateStyle:"short",timeStyle:"short"})}</td>
+                <td style="font-size:12px;color: var(--tx-11, #555);">${new Date(m.creado_en).toLocaleString("es-AR",{dateStyle:"short",timeStyle:"short"})}</td>
                 <td>${nombreCell}</td>
                 <td>${cantCell}</td>
                 <td>${precioCell}</td>
                 <td>${provCell}</td>
                 <td>${refCell}</td>
                 <td>${facturaLink}</td>
-                <td style="font-size:12px;color:#888;">${m.usuario || '—'}</td>
+                <td style="font-size:12px;color: var(--tx-5, #888);">${m.usuario || '—'}</td>
             </tr>`;
         }).join("");
     } catch(e) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Error cargando historial</td></tr>`; console.error(e); }
@@ -1023,23 +1023,23 @@ async function cargarInsumosProduccion() {
                 : i.en_advertencia ? `<span class="badge badge-warn">Advertencia</span>`
                 : `<span class="badge badge-ok">OK</span>`;
             const uc    = _ultimasCompras[i.id] || {};
-            const marca = uc.marca || '<span style="color:#d1d5db">—</span>';
+            const marca = uc.marca || '<span style="color: var(--tx-6, #d1d5db)">—</span>';
             const provNombre = uc.proveedor_nombre
                 ? `<span class="prov-chip">🏢 ${esc(uc.proveedor_nombre)}</span>`
-                : '<span style="color:#d1d5db">—</span>';
+                : '<span style="color: var(--tx-6, #d1d5db)">—</span>';
             const btnHistorial = `<button class="btn btn-secondary btn-sm"
                 onclick="event.stopPropagation();window.open('stock.html?tab=historial&insumo=${encodeURIComponent(i.nombre)}','_blank')"
                 title="Ver historial de compras">📋 Facturas</button>`;
             const cinfo = _cmap[i.id] || {};
             const tieneReceta = !!cinfo.tiene_receta;
             const arrow = tieneReceta
-                ? `<span class="cos-arr" id="cos-arr-${i.id}" style="display:inline-block;width:14px;color:#9ca3af;">▸</span> `
+                ? `<span class="cos-arr" id="cos-arr-${i.id}" style="display:inline-block;width:14px;color: var(--tx-4, #9ca3af);">▸</span> `
                 : `<span style="display:inline-block;width:14px;"></span> `;
             const lapiz = `<span onclick="event.stopPropagation();editarInsumoProduccion(${i.id})" title="Editar insumo" style="cursor:pointer;margin-right:6px;">✏️</span>`;
             const rowAttrs = tieneReceta ? `onclick="_toggleReceta(${i.id})" style="cursor:pointer;" title="Ver insumos de la receta"` : '';
             const costoCell = tieneReceta
                 ? `<strong>${fmtCosto(cinfo.costo)}</strong>`
-                : `<span style="color:#9ca3af;font-style:italic;font-size:12px;">Sin receta</span>`;
+                : `<span style="color: var(--tx-4, #9ca3af);font-style:italic;font-size:12px;">Sin receta</span>`;
             return `<tr ${rowAttrs}>
                 <td>${arrow}${lapiz}<strong>${esc(i.nombre)}</strong></td>
                 <td>${i.unidad}</td>
@@ -1047,15 +1047,15 @@ async function cargarInsumosProduccion() {
                     <span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span>
                     <div class="stock-bar" style="width:80px;"><div class="stock-bar-fill" style="width:${pct}%;background:${fillColor};"></div></div>
                 </div></td>
-                <td style="font-size:12px;color:#374151;">${i.ubicacion_nombre || '<span style="color:#d1d5db">—</span>'}</td>
-                <td style="font-size:12px;color:#374151;">${marca}</td>
+                <td style="font-size:12px;color: var(--tx-2, #374151);">${i.ubicacion_nombre || '<span style="color: var(--tx-6, #d1d5db)">—</span>'}</td>
+                <td style="font-size:12px;color: var(--tx-2, #374151);">${marca}</td>
                 <td style="font-size:13px;">${costoCell}</td>
                 <td>${badge}</td>
                 <td>${btnHistorial}</td>
                 <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarInsumoProduccion(${i.id})" title="Eliminar insumo">✕</button></td>
             </tr>
             <tr class="cos-det" id="cos-det-${i.id}" style="display:none;">
-                <td colspan="9" style="padding:0;background:#f9fafb;">
+                <td colspan="9" style="padding:0;background: var(--sup-2, #f9fafb);">
                     <div id="cos-det-cont-${i.id}" style="padding:10px 16px 12px 30px;">…</div>
                 </td>
             </tr>`;
@@ -1071,7 +1071,7 @@ async function verReceta(ipId, nombre) {
 
         if (!receta.length) {
             document.getElementById("modal-receta-contenido").innerHTML =
-                `<p style="color:#888;text-align:center;padding:24px;">Sin receta configurada.</p>`;
+                `<p style="color: var(--tx-5, #888);text-align:center;padding:24px;">Sin receta configurada.</p>`;
         } else {
             let totalCosto = 0;
             let alguno_sin_precio = false;
@@ -1092,22 +1092,22 @@ async function verReceta(ipId, nombre) {
                 }
 
                 const precioCell = precio !== null
-                    ? `${r.moneda_precio ? '<span style="color:#6b7280;font-size:11px;">' + r.moneda_precio + '</span> ' : ''}${precio.toFixed(2)} / ${r.unidad}`
-                    : `<span style="color:#9ca3af;font-style:italic;">Sin precio</span>`;
+                    ? `${r.moneda_precio ? '<span style="color: var(--tx-3, #6b7280);font-size:11px;">' + r.moneda_precio + '</span> ' : ''}${precio.toFixed(2)} / ${r.unidad}`
+                    : `<span style="color: var(--tx-4, #9ca3af);font-style:italic;">Sin precio</span>`;
 
                 const costoCell = costo !== null
                     ? `<strong>${costo.toFixed(2)}</strong>`
-                    : `<span style="color:#9ca3af;">—</span>`;
+                    : `<span style="color: var(--tx-4, #9ca3af);">—</span>`;
 
                 return `<tr>
-                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;"><strong>${esc(r.insumo_nombre)}</strong></td>
-                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;color:#555;">${fmtNum(cant)} ${r.unidad}</td>
-                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;">${precioCell}</td>
-                    <td style="padding:10px 14px;font-size:13px;border-top:1px solid #f0f0f0;text-align:right;">${costoCell}</td>
+                    <td style="padding:10px 14px;font-size:13px;border-top: 1px solid var(--bd-4, #f0f0f0);"><strong>${esc(r.insumo_nombre)}</strong></td>
+                    <td style="padding:10px 14px;font-size:13px;border-top: 1px solid var(--bd-4, #f0f0f0);color: var(--tx-11, #555);">${fmtNum(cant)} ${r.unidad}</td>
+                    <td style="padding:10px 14px;font-size:13px;border-top: 1px solid var(--bd-4, #f0f0f0);">${precioCell}</td>
+                    <td style="padding:10px 14px;font-size:13px;border-top: 1px solid var(--bd-4, #f0f0f0);text-align:right;">${costoCell}</td>
                 </tr>`;
             }).join("");
 
-            const monedaLabel = monedaComun ? `<span style="font-size:12px;color:#166534;font-weight:400;"> ${monedaComun}</span>` : "";
+            const monedaLabel = monedaComun ? `<span style="font-size:12px;color: var(--ok-tx-3, #166534);font-weight:400;"> ${monedaComun}</span>` : "";
             const totalLabel  = alguno_sin_precio
                 ? `${totalCosto.toFixed(2)} <span style="color:#ca8a04;font-size:11px;">(parcial)</span>`
                 : totalCosto.toFixed(2);
@@ -1115,27 +1115,27 @@ async function verReceta(ipId, nombre) {
             document.getElementById("modal-receta-contenido").innerHTML = `
                 <table style="width:100%;border-collapse:collapse;">
                     <thead>
-                        <tr style="background:#f8f9fa;">
-                            <th style="padding:8px 14px;font-size:11px;color:#666;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Ingrediente</th>
-                            <th style="padding:8px 14px;font-size:11px;color:#666;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Por unidad</th>
-                            <th style="padding:8px 14px;font-size:11px;color:#666;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Último precio</th>
-                            <th style="padding:8px 14px;font-size:11px;color:#666;text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Costo</th>
+                        <tr style="background: var(--sup-2, #f8f9fa);">
+                            <th style="padding:8px 14px;font-size:11px;color: var(--tx-7, #666);text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Ingrediente</th>
+                            <th style="padding:8px 14px;font-size:11px;color: var(--tx-7, #666);text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Por unidad</th>
+                            <th style="padding:8px 14px;font-size:11px;color: var(--tx-7, #666);text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Último precio</th>
+                            <th style="padding:8px 14px;font-size:11px;color: var(--tx-7, #666);text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Costo</th>
                         </tr>
                     </thead>
                     <tbody>${filas}</tbody>
                     <tfoot>
-                        <tr style="background:#f0fdf4;">
-                            <td colspan="3" style="padding:12px 14px;font-size:13px;font-weight:700;color:#166534;border-top:2px solid #bbf7d0;">
+                        <tr style="background: var(--ok-sf-2, #f0fdf4);">
+                            <td colspan="3" style="padding:12px 14px;font-size:13px;font-weight:700;color: var(--ok-tx-3, #166534);border-top: 2px solid var(--ok-bd, #bbf7d0);">
                                 Costo por unidad producida${monedaLabel}
                             </td>
-                            <td style="padding:12px 14px;font-size:15px;font-weight:700;color:#166534;border-top:2px solid #bbf7d0;text-align:right;">
+                            <td style="padding:12px 14px;font-size:15px;font-weight:700;color: var(--ok-tx-3, #166534);border-top: 2px solid var(--ok-bd, #bbf7d0);text-align:right;">
                                 ${totalLabel}
                             </td>
                         </tr>
                     </tfoot>
                 </table>
                 ${monedasMixtas ? '<p style="font-size:11px;color:#ca8a04;margin-top:10px;">⚠ Ingredientes con distintas monedas; el total puede no ser exacto.</p>' : ''}
-                ${alguno_sin_precio ? '<p style="font-size:11px;color:#9ca3af;margin-top:6px;">* Ingredientes sin precio registrado se cuentan como $0 en el total.</p>' : ''}
+                ${alguno_sin_precio ? '<p style="font-size:11px;color: var(--tx-4, #9ca3af);margin-top:6px;">* Ingredientes sin precio registrado se cuentan como $0 en el total.</p>' : ''}
             `;
         }
 
@@ -1208,15 +1208,15 @@ function renderRecetaLista() {
     pendientes.forEach(p => p.remove());
     vacia.style.display = (_recetaItems.length || pendientes.length) ? "none" : "";
     lista.innerHTML = _recetaItems.map((item, idx) => `
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8f7ff;border-radius:8px;">
-            <div style="flex:1;font-size:13px;font-weight:600;">${esc(item.nombre)} <span style="color:#9ca3af;font-weight:400;">(${esc(item.unidad)})</span></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background: var(--sup-2, #f8f7ff);border-radius:8px;">
+            <div style="flex:1;font-size:13px;font-weight:600;">${esc(item.nombre)} <span style="color: var(--tx-4, #9ca3af);font-weight:400;">(${esc(item.unidad)})</span></div>
             <input type="number" step="0.001" min="0.001" value="${item.cantidad}"
-                   style="width:100px;padding:5px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;"
+                   style="width:100px;padding:5px 8px;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:6px;font-size:13px;"
                    onchange="_recetaItems[${idx}].cantidad = parseFloat(this.value) || 0"
                    placeholder="Cantidad">
-            <span style="font-size:12px;color:#6b7280;">por unidad</span>
+            <span style="font-size:12px;color: var(--tx-3, #6b7280);">por unidad</span>
             <button type="button" onclick="_recetaItems.splice(${idx},1);renderRecetaLista()"
-                    style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;">✕</button>
+                    style="background:none;border:none;color: var(--pel-tx-2, #dc2626);cursor:pointer;font-size:16px;">✕</button>
         </div>
     `).join("");
     pendientes.forEach(p => lista.appendChild(p));
@@ -1236,7 +1236,7 @@ async function agregarItemReceta() {
     fila.className = "receta-add-row";
     fila.style.cssText = "display:flex;gap:8px;align-items:center;padding:8px 10px;background:#ede9fe;border-radius:8px;";
     fila.innerHTML = `
-        <div style="flex:1;display:flex;align-items:center;border:1.5px solid #c4b5fd;border-radius:6px;background:white;overflow:hidden;">
+        <div style="flex:1;display:flex;align-items:center;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:6px;background:white;overflow:hidden;">
             <input type="text" class="cb-input" autocomplete="off"
                    placeholder="Buscar insumo..."
                    oninput="comboboxInput(event, this)"
@@ -1245,14 +1245,14 @@ async function agregarItemReceta() {
                    onblur="setTimeout(()=>{const l=document.getElementById('combobox-lista');if(l)l.style.display='none'},150)"
                    style="flex:1;min-width:0;padding:6px 6px 6px 10px;border:none;font-size:13px;outline:none;background:transparent;">
             <span class="cb-unit"
-                  style="font-size:11px;color:#9ca3af;padding:0 10px 0 2px;white-space:nowrap;display:none;"></span>
+                  style="font-size:11px;color: var(--tx-4, #9ca3af);padding:0 10px 0 2px;white-space:nowrap;display:none;"></span>
         </div>
         <input type="number" class="cb-cant" step="0.001" min="0.001" placeholder="Cantidad"
-               style="width:100px;padding:6px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:13px;">
+               style="width:100px;padding:6px 8px;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:6px;font-size:13px;">
         <button type="button" onclick="confirmarItemReceta(this)"
                 style="background:#7c3aed;color:white;border:none;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700;">✓</button>
         <button type="button" onclick="cancelarItemReceta(this)"
-                style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;">✕</button>
+                style="background:none;border:none;color: var(--pel-tx-2, #dc2626);cursor:pointer;font-size:16px;">✕</button>
     `;
     document.getElementById("ip-receta-lista").appendChild(fila);
     document.getElementById("ip-receta-vacia").style.display = "none";
@@ -1317,9 +1317,9 @@ function comboboxRenderLista(busq, input) {
             <div onmousedown="event.preventDefault()" onclick="comboboxSeleccionar(${i.id})"
                  style="padding:7px 12px;cursor:pointer;font-size:13px;"
                  onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background=''">
-                ${esc(i.nombre)} <span style="color:#9ca3af;font-size:12px;">(${esc(i.unidad)})</span>
+                ${esc(i.nombre)} <span style="color: var(--tx-4, #9ca3af);font-size:12px;">(${esc(i.unidad)})</span>
             </div>`).join("")
-        : `<div style="padding:8px 12px;color:#9ca3af;font-size:13px;">Sin resultados</div>`;
+        : `<div style="padding:8px 12px;color: var(--tx-4, #9ca3af);font-size:13px;">Sin resultados</div>`;
 
     // Posicionar con fixed justo debajo del input (se sale del modal sin recortarse)
     const rect = input.getBoundingClientRect();
@@ -1570,10 +1570,10 @@ function desechoFiltrar() {
     if (!hits.length) { lista.style.display = 'none'; return; }
     lista.innerHTML = hits.map(i => `
         <div onmousedown="event.preventDefault()" onclick="desechoSeleccionar(${i.id})"
-             style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6;"
+             style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom: 1px solid var(--bd-4, #f3f4f6);"
              onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background=''">
             <strong>${esc(i.nombre)}</strong>
-            <span style="color:#9ca3af;font-size:11px;margin-left:4px;">(${i.unidad})</span>
+            <span style="color: var(--tx-4, #9ca3af);font-size:11px;margin-left:4px;">(${i.unidad})</span>
         </div>`).join('');
     lista.style.display = '';
 }
@@ -1659,7 +1659,7 @@ async function abrirModalRevision() {
         revRenderTabla();
     } catch(e) {
         document.getElementById("rev-tbody").innerHTML =
-            `<tr><td colspan="7" class="empty" style="color:#dc2626;">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="7" class="empty" style="color: var(--pel-tx-2, #dc2626);">Error: ${e.message}</td></tr>`;
     }
 }
 
@@ -1721,7 +1721,7 @@ function revRecalcRow(idx) {
     difEl.innerHTML = `<span class="rev-dif ${dif < 0 ? 'neg' : dif > 0 ? 'pos' : ''}">${sign}${fmtNum(dif)}</span>`;
     perdEl.innerHTML = perdida !== null && perdida > 0
         ? `<span class="rev-perdida">${sym} ${perdida.toFixed(2)}</span>`
-        : `<span style="color:#9ca3af;">—</span>`;
+        : `<span style="color: var(--tx-4, #9ca3af);">—</span>`;
 
     revActualizarTotal();
 }
@@ -1847,18 +1847,18 @@ function renderBienesUso() {
         const fill = b.agotado ? "#dc2626" : b.en_advertencia ? "#ca8a04" : "#16a34a";
         const badge = b.agotado ? `<span class="badge badge-alert">Agotado</span>`
             : b.en_advertencia ? `<span class="badge badge-warn">Advertencia</span>` : `<span class="badge badge-ok">OK</span>`;
-        const marca = b.marca ? _eB(b.marca) : '<span style="color:#d1d5db">—</span>';
-        const prov = b.proveedor_nombre ? `<span class="prov-chip">🏢 ${_eB(b.proveedor_nombre)}</span>` : '<span style="color:#d1d5db">—</span>';
+        const marca = b.marca ? _eB(b.marca) : '<span style="color: var(--tx-6, #d1d5db)">—</span>';
+        const prov = b.proveedor_nombre ? `<span class="prov-chip">🏢 ${_eB(b.proveedor_nombre)}</span>` : '<span style="color: var(--tx-6, #d1d5db)">—</span>';
         let costo;
         if (b.costo_unitario != null) costo = `<strong>${_monedaSimbolo}${(+b.costo_unitario).toFixed(2)}</strong>`;
-        else if (b.ultimo_precio_compra != null) costo = `<span style="color:#9ca3af;" title="Último precio de compra">${_monedaSimbolo}${(+b.ultimo_precio_compra).toFixed(2)} <small>(compra)</small></span>`;
-        else costo = '<span style="color:#d1d5db">—</span>';
+        else if (b.ultimo_precio_compra != null) costo = `<span style="color: var(--tx-4, #9ca3af);" title="Último precio de compra">${_monedaSimbolo}${(+b.ultimo_precio_compra).toFixed(2)} <small>(compra)</small></span>`;
+        else costo = '<span style="color: var(--tx-6, #d1d5db)">—</span>';
         return `<tr>
             <td><span onclick="editarBien(${b.id})" title="Editar" style="cursor:pointer;margin-right:6px;">✏️</span><strong>${_eB(b.nombre)}</strong></td>
             <td>${_eB(b.unidad)}</td>
             <td><div style="display:flex;align-items:center;gap:8px;"><span style="display:inline-block;min-width:60px;text-align:right;">${+actual}</span><div class="stock-bar" style="width:80px;"><div class="stock-bar-fill" style="width:${pct}%;background:${fill};"></div></div></div></td>
-            <td style="font-size:12px;color:#374151;">${b.ubicacion_nombre ? _eB(b.ubicacion_nombre) : '<span style="color:#d1d5db">—</span>'}</td>
-            <td style="font-size:12px;color:#374151;">${marca}</td>
+            <td style="font-size:12px;color: var(--tx-2, #374151);">${b.ubicacion_nombre ? _eB(b.ubicacion_nombre) : '<span style="color: var(--tx-6, #d1d5db)">—</span>'}</td>
+            <td style="font-size:12px;color: var(--tx-2, #374151);">${marca}</td>
             <td>${prov}</td>
             <td style="font-size:13px;">${costo}</td>
             <td>${badge}</td>
@@ -1977,7 +1977,7 @@ async function verFacturasBien(id, nombre) {
             <td class="num">${m.cantidad != null ? (+m.cantidad) : '—'}</td>
             <td class="num">${m.precio_unitario != null ? _monedaSimbolo + (+m.precio_unitario).toFixed(2) : '—'}</td>
             <td>${m.proveedor_nombre ? _eB(m.proveedor_nombre) : '—'}</td>
-            <td style="font-size:12px;color:#6b7280;">${_eB(m.nota || m.referencia || '')}</td>
+            <td style="font-size:12px;color: var(--tx-3, #6b7280);">${_eB(m.nota || m.referencia || '')}</td>
         </tr>`).join('') : `<tr><td colspan="6" class="empty">Sin movimientos</td></tr>`;
     } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Error: ${e.message}</td></tr>`; }
 }
@@ -1998,7 +1998,7 @@ async function verFacturasBien(id, nombre) {
 <div class="modal-overlay" id="modal-desecho">
     <div class="modal" style="max-width:480px;">
         <h3>🗑 Registrar desecho</h3>
-        <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">
+        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:16px;">
             Registrá productos descartados por vencimiento, mal estado u otros motivos.
             El stock se actualizará automáticamente.
         </p>
@@ -2009,11 +2009,11 @@ async function verFacturasBien(id, nombre) {
                    oninput="desechoFiltrar()"
                    onfocus="desechoFiltrar()"
                    onblur="setTimeout(desechoOcultarLista, 150)"
-                   style="width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;box-sizing:border-box;">
+                   style="width:100%;padding:7px 10px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:13px;outline:none;box-sizing:border-box;">
             <input type="hidden" id="des-insumo">
             <div id="des-insumo-lista"
                  style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;
-                        background:white;border:1.5px solid #c4b5fd;border-radius:8px;
+                        background:white;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:8px;
                         box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:200px;overflow-y:auto;"></div>
         </div>
         <div class="form-row">
@@ -2024,22 +2024,22 @@ async function verFacturasBien(id, nombre) {
             <div class="form-group">
                 <label>Unidad</label>
                 <input type="text" id="des-unidad-lbl" disabled
-                       style="width:100%;background:#f9fafb;color:#6b7280;border-color:#e5e7eb;">
+                       style="width:100%;background: var(--sup-2, #f9fafb);color: var(--tx-3, #6b7280);border-color: var(--bd, #e5e7eb);">
             </div>
         </div>
         <div class="form-group">
             <label>Motivo (obligatorio) *</label>
             <textarea id="des-nota" rows="3" maxlength="300"
                       placeholder="Ej: Producto vencido. Ej: Contaminación cruzada. Ej: Se cayó y no se puede usar."
-                      style="width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+                      style="width:100%;padding:7px 10px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
         </div>
-        <div id="des-perdida-preview" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:13px;color:#dc2626;margin-bottom:4px;">
+        <div id="des-perdida-preview" style="display:none;background: var(--pel-sf-2, #fef2f2);border: 1px solid var(--pel-bd, #fecaca);border-radius:8px;padding:10px 14px;font-size:13px;color: var(--pel-tx-2, #dc2626);margin-bottom:4px;">
             Pérdida estimada: <strong id="des-perdida-val"></strong>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-desecho')">Cancelar</button>
             <button class="btn btn-primary" id="des-btn-guardar" onclick="guardarDesecho()"
-                    style="background:#dc2626;border-color:#dc2626;">🗑 Confirmar desecho</button>
+                    style="background: var(--pel, #dc2626);border-color: var(--pel, #dc2626);">🗑 Confirmar desecho</button>
         </div>
     </div>
 </div>
@@ -2051,7 +2051,7 @@ async function verFacturasBien(id, nombre) {
         <!-- Header fijo -->
         <div class="rev-modal-header">
             <h3 style="margin-bottom:4px;">🔍 Revisión de stock</h3>
-            <p style="font-size:13px;color:#666;margin-bottom:10px;">
+            <p style="font-size:13px;color: var(--tx-7, #666);margin-bottom:10px;">
                 Ingresá el stock <strong>real</strong> de cada insumo. Solo se guardan los insumos con diferencia.
             </p>
             <div class="form-group" style="margin-bottom:0;">
@@ -2099,7 +2099,7 @@ async function verFacturasBien(id, nombre) {
                 <button class="btn btn-secondary" onclick="cerrarModal('modal-revision')">Cancelar</button>
                 <button class="btn btn-primary" id="rev-btn-confirmar"
                         onclick="confirmarRevision()"
-                        style="background:#f59e0b;border-color:#f59e0b;">Guardar revisión</button>
+                        style="background: var(--av, #f59e0b);border-color:#f59e0b;">Guardar revisión</button>
             </div>
         </div>
 
@@ -2141,18 +2141,18 @@ async function verFacturasBien(id, nombre) {
 <div class="modal-overlay" id="modal-perdida">
     <div class="modal" style="max-width:460px;">
         <h3>🗑 Registrar pérdida</h3>
-        <p style="font-size:13px;color:#6b7280;margin-bottom:14px;">Extravío, rotura o deterioro de un bien de uso. El stock se descuenta.</p>
+        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:14px;">Extravío, rotura o deterioro de un bien de uso. El stock se descuenta.</p>
         <div class="form-group"><label>Bien de uso *</label><select id="pe-bien" onchange="perdidaUnidad()"></select></div>
         <div class="form-row">
             <div class="form-group"><label>Cantidad *</label><input type="number" id="pe-cantidad" min="0.001" step="0.001" placeholder="0"></div>
-            <div class="form-group"><label>Unidad</label><input type="text" id="pe-unidad" disabled style="background:#f9fafb;color:#6b7280;border-color:#e5e7eb;"></div>
+            <div class="form-group"><label>Unidad</label><input type="text" id="pe-unidad" disabled style="background: var(--sup-2, #f9fafb);color: var(--tx-3, #6b7280);border-color: var(--bd, #e5e7eb);"></div>
         </div>
         <div class="form-group"><label>Motivo *</label>
-            <textarea id="pe-nota" rows="3" maxlength="300" placeholder="Ej: Rotura, extravío, deterioro" style="width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+            <textarea id="pe-nota" rows="3" maxlength="300" placeholder="Ej: Rotura, extravío, deterioro" style="width:100%;padding:7px 10px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-perdida')">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarPerdida()" style="background:#dc2626;border-color:#dc2626;">Confirmar pérdida</button>
+            <button class="btn btn-primary" onclick="guardarPerdida()" style="background: var(--pel, #dc2626);border-color: var(--pel, #dc2626);">Confirmar pérdida</button>
         </div>
     </div>
 </div>
@@ -2161,7 +2161,7 @@ async function verFacturasBien(id, nombre) {
 <div class="modal-overlay" id="modal-revision-bienes">
     <div class="modal" style="max-width:600px;">
         <h3>🔍 Revisión de bienes de uso</h3>
-        <p style="font-size:13px;color:#666;margin-bottom:10px;">Ingresá el stock <strong>real</strong> de cada bien. Solo se guardan los que tengan diferencia.</p>
+        <p style="font-size:13px;color: var(--tx-7, #666);margin-bottom:10px;">Ingresá el stock <strong>real</strong> de cada bien. Solo se guardan los que tengan diferencia.</p>
         <div class="tabla-wrapper" style="max-height:50vh;overflow:auto;">
             <table>
                 <thead><tr><th>Bien</th><th>Unidad</th><th style="text-align:right;">Stock teórico</th><th style="text-align:right;">Stock real</th></tr></thead>
@@ -2170,7 +2170,7 @@ async function verFacturasBien(id, nombre) {
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-revision-bienes')">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarRevisionBienes()" style="background:#f59e0b;border-color:#f59e0b;">Guardar revisión</button>
+            <button class="btn btn-primary" onclick="guardarRevisionBienes()" style="background: var(--av, #f59e0b);border-color:#f59e0b;">Guardar revisión</button>
         </div>
     </div>
 </div>
@@ -2193,11 +2193,11 @@ async function verFacturasBien(id, nombre) {
 <div class="modal-overlay" id="modal-ubicaciones">
     <div class="modal" style="max-width:420px;">
         <h3>📍 Ubicaciones de almacenamiento</h3>
-        <p style="font-size:13px;color:#6b7280;margin-bottom:14px;">Añadí o eliminá ubicaciones. Los cambios se reflejan en todos los insumos.</p>
+        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:14px;">Añadí o eliminá ubicaciones. Los cambios se reflejan en todos los insumos.</p>
         <div id="ub-lista" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;margin-bottom:14px;"></div>
         <div style="display:flex;gap:8px;">
             <input type="text" id="ub-nueva-inp" placeholder="Nueva ubicación…" maxlength="80"
-                   style="flex:1;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;"
+                   style="flex:1;padding:7px 10px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:13px;outline:none;"
                    onkeydown="if(event.key==='Enter')guardarNuevaUbicacion()"
                    onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e0e0e0'">
             <button class="btn btn-primary btn-sm" onclick="guardarNuevaUbicacion()">+ Agregar</button>
@@ -2210,7 +2210,7 @@ async function verFacturasBien(id, nombre) {
 
 <!-- Dropdown del combobox: fuera del modal para no ser recortado por overflow -->
 <div id="combobox-lista"
-     style="position:fixed;background:white;border:1.5px solid #c4b5fd;border-radius:8px;
+     style="position:fixed;background:white;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:8px;
             box-shadow:0 4px 20px rgba(0,0,0,0.15);max-height:220px;overflow-y:auto;
             z-index:9999;display:none;min-width:200px;"></div>
 
@@ -2222,7 +2222,7 @@ async function verFacturasBien(id, nombre) {
             <button class="btn btn-secondary btn-sm no-print" onclick="cerrarModal('modal-imprimir-stock')">✕</button>
         </div>
         <div id="imprimir-body"></div>
-        <p class="no-print" style="font-size:12px;color:#6b7280;margin-top:12px;">
+        <p class="no-print" style="font-size:12px;color: var(--tx-3, #6b7280);margin-top:12px;">
             🖨 Al imprimir se abre el cuadro de impresión del navegador: ahí elegís la impresora instalada y confirmás.
         </p>
         <div class="modal-footer no-print" style="margin-top:8px;">

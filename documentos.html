@@ -8,99 +8,99 @@
 <link rel="stylesheet" href="css/tema.css?v=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
         .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .navbar-brand { font-size: 18px; font-weight: 700; }
-        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
-        .btn-logout:hover { background: #4f46e5; color: white; }
+        .btn-logout { background: transparent; border: 1px solid var(--ac, #4f46e5); color: var(--nav-tx, #a5b4fc); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
         .content { margin-top: 60px; padding: 24px 32px 60px; max-width: 1000px; margin-left: auto; margin-right: auto; }
 
         /* Tabs de categoría */
-        .cat-tabs { display: flex; gap: 26px; align-items: center; border-bottom: 1px solid #e5e7eb; margin-bottom: 18px; }
-        .cat-tab { padding: 12px 2px; font-size: 15px; font-weight: 600; color: #9ca3af; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+        .cat-tabs { display: flex; gap: 26px; align-items: center; border-bottom: 1px solid var(--bd, #e5e7eb); margin-bottom: 18px; }
+        .cat-tab { padding: 12px 2px; font-size: 15px; font-weight: 600; color: var(--tx-4, #9ca3af); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
         .cat-tab:hover { color: #4b5563; }
-        .cat-tab.active { color: #1a1a2e; font-weight: 800; border-bottom-color: #1a1a2e; }
+        .cat-tab.active { color: var(--tx, #1a1a2e); font-weight: 800; border-bottom-color: #1a1a2e; }
 
         /* Toolbar */
         .doc-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-        .doc-bread { font-size: 14px; color: #6b7280; flex: 1; min-width: 200px; }
-        .doc-bread a { color: #4f46e5; cursor: pointer; text-decoration: none; font-weight: 600; }
+        .doc-bread { font-size: 14px; color: var(--tx-3, #6b7280); flex: 1; min-width: 200px; }
+        .doc-bread a { color: var(--tx-ac, #4f46e5); cursor: pointer; text-decoration: none; font-weight: 600; }
         .doc-bread .sep { margin: 0 6px; color: #c4b5fd; }
-        .doc-bread .cur { color: #1f2937; font-weight: 700; }
-        .btn { padding: 8px 16px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; color: #4f46e5; }
-        .btn:hover { background: #eef2ff; }
-        .btn-primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .doc-bread .cur { color: var(--tx-13, #1f2937); font-weight: 700; }
+        .btn { padding: 8px 16px; border: 1px solid var(--bd-6, #d7dbe3); background: var(--sup, #fff); border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--tx-ac, #4f46e5); }
+        .btn:hover { background: var(--ac-sf, #eef2ff); }
+        .btn-primary { background: #4f46e5; color: #fff; border-color: var(--ac, #4f46e5); }
         .btn-primary:hover { background: #4338ca; }
 
         /* Carpetas */
         .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-bottom: 22px; }
-        .doc-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 14px; cursor: pointer; position: relative; transition: box-shadow .15s; }
+        .doc-card { background: var(--sup, #fff); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,.06)); padding: 14px; cursor: pointer; position: relative; transition: box-shadow .15s; }
         .doc-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.12); }
         .doc-card .ic { font-size: 34px; }
-        .doc-card .nm { font-size: 13px; font-weight: 600; color: #1f2937; margin-top: 8px; word-break: break-word; }
+        .doc-card .nm { font-size: 13px; font-weight: 600; color: var(--tx-13, #1f2937); margin-top: 8px; word-break: break-word; }
         .doc-card .acc { position: absolute; top: 8px; right: 8px; display: none; gap: 2px; }
         .doc-card:hover .acc { display: flex; }
         .doc-card .acc button { border: none; background: rgba(255,255,255,.9); border-radius: 6px; cursor: pointer; font-size: 13px; padding: 3px 5px; }
 
         /* Archivos (lista) */
         .doc-files { display: flex; flex-direction: column; gap: 8px; }
-        .doc-file { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.05); padding: 11px 14px; }
+        .doc-file { display: flex; align-items: center; gap: 12px; background: var(--sup, #fff); border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.05); padding: 11px 14px; }
         .doc-file .fic { font-size: 24px; flex-shrink: 0; }
         .doc-file img.thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
-        .doc-file .fnm { flex: 1; font-size: 14px; color: #1f2937; font-weight: 600; word-break: break-word; }
-        .doc-file .fdt { font-size: 11px; color: #9ca3af; }
-        .doc-file a.dl { color: #4f46e5; font-weight: 700; font-size: 13px; text-decoration: none; }
-        .doc-file button.del { border: none; background: #fef2f2; color: #dc2626; border-radius: 7px; cursor: pointer; font-weight: 700; padding: 5px 9px; }
-        .doc-empty { text-align: center; color: #9ca3af; font-size: 14px; padding: 30px 0; }
-        .doc-sec-title { font-size: 12px; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: .6px; margin: 4px 0 10px; }
+        .doc-file .fnm { flex: 1; font-size: 14px; color: var(--tx-13, #1f2937); font-weight: 600; word-break: break-word; }
+        .doc-file .fdt { font-size: 11px; color: var(--tx-4, #9ca3af); }
+        .doc-file a.dl { color: var(--tx-ac, #4f46e5); font-weight: 700; font-size: 13px; text-decoration: none; }
+        .doc-file button.del { border: none; background: var(--pel-sf-2, #fef2f2); color: var(--pel-tx-2, #dc2626); border-radius: 7px; cursor: pointer; font-weight: 700; padding: 5px 9px; }
+        .doc-empty { text-align: center; color: var(--tx-4, #9ca3af); font-size: 14px; padding: 30px 0; }
+        .doc-sec-title { font-size: 12px; font-weight: 800; color: var(--tx-4, #9ca3af); text-transform: uppercase; letter-spacing: .6px; margin: 4px 0 10px; }
 
         /* Lock personal */
-        .lock-card { max-width: 380px; margin: 40px auto; background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.08); padding: 26px; text-align: center; }
+        .lock-card { max-width: 380px; margin: 40px auto; background: var(--sup, #fff); border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.08); padding: 26px; text-align: center; }
         .lock-card .lk { font-size: 40px; }
-        .lock-card h3 { font-size: 17px; color: #1a1a2e; margin: 10px 0 4px; }
-        .lock-card p { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
-        .lock-card input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
-        .lock-card .err { color: #dc2626; font-size: 12px; min-height: 16px; margin-bottom: 8px; }
+        .lock-card h3 { font-size: 17px; color: var(--tx, #1a1a2e); margin: 10px 0 4px; }
+        .lock-card p { font-size: 13px; color: var(--tx-3, #6b7280); margin-bottom: 16px; }
+        .lock-card input { width: 100%; padding: 10px 12px; border: 1px solid var(--bd-3, #d1d5db); border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+        .lock-card .err { color: var(--pel-tx-2, #dc2626); font-size: 12px; min-height: 16px; margin-bottom: 8px; }
 
         /* Modal grupo */
         .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 400; align-items: center; justify-content: center; }
         .modal-ov.open { display: flex; }
-        .modal { background: #fff; border-radius: 14px; width: 460px; max-width: 94vw; max-height: 88vh; overflow-y: auto; overscroll-behavior: contain; padding: 22px; }
+        .modal { background: var(--sup, #fff); border-radius: 14px; width: 460px; max-width: 94vw; max-height: 88vh; overflow-y: auto; overscroll-behavior: contain; padding: 22px; }
         /* Modal alto (capacitación): columna flex — el cuerpo scrollea, el footer queda fijo */
         .modal.modal-flex { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
         .modal.modal-flex .modal-scroll { overflow-y: auto; overscroll-behavior: contain; padding: 22px 22px 8px; }
-        .modal.modal-flex .modal-acc { margin: 0; padding: 12px 22px; border-top: 1px solid #eee; background: #fff; flex-shrink: 0; }
-        .modal h3 { font-size: 18px; margin-bottom: 14px; color: #1a1a2e; }
-        .modal label.lbl { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; display: block; margin: 12px 0 6px; }
-        .modal input.txt { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; font-size: 14px; }
-        .checks { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #f0f0f0; border-radius: 8px; padding: 8px; }
-        .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; }
+        .modal.modal-flex .modal-acc { margin: 0; padding: 12px 22px; border-top: 1px solid var(--bd-4, #eee); background: var(--sup, #fff); flex-shrink: 0; }
+        .modal h3 { font-size: 18px; margin-bottom: 14px; color: var(--tx, #1a1a2e); }
+        .modal label.lbl { font-size: 12px; font-weight: 700; color: var(--tx-3, #6b7280); text-transform: uppercase; letter-spacing: .4px; display: block; margin: 12px 0 6px; }
+        .modal input.txt { width: 100%; border: 1px solid var(--bd, #e5e7eb); border-radius: 8px; padding: 9px 12px; font-size: 14px; }
+        .checks { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--bd-4, #f0f0f0); border-radius: 8px; padding: 8px; }
+        .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--tx-2, #374151); }
         .modal-acc { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
-        .btn-del { padding: 9px 16px; border: 1px solid #fecaca; background: #fef2f2; color: #dc2626; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-left: auto; }
-        .btn-sec { padding: 9px 16px; border: 1px solid #d1d5db; background: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; }
-        .grp-chip-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: #fff; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.05); margin-bottom: 8px; }
-        .grp-chip-row .gn { flex: 1; font-size: 14px; font-weight: 600; color: #1f2937; }
+        .btn-del { padding: 9px 16px; border: 1px solid var(--pel-bd, #fecaca); background: var(--pel-sf-2, #fef2f2); color: var(--pel-tx-2, #dc2626); border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-left: auto; }
+        .btn-sec { padding: 9px 16px; border: 1px solid var(--bd-3, #d1d5db); background: var(--sup, #fff); border-radius: 8px; font-size: 13px; cursor: pointer; }
+        .grp-chip-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: var(--sup, #fff); border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.05); margin-bottom: 8px; }
+        .grp-chip-row .gn { flex: 1; font-size: 14px; font-weight: 600; color: var(--tx-13, #1f2937); }
 
         /* Capacitaciones */
-        .cap-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 16px 18px; margin-bottom: 12px; border-left: 4px solid transparent; }
-        .cap-card.pendiente { border-left-color: #f59e0b; background: #fffdf6; }
-        .cap-card.firmada { border-left-color: #16a34a; }
-        .cap-tit { font-size: 15px; font-weight: 800; color: #1a1a2e; }
-        .cap-desc { font-size: 13px; color: #6b7280; margin-top: 4px; white-space: pre-wrap; }
-        .cap-meta { font-size: 12px; color: #9ca3af; margin-top: 6px; }
+        .cap-card { background: var(--sup, #fff); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,.06)); padding: 16px 18px; margin-bottom: 12px; border-left: 4px solid transparent; }
+        .cap-card.pendiente { border-left-color: #f59e0b; background: var(--sup-2, #fffdf6); }
+        .cap-card.firmada { border-left-color: var(--ok, #16a34a); }
+        .cap-tit { font-size: 15px; font-weight: 800; color: var(--tx, #1a1a2e); }
+        .cap-desc { font-size: 13px; color: var(--tx-3, #6b7280); margin-top: 4px; white-space: pre-wrap; }
+        .cap-meta { font-size: 12px; color: var(--tx-4, #9ca3af); margin-top: 6px; }
         .cap-acciones { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
         .cap-chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 5px 13px; font-size: 12.5px; font-weight: 700; }
-        .cap-chip.ok { background: #dcfce7; color: #166534; }
-        .cap-chip.pend { background: #fef3c7; color: #92400e; }
-        .btn-firmar { background: #16a34a; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 800; cursor: pointer; }
+        .cap-chip.ok { background: var(--ok-sf, #dcfce7); color: var(--ok-tx-3, #166534); }
+        .cap-chip.pend { background: var(--av-sf, #fef3c7); color: var(--av-tx, #92400e); }
+        .btn-firmar { background: var(--ok, #16a34a); color: var(--tx-inv, #fff); border: none; padding: 10px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 800; cursor: pointer; }
         .btn-firmar:hover { background: #15803d; }
-        .cap-dest-lista { margin-top: 10px; border-top: 1px dashed #e5e7eb; padding-top: 8px; display: none; }
+        .cap-dest-lista { margin-top: 10px; border-top: 1px dashed var(--bd, #e5e7eb); padding-top: 8px; display: none; }
         .cap-dest-lista.open { display: block; }
-        .cap-dest-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; padding: 4px 0; }
+        .cap-dest-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--tx-2, #374151); padding: 4px 0; }
         .cap-dest-row .quien { flex: 1; font-weight: 600; }
-        .cap-toggle { background: none; border: none; color: #4f46e5; font-size: 12.5px; font-weight: 700; cursor: pointer; padding: 0; }
-        .modal textarea.txt { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; font-size: 14px; font-family: inherit; min-height: 70px; resize: vertical; }
-        .firma-aviso { background: #fef9c3; border: 1px solid #fde68a; color: #713f12; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; margin: 10px 0; }
+        .cap-toggle { background: none; border: none; color: var(--tx-ac, #4f46e5); font-size: 12.5px; font-weight: 700; cursor: pointer; padding: 0; }
+        .modal textarea.txt { width: 100%; border: 1px solid var(--bd, #e5e7eb); border-radius: 8px; padding: 9px 12px; font-size: 14px; font-family: inherit; min-height: 70px; resize: vertical; }
+        .firma-aviso { background: var(--av-sf, #fef9c3); border: 1px solid var(--av-bd, #fde68a); color: #713f12; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -144,7 +144,7 @@
             <textarea class="txt" id="cap-desc" placeholder="Indicaciones para el personal…"></textarea>
             <label class="lbl" id="cap-file-lbl">Documento</label>
             <input type="file" id="cap-file" style="font-size:13px;">
-            <div id="cap-edit-aviso" style="display:none;font-size:12.5px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-top:6px;">
+            <div id="cap-edit-aviso" style="display:none;font-size:12.5px;color: var(--av-tx, #92400e);background: var(--av-sf, #fef3c7);border: 1px solid var(--av-bd, #fde68a);border-radius:8px;padding:8px 10px;margin-top:6px;">
                 ⚠ Si adjuntás un archivo nuevo, reemplaza el documento y <b>quienes ya firmaron deberán firmar de nuevo</b> la nueva versión. Cambiar solo título o descripción conserva las firmas.
             </div>
             <div id="cap-dest-wrap">
@@ -166,12 +166,12 @@
 <div class="modal-ov" id="modal-mover">
     <div class="modal" style="width:420px;">
         <h3>📂 Mover archivo</h3>
-        <div style="font-size:13px;color:#374151;font-weight:700;margin-bottom:4px;" id="mov-nombre">—</div>
+        <div style="font-size:13px;color: var(--tx-2, #374151);font-weight:700;margin-bottom:4px;" id="mov-nombre">—</div>
         <label class="lbl">Destino</label>
         <select class="txt" id="mov-destino" onchange="_movCargarCarpetas()"></select>
         <label class="lbl">Carpeta</label>
         <select class="txt" id="mov-carpeta"></select>
-        <div class="err" id="mov-err" style="color:#dc2626;font-size:12px;min-height:16px;margin-top:8px;"></div>
+        <div class="err" id="mov-err" style="color: var(--pel-tx-2, #dc2626);font-size:12px;min-height:16px;margin-top:8px;"></div>
         <div class="modal-acc">
             <button class="btn-firmar" id="mov-btn" onclick="confirmarMover()">Mover</button>
             <button class="btn-sec" onclick="cerrarModal('modal-mover')">Cancelar</button>
@@ -183,7 +183,7 @@
 <div class="modal-ov" id="modal-firmar">
     <div class="modal" style="width:420px;">
         <h3>✍️ Firmar recepción y lectura</h3>
-        <div style="font-size:14px;color:#374151;font-weight:700;" id="firma-titulo">—</div>
+        <div style="font-size:14px;color: var(--tx-2, #374151);font-weight:700;" id="firma-titulo">—</div>
         <div class="firma-aviso">Al firmar declarás que <b>recibiste y leíste</b> el documento de esta
             capacitación. Se generará un comprobante con fecha y hora en tu carpeta <b>Personal</b>.</div>
         <label class="lbl">Usuario</label>
@@ -191,7 +191,7 @@
         <label class="lbl">Contraseña</label>
         <input type="password" class="txt" id="firma-pass" placeholder="Tu contraseña"
                onkeydown="if(event.key==='Enter')firmarCap()">
-        <div class="err" id="firma-err" style="color:#dc2626;font-size:12px;min-height:16px;margin-top:8px;"></div>
+        <div class="err" id="firma-err" style="color: var(--pel-tx-2, #dc2626);font-size:12px;min-height:16px;margin-top:8px;"></div>
         <div class="modal-acc">
             <button class="btn-firmar" id="firma-btn" onclick="firmarCap()">✍️ Firmar</button>
             <button class="btn-sec" onclick="cerrarModal('modal-firmar')">Cancelar</button>
@@ -283,7 +283,7 @@ function renderGruposLista() {
     const body = document.getElementById('doc-body');
     let html = '<div class="doc-sec-title">Grupos</div>';
     if (_gruposError) {
-        html += `<div class="doc-empty" style="color:#b91c1c;">No se pudieron cargar los grupos: ${esc(_gruposError)}.
+        html += `<div class="doc-empty" style="color: var(--pel-tx, #b91c1c);">No se pudieron cargar los grupos: ${esc(_gruposError)}.
             <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="cargarGrupos()">Reintentar</button></div>`;
     } else if (!_grupos.length) {
         html += `<div class="doc-empty">${_puedeGestionar ? 'Todavía no hay grupos. Creá uno con “＋ Grupo”.' : 'No estás en ningún grupo.'}</div>`;
@@ -293,7 +293,7 @@ function renderGruposLista() {
             return `
             <div class="grp-chip-row">
                 <span style="font-size:20px;">👥</span>
-                <span class="gn" onclick="abrirGrupo(${g.id}, ${rid})" style="cursor:pointer;">${esc(g.nombre)}${g.restaurante ? ` <span style="color:#9ca3af;font-weight:400;">· 🏠 ${esc(g.restaurante)}</span>` : ''}</span>
+                <span class="gn" onclick="abrirGrupo(${g.id}, ${rid})" style="cursor:pointer;">${esc(g.nombre)}${g.restaurante ? ` <span style="color: var(--tx-4, #9ca3af);font-weight:400;">· 🏠 ${esc(g.restaurante)}</span>` : ''}</span>
                 <button class="btn" onclick="abrirGrupo(${g.id}, ${rid})">Abrir</button>
                 ${_puedeGestionar ? `<button class="btn" onclick="abrirGrupoModal(${g.id})">⚙️ Editar</button>` : ''}
             </div>`; }).join('');
@@ -313,7 +313,7 @@ async function cargarUsuariosPersonal() {
             ? _usuariosPersonal.map(u => `
                 <div class="grp-chip-row">
                     <span style="font-size:20px;">🔒</span>
-                    <span class="gn">${esc(displayName(u))} <span style="color:#9ca3af;font-weight:400;">(${esc(u.rol)})</span></span>
+                    <span class="gn">${esc(displayName(u))} <span style="color: var(--tx-4, #9ca3af);font-weight:400;">(${esc(u.rol)})</span></span>
                     <button class="btn" onclick="abrirPersonal(${u.id})">Abrir</button>
                 </div>`).join('')
             : '<div class="doc-empty">Sin usuarios.</div>');
@@ -424,7 +424,7 @@ function renderContenido() {
                 ${thumb}
                 <div class="fnm">${esc(a.nombre)}<div class="fdt">${fmtFecha(a.creado_en)}</div></div>
                 <a class="dl" href="${esc(a.url)}" target="_blank" rel="noopener">${(a.resource_type === 'image' || a.resource_type === 'video') ? 'Ver' : 'Descargar'}</a>
-                ${puedeEditar ? `<button class="del" title="Mover a otra carpeta o grupo" style="color:#4f46e5;" onclick="abrirMover(${a.id}, '${esc(a.nombre).replace(/'/g,'')}')">📂</button>
+                ${puedeEditar ? `<button class="del" title="Mover a otra carpeta o grupo" style="color: var(--tx-ac, #4f46e5);" onclick="abrirMover(${a.id}, '${esc(a.nombre).replace(/'/g,'')}')">📂</button>
                 <button class="del" onclick="eliminarArchivo(${a.id})">🗑</button>` : ''}
             </div>`;
         }).join('');
@@ -688,13 +688,13 @@ async function abrirCapModal() {
     // tilda a sus personas (feedback visual + inclusión). "Todos" tilda todo.
     const roles = [...new Set(_usuariosDisp.flatMap(u => _rolesDeU(u)))];
     document.getElementById('cap-roles').innerHTML =
-        `<label class="check-row"><input type="checkbox" id="cap-rol-todos" onchange="_capToggleTodos(this)"> <b>Todos</b> <span style="color:#9ca3af;font-weight:400;">(todo el personal)</span></label>` +
+        `<label class="check-row"><input type="checkbox" id="cap-rol-todos" onchange="_capToggleTodos(this)"> <b>Todos</b> <span style="color: var(--tx-4, #9ca3af);font-weight:400;">(todo el personal)</span></label>` +
         (roles.length ? roles.map(r =>
             `<label class="check-row"><input type="checkbox" class="cap-rol-cb" value="${esc(r)}" onchange="_capToggleRol(this)"> ${esc(r)}</label>`
-        ).join('') : '<span style="font-size:12px;color:#9ca3af">Sin roles</span>');
+        ).join('') : '<span style="font-size:12px;color: var(--tx-4, #9ca3af)">Sin roles</span>');
     document.getElementById('cap-dest').innerHTML = _usuariosDisp.map(u =>
-        `<label class="check-row"><input type="checkbox" value="${u.id}" onchange="_capSyncRoles()"> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(_rolesDeU(u).join(', '))})</span></label>`
-    ).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
+        `<label class="check-row"><input type="checkbox" value="${u.id}" onchange="_capSyncRoles()"> ${esc(displayName(u))} <span style="color: var(--tx-4, #9ca3af)">(${esc(_rolesDeU(u).join(', '))})</span></label>`
+    ).join('') || '<span style="font-size:12px;color: var(--tx-4, #9ca3af)">Sin usuarios</span>';
     document.getElementById('modal-cap').classList.add('open');
 }
 
@@ -838,9 +838,9 @@ async function abrirGrupoModal(id) {
     const rolesSel = new Set(_grupoEdit ? (_grupoEdit.roles || []) : []);
     const usrSel = new Set(_grupoEdit ? (_grupoEdit.usuarios || []) : []);
     document.getElementById('grupo-roles').innerHTML = _rolesDisp.map(r =>
-        `<label class="check-row"><input type="checkbox" value="${esc(r.nombre)}" ${rolesSel.has(r.nombre) ? 'checked' : ''}> ${esc(r.nombre)}</label>`).join('') || '<span style="font-size:12px;color:#9ca3af">Sin roles</span>';
+        `<label class="check-row"><input type="checkbox" value="${esc(r.nombre)}" ${rolesSel.has(r.nombre) ? 'checked' : ''}> ${esc(r.nombre)}</label>`).join('') || '<span style="font-size:12px;color: var(--tx-4, #9ca3af)">Sin roles</span>';
     document.getElementById('grupo-usuarios').innerHTML = _usuariosDisp.map(u =>
-        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`).join('') || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
+        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(displayName(u))} <span style="color: var(--tx-4, #9ca3af)">(${esc(u.rol)})</span></label>`).join('') || '<span style="font-size:12px;color: var(--tx-4, #9ca3af)">Sin usuarios</span>';
     document.getElementById('grupo-del').style.display = _grupoEdit ? '' : 'none';
     document.getElementById('modal-grupo').classList.add('open');
 }

@@ -8,47 +8,47 @@
 <link rel="stylesheet" href="css/tema.css?v=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
         .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .navbar-brand { font-size: 18px; font-weight: 700; }
         .navbar-links { display: flex; gap: 16px; align-items: center; }
         .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
-        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
-        .btn-logout:hover { background: #4f46e5; color: white; }
+        .btn-logout { background: transparent; border: 1px solid var(--ac, #4f46e5); color: var(--nav-tx, #a5b4fc); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
         .content { margin-top: 60px; padding: 32px; }
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: var(--tx, #1a1a2e); }
         .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; }
         .btn-primary { background: #4f46e5; color: white; } .btn-primary:hover { background: #4338ca; }
-        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; } .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-secondary { background: var(--sup, white); color: var(--tx-10, #444); border: 1.5px solid var(--bd-2, #e0e0e0); } .btn-secondary:hover { border-color: var(--ac, #4f46e5); color: var(--tx-ac, #4f46e5); }
         .btn-success { background: #16a34a; color: white; } .btn-success:hover { background: #15803d; }
         .btn-danger { background: #dc2626; color: white; } .btn-danger:hover { background: #b91c1c; }
         .btn-sm { padding: 6px 12px; font-size: 12px; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .caja-estado { background: white; border-radius: 12px; padding: 24px 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
-        .caja-info h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
-        .caja-info p { font-size: 13px; color: #888; }
+        .caja-estado { background: var(--sup, white); border-radius: 12px; padding: 24px 28px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+        .caja-info h3 { font-size: 18px; font-weight: 700; color: var(--tx, #1a1a2e); margin-bottom: 4px; }
+        .caja-info p { font-size: 13px; color: var(--tx-5, #888); }
         .caja-acciones { display: flex; gap: 12px; }
         .estado-pill { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; }
-        .estado-abierta { background: #dcfce7; color: #16a34a; }
-        .estado-cerrada { background: #fee2e2; color: #dc2626; }
+        .estado-abierta { background: var(--ok-sf, #dcfce7); color: var(--ok-tx-2, #16a34a); }
+        .estado-cerrada { background: var(--pel-sf, #fee2e2); color: var(--pel-tx-2, #dc2626); }
         .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .stat-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-        .stat-value { font-size: 28px; font-weight: 700; color: #1a1a2e; }
-        .stat-value.green { color: #16a34a; }
+        .stat-card { background: var(--sup, white); border-radius: 12px; padding: 20px 24px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); }
+        .stat-label { font-size: 12px; color: var(--tx-5, #888); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--tx, #1a1a2e); }
+        .stat-value.green { color: var(--ok-tx-2, #16a34a); }
         .historial-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .historial-header h3 { font-size: 16px; font-weight: 700; color: #1a1a2e; }
-        .filtros { background: white; border-radius: 12px; padding: 16px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .filtros input { padding: 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
-        .filtros input:focus { border-color: #4f46e5; }
-        .filtros label { font-size: 13px; color: #666; }
-        .tabla-wrapper { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+        .historial-header h3 { font-size: 16px; font-weight: 700; color: var(--tx, #1a1a2e); }
+        .filtros { background: var(--sup, white); border-radius: 12px; padding: 16px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); }
+        .filtros input { padding: 8px 12px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 8px; font-size: 14px; outline: none; }
+        .filtros input:focus { border-color: var(--ac, #4f46e5); }
+        .filtros label { font-size: 13px; color: var(--tx-7, #666); }
+        .tabla-wrapper { background: var(--sup, white); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); overflow: hidden; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-        td { padding: 14px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; }
-        tr:hover td { background: #fafafa; }
-        .empty { text-align: center; padding: 48px; color: #888; }
+        th { background: var(--sup-2, #f8f9fa); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: var(--tx-7, #666); text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 14px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: #333; }
+        tr:hover td { background: var(--sup-2, #fafafa); }
+        .empty { text-align: center; padding: 48px; color: var(--tx-5, #888); }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; }
         .modal-overlay.active { display: flex; }
         /* El modal del ticket se abre DESDE el de productos: va un nivel arriba
@@ -56,14 +56,14 @@
         #modal-ticket { z-index: 300; }
         /* El buscador de clientes se abre desde el modal de Revisión: va por encima. */
         #modal-cliente-buscar { z-index: 300; }
-        .modal { background: white; border-radius: 16px; padding: 32px; width: 100%; max-width: 660px; max-height: 85vh; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
+        .modal { background: var(--sup, white); border-radius: 16px; padding: 32px; width: 100%; max-width: 660px; max-height: 85vh; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
         .modal-overlay { padding: 16px; box-sizing: border-box; }
         .modal .tabla-wrapper { border-radius: 8px; overflow: hidden; }
-        .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
-        .modal-sub { color: #888; font-size: 13px; margin-bottom: 24px; }
+        .modal h3 { font-size: 18px; font-weight: 700; color: var(--tx, #1a1a2e); margin-bottom: 8px; }
+        .modal-sub { color: var(--tx-5, #888); font-size: 13px; margin-bottom: 24px; }
         .modal-footer { display: flex; justify-content: flex-end; margin-top: 24px; }
         .btn-libreta { background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; transition: background 0.15s; }
-        .btn-libreta:hover { background: #f1f5f9; }
+        .btn-libreta:hover { background: var(--sup-3, #f1f5f9); }
         /* Modal de detalle (caja abierta / cierre): ancho para las columnas nuevas,
            scroll SOLO en la tabla y footer fijo (el botón Cerrar no scrollea). */
         #modal-detalle .modal {
@@ -74,34 +74,34 @@
         #modal-detalle .modal-footer { flex-shrink: 0; margin-top: 16px; }
         #modal-detalle th, #modal-detalle td { white-space: nowrap; padding: 10px 12px; }
         #modal-detalle td { font-size: 13px; }
-        .det-sub { font-size: 11px; color: #9ca3af; }
+        .det-sub { font-size: 11px; color: var(--tx-4, #9ca3af); }
         /* ── Pago modal ── */
-        .pago-metodo-btn { flex:1; padding:14px; border:2px solid #e0e0e0; border-radius:10px;
-                           background:white; cursor:pointer; font-size:14px; font-weight:700;
+        .pago-metodo-btn { flex:1; padding:14px; border: 2px solid var(--bd-2, #e0e0e0); border-radius:10px;
+                           background: var(--sup, white); cursor:pointer; font-size:14px; font-weight:700;
                            transition:all .15s; }
-        .pago-metodo-btn.active { border-color:#4f46e5; background:#f5f3ff; color:#4f46e5; }
-        .pago-linea { display:flex; justify-content:space-between; font-size:14px; color:#555; padding:5px 0; }
-        .pago-linea.total { font-size:17px; font-weight:800; color:#1a1a2e; border-top:2px solid #e2e8f0; margin-top:6px; padding-top:10px; }
+        .pago-metodo-btn.active { border-color: var(--ac, #4f46e5); background: var(--ac-sf, #f5f3ff); color: var(--tx-ac, #4f46e5); }
+        .pago-linea { display:flex; justify-content:space-between; font-size:14px; color: var(--tx-11, #555); padding:5px 0; }
+        .pago-linea.total { font-size:17px; font-weight:800; color: var(--tx, #1a1a2e); border-top: 2px solid var(--bd-5, #e2e8f0); margin-top:6px; padding-top:10px; }
         /* Grilla de ítems editables del Refund (reutilizada del viejo editor de revisión) */
-        .rev-item-row { display: grid; grid-template-columns: 2fr 80px 110px 80px 40px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+        .rev-item-row { display: grid; grid-template-columns: 2fr 80px 110px 80px 40px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--bd-4, #f0f0f0); }
         .rev-item-row:last-child { border-bottom: none; }
-        .rev-input { width: 100%; padding: 5px 8px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px; outline: none; text-align: right; }
-        .rev-input:focus { border-color: #4f46e5; }
-        .rev-del-btn { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 16px; padding: 4px; border-radius: 4px; }
-        .rev-del-btn:hover { background: #fee2e2; }
-        .rev-header-grid { display: grid; grid-template-columns: 2fr 80px 110px 80px 40px; gap: 8px; padding: 8px 0; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid #e2e8f0; margin-bottom: 4px; }
+        .rev-input { width: 100%; padding: 5px 8px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 6px; font-size: 13px; outline: none; text-align: right; }
+        .rev-input:focus { border-color: var(--ac, #4f46e5); }
+        .rev-del-btn { background: none; border: none; cursor: pointer; color: var(--pel-tx-2, #dc2626); font-size: 16px; padding: 4px; border-radius: 4px; }
+        .rev-del-btn:hover { background: var(--pel-sf, #fee2e2); }
+        .rev-header-grid { display: grid; grid-template-columns: 2fr 80px 110px 80px 40px; gap: 8px; padding: 8px 0; font-size: 11px; font-weight: 700; color: var(--tx-7, #666); text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid var(--bd-5, #e2e8f0); margin-bottom: 4px; }
         /* ── Barra de filtros de Revisión (label sobre el campo, una línea) ── */
-        .rev-filtros { display: flex; flex-wrap: wrap; gap: 14px 16px; align-items: flex-end; margin: 0 0 16px; padding: 16px 18px; background: #fafbfc; border: 1px solid #e2e8f0; border-radius: 12px; }
+        .rev-filtros { display: flex; flex-wrap: wrap; gap: 14px 16px; align-items: flex-end; margin: 0 0 16px; padding: 16px 18px; background: var(--sup-2, #fafbfc); border: 1px solid var(--bd-5, #e2e8f0); border-radius: 12px; }
         .rev-fgrupo { display: flex; flex-direction: column; gap: 5px; }
-        .rev-fgrupo > label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .4px; }
-        .rev-fgrupo input { padding: 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; background: #fff; }
-        .rev-fgrupo input:focus { border-color: #4f46e5; }
+        .rev-fgrupo > label { font-size: 11px; font-weight: 700; color: var(--tx-9, #64748b); text-transform: uppercase; letter-spacing: .4px; }
+        .rev-fgrupo input { padding: 8px 12px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 8px; font-size: 14px; outline: none; background: var(--sup, #fff); }
+        .rev-fgrupo input:focus { border-color: var(--ac, #4f46e5); }
         .rev-fcombo { display: flex; gap: 6px; align-items: center; }
         .rev-fcombo .btn-sm { padding: 8px 10px; }
-        .rev-cliente-chip { font-size: 12px; color: #4f46e5; font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rev-cliente-chip { font-size: 12px; color: var(--tx-ac, #4f46e5); font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         /* Resultados de la búsqueda de clientes */
-        .rev-cli-row { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: all .15s; }
-        .rev-cli-row:hover { border-color: #4f46e5; background: #f5f3ff; }
+        .rev-cli-row { border: 1px solid var(--bd-5, #e2e8f0); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: all .15s; }
+        .rev-cli-row:hover { border-color: var(--ac, #4f46e5); background: var(--ac-sf, #f5f3ff); }
     </style>
 </head>
 <body>
@@ -202,7 +202,7 @@
 <div class="modal-overlay" id="modal-ticket">
     <div class="modal" style="max-width:460px;">
         <h3 id="ticket-titulo">Ticket</h3>
-        <iframe id="ticket-frame" style="width:100%;height:min(60vh,520px);border:1px solid #e5e7eb;border-radius:8px;background:#fff;margin-top:12px;"></iframe>
+        <iframe id="ticket-frame" style="width:100%;height:min(60vh,520px);border: 1px solid var(--bd, #e5e7eb);border-radius:8px;background:#fff;margin-top:12px;"></iframe>
         <div class="modal-footer">
             <button class="btn btn-primary" onclick="imprimirTicketCaja()">🖨 Reimprimir</button>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-ticket')">Cerrar</button>
@@ -240,7 +240,7 @@
     <div class="modal" style="max-width:780px;padding:0;overflow:hidden;">
         <div style="background:#1a1a2e;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;">
             <div style="color:white;font-size:17px;font-weight:700;">🔍 Revisión — cuentas cobradas</div>
-            <button onclick="cerrarModal('modal-revision')" style="background:transparent;border:1px solid #4f46e5;color:#a5b4fc;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">Cerrar</button>
+            <button onclick="cerrarModal('modal-revision')" style="background:transparent;border: 1px solid var(--ac, #4f46e5);color: var(--nav-tx, #a5b4fc);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">Cerrar</button>
         </div>
         <div style="padding:20px 28px 0;">
             <div class="rev-filtros">
@@ -301,26 +301,26 @@
         </div>
         <datalist id="refund-productos-list"></datalist>
         <div id="refund-items-lista"></div>
-        <button onclick="revRefundAgregarItem()" style="margin-top:12px;background:#f0f9ff;color:#0369a1;border:1.5px dashed #7dd3fc;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">+ Agregar producto manual</button>
+        <button onclick="revRefundAgregarItem()" style="margin-top:12px;background: var(--ac-sf, #f0f9ff);color:#0369a1;border:1.5px dashed #7dd3fc;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">+ Agregar producto manual</button>
 
-        <div style="margin-top:20px;text-align:right;font-size:20px;font-weight:800;color:#dc2626;">
+        <div style="margin-top:20px;text-align:right;font-size:20px;font-weight:800;color: var(--pel-tx-2, #dc2626);">
             Total a devolver: <span id="refund-total">—</span>
         </div>
 
         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
             <div>
                 <input type="text" id="refund-motivo" placeholder="Motivo del refund (obligatorio)"
-                    style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;"
+                    style="width:100%;padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;"
                     oninput="revRefundValidar()">
-                <div id="refund-motivo-error" style="color:#dc2626;font-size:12px;margin-top:4px;display:none;">El motivo es obligatorio</div>
+                <div id="refund-motivo-error" style="color: var(--pel-tx-2, #dc2626);font-size:12px;margin-top:4px;display:none;">El motivo es obligatorio</div>
             </div>
             <div style="display:flex;gap:10px;">
-                <select id="refund-metodo" style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;">
+                <select id="refund-metodo" style="flex:1;padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:13px;">
                     <option value="efectivo">💵 Efectivo</option>
                     <option value="tarjeta">💳 Tarjeta</option>
                 </select>
                 <input type="number" id="refund-entregado" placeholder="Monto entregado (opcional)" min="0" step="0.01"
-                    style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;">
+                    style="flex:1;padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:13px;">
             </div>
         </div>
 
@@ -338,31 +338,31 @@
         <p class="modal-sub">Filtrá la revisión por un cliente. Buscá por nombre, correo o teléfono.</p>
 
         <div style="display:flex;gap:8px;align-items:center;">
-            <select id="rev-cli-modo" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;">
+            <select id="rev-cli-modo" style="padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:13px;">
                 <option value="nombre">Nombre</option>
                 <option value="email">Correo</option>
                 <option value="telefono">Teléfono</option>
             </select>
             <input type="text" id="rev-cli-q" placeholder="Buscar…"
-                style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;"
+                style="flex:1;padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:13px;outline:none;"
                 onkeydown="if(event.key==='Enter'){event.preventDefault();revBuscarClientes();}">
             <button class="btn btn-primary btn-sm" onclick="revBuscarClientes()">Buscar</button>
         </div>
 
         <div id="rev-cli-resultados" style="margin-top:16px;max-height:34vh;overflow-y:auto;"></div>
 
-        <div style="margin-top:8px;border-top:1px solid #eef0f4;padding-top:16px;">
+        <div style="margin-top:8px;border-top: 1px solid var(--bd-4, #eef0f4);padding-top:16px;">
             <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:10px;">➕ Crear perfil</div>
             <div style="display:flex;flex-direction:column;gap:8px;">
                 <input type="text" id="rev-cli-nuevo-nombre" placeholder="Nombre (opcional)"
-                    style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">
+                    style="padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:13px;outline:none;">
                 <div style="display:flex;gap:8px;">
                     <input type="text" id="rev-cli-nuevo-tel" placeholder="Teléfono"
-                        style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">
+                        style="flex:1;padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:13px;outline:none;">
                     <input type="email" id="rev-cli-nuevo-email" placeholder="Correo"
-                        style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">
+                        style="flex:1;padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:13px;outline:none;">
                 </div>
-                <div style="font-size:11px;color:#94a3b8;">Se exige al menos un teléfono o un correo.</div>
+                <div style="font-size:11px;color: var(--tx-8, #94a3b8);">Se exige al menos un teléfono o un correo.</div>
                 <button class="btn btn-success btn-sm" style="align-self:flex-start;" onclick="revCrearCliente()">Crear y seleccionar</button>
             </div>
         </div>
@@ -421,7 +421,7 @@ function revAbrirClienteModal() {
     document.getElementById("rev-cli-nuevo-email").value = "";
     revClientesResultados = [];
     document.getElementById("rev-cli-resultados").innerHTML =
-        `<p style="color:#888;text-align:center;padding:20px;">Buscá por nombre, correo o teléfono.</p>`;
+        `<p style="color: var(--tx-5, #888);text-align:center;padding:20px;">Buscá por nombre, correo o teléfono.</p>`;
     document.getElementById("modal-cliente-buscar").classList.add("active");
     setTimeout(() => { try { document.getElementById("rev-cli-q").focus(); } catch(e) {} }, 50);
 }
@@ -430,18 +430,18 @@ async function revBuscarClientes() {
     const modo = document.getElementById("rev-cli-modo").value;   // nombre | email | telefono
     const q    = document.getElementById("rev-cli-q").value.trim();
     const cont = document.getElementById("rev-cli-resultados");
-    if (!q) { cont.innerHTML = `<p style="color:#888;text-align:center;padding:20px;">Escribí algo para buscar.</p>`; return; }
-    cont.innerHTML = `<p style="color:#888;text-align:center;padding:20px;">Buscando…</p>`;
+    if (!q) { cont.innerHTML = `<p style="color: var(--tx-5, #888);text-align:center;padding:20px;">Escribí algo para buscar.</p>`; return; }
+    cont.innerHTML = `<p style="color: var(--tx-5, #888);text-align:center;padding:20px;">Buscando…</p>`;
     try {
         const res = await api.get(`/clientes/?${modo}=${encodeURIComponent(q)}`);
         revClientesResultados = res || [];
         if (!revClientesResultados.length) {
-            cont.innerHTML = `<p style="color:#888;text-align:center;padding:20px;">Sin resultados. Podés crear un perfil abajo.</p>`;
+            cont.innerHTML = `<p style="color: var(--tx-5, #888);text-align:center;padding:20px;">Sin resultados. Podés crear un perfil abajo.</p>`;
             return;
         }
         cont.innerHTML = revClientesResultados.map(revClienteFila).join("");
     } catch(e) {
-        cont.innerHTML = `<p style="color:#b91c1c;text-align:center;padding:16px;">No se pudo buscar: ${esc(e.message || "error de conexión")}.</p>`;
+        cont.innerHTML = `<p style="color: var(--pel-tx, #b91c1c);text-align:center;padding:16px;">No se pudo buscar: ${esc(e.message || "error de conexión")}.</p>`;
     }
 }
 
@@ -453,9 +453,9 @@ function revClienteFila(c) {
     return `<div class="rev-cli-row" onclick="revElegirCliente(${c.id})">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
             <span style="font-weight:700;color:#1a1a2e;">${esc(c.nombre || 'Sin nombre')}</span>
-            ${visitas ? `<span style="font-size:12px;color:#64748b;">${visitas}</span>` : ''}
+            ${visitas ? `<span style="font-size:12px;color: var(--tx-9, #64748b);">${visitas}</span>` : ''}
         </div>
-        ${contactos ? `<div style="font-size:12px;color:#888;margin-top:3px;">${esc(contactos)}</div>` : ''}
+        ${contactos ? `<div style="font-size:12px;color: var(--tx-5, #888);margin-top:3px;">${esc(contactos)}</div>` : ''}
     </div>`;
 }
 
@@ -496,7 +496,7 @@ async function revCrearCliente() {
 
 async function revCargar() {
     const cont = document.getElementById("rev-lista-cuentas");
-    cont.innerHTML = `<p style="color:#888;text-align:center;padding:32px;">Cargando…</p>`;
+    cont.innerHTML = `<p style="color: var(--tx-5, #888);text-align:center;padding:32px;">Cargando…</p>`;
     const pedido = document.getElementById("rev-f-pedido").value.trim();
     let url = "/caja/revision/cerradas?";
     if (pedido) {
@@ -517,12 +517,12 @@ async function revCargar() {
     try {
         const cuentas = await api.get(url);
         if (!cuentas.length) {
-            cont.innerHTML = `<p style="color:#888;text-align:center;padding:32px;">Sin cuentas.</p>`;
+            cont.innerHTML = `<p style="color: var(--tx-5, #888);text-align:center;padding:32px;">Sin cuentas.</p>`;
             return;
         }
         cont.innerHTML = cuentas.map(revFilaCuenta).join("");
     } catch(e) {
-        cont.innerHTML = `<p style="color:#b91c1c;text-align:center;padding:24px;">
+        cont.innerHTML = `<p style="color: var(--pel-tx, #b91c1c);text-align:center;padding:24px;">
             No se pudo cargar la lista: ${esc(e.message || "error de conexión")}.
             <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="revCargar()">Reintentar</button>
         </p>`;
@@ -534,17 +534,17 @@ function revFilaCuenta(c) {
     const mesaLabel  = esTakeAway ? `🥡 Take Away` : `Mesa ${c.mesa_numero}`;
     const mesaArg    = c.mesa_numero ?? 'null';
     const personas   = c.comensales != null ? `${c.comensales} persona${c.comensales != 1 ? 's' : ''} · ` : '';
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:white;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;">
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:white;border: 1px solid var(--bd-5, #e2e8f0);border-radius:10px;margin-bottom:8px;">
         <div>
             <div style="font-weight:700;color:${esTakeAway ? '#7c3aed' : '#1a1a2e'};">
                 ${mesaLabel}
                 ${c.refund_ticket_id ? `<button class="btn-libreta" onclick="verRefundTicket(${c.refund_ticket_id})" title="Ver refund previo">📒</button>` : ''}
             </div>
-            <div style="font-size:12px;color:#888;">#${c.pedido_id} · ${personas}${fmtHora(c.cerrado_en)}</div>
-            ${c.cliente_nombre ? `<div style="font-size:12px;color:#4f46e5;font-weight:600;margin-top:2px;">👤 ${esc(c.cliente_nombre)}</div>` : ''}
+            <div style="font-size:12px;color: var(--tx-5, #888);">#${c.pedido_id} · ${personas}${fmtHora(c.cerrado_en)}</div>
+            ${c.cliente_nombre ? `<div style="font-size:12px;color: var(--tx-ac, #4f46e5);font-weight:600;margin-top:2px;">👤 ${esc(c.cliente_nombre)}</div>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-weight:700;color:#16a34a;margin-right:6px;">${simboloMoneda()} ${parseFloat(c.total).toFixed(2)}</span>
+            <span style="font-weight:700;color: var(--ok-tx-2, #16a34a);margin-right:6px;">${simboloMoneda()} ${parseFloat(c.total).toFixed(2)}</span>
             <button class="btn btn-secondary btn-sm" onclick="revReimprimir(${c.pedido_id}, ${mesaArg})">🖨 Reimprimir</button>
             <button class="btn btn-danger btn-sm" onclick="revRefound(${c.pedido_id}, ${mesaArg})">↩ Refound</button>
         </div>
@@ -557,23 +557,23 @@ async function verHistorialRev(cierreId) {
         document.getElementById("hrev-titulo").textContent = `Historial de revisiones — Cierre #${cierreId}`;
         const cont = document.getElementById("hrev-contenido");
         if (!data.length) {
-            cont.innerHTML = `<p style="color:#888;text-align:center;padding:24px;">Sin revisiones en este cierre.</p>`;
+            cont.innerHTML = `<p style="color: var(--tx-5, #888);text-align:center;padding:24px;">Sin revisiones en este cierre.</p>`;
         } else {
             cont.innerHTML = data.map(r => {
                 const tipos = { cobro_adicional: "⚠️ Cobro adicional", refund: "✅ Refund", sin_diferencia: "ℹ️ Sin diferencia" };
                 const diffColor = r.tipo === "cobro_adicional" ? "#92400e" : r.tipo === "refund" ? "#166534" : "#075985";
-                return `<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:10px;">
+                return `<div style="background:white;border: 1px solid var(--bd-5, #e2e8f0);border-radius:10px;padding:16px;margin-bottom:10px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div>
                             <span style="font-weight:700;color:#1a1a2e;">Mesa ${r.mesa_numero}</span>
-                            <span style="margin-left:10px;font-size:12px;color:#888;">${formatTs(r.creado_en)} · por ${r.creado_por}</span>
+                            <span style="margin-left:10px;font-size:12px;color: var(--tx-5, #888);">${formatTs(r.creado_en)} · por ${r.creado_por}</span>
                         </div>
                         <span style="font-weight:700;color:${diffColor};">${tipos[r.tipo] || r.tipo}</span>
                     </div>
-                    <div style="margin-top:8px;font-size:13px;color:#555;">
+                    <div style="margin-top:8px;font-size:13px;color: var(--tx-11, #555);">
                         ${simboloMoneda()} ${parseFloat(r.monto_original).toFixed(2)} → ${simboloMoneda()} ${parseFloat(r.monto_ajustado).toFixed(2)}
                         ${r.diferencia != 0 ? ` <strong>(${r.diferencia > 0 ? '+' : ''}${simboloMoneda()} ${parseFloat(r.diferencia).toFixed(2)})</strong>` : ''}
-                        ${r.motivo ? `<br><em style="color:#888;">"${r.motivo}"</em>` : ''}
+                        ${r.motivo ? `<br><em style="color: var(--tx-5, #888);">"${r.motivo}"</em>` : ''}
                     </div>
                 </div>`;
             }).join("");
@@ -668,7 +668,7 @@ function revRefundRender() {
                 oninput="revRefundItems[${idx}].descuento_pct=parseFloat(this.value)||0;revRefundActualizarTotal()">
             <button class="rev-del-btn" onclick="revRefundQuitarItem(${idx})" title="Quitar">✕</button>
         </div>
-    `).join("") || `<p style="color:#888;text-align:center;padding:16px;">Sin ítems — agregá uno manual.</p>`;
+    `).join("") || `<p style="color: var(--tx-5, #888);text-align:center;padding:16px;">Sin ítems — agregá uno manual.</p>`;
     revRefundActualizarTotal();
 }
 
@@ -779,14 +779,14 @@ async function revReimprimir(pedidoId, mesaNumero) {
             <span>${parseFloat(i.cantidad) || 1} × ${esc(i.nombre)}</span>
             <span>${simboloMoneda()} ${linea.toFixed(2)}</span>
         </div>`;
-    }).join("") || `<div style="text-align:center;color:#888;">Sin ítems</div>`;
+    }).join("") || `<div style="text-align:center;color: var(--tx-5, #888);">Sin ítems</div>`;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ticket</title>
         <style>
             body { font-family: 'Courier New', monospace; width: 280px; margin: 0 auto; padding: 12px; color: #111; }
             .copia { text-align:center; font-size:22px; font-weight:800; letter-spacing:2px; border:3px solid #111; padding:6px 0; margin-bottom:10px; }
             .neg { text-align:center; font-weight:700; font-size:14px; margin-bottom:4px; }
-            .sub { text-align:center; font-size:11px; color:#444; margin-bottom:10px; }
+            .sub { text-align:center; font-size:11px; color: var(--tx-10, #444); margin-bottom:10px; }
             hr { border:none; border-top:1px dashed #111; margin:8px 0; }
             .total { display:flex; justify-content:space-between; font-weight:800; font-size:16px; margin-top:8px; }
         </style></head><body>
@@ -822,13 +822,13 @@ async function verRefundTicket(ticketId) {
                 <td style="text-align:center;">${i.cantidad || 1}</td>
                 <td style="text-align:right;">${simboloMoneda()} ${parseFloat(i.precio_unit || 0).toFixed(2)}</td>
                 <td style="text-align:center;">—</td>
-                <td style="text-align:right;font-weight:600;color:#dc2626;">-${simboloMoneda()} ${linea.toFixed(2)}</td>
+                <td style="text-align:right;font-weight:600;color: var(--pel-tx-2, #dc2626);">-${simboloMoneda()} ${linea.toFixed(2)}</td>
             </tr>`;
         }).join("");
 
         const info = `
             <tr style="background:#fff1f2;border-top:2px solid #fca5a5;">
-                <td colspan="5" style="padding:10px 16px;font-size:13px;color:#666;">
+                <td colspan="5" style="padding:10px 16px;font-size:13px;color: var(--tx-7, #666);">
                     ${t.pedido_id_ref ? `📋 Pedido de referencia: #${t.pedido_id_ref}` : '📋 Sin pedido de referencia'}
                     ${t.motivo ? `&nbsp;&nbsp;·&nbsp;&nbsp; 📝 ${t.motivo}` : ''}
                     &nbsp;&nbsp;·&nbsp;&nbsp; 💳 ${t.metodo_pago || '—'}
@@ -837,8 +837,8 @@ async function verRefundTicket(ticketId) {
                 </td>
             </tr>
             <tr style="background:#fff1f2;">
-                <td colspan="4" style="text-align:right;font-weight:700;color:#dc2626;">TOTAL REFUND</td>
-                <td style="text-align:right;font-weight:700;font-size:15px;color:#dc2626;">-${simboloMoneda()} ${parseFloat(t.total).toFixed(2)}</td>
+                <td colspan="4" style="text-align:right;font-weight:700;color: var(--pel-tx-2, #dc2626);">TOTAL REFUND</td>
+                <td style="text-align:right;font-weight:700;font-size:15px;color: var(--pel-tx-2, #dc2626);">-${simboloMoneda()} ${parseFloat(t.total).toFixed(2)}</td>
             </tr>`;
 
         tbody.innerHTML = filas + info;
@@ -973,8 +973,8 @@ async function cargarCierres() {
             </tr>`;
         }).join("");
         const totalRow = cierres.length ? `
-            <tr style="background:#f8f9fa">
-                <td colspan="5" style="text-align:right;font-weight:700;color:#666;">TOTAL PERÍODO</td>
+            <tr style="background: var(--sup-2, #f8f9fa)">
+                <td colspan="5" style="text-align:right;font-weight:700;color: var(--tx-7, #666);">TOTAL PERÍODO</td>
                 <td style="font-weight:700;font-size:16px;">${simboloMoneda()} ${totalGeneral.toFixed(2)}</td>
                 <td></td>
             </tr>` : "";
@@ -984,7 +984,7 @@ async function cargarCierres() {
         // SIEMPRE y el encargado creia que seguia cargando. Ahora la tabla dice que fallo.
         console.error("Error cierres:", e);
         const tb = document.getElementById("tabla-body");
-        if (tb) tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color:#b91c1c;">
+        if (tb) tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color: var(--pel-tx, #b91c1c);">
             No se pudieron cargar los cierres: ${esc(e.message || "error de conexión")}.
             <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="cargarCierres()">Reintentar</button>
         </td></tr>`;
@@ -992,8 +992,8 @@ async function cargarCierres() {
 }
 
 function filaCajaAbierta(ab) {
-    return `<tr style="background:#f0fdf4;">
-        <td>#${ab.id} <span style="background:#16a34a;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-left:4px;">ABIERTA</span></td>
+    return `<tr style="background: var(--ok-sf-2, #f0fdf4);">
+        <td>#${ab.id} <span style="background: var(--ok, #16a34a);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-left:4px;">ABIERTA</span></td>
         <td>${ab.abierto_por || '—'}</td>
         <td>${formatTs(ab.ts_apertura)}</td>
         <td>—</td>
@@ -1019,26 +1019,26 @@ function fmtDuracion(desde, hasta) {
 function filaDetalleCaja(d) {
     const s = simboloMoneda();
     const totalVal = parseFloat(d.total);
-    const totalStr = `<span style="color:${totalVal < 0 ? '#dc2626' : 'inherit'};font-weight:700;">${s} ${totalVal.toFixed(2)}</span>`;
+    const totalStr = `<span style="color: ${totalVal < 0 ? 'var(--pel-tx-2, #dc2626)' : 'inherit'};font-weight:700;">${s} ${totalVal.toFixed(2)}</span>`;
     const esRefund = d.tipo_pedido === 'refund' || !d.pedido_id;
     if (esRefund) {
         const refId = d.refund_numero
-            ? `<span style="color:#dc2626;font-weight:700;">R-${String(d.refund_numero).padStart(4, '0')}</span>`
-            : `<span style="color:#9ca3af;">—</span>`;
+            ? `<span style="color: var(--pel-tx-2, #dc2626);font-weight:700;">R-${String(d.refund_numero).padStart(4, '0')}</span>`
+            : `<span style="color: var(--tx-4, #9ca3af);">—</span>`;
         const refHint = d.pedido_ref
-            ? ` <span style="color:#9ca3af;font-size:11px;font-weight:400;">Ref #${d.pedido_ref}</span>`
+            ? ` <span style="color: var(--tx-4, #9ca3af);font-size:11px;font-weight:400;">Ref #${d.pedido_ref}</span>`
             : '';
         return `<tr style="background:#fff1f2;">
             <td style="font-size:12px;">${refId}</td>
-            <td>${d.mesa_numero ? `Mesa ${d.mesa_numero}` : '<span style="color:#9ca3af;">—</span>'}</td>
-            <td style="color:#dc2626;font-weight:600;">↩ Refound${refHint}</td>
-            <td style="text-align:right;color:#9ca3af;">—</td>
-            <td style="text-align:right;color:#9ca3af;">—</td>
-            <td style="text-align:right;color:#9ca3af;">—</td>
+            <td>${d.mesa_numero ? `Mesa ${d.mesa_numero}` : '<span style="color: var(--tx-4, #9ca3af);">—</span>'}</td>
+            <td style="color: var(--pel-tx-2, #dc2626);font-weight:600;">↩ Refound${refHint}</td>
+            <td style="text-align:right;color: var(--tx-4, #9ca3af);">—</td>
+            <td style="text-align:right;color: var(--tx-4, #9ca3af);">—</td>
+            <td style="text-align:right;color: var(--tx-4, #9ca3af);">—</td>
             <td style="text-align:right;">${totalStr}</td>
-            <td style="color:#9ca3af;">—</td>
+            <td style="color: var(--tx-4, #9ca3af);">—</td>
             <td>${fmtHora(d.ts_cobro)}</td>
-            <td style="color:#9ca3af;">—</td>
+            <td style="color: var(--tx-4, #9ca3af);">—</td>
             <td>${d.refund_ticket_id
                 ? `<button class="btn-libreta" onclick="verRefundTicket(${d.refund_ticket_id})" title="Ver detalle refund">📒</button><button class="btn-libreta" onclick="verTicketRefund(${d.refund_ticket_id})" title="Ver ticket">🧾</button>`
                 : ''}</td>
@@ -1047,10 +1047,10 @@ function filaDetalleCaja(d) {
     const esTakeAway = d.tipo_pedido === 'takeaway' || !d.mesa_numero;
     const mesaLabel  = d.mesa_numero ? `Mesa ${d.mesa_numero}` : '—';
     const quien = esTakeAway
-        ? `<span style="color:#7c3aed;font-weight:600;">🥡 Take Away</span>`
+        ? `<span style="color: var(--tx-ac-2, #7c3aed);font-weight:600;">🥡 Take Away</span>`
         : `${d.comensales} persona${d.comensales != 1 ? 's' : ''}`;
     const desc = (parseFloat(d.descuento) || 0) > 0.005
-        ? `<span style="color:#dc2626;">-${s} ${parseFloat(d.descuento).toFixed(2)}</span>`
+        ? `<span style="color: var(--pel-tx-2, #dc2626);">-${s} ${parseFloat(d.descuento).toFixed(2)}</span>`
         : `<span style="color:#c4c4cc;">—</span>`;
     const impPct = d.impuesto_pct != null ? parseFloat(d.impuesto_pct) : null;
     const imp = d.impuesto != null
@@ -1060,7 +1060,7 @@ function filaDetalleCaja(d) {
     // Cada CUENTA es una fila propia (una mesa dividida aporta varias cuentas, cada una
     // con su número): ya no hay desglose por pagador dentro de una fila.
     return `<tr>
-        <td style="color:#666;font-size:12px;">#${d.pedido_id}</td>
+        <td style="color: var(--tx-7, #666);font-size:12px;">#${d.pedido_id}</td>
         <td>${mesaLabel}</td>
         <td>${quien}</td>
         <td style="text-align:right;">${desc}</td>
@@ -1127,13 +1127,13 @@ async function verDetalle(id) {
 async function verTicketCaja(pedidoId) {
     document.getElementById("ticket-titulo").textContent = "Ticket — Cuenta #" + pedidoId;
     const frame = document.getElementById("ticket-frame");
-    frame.srcdoc = '<div style="font-family:sans-serif;color:#888;padding:20px;">Cargando…</div>';
+    frame.srcdoc = '<div style="font-family:sans-serif;color: var(--tx-5, #888);padding:20px;">Cargando…</div>';
     document.getElementById("modal-ticket").classList.add("active");
     try {
         const r = await api.get(`/pedidos/${pedidoId}/ticket?fiscal=true`);
         frame.srcdoc = r.html || '<div style="padding:20px;">Sin ticket.</div>';
     } catch(e) {
-        frame.srcdoc = '<div style="font-family:sans-serif;color:#dc2626;padding:20px;">No se pudo cargar el ticket: ' + (e.message || e) + '</div>';
+        frame.srcdoc = '<div style="font-family:sans-serif;color: var(--pel-tx-2, #dc2626);padding:20px;">No se pudo cargar el ticket: ' + (e.message || e) + '</div>';
     }
 }
 function imprimirTicketCaja() {
@@ -1146,13 +1146,13 @@ function imprimirTicketCaja() {
 async function verTicketRefund(id) {
     document.getElementById("ticket-titulo").textContent = "Ticket — Refund";
     const frame = document.getElementById("ticket-frame");
-    frame.srcdoc = '<div style="font-family:sans-serif;color:#888;padding:20px;">Cargando…</div>';
+    frame.srcdoc = '<div style="font-family:sans-serif;color: var(--tx-5, #888);padding:20px;">Cargando…</div>';
     document.getElementById("modal-ticket").classList.add("active");
     try {
         const r = await api.get(`/caja/refund/${id}/ticket`);
         frame.srcdoc = r.html || '<div style="padding:20px;">Sin ticket.</div>';
     } catch(e) {
-        frame.srcdoc = '<div style="font-family:sans-serif;color:#dc2626;padding:20px;">No se pudo cargar el ticket: ' + (e.message || e) + '</div>';
+        frame.srcdoc = '<div style="font-family:sans-serif;color: var(--pel-tx-2, #dc2626);padding:20px;">No se pudo cargar el ticket: ' + (e.message || e) + '</div>';
     }
 }
 
@@ -1187,11 +1187,11 @@ async function verItems(pedidoId, mesaNumero) {
                 if (typeof p === 'string') { try { p = JSON.parse(p); } catch { return ''; } }
                 const ex = p.extras || [];
                 if (!ex.length) return '';   // en la cuenta se detallan los extras vendidos (no los quitados)
-                let out = '<br><small style="color:#16a34a;font-weight:600;">+ extras</small>';
+                let out = '<br><small style="color: var(--ok-tx-2, #16a34a);font-weight:600;">+ extras</small>';
                 ex.forEach(e => {
                     const q  = (e.cantidad && e.cantidad > 1) ? ' ×' + e.cantidad : '';
                     const pr = (parseFloat(e.precio) || 0) * (e.cantidad || 1);
-                    out += `<br><small style="color:#16a34a;">&nbsp;&nbsp;+ ${esc(e.nombre) || 'Extra'}${q} · ${simboloMoneda()} ${pr.toFixed(2)}</small>`;
+                    out += `<br><small style="color: var(--ok-tx-2, #16a34a);">&nbsp;&nbsp;+ ${esc(e.nombre) || 'Extra'}${q} · ${simboloMoneda()} ${pr.toFixed(2)}</small>`;
                 });
                 return out;
             };
@@ -1202,26 +1202,26 @@ async function verItems(pedidoId, mesaNumero) {
                 const parcialBadge = i._cant_el > 0
                     ? `<br><small style="color:#b45309;">(${i._cant_el} elim.)</small>` : '';
                 return `<tr>
-                    <td>${esc(i.nombre)}${i.notas ? `<br><small style="color:#888">📝 ${esc(i.notas)}</small>` : ''}${parcialBadge}${persCaja(i)}</td>
+                    <td>${esc(i.nombre)}${i.notas ? `<br><small style="color: var(--tx-5, #888)">📝 ${esc(i.notas)}</small>` : ''}${parcialBadge}${persCaja(i)}</td>
                     <td style="text-align:center;">${i._cant_ef}</td>
                     <td style="text-align:right;">${simboloMoneda()} ${parseFloat(i.precio_unit).toFixed(2)}</td>
-                    <td style="text-align:center;color:#16a34a;">${descuento > 0 ? descuento.toFixed(1) + '%' : '—'}</td>
+                    <td style="text-align:center;color: var(--ok-tx-2, #16a34a);">${descuento > 0 ? descuento.toFixed(1) + '%' : '—'}</td>
                     <td style="text-align:right;font-weight:600;">${simboloMoneda()} ${linea.toFixed(2)}</td>
                 </tr>`;
             }).join("");
 
             const filasEliminados = eliminados.length > 0
-                ? `<tr style="background:#f9fafb;">
-                    <td colspan="5" style="padding:8px 16px;font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;">
+                ? `<tr style="background: var(--sup-2, #f9fafb);">
+                    <td colspan="5" style="padding:8px 16px;font-size:12px;font-weight:700;color: var(--tx-4, #9ca3af);text-transform:uppercase;letter-spacing:.5px;">
                         Productos eliminados (no cobrados)
                     </td>
                    </tr>` +
                   eliminados.map(i => `<tr style="opacity:.6;">
-                    <td style="text-decoration:line-through;color:#9ca3af;">${esc(i.nombre)}</td>
-                    <td style="text-align:center;color:#9ca3af;">${i.cantidad}</td>
-                    <td style="text-align:right;color:#9ca3af;">${simboloMoneda()} ${parseFloat(i.precio_unit).toFixed(2)}</td>
-                    <td style="text-align:center;color:#9ca3af;">—</td>
-                    <td style="text-align:right;color:#9ca3af;">—</td>
+                    <td style="text-decoration:line-through;color: var(--tx-4, #9ca3af);">${esc(i.nombre)}</td>
+                    <td style="text-align:center;color: var(--tx-4, #9ca3af);">${i.cantidad}</td>
+                    <td style="text-align:right;color: var(--tx-4, #9ca3af);">${simboloMoneda()} ${parseFloat(i.precio_unit).toFixed(2)}</td>
+                    <td style="text-align:center;color: var(--tx-4, #9ca3af);">—</td>
+                    <td style="text-align:right;color: var(--tx-4, #9ca3af);">—</td>
                   </tr>`).join("")
                 : "";
 
@@ -1232,19 +1232,19 @@ async function verItems(pedidoId, mesaNumero) {
             const descUser = (items[0] || {}).descuento_usuario;
             const hayDesc  = dc > 0 || normales.some(i => (parseFloat(i.descuento_pct) || 0) > 0);
             const notaUser = (hayDesc && descUser) ? `
-                <tr><td colspan="5" style="text-align:right;font-size:12px;color:#888;padding:6px 16px;">Descuento aplicado por: <b>${descUser}</b></td></tr>` : '';
+                <tr><td colspan="5" style="text-align:right;font-size:12px;color: var(--tx-5, #888);padding:6px 16px;">Descuento aplicado por: <b>${descUser}</b></td></tr>` : '';
             const filasDesc = dc > 0 ? `
-                <tr style="background:#f8f9fa;">
-                    <td colspan="4" style="text-align:right;color:#666;">Cuenta total</td>
+                <tr style="background: var(--sup-2, #f8f9fa);">
+                    <td colspan="4" style="text-align:right;color: var(--tx-7, #666);">Cuenta total</td>
                     <td style="text-align:right;">${simboloMoneda()} ${subtotal.toFixed(2)}</td>
                 </tr>
-                <tr style="background:#f8f9fa;">
-                    <td colspan="4" style="text-align:right;color:#16a34a;">Descuento cuenta ${+dc.toFixed(1)}%</td>
-                    <td style="text-align:right;color:#16a34a;">− ${simboloMoneda()} ${dcMonto.toFixed(2)}</td>
+                <tr style="background: var(--sup-2, #f8f9fa);">
+                    <td colspan="4" style="text-align:right;color: var(--ok-tx-2, #16a34a);">Descuento cuenta ${+dc.toFixed(1)}%</td>
+                    <td style="text-align:right;color: var(--ok-tx-2, #16a34a);">− ${simboloMoneda()} ${dcMonto.toFixed(2)}</td>
                 </tr>` : '';
             tbody.innerHTML = filasNormales + filasEliminados + filasDesc + `
-                <tr style="background:#f8f9fa;border-top:2px solid #e2e8f0;">
-                    <td colspan="4" style="text-align:right;font-weight:700;color:#666;">SUBTOTAL COBRADO
+                <tr style="background: var(--sup-2, #f8f9fa);border-top: 2px solid var(--bd-5, #e2e8f0);">
+                    <td colspan="4" style="text-align:right;font-weight:700;color: var(--tx-7, #666);">SUBTOTAL COBRADO
                         <button onclick="verTicketCaja(${pedidoId})" title="Ver el ticket guardado / reimprimir"
                                 style="background:none;border:none;cursor:pointer;font-size:16px;vertical-align:middle;margin-left:6px;">🧾</button>
                     </td>

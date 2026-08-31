@@ -89,6 +89,19 @@ const SIN_SESION = new Set([
   "index.html", "terminos.html", "privacidad.html", "restablecer.html", "reserva.html",
 ]);
 
+// Distancia RGB entre dos valores computados, para la comparación con
+// tolerancia. Si alguno no es un color parseable, devuelve Infinity y se
+// reporta: no se puede afirmar que "no se movió" algo que no se sabe leer.
+function rgbDe(v) {
+  const m = String(v).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  return m ? [+m[1], +m[2], +m[3]] : null;
+}
+function distancia(a, b) {
+  const A = rgbDe(a), B = rgbDe(b);
+  if (!A || !B) return Infinity;
+  return Math.sqrt(A.reduce((s, v, i) => s + (v - B[i]) ** 2, 0));
+}
+
 function servidor() {
   const TIPOS = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
                   ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
@@ -111,6 +124,8 @@ async function main() {
   const guardar  = args.includes("--guardar");
   const comparar = args.includes("--comparar");
   const sinTema  = args.includes("--sin-tema");
+  const iTol = args.indexOf("--tolerancia");
+  const TOL = iTol >= 0 ? Number(args[iTol + 1]) : 0;
   // ⚠ --sin-tema NO cambia la etiqueta: se compara contra la MISMA línea base.
   // El sentido de esa pasada es comprobar que con los respaldos solos el
   // resultado sea idéntico al original. Con etiqueta propia buscaría una base
@@ -135,7 +150,7 @@ async function main() {
   if (guardar) fs.mkdirSync(dir, { recursive: true });
 
   const paginas = fs.readdirSync(RAIZ).filter(f => f.endsWith(".html")).sort();
-  let difieren = 0, revisadas = 0;
+  let difieren = 0, revisadas = 0, totalMovidos = 0, maxGlobal = 0;
 
   for (const pag of paginas) {
     // ⚠ Un contexto NUEVO por página. Con uno solo, el localStorage se comparte
@@ -230,23 +245,37 @@ async function main() {
         console.log("  ? " + pag + " SIN línea base — no se puede verificar");
         difieren++; await p.close(); await ctxNav.close(); continue;
       }
-      const previo = fs.readFileSync(archivo, "utf8");
-      if (previo !== json) {
-        difieren++;
-        const a = JSON.parse(previo), b = datos;
-        let n = 0;
-        console.log("\n  ✗ " + pag);
-        for (let k = 0; k < Math.max(a.length, b.length) && n < 6; k++) {
-          const x = a[k], y = b[k];
-          if (JSON.stringify(x) !== JSON.stringify(y)) {
-            console.log("      " + ((x && x.ruta) || (y && y.ruta)));
-            for (const pr of PROPS) {
-              if (x && y && x[pr] !== y[pr]) console.log(`        ${pr}: ${x[pr]}  →  ${y[pr]}`);
-            }
-            n++;
-          }
+      // ⚠ La pasada CON tema.css no puede dar diff cero mientras el generador
+      // consolide colores indistinguibles (#fafafa y #f8f9fa comparten token).
+      // Exigir cero ahí obligaría a un token por cada hex distinto: ~195.
+      // El criterio correcto para esa pasada es otro: que NINGÚN color se haya
+      // movido más que imperceptiblemente. Con --tolerancia N se acepta una
+      // distancia RGB < N y se sigue fallando ante cualquier salto mayor, que es
+      // lo que de verdad significaría que el codemod mandó un color a otro lado.
+      const a = JSON.parse(fs.readFileSync(archivo, "utf8")), b = datos;
+      const excesos = [];
+      let movidos = 0, maxDist = 0;
+      for (let k = 0; k < Math.max(a.length, b.length); k++) {
+        const x = a[k], y = b[k];
+        if (!x || !y) { excesos.push(["(la página cambió de estructura)", "", ""]); continue; }
+        for (const pr of PROPS) {
+          if (x[pr] === y[pr]) continue;
+          const d = distancia(x[pr], y[pr]);
+          if (d !== Infinity && d > maxDist) maxDist = d;
+          if (d > TOL) {
+            excesos.push([x.ruta, pr, x[pr] + " → " + y[pr] +
+                          (d === Infinity ? "" : "  (dist " + d.toFixed(1) + ")")]);
+          } else movidos++;
         }
-        if (n >= 6) console.log("      … y más");
+      }
+      if (excesos.length) {
+        difieren++;
+        console.log("\n  ✗ " + pag + "  (" + excesos.length + " fuera de tolerancia)");
+        excesos.slice(0, 5).forEach(e => console.log("      " + e[0] + "\n        " + e[1] + ": " + e[2]));
+        if (excesos.length > 5) console.log("      … y más");
+      } else if (movidos) {
+        totalMovidos += movidos;
+        if (maxDist > maxGlobal) maxGlobal = maxDist;
       }
     }
     await p.close();
@@ -259,7 +288,9 @@ async function main() {
   console.log("\n" + (guardar ? "LÍNEA BASE guardada" : "COMPARACIÓN") + `  [${etiqueta}]`);
   console.log("  páginas: " + revisadas);
   if (comparar) {
-    console.log("  difieren o sin base: " + difieren);
+    console.log("  páginas fuera de tolerancia: " + difieren);
+    if (TOL) console.log("  colores consolidados dentro de tolerancia: " + totalMovidos +
+                         "  (movimiento máximo " + maxGlobal.toFixed(1) + ", límite " + TOL + ")");
     console.log(difieren ? "\n  ⚠ DIFF NO ES CERO — el codemod cambió algo que no debía."
                          : "\n  ✓ diff cero");
   }

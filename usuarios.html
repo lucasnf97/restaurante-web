@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="css/tema.css?v=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
 
         /* Modo solo-vista: permiso ver_usuarios sin acceso_usuarios → sin edición */
         body.solo-vista [onclick*="abrirModalNuevo"],
@@ -26,17 +26,17 @@
         .navbar-links { display: flex; gap: 16px; align-items: center; }
         .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
         .btn-logout {
-            background: transparent; border: 1px solid #4f46e5; color: #a5b4fc;
+            background: transparent; border: 1px solid var(--ac, #4f46e5); color: var(--nav-tx, #a5b4fc);
             padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
         }
-        .btn-logout:hover { background: #4f46e5; color: white; }
+        .btn-logout:hover { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
 
         .content { margin-top: 60px; padding: 32px; }
 
         .page-header {
             display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
         }
-        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: var(--tx, #1a1a2e); }
 
         .btn {
             padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
@@ -44,23 +44,23 @@
         }
         .btn-primary { background: #4f46e5; color: white; }
         .btn-primary:hover { background: #4338ca; }
-        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; }
-        .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
-        .btn-warning { background: #f59e0b; color: white; }
+        .btn-secondary { background: var(--sup, white); color: var(--tx-10, #444); border: 1.5px solid var(--bd-2, #e0e0e0); }
+        .btn-secondary:hover { border-color: var(--ac, #4f46e5); color: var(--tx-ac, #4f46e5); }
+        .btn-warning { background: var(--av, #f59e0b); color: var(--tx-inv, white); }
         .btn-warning:hover { background: #d97706; }
         .btn-sm { padding: 6px 12px; font-size: 12px; }
 
         .tabla-wrapper {
-            background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden;
+            background: var(--sup, white); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); overflow: hidden;
         }
         table { width: 100%; border-collapse: collapse; }
         th {
-            background: #f8f9fa; padding: 12px 16px; text-align: left;
-            font-size: 12px; font-weight: 700; color: #666;
+            background: var(--sup-2, #f8f9fa); padding: 12px 16px; text-align: left;
+            font-size: 12px; font-weight: 700; color: var(--tx-7, #666);
             text-transform: uppercase; letter-spacing: 0.5px;
         }
-        td { padding: 14px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; }
-        tr:hover td { background: #fafafa; }
+        td { padding: 14px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: #333; }
+        tr:hover td { background: var(--sup-2, #fafafa); }
 
         .badge {
             padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
@@ -81,44 +81,44 @@
         }
         .modal-overlay.active { display: flex; }
         .modal {
-            background: white; border-radius: 16px; padding: 32px;
+            background: var(--sup, white); border-radius: 16px; padding: 32px;
             width: 100%; max-width: 440px;
             /* Fichas largas: el modal scrollea por dentro (nunca se corta contra el
                viewport) y el pie con Guardar/Cancelar queda FIJO abajo (sticky). */
             max-height: 92vh; overflow-y: auto;
         }
-        .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 24px; }
+        .modal h3 { font-size: 18px; font-weight: 700; color: var(--tx, #1a1a2e); margin-bottom: 24px; }
         .modal .modal-footer {
-            position: sticky; bottom: -32px; background: white; z-index: 2;
+            position: sticky; bottom: -32px; background: var(--sup, white); z-index: 2;
             margin: 24px -32px -32px; padding: 14px 32px 20px;
-            border-top: 1px solid #eef0f3;
+            border-top: 1px solid var(--bd-4, #eef0f3);
         }
 
         /* Subroles: chips de los habilitados + ventanita con toggles */
-        .subrol-chip { display: inline-flex; align-items: center; background: #eef2ff; color: #4338ca;
+        .subrol-chip { display: inline-flex; align-items: center; background: var(--ac-sf, #eef2ff); color: #4338ca;
                        border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; }
         .sub-row { display: flex; align-items: center; justify-content: space-between; gap: 10px;
-                   padding: 10px 4px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #1f2937; }
+                   padding: 10px 4px; border-bottom: 1px solid var(--bd-4, #f3f4f6); font-size: 14px; color: var(--tx-13, #1f2937); }
         .sub-row:last-child { border-bottom: none; }
         .sw { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
         .sw input { opacity: 0; width: 0; height: 0; }
         .sw .tr { position: absolute; inset: 0; background: #e5e7eb; border-radius: 24px; cursor: pointer; transition: background .15s; }
         .sw .tr::before { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%;
-                          background: white; top: 3px; left: 3px; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
-        .sw input:checked + .tr { background: #4f46e5; }
+                          background: var(--sup, white); top: 3px; left: 3px; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+        .sw input:checked + .tr { background: var(--ac, #4f46e5); }
         .sw input:checked + .tr::before { transform: translateX(18px); }
         .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--tx-10, #444); margin-bottom: 6px; }
         .form-group input, .form-group select {
-            width: 100%; padding: 10px 14px; border: 1.5px solid #e0e0e0;
+            width: 100%; padding: 10px 14px; border: 1.5px solid var(--bd-2, #e0e0e0);
             border-radius: 8px; font-size: 14px; outline: none;
         }
-        .form-group input:focus, .form-group select:focus { border-color: #4f46e5; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--ac, #4f46e5); }
         .modal-footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
 
-        .empty { text-align: center; padding: 48px; color: #888; }
+        .empty { text-align: center; padding: 48px; color: var(--tx-5, #888); }
 
-        .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+        .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid var(--pel-bd, #fecaca); }
         .btn-danger:hover { background: #fecaca; }
 
         /* Hard Reset: solo visible en modo edición */
@@ -127,11 +127,11 @@
 
         .hard-reset-box {
             margin-top: 16px; padding: 14px 16px;
-            background: #fff7ed; border: 1px solid #fed7aa;
+            background: var(--pel-sf-2, #fff7ed); border: 1px solid #fed7aa;
             border-radius: 10px;
         }
         .hard-reset-box p {
-            font-size: 12px; color: #92400e; margin-bottom: 10px; line-height: 1.5;
+            font-size: 12px; color: var(--av-tx, #92400e); margin-bottom: 10px; line-height: 1.5;
         }
         .hard-reset-title {
             font-size: 12px; font-weight: 700; color: #c2410c;
@@ -202,7 +202,7 @@
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
             <div class="form-group">
-                <label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto · único)</span></label>
+                <label>Usuario <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(login corto · único)</span></label>
                 <input type="text" id="fn-username" placeholder="Se propone solo; editable">
                 <div id="fn-username-estado"></div>
             </div>
@@ -211,7 +211,7 @@
                 <input type="password" id="fn-password" placeholder="Contraseña inicial">
             </div>
             <div class="form-group">
-                <label>Roles * <span style="color:#94a3b8;font-weight:400;">(puede tener varios)</span></label>
+                <label>Roles * <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(puede tener varios)</span></label>
                 <div style="display:flex;align-items:center;gap:8px;">
                     <div id="fn-roles-lista" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;min-height:26px;align-items:center;"></div>
                     <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="abrirRolesPopup('fn')">＋ Roles</button>
@@ -226,13 +226,13 @@
             </div>
         </div>
         <div class="form-group">
-            <label>Foto <span style="color:#94a3b8;font-weight:400;">(opcional · tipo carnet)</span></label>
+            <label>Foto <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(opcional · tipo carnet)</span></label>
             <div style="display:flex;align-items:center;gap:12px;">
-                <div id="fn-foto-prev" style="width:56px;height:56px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex-shrink:0;">📷</div>
+                <div id="fn-foto-prev" style="width:56px;height:56px;border-radius:50%;background: var(--ac-sf-2, #ede9fe);color: var(--tx-ac-2, #7c3aed);display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex-shrink:0;">📷</div>
                 <input type="file" id="fn-foto" accept="image/*" style="flex:1;">
             </div>
         </div>
-        <small style="color:#6b7280;font-size:11px;display:block;">Los roles y el estado valen para ESTE restaurante. Los permisos son la suma de lo que dan TODOS sus roles. El programa nombra a la persona por Nombre y Apellido; el usuario es solo la credencial de login.</small>
+        <small style="color: var(--tx-3, #6b7280);font-size:11px;display:block;">Los roles y el estado valen para ESTE restaurante. Los permisos son la suma de lo que dan TODOS sus roles. El programa nombra a la persona por Nombre y Apellido; el usuario es solo la credencial de login.</small>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo')">Cancelar</button>
             <button class="btn btn-primary" id="fn-crear-btn" onclick="crearUsuario()">Crear</button>
@@ -268,12 +268,12 @@
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
             <div class="form-group">
-                <label>Usuario <span style="color:#94a3b8;font-weight:400;">(login corto · único)</span></label>
+                <label>Usuario <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(login corto · único)</span></label>
                 <input type="text" id="fe-username" placeholder="Único en el sistema">
                 <div id="fe-username-estado"></div>
             </div>
             <div class="form-group">
-                <label>Iniciales <span style="color:#94a3b8;font-weight:400;">(máx 3)</span></label>
+                <label>Iniciales <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(máx 3)</span></label>
                 <input type="text" id="fe-iniciales" maxlength="3" placeholder="Ej: LUC"
                        style="text-transform:uppercase;">
             </div>
@@ -286,25 +286,25 @@
             </div>
         </div>
         <div class="form-group">
-            <label>Roles <span style="color:#94a3b8;font-weight:400;">(puestos del empleado — puede tener varios)</span></label>
+            <label>Roles <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(puestos del empleado — puede tener varios)</span></label>
             <div style="display:flex;align-items:center;gap:8px;">
                 <div id="fe-subroles-lista" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;min-height:26px;align-items:center;"></div>
                 <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="abrirRolesPopup('fe')">＋ Roles</button>
             </div>
-            <small style="color:#6b7280;font-size:11px;display:block;margin-top:4px;">
+            <small style="color: var(--tx-3, #6b7280);font-size:11px;display:block;margin-top:4px;">
                 Tiene los permisos, la documentación, las capacitaciones, el muro y las menciones de
                 TODOS sus roles (si un rol da acceso a algo, gana el Sí). La pantalla del ejecutable
                 la decide el turno agendado del día.</small>
         </div>
         <div class="form-group">
-            <label>Foto <span style="color:#94a3b8;font-weight:400;">(opcional · tipo carnet)</span></label>
+            <label>Foto <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(opcional · tipo carnet)</span></label>
             <div style="display:flex;align-items:center;gap:12px;">
-                <div id="fe-foto-prev" style="width:56px;height:56px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex-shrink:0;">📷</div>
+                <div id="fe-foto-prev" style="width:56px;height:56px;border-radius:50%;background: var(--ac-sf-2, #ede9fe);color: var(--tx-ac-2, #7c3aed);display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex-shrink:0;">📷</div>
                 <input type="file" id="fe-foto" accept="image/*" style="flex:1;">
                 <button type="button" class="btn btn-secondary btn-sm" id="fe-foto-quitar" onclick="marcarQuitarFoto()">Quitar</button>
             </div>
         </div>
-        <small style="color:#6b7280;font-size:11px;display:block;">Los datos personales editan la ficha única de la persona (aplican en todos sus restaurantes). El rol y el estado valen solo para ESTE restaurante.</small>
+        <small style="color: var(--tx-3, #6b7280);font-size:11px;display:block;">Los datos personales editan la ficha única de la persona (aplican en todos sus restaurantes). El rol y el estado valen solo para ESTE restaurante.</small>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-editar')">Cancelar</button>
             <button class="btn btn-primary" id="fe-guardar-btn" onclick="guardarEdicion()">Guardar</button>
@@ -316,7 +316,7 @@
 <div class="modal-overlay" id="modal-subroles" style="z-index:300;">
     <div class="modal" style="max-width:360px;">
         <h3 style="margin-bottom:6px;">Roles del empleado</h3>
-        <div style="font-size:12.5px;color:#6b7280;margin-bottom:12px;">
+        <div style="font-size:12.5px;color: var(--tx-3, #6b7280);margin-bottom:12px;">
             Prendé los puestos de <b id="ms-nombre"></b>. Puede tener varios.</div>
         <div id="ms-lista"></div>
         <div class="modal-footer">
@@ -329,7 +329,7 @@
 <div class="modal-overlay" id="modal-clave">
     <div class="modal">
         <h3>🔑 Cambiar contraseña — <span id="mc-username"></span></h3>
-        <p style="font-size:12.5px;color:#6b7280;margin:-6px 0 12px;">Como encargado podés fijar una
+        <p style="font-size:12.5px;color: var(--tx-3, #6b7280);margin:-6px 0 12px;">Como encargado podés fijar una
         contraseña nueva directamente (no hace falta la actual). Es la única forma de recuperar la
         cuenta de alguien que la olvidó y no tiene correo configurado.</p>
         <div class="form-group">
@@ -391,11 +391,11 @@
         tbody.innerHTML = usuarios.map(u => `
             <tr>
                 <td><strong>${esc(u.nombre_display || u.username)}</strong></td>
-                <td style="color:#6b7280;">${esc(u.username)}</td>
+                <td style="color: var(--tx-3, #6b7280);">${esc(u.username)}</td>
                 <td style="text-align:center;">
                     ${u.foto_url
                         ? `<img src="${escAttr(u.foto_url)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;">`
-                        : `<span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">${u.iniciales || u.username.substring(0,3).toUpperCase()}</span>`}
+                        : `<span style="background: var(--ac-sf-2, #ede9fe);color: var(--tx-ac-2, #7c3aed);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">${u.iniciales || u.username.substring(0,3).toUpperCase()}</span>`}
                 </td>
                 <td>${[u.rol, ...(u.roles_secundarios || [])].map(r =>
                     `<span class="badge ${rolBadge(r)}" style="margin-right:4px;">${esc(r)}</span>`).join('')}</td>
@@ -416,7 +416,7 @@
         } catch (e) {
             console.error("Error al cargar usuarios:", e);
             const tb = document.getElementById("tabla-body");
-            if (tb) tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:18px;color:#b91c1c;">
+            if (tb) tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:18px;color: var(--pel-tx, #b91c1c);">
                 No se pudieron cargar los usuarios: ${esc(e.message || "error de conexión")}.
                 <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="cargarUsuarios()">Reintentar</button>
             </td></tr>`;
@@ -545,7 +545,7 @@
         const todos = [..._rolesFijos[target], ..._rolesSel[target]];
         cont.innerHTML = todos.length
             ? todos.map(r => `<span class="subrol-chip">${esc(r)}</span>`).join('')
-            : '<span style="color:#9ca3af;font-size:12.5px;">Sin roles — agregá al menos uno</span>';
+            : '<span style="color: var(--tx-4, #9ca3af);font-size:12.5px;">Sin roles — agregá al menos uno</span>';
     }
     function abrirRolesPopup(target) {
         _rolesTarget = target;
@@ -559,7 +559,7 @@
                   <label class="sw"><input type="checkbox" value="${escAttr(r)}"
                          ${_rolesSel[target].includes(r) ? 'checked' : ''}
                          onchange="_toggleRolSel(this)"><span class="tr"></span></label></div>`).join('')
-            : '<div style="color:#9ca3af;font-size:13px;padding:10px 0;">No hay roles definidos.</div>';
+            : '<div style="color: var(--tx-4, #9ca3af);font-size:13px;padding:10px 0;">No hay roles definidos.</div>';
         document.getElementById('modal-subroles').classList.add('active');
     }
     function _toggleRolSel(chk) {

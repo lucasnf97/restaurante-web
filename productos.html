@@ -11,7 +11,7 @@
     <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
 
         .navbar {
             background: #1a1a2e; color: white; padding: 0 32px; height: 60px;
@@ -22,17 +22,17 @@
         .navbar-links { display: flex; gap: 16px; align-items: center; }
         .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
         .btn-logout {
-            background: transparent; border: 1px solid #4f46e5; color: #a5b4fc;
+            background: transparent; border: 1px solid var(--ac, #4f46e5); color: var(--nav-tx, #a5b4fc);
             padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
         }
-        .btn-logout:hover { background: #4f46e5; color: white; }
+        .btn-logout:hover { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
 
         .content { margin-top: 60px; padding: 24px 32px; }
 
         .page-header {
             display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
         }
-        .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: var(--tx, #1a1a2e); }
 
         .btn {
             padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer;
@@ -40,63 +40,63 @@
         }
         .btn-primary { background: #4f46e5; color: white; }
         .btn-primary:hover { background: #4338ca; }
-        .btn-secondary { background: white; color: #444; border: 1.5px solid #e0e0e0; }
-        .btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; }
+        .btn-secondary { background: var(--sup, white); color: var(--tx-10, #444); border: 1.5px solid var(--bd-2, #e0e0e0); }
+        .btn-secondary:hover { border-color: var(--ac, #4f46e5); color: var(--tx-ac, #4f46e5); }
         .btn-danger { background: #dc2626; color: white; }
         .btn-danger:hover { background: #b91c1c; }
         .btn-success { background: #16a34a; color: white; }
         .btn-success:hover { background: #15803d; }
-        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning { background: var(--av, #f59e0b); color: var(--tx-inv, white); }
         .btn-warning:hover { background: #d97706; }
         .btn-sm { padding: 5px 10px; font-size: 12px; }
 
         /* ── TABS ── */
         .tabs {
-            display: flex; gap: 4px; background: white; border-radius: 10px;
-            padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px;
+            display: flex; gap: 4px; background: var(--sup, white); border-radius: 10px;
+            padding: 4px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); margin-bottom: 20px;
             width: fit-content;
         }
         .tab {
             padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;
-            font-weight: 600; color: #666; transition: all 0.2s; border: none;
+            font-weight: 600; color: var(--tx-7, #666); transition: all 0.2s; border: none;
             background: transparent;
         }
-        .tab.active { background: #4f46e5; color: white; }
-        .tab:hover:not(.active) { background: #f5f3ff; color: #4f46e5; }
+        .tab.active { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
+        .tab:hover:not(.active) { background: var(--ac-sf, #f5f3ff); color: var(--tx-ac, #4f46e5); }
 
         /* ── FILTROS ── */
         .filtros {
-            background: white; border-radius: 12px; padding: 14px 20px;
+            background: var(--sup, white); border-radius: 12px; padding: 14px 20px;
             display: flex; gap: 12px; align-items: center; margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap;
+            box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); flex-wrap: wrap;
         }
         .filtros select, .filtros input {
-            padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+            padding: 7px 12px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 8px;
             font-size: 14px; outline: none;
         }
-        .filtros select:focus, .filtros input:focus { border-color: #4f46e5; }
+        .filtros select:focus, .filtros input:focus { border-color: var(--ac, #4f46e5); }
 
         /* ── ACCIONES ── */
         .acciones-bar {
-            background: white; border-radius: 12px; padding: 12px 20px;
+            background: var(--sup, white); border-radius: 12px; padding: 12px 20px;
             display: flex; gap: 10px; align-items: center; margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap;
+            box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); flex-wrap: wrap;
         }
         .sep { width: 1px; height: 28px; background: #e0e0e0; margin: 0 4px; }
 
         /* ── TABLA ── */
         .tabla-wrapper {
-            background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden;
+            background: var(--sup, white); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); overflow: hidden;
         }
         table { width: 100%; border-collapse: collapse; }
         th {
-            background: #f8f9fa; padding: 11px 14px; text-align: left;
-            font-size: 12px; font-weight: 700; color: #666;
+            background: var(--sup-2, #f8f9fa); padding: 11px 14px; text-align: left;
+            font-size: 12px; font-weight: 700; color: var(--tx-7, #666);
             text-transform: uppercase; letter-spacing: 0.5px;
         }
-        td { padding: 12px 14px; border-top: 1px solid #f0f0f0; font-size: 14px; color: #333; }
-        tr:hover td { background: #fafafa; }
-        tr.sel td { background: #f5f3ff; }
+        td { padding: 12px 14px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: #333; }
+        tr:hover td { background: var(--sup-2, #fafafa); }
+        tr.sel td { background: var(--ac-sf, #f5f3ff); }
 
         .badge {
             padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 600;
@@ -110,19 +110,19 @@
         .badge-yellow { background: #fef9c3; color: #854d0e; }
 
         .fav-star { font-size: 16px; user-select: none; }
-        .fav-star.gold { color: #f59e0b; }
-        .fav-star.gray { color: #d1d5db; }
+        .fav-star.gold { color: var(--av-tx-2, #f59e0b); }
+        .fav-star.gray { color: var(--tx-6, #d1d5db); }
         .fav-star.editable { cursor: pointer; transition: transform 0.12s; }
         .fav-star.editable:hover { transform: scale(1.3); }
         .prod-row { cursor: pointer; }
-        .prod-row.expanded > td { background: #faf5ff !important; }
-        .ing-row > td { background: #f5f3ff; padding: 8px 20px 12px 44px !important; border-top: none !important; }
+        .prod-row.expanded > td { background: var(--sup-2, #faf5ff) !important; }
+        .ing-row > td { background: var(--ac-sf, #f5f3ff); padding: 8px 20px 12px 44px !important; border-top: none !important; }
         .ing-row .ing-tag {
             display: inline-block; margin: 2px; padding: 2px 9px; border-radius: 4px;
             font-size: 12px; font-weight: 600;
         }
-        .btn-edit-mode.active { background: #f59e0b !important; color: white !important; border-color: #d97706 !important; }
-        .empty { text-align: center; padding: 48px; color: #888; }
+        .btn-edit-mode.active { background: var(--av, #f59e0b) !important; color: var(--tx-inv, white) !important; border-color: #d97706 !important; }
+        .empty { text-align: center; padding: 48px; color: var(--tx-5, #888); }
 
         /* ── MODAL ── */
         .modal-overlay {
@@ -132,25 +132,25 @@
         }
         .modal-overlay.active { display: flex; }
         .modal {
-            background: white; border-radius: 16px; padding: 28px;
+            background: var(--sup, white); border-radius: 16px; padding: 28px;
             width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
         }
-        .modal h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
+        .modal h3 { font-size: 18px; font-weight: 700; color: var(--tx, #1a1a2e); margin-bottom: 20px; }
         .form-group { margin-bottom: 14px; }
-        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 5px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--tx-10, #444); margin-bottom: 5px; }
         .form-group input, .form-group select, .form-group textarea {
-            width: 100%; padding: 9px 12px; border: 1.5px solid #e0e0e0;
+            width: 100%; padding: 9px 12px; border: 1.5px solid var(--bd-2, #e0e0e0);
             border-radius: 8px; font-size: 14px; outline: none; font-family: inherit;
         }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #4f46e5; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--ac, #4f46e5); }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
         .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
         /* Footer siempre visible (no hay que bajar hasta el final) — producto y combo */
         #modal-producto .modal-footer,
         #modal-combo .modal-footer {
-            position: sticky; bottom: -28px; background: #fff; z-index: 2;
-            margin: 16px -28px -28px; padding: 14px 28px; border-top: 1px solid #eef0f3;
+            position: sticky; bottom: -28px; background: var(--sup, #fff); z-index: 2;
+            margin: 16px -28px -28px; padding: 14px 28px; border-top: 1px solid var(--bd-4, #eef0f3);
         }
         .checkbox-row { display: flex; gap: 20px; flex-wrap: wrap; }
         .checkbox-item { display: flex; align-items: center; gap: 6px; font-size: 14px; }
@@ -158,16 +158,16 @@
         /* ── DÍAS PROMO ── */
         .dias-grid { display: flex; gap: 8px; flex-wrap: wrap; }
         .dia-btn {
-            width: 36px; height: 36px; border-radius: 50%; border: 2px solid #e0e0e0;
-            cursor: pointer; font-size: 12px; font-weight: 700; background: white;
-            color: #666; transition: all 0.2s;
+            width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--bd-2, #e0e0e0);
+            cursor: pointer; font-size: 12px; font-weight: 700; background: var(--sup, white);
+            color: var(--tx-7, #666); transition: all 0.2s;
         }
-        .dia-btn.sel { background: #4f46e5; color: white; border-color: #4f46e5; }
+        .dia-btn.sel { background: var(--ac, #4f46e5); color: var(--tx-inv, white); border-color: var(--ac, #4f46e5); }
 
         /* ── COMBO ITEMS ── */
         .combo-item-row {
             display: flex; gap: 8px; align-items: center;
-            padding: 8px; background: #f8f9fa; border-radius: 8px; margin-bottom: 6px;
+            padding: 8px; background: var(--sup-2, #f8f9fa); border-radius: 8px; margin-bottom: 6px;
         }
         .combo-item-row input.ci-cant { width: 60px; }
         .combo-item-row input.ci-nombre { flex: 1; min-width: 0; }
@@ -175,7 +175,7 @@
         .cp-cat-titulo {
             font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase;
             letter-spacing: 0.5px; margin: 14px 0 6px; padding-bottom: 4px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--bd-4, #eee);
         }
         .cp-prod-row {
             display: flex; align-items: center; justify-content: space-between;
@@ -197,19 +197,19 @@
         .cp-switch input:checked + .cp-slider:before { transform: translateX(18px); }
         /* Tabla de referencia de costo del combo (solo lectura) */
         .cc-tabla {
-            border-collapse: collapse; font-size: 12px; background: #f8f9fa;
-            border: 1px solid #eee; border-radius: 8px;
+            border-collapse: collapse; font-size: 12px; background: var(--sup-2, #f8f9fa);
+            border: 1px solid var(--bd-4, #eee); border-radius: 8px;
         }
         .cc-tabla th, .cc-tabla td { padding: 6px 10px; text-align: right; white-space: nowrap; }
         .cc-tabla th {
-            color: #888; font-size: 11px; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.4px; border-bottom: 1px solid #e2e8f0;
+            color: var(--tx-5, #888); font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.4px; border-bottom: 1px solid var(--bd-5, #e2e8f0);
         }
         .cc-tabla .cc-nom {
             text-align: left; max-width: 220px; overflow: hidden;
-            text-overflow: ellipsis; white-space: nowrap; color: #666;
+            text-overflow: ellipsis; white-space: nowrap; color: var(--tx-7, #666);
         }
-        .cc-tabla tfoot td { border-top: 1px solid #e2e8f0; font-weight: 700; color: #333; }
+        .cc-tabla tfoot td { border-top: 1px solid var(--bd-5, #e2e8f0); font-weight: 700; color: #333; }
         .cc-nota { font-size: 11px; color: #999; margin-top: 5px; max-width: 250px; }
         /* Modo solo-vista: oculta todos los controles de edición */
         /* La barra de acciones solo tiene botones de edición → ocultarla entera
@@ -236,52 +236,52 @@
         /* ── MODAL PRECIOS MASIVOS ── */
         .pm-filtros {
             display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-            padding: 10px 16px; border-bottom: 1px solid #f0f0f0; background: #fafafa;
+            padding: 10px 16px; border-bottom: 1px solid var(--bd-4, #f0f0f0); background: var(--sup-2, #fafafa);
             flex-shrink: 0;
         }
         .pm-filtros input, .pm-filtros select {
             flex: 1; min-width: 120px; padding: 5px 9px;
-            border: 1.5px solid #e5e7eb; border-radius: 7px; font-size: 12px; outline: none;
+            border: 1.5px solid var(--bd, #e5e7eb); border-radius: 7px; font-size: 12px; outline: none;
         }
-        .pm-filtros input:focus, .pm-filtros select:focus { border-color: #4f46e5; }
-        .pm-filtros .pm-f-lbl { font-size: 11px; font-weight: 700; color: #6b7280; white-space: nowrap; }
+        .pm-filtros input:focus, .pm-filtros select:focus { border-color: var(--ac, #4f46e5); }
+        .pm-filtros .pm-f-lbl { font-size: 11px; font-weight: 700; color: var(--tx-3, #6b7280); white-space: nowrap; }
         .btn-pm-limpiar {
             padding: 5px 12px; font-size: 12px; font-weight: 600;
-            background: #f3f4f6; border: 1.5px solid #e5e7eb; border-radius: 7px;
-            cursor: pointer; color: #6b7280; white-space: nowrap;
+            background: var(--sup-3, #f3f4f6); border: 1.5px solid var(--bd, #e5e7eb); border-radius: 7px;
+            cursor: pointer; color: var(--tx-3, #6b7280); white-space: nowrap;
         }
-        .btn-pm-limpiar:hover { background: #e5e7eb; color: #374151; }
+        .btn-pm-limpiar:hover { background: #e5e7eb; color: var(--tx-2, #374151); }
         .pm-col-selector {
             display:flex; align-items:center; gap:14px; padding:12px 20px;
-            background:#f8f9fa; border-bottom:1px solid #f0f0f0; flex-wrap:wrap;
+            background: var(--sup-2, #f8f9fa); border-bottom: 1px solid var(--bd-4, #f0f0f0); flex-wrap:wrap;
         }
-        .pm-col-selector > span { font-size:13px; font-weight:600; color:#374151; }
+        .pm-col-selector > span { font-size:13px; font-weight:600; color: var(--tx-2, #374151); }
         .pm-col-opt {
             display:flex; align-items:center; gap:5px; font-size:13px;
-            color:#374151; cursor:pointer; padding:5px 12px; border-radius:20px;
-            border:1.5px solid #e5e7eb; background:white; user-select:none;
+            color: var(--tx-2, #374151); cursor:pointer; padding:5px 12px; border-radius:20px;
+            border: 1.5px solid var(--bd, #e5e7eb); background: var(--sup, white); user-select:none;
             transition:all .15s;
         }
         .pm-col-opt input[type=radio] { accent-color:#4f46e5; cursor:pointer; }
-        .pm-col-opt.pm-col-active { border-color:#4f46e5; background:#eef2ff; color:#4f46e5; font-weight:700; }
+        .pm-col-opt.pm-col-active { border-color: var(--ac, #4f46e5); background: var(--ac-sf, #eef2ff); color: var(--tx-ac, #4f46e5); font-weight:700; }
         .pm-table { width:100%; border-collapse:collapse; font-size:13px; }
         .pm-table th {
-            position:sticky; top:0; background:#f8f9fa; padding:9px 12px;
-            text-align:left; font-size:12px; font-weight:700; color:#6b7280;
-            border-bottom:2px solid #e5e7eb; white-space:nowrap; z-index:1;
+            position:sticky; top:0; background: var(--sup-2, #f8f9fa); padding:9px 12px;
+            text-align:left; font-size:12px; font-weight:700; color: var(--tx-3, #6b7280);
+            border-bottom: 2px solid var(--bd, #e5e7eb); white-space:nowrap; z-index:1;
         }
-        .pm-table th.pm-th-active { background:#eef2ff; color:#4f46e5; }
-        .pm-table td { padding:6px 8px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+        .pm-table th.pm-th-active { background: var(--ac-sf, #eef2ff); color: var(--tx-ac, #4f46e5); }
+        .pm-table td { padding:6px 8px; border-bottom: 1px solid var(--bd-4, #f3f4f6); vertical-align:middle; }
         .pm-table tr:last-child td { border-bottom:none; }
-        .pm-table td:first-child { font-weight:600; color:#1a1a2e; padding-left:12px; }
+        .pm-table td:first-child { font-weight:600; color: var(--tx, #1a1a2e); padding-left:12px; }
         .pm-inp {
-            width:100%; min-width:90px; padding:5px 8px; border:1.5px solid #e5e7eb;
-            border-radius:7px; font-size:13px; font-family:inherit; color:#374151;
+            width:100%; min-width:90px; padding:5px 8px; border: 1.5px solid var(--bd, #e5e7eb);
+            border-radius:7px; font-size:13px; font-family:inherit; color: var(--tx-2, #374151);
             box-sizing:border-box; transition:border-color .15s;
         }
-        .pm-inp:focus { outline:none; border-color:#4f46e5; }
-        .pm-inp.pm-inp-active { border-color:#a5b4fc; background:#fafafe; }
-        .pm-inp.pm-inp-active:focus { border-color:#4f46e5; }
+        .pm-inp:focus { outline:none; border-color: var(--ac, #4f46e5); }
+        .pm-inp.pm-inp-active { border-color:#a5b4fc; background: var(--sup-2, #fafafe); }
+        .pm-inp.pm-inp-active:focus { border-color: var(--ac, #4f46e5); }
     </style>
 </head>
 <body>
@@ -418,11 +418,11 @@
     <div class="modal" style="max-width:600px;">
         <h3 id="modal-prod-titulo">Nuevo producto</h3>
         <!-- Solapas -->
-        <div style="display:flex;gap:4px;border-bottom:1.5px solid #e5e7eb;margin:10px 0 16px;">
+        <div style="display:flex;gap:4px;border-bottom: 1.5px solid var(--bd, #e5e7eb);margin:10px 0 16px;">
             <button type="button" id="ptab-btn-config" onclick="switchProdTab('config')"
-                    style="padding:8px 18px;border:none;background:none;font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid #4f46e5;color:#4f46e5;">Config</button>
+                    style="padding:8px 18px;border:none;background:none;font-size:14px;font-weight:600;cursor:pointer;border-bottom: 2px solid var(--ac, #4f46e5);color: var(--tx-ac, #4f46e5);">Config</button>
             <button type="button" id="ptab-btn-receta" onclick="switchProdTab('receta')"
-                    style="padding:8px 18px;border:none;background:none;font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:#9ca3af;">Receta</button>
+                    style="padding:8px 18px;border:none;background:none;font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color: var(--tx-4, #9ca3af);">Receta</button>
         </div>
 
         <!-- ── TAB CONFIG ── -->
@@ -470,13 +470,13 @@
 
         <!-- ── TAB RECETA ── -->
         <div id="ptab-receta" style="display:none;">
-            <p style="color:#6b7280;font-size:13px;margin:0 0 12px;">Agregá los ingredientes. Si el producto no lleva receta, dejalo vacío.</p>
+            <p style="color: var(--tx-3, #6b7280);font-size:13px;margin:0 0 12px;">Agregá los ingredientes. Si el producto no lleva receta, dejalo vacío.</p>
             <div id="rn-items" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
-            <div style="border:1.5px dashed #d1d5db;border-radius:10px;padding:12px;background:#fafafa;">
+            <div style="border: 1.5px dashed var(--bd-3, #d1d5db);border-radius:10px;padding:12px;background: var(--sup-2, #fafafa);">
                 <input type="text" id="rn-buscar"
                        placeholder="🔍 Buscar insumo para agregar..."
                        oninput="filtrarInsumosNueva()"
-                       style="width:100%;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;">
+                       style="width:100%;padding:8px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;">
                 <div id="rn-lista" style="max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;"></div>
             </div>
         </div>
@@ -523,13 +523,13 @@
 <!-- ── VISTA COSTOS Y MÁRGENES (productos) ── -->
 <div id="vista-costos" style="display:none">
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
-        <input type="text" id="filtro-cos-nombre" placeholder="Buscar producto..." oninput="renderCostos()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;min-width:240px;outline:none;">
-        <select id="filtro-cos-receta" onchange="renderCostos()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;">
+        <input type="text" id="filtro-cos-nombre" placeholder="Buscar producto..." oninput="renderCostos()" style="padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:14px;min-width:240px;outline:none;">
+        <select id="filtro-cos-receta" onchange="renderCostos()" style="padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:14px;outline:none;">
             <option value="">Todos</option>
             <option value="con">Con receta</option>
             <option value="sin">Sin receta</option>
         </select>
-        <span style="color:#9ca3af;font-size:12px;">Costo desde la receta · margen y food-cost % sobre el precio de venta. Cargá costo a los insumos para que sea exacto.</span>
+        <span style="color: var(--tx-4, #9ca3af);font-size:12px;">Costo desde la receta · margen y food-cost % sobre el precio de venta. Cargá costo a los insumos para que sea exacto.</span>
         <button class="btn btn-secondary" style="margin-left:auto;" onclick="imprimirCostos()">🖨 Imprimir</button>
     </div>
     <div class="tabla-wrapper">
@@ -545,7 +545,7 @@
     <div class="modal" style="max-width:560px;">
         <h3 id="receta-titulo">Receta</h3>
         <div id="receta-items" style="margin:16px 0;display:flex;flex-direction:column;gap:8px;"></div>
-        <button onclick="recetaAgregarFila()" style="background:#f0f9ff;color:#0369a1;border:1.5px dashed #7dd3fc;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-bottom:12px;">
+        <button onclick="recetaAgregarFila()" style="background: var(--ac-sf, #f0f9ff);color:#0369a1;border:1.5px dashed #7dd3fc;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-bottom:12px;">
             + Agregar ingrediente
         </button>
         <div class="modal-footer">
@@ -688,7 +688,7 @@
 <div class="modal-overlay" id="modal-combo-prods">
     <div class="modal" style="max-width:520px">
         <h3 id="modal-cp-titulo">Productos del grupo</h3>
-        <p style="font-size:13px;color:#666;margin-bottom:10px">
+        <p style="font-size:13px;color: var(--tx-7, #666);margin-bottom:10px">
             Activá los productos que se pueden elegir en este grupo del combo.
         </p>
         <input type="text" id="cp-buscar" placeholder="🔍 Buscar producto..."
@@ -707,7 +707,7 @@
         <h3>Gestionar categorías</h3>
         <div style="display:flex;gap:8px;margin-bottom:14px;">
             <input type="text" id="gc-nuevo-nombre" placeholder="Nombre de nueva categoría..."
-                   style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;"
+                   style="flex:1;padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:14px;outline:none;"
                    onkeydown="if(event.key==='Enter')gcAgregarCategoria()">
             <button class="btn btn-primary btn-sm" onclick="gcAgregarCategoria()">+ Agregar</button>
         </div>
@@ -722,10 +722,10 @@
 <div class="modal-overlay" id="modal-gestion-areas">
     <div class="modal" style="max-width:480px">
         <h3>Gestionar áreas</h3>
-        <p style="font-size:12px;color:#888;margin:-6px 0 12px;">Cada área es una pantalla de recepción de órdenes en el ejecutable.</p>
+        <p style="font-size:12px;color: var(--tx-5, #888);margin:-6px 0 12px;">Cada área es una pantalla de recepción de órdenes en el ejecutable.</p>
         <div style="display:flex;gap:8px;margin-bottom:14px;">
             <input type="text" id="ga-nuevo-nombre" placeholder="Nombre de nueva área..."
-                   style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;"
+                   style="flex:1;padding:9px 12px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:14px;outline:none;"
                    onkeydown="if(event.key==='Enter')gaAgregarArea()">
             <button class="btn btn-primary btn-sm" onclick="gaAgregarArea()">+ Agregar</button>
         </div>
@@ -740,11 +740,11 @@
 <div class="modal-overlay" id="modal-mover-area">
     <div class="modal" style="max-width:520px">
         <h3>⚠️ El área está en uso</h3>
-        <p id="ma-msg" style="font-size:13px;color:#555;margin-bottom:10px;"></p>
-        <div id="ma-lista" style="max-height:200px;overflow-y:auto;background:#f9fafb;border:1px solid #eee;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:13px;line-height:1.7;"></div>
+        <p id="ma-msg" style="font-size:13px;color: var(--tx-11, #555);margin-bottom:10px;"></p>
+        <div id="ma-lista" style="max-height:200px;overflow-y:auto;background: var(--sup-2, #f9fafb);border: 1px solid var(--bd-4, #eee);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:13px;line-height:1.7;"></div>
         <div class="form-group" style="margin-bottom:0;">
-            <label style="font-size:13px;font-weight:600;color:#374151;">Mover todos los productos a:</label>
-            <select id="ma-destino" style="width:100%;padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;margin-top:4px;"></select>
+            <label style="font-size:13px;font-weight:600;color: var(--tx-2, #374151);">Mover todos los productos a:</label>
+            <select id="ma-destino" style="width:100%;padding:8px 10px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;font-size:14px;outline:none;margin-top:4px;"></select>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-mover-area')">Cancelar</button>
@@ -765,7 +765,7 @@
             </div>
         </div>
         <div id="vr-contenido"
-             style="flex:1;min-height:460px;border:1px solid #e0e0e0;border-radius:10px;overflow:auto;background:white;">
+             style="flex:1;min-height:460px;border: 1px solid var(--bd-2, #e0e0e0);border-radius:10px;overflow:auto;background:white;">
         </div>
     </div>
 </div>
@@ -776,11 +776,11 @@
         <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
             <h3 id="er-titulo" style="margin:0;font-size:17px;">✏️ Editor de receta</h3>
             <button onclick="cerrarModal('modal-editor-receta')"
-                    style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;line-height:1;">✕</button>
+                    style="background:none;border:none;font-size:22px;cursor:pointer;color: var(--tx-7, #666);line-height:1;">✕</button>
         </div>
         <!-- Upload PDF shortcut -->
-        <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:#f8f9fa;border-radius:8px;
-                    font-size:13px;color:#555;flex-shrink:0;border:1px solid #e8e8e8;">
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background: var(--sup-2, #f8f9fa);border-radius:8px;
+                    font-size:13px;color: var(--tx-11, #555);flex-shrink:0;border: 1px solid var(--bd, #e8e8e8);">
             <span>¿Tenés un PDF ya listo?</span>
             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('inp-pdf-receta').click()">
                 📎 Subir PDF directamente
@@ -833,13 +833,13 @@
 <!-- ── MODAL PRECIOS MASIVOS ── -->
 <div class="modal-overlay" id="modal-precios-masivo">
     <div class="modal" style="max-width:680px;width:96vw;max-height:92vh;padding:0;display:flex;flex-direction:column;">
-        <div style="padding:16px 20px 14px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <div style="padding:16px 20px 14px;border-bottom: 1px solid var(--bd-4, #f0f0f0);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
             <div>
                 <h3 style="margin:0;font-size:16px;">💰 Modificación masiva de precios</h3>
-                <p id="pm-subtitulo" style="margin:3px 0 0;font-size:12px;color:#9ca3af;"></p>
+                <p id="pm-subtitulo" style="margin:3px 0 0;font-size:12px;color: var(--tx-4, #9ca3af);"></p>
             </div>
             <button onclick="cerrarModal('modal-precios-masivo')"
-                    style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;line-height:1;padding:0 4px;">✕</button>
+                    style="background:none;border:none;font-size:22px;cursor:pointer;color: var(--tx-7, #666);line-height:1;padding:0 4px;">✕</button>
         </div>
         <!-- Filtros -->
         <div class="pm-filtros">
@@ -938,21 +938,21 @@ function renderCostos() {
     const _e = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     tbody.innerHTML = data.map(p => {
         if (!p.tiene_receta) {
-            return `<tr style="color:#9ca3af;"><td><strong>${_e(p.nombre)}</strong></td><td>${_e(p.categoria||'—')}</td>
+            return `<tr style="color: var(--tx-4, #9ca3af);"><td><strong>${_e(p.nombre)}</strong></td><td>${_e(p.categoria||'—')}</td>
                 <td style="text-align:right;">${fmt(p.precio)}</td>
                 <td colspan="4" style="font-style:italic;">Sin receta cargada</td></tr>`;
         }
         const neg = p.margen != null && p.margen < 0;
         return `<tr class="cos-row" onclick="_toggleReceta(${p.id})" style="cursor:pointer;" title="Ver insumos de la receta">
-            <td><span class="cos-arr" id="cos-arr-${p.id}" style="display:inline-block;width:14px;color:#9ca3af;">▸</span> <strong>${_e(p.nombre)}</strong></td>
+            <td><span class="cos-arr" id="cos-arr-${p.id}" style="display:inline-block;width:14px;color: var(--tx-4, #9ca3af);">▸</span> <strong>${_e(p.nombre)}</strong></td>
             <td>${_e(p.categoria||'—')}</td>
             <td style="text-align:right;">${fmt(p.precio)}</td>
             <td style="text-align:right;">${fmt(p.costo)}</td>
-            <td style="text-align:right;color:${neg?'#dc2626':'#111827'};font-weight:600;">${fmt(p.margen)}</td>
+            <td style="text-align:right;color: ${neg?'var(--pel-tx-2, #dc2626)':'var(--tx, #111827)'};font-weight:600;">${fmt(p.margen)}</td>
             <td style="text-align:right;">${p.margen_pct==null?'—':p.margen_pct+'%'}</td>
             <td style="text-align:right;font-weight:600;color:${sem(p.food_cost_pct)};">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td>
         </tr>
-        <tr class="cos-det" id="cos-det-${p.id}" style="display:none;"><td colspan="7" style="padding:0;background:#f9fafb;"><div id="cos-det-cont-${p.id}" style="padding:10px 16px 12px 30px;">…</div></td></tr>`;
+        <tr class="cos-det" id="cos-det-${p.id}" style="display:none;"><td colspan="7" style="padding:0;background: var(--sup-2, #f9fafb);"><div id="cos-det-cont-${p.id}" style="padding:10px 16px 12px 30px;">…</div></td></tr>`;
     }).join("");
 }
 async function _toggleReceta(id) {
@@ -966,20 +966,20 @@ async function _toggleReceta(id) {
     if (cont.dataset.loaded) return;
     const _e = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const f = v => `${simboloMoneda()}${(+v||0).toFixed(2)}`;
-    cont.innerHTML = '<span style="color:#9ca3af;font-size:13px;">Cargando…</span>';
+    cont.innerHTML = '<span style="color: var(--tx-4, #9ca3af);font-size:13px;">Cargando…</span>';
     try {
         const r = await api.get('/stock/receta-costo/' + id);
         const filas = (r.items || []).map(it => `
-            <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #eef0f3;font-size:13px;">
-                <span>${_e(it.insumo)}${it.es_produccion ? ' <span style="color:#7c3aed;font-size:11px;">(producción)</span>' : ''}</span>
-                <span style="color:#6b7280;white-space:nowrap;">${it.cantidad} ${_e(it.unidad||'')} × ${f(it.costo_unit)} = <b style="color:#111827;">${f(it.subtotal)}</b></span>
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom: 1px solid var(--bd-4, #eef0f3);font-size:13px;">
+                <span>${_e(it.insumo)}${it.es_produccion ? ' <span style="color: var(--tx-ac-2, #7c3aed);font-size:11px;">(producción)</span>' : ''}</span>
+                <span style="color: var(--tx-3, #6b7280);white-space:nowrap;">${it.cantidad} ${_e(it.unidad||'')} × ${f(it.costo_unit)} = <b style="color: var(--tx, #111827);">${f(it.subtotal)}</b></span>
             </div>`).join('');
         cont.innerHTML =
-            `<div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🧾 Insumos de la receta · costo sin impuesto</div>`
-            + (filas || '<div style="color:#9ca3af;font-size:13px;">Esta receta no tiene insumos cargados.</div>')
+            `<div style="font-size:11px;font-weight:700;color: var(--tx-3, #6b7280);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🧾 Insumos de la receta · costo sin impuesto</div>`
+            + (filas || '<div style="color: var(--tx-4, #9ca3af);font-size:13px;">Esta receta no tiene insumos cargados.</div>')
             + `<div style="text-align:right;font-size:13px;font-weight:700;margin-top:8px;">Costo total: ${f(r.costo_total)}</div>`;
         cont.dataset.loaded = '1';
-    } catch (e) { cont.innerHTML = '<span style="color:#dc2626;font-size:13px;">No se pudo cargar el detalle.</span>'; }
+    } catch (e) { cont.innerHTML = '<span style="color: var(--pel-tx-2, #dc2626);font-size:13px;">No se pudo cargar el detalle.</span>'; }
 }
 function imprimirCostos() {
     const nombre = (document.getElementById("filtro-cos-nombre").value || "").trim().toLowerCase();
@@ -993,10 +993,10 @@ function imprimirCostos() {
     const f = v => v == null ? "—" : (+v).toFixed(2);
     const filas = data.map(p => p.tiene_receta
         ? `<tr><td>${_e(p.nombre)}</td><td>${_e(p.categoria||'—')}</td><td class="n">${f(p.precio)}</td><td class="n">${f(p.costo)}</td><td class="n">${f(p.margen)}</td><td class="n">${p.margen_pct==null?'—':p.margen_pct+'%'}</td><td class="n">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td></tr>`
-        : `<tr><td>${_e(p.nombre)}</td><td>${_e(p.categoria||'—')}</td><td class="n">${f(p.precio)}</td><td colspan="4" style="color:#9ca3af;font-style:italic;">Sin receta</td></tr>`).join('');
+        : `<tr><td>${_e(p.nombre)}</td><td>${_e(p.categoria||'—')}</td><td class="n">${f(p.precio)}</td><td colspan="4" style="color: var(--tx-4, #9ca3af);font-style:italic;">Sin receta</td></tr>`).join('');
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><title>Costos y márgenes</title><style>body{font-family:'Segoe UI',sans-serif;padding:24px;}h2{margin:0 0 4px;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #e5e7eb;padding:6px 9px;text-align:left;}td.n,th.n{text-align:right;}</style></head><body>
-        <h2>Costos y márgenes</h2><div style="color:#6b7280;font-size:12px;margin-bottom:12px;">${data.length} producto(s) · ${new Date().toLocaleString('es-AR')}</div>
+    w.document.write(`<html><head><title>Costos y márgenes</title><style>body{font-family:'Segoe UI',sans-serif;padding:24px;}h2{margin:0 0 4px;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border: 1px solid var(--bd, #e5e7eb);padding:6px 9px;text-align:left;}td.n,th.n{text-align:right;}</style></head><body>
+        <h2>Costos y márgenes</h2><div style="color: var(--tx-3, #6b7280);font-size:12px;margin-bottom:12px;">${data.length} producto(s) · ${new Date().toLocaleString('es-AR')}</div>
         <table><thead><tr><th>Producto</th><th>Categoría</th><th class="n">Precio</th><th class="n">Costo</th><th class="n">Margen</th><th class="n">Margen %</th><th class="n">Food-cost %</th></tr></thead><tbody>${filas}</tbody></table>
         <script>onload=()=>{print();}<\/script></body></html>`);
     w.document.close();
@@ -1147,7 +1147,7 @@ function pmRenderTabla(lista) {
         <tr>
             <td title="${esc(p.categoria || '')}">
                 ${esc(p.nombre)}
-                ${p.categoria ? `<br><small style="color:#9ca3af;font-weight:400;">${esc(p.categoria)}</small>` : ''}
+                ${p.categoria ? `<br><small style="color: var(--tx-4, #9ca3af);font-weight:400;">${esc(p.categoria)}</small>` : ''}
             </td>
             <td><input type="number" class="pm-inp" data-id="${p.id}" data-col="1"
                        value="${fmt(p.precio_1 != null ? p.precio_1 : p.precio)}" min="0" step="0.01" placeholder="—"></td>
@@ -1214,7 +1214,7 @@ function renderProductos(lista) {
             <td><span class="fav-star ${p.favorito ? 'gold' : 'gray'}${starEditable}"
                       title="${modoEdicion ? (p.favorito ? 'Quitar favorito' : 'Marcar como favorito') : (p.favorito ? 'Favorito' : '')}"
                       ${starOnClick}>★</span></td>
-            <td>${pencil}<strong>${esc(p.nombre)}</strong>${p.es_extra ? ' <span class="badge badge-purple" title="Extra generado desde un insumo">Extra</span>' : ''}${p.descripcion ? `<br><small style="color:#888">${esc(p.descripcion)}</small>` : ''}</td>
+            <td>${pencil}<strong>${esc(p.nombre)}</strong>${p.es_extra ? ' <span class="badge badge-purple" title="Extra generado desde un insumo">Extra</span>' : ''}${p.descripcion ? `<br><small style="color: var(--tx-5, #888)">${esc(p.descripcion)}</small>` : ''}</td>
             <td>${p.categoria || '—'}</td>
             <td>${p.area || '—'}</td>
             <td><strong>${simboloMoneda()} ${parseFloat(p.precio).toFixed(2)}</strong>${p.descuento_pct > 0 ? ` <span class="badge badge-green">-${p.descuento_pct}%</span>` : ''}</td>
@@ -1424,20 +1424,20 @@ function toggleIngredientes(prodId) {
 function _renderIngredientes(prodId) {
     const receta = _recetas.find(r => r.producto_id === prodId);
     if (!receta || !receta.tiene_receta) {
-        return '<span style="color:#9ca3af;font-size:13px;">Sin receta registrada</span>';
+        return '<span style="color: var(--tx-4, #9ca3af);font-size:13px;">Sin receta registrada</span>';
     }
     let ings = receta.ingredientes;
     if (typeof ings === 'string') ings = JSON.parse(ings);
-    if (!ings.length) return '<span style="color:#9ca3af;font-size:13px;">Sin ingredientes</span>';
-    return '<strong style="font-size:12px;color:#555;margin-right:6px;">Ingredientes:</strong>' +
+    if (!ings.length) return '<span style="color: var(--tx-4, #9ca3af);font-size:13px;">Sin ingredientes</span>';
+    return '<strong style="font-size:12px;color: var(--tx-11, #555);margin-right:6px;">Ingredientes:</strong>' +
         ings.map(i => {
             if (i.agotado) {   // insumo sin stock → resaltar en rojo
                 return `<span class="ing-tag" title="Sin stock"
-                    style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;font-weight:600;">
+                    style="background: var(--pel-sf-2, #fef2f2);color: var(--pel-tx, #b91c1c);border:1px solid #fca5a5;font-weight:600;">
                     ⚠️ ${i.insumo_nombre} × ${i.cantidad} ${i.unidad}</span>`;
             }
-            return `<span class="ing-tag" style="background:${i.es_produccion ? '#ede9fe' : '#f0fdf4'};
-                                         color:${i.es_produccion ? '#6d28d9' : '#15803d'};">
+            return `<span class="ing-tag" style="background: ${i.es_produccion ? 'var(--ac-sf-2, #ede9fe)' : 'var(--ok-sf-2, #f0fdf4)'};
+                                         color: ${i.es_produccion ? '#6d28d9' : 'var(--ok-tx, #15803d)'};">
                 ${i.es_produccion ? '🏭 ' : ''}${i.insumo_nombre} × ${i.cantidad} ${i.unidad}
             </span>`;
         }).join('');
@@ -1753,7 +1753,7 @@ function renderCombos() {
     tbody.innerHTML = combos.map(c => `
         <tr class="${comboSel && comboSel.id === c.id ? 'sel' : ''}" onclick="selCombo(${c.id})">
             <td>${c.favorito ? '<span class="fav-star">★</span>' : ''}</td>
-            <td>${pencil(c)}<strong>${esc(c.nombre)}</strong>${c.descripcion ? `<br><small style="color:#888">${esc(c.descripcion)}</small>` : ''}</td>
+            <td>${pencil(c)}<strong>${esc(c.nombre)}</strong>${c.descripcion ? `<br><small style="color: var(--tx-5, #888)">${esc(c.descripcion)}</small>` : ''}</td>
             <td><strong>${simboloMoneda()} ${parseFloat(c.precio).toFixed(2)}</strong></td>
             <td>${c.categoria || '—'}</td>
             <td>${c.items.map(i => `${i.cantidad}x ${i.nombre || i.categoria_nombre}`).join(', ')}</td>
@@ -1828,7 +1828,7 @@ function agregarComboItem(item = null) {
         <input type="text" class="ci-nombre" placeholder="Nombre del grupo (ej: Elegí tu burger)" value="${(nombre || '').replace(/"/g, '&quot;')}" oninput="actualizarCostosCombo()">
         <button class="btn btn-secondary btn-sm ci-prods" onclick="abrirComboProds(this.parentElement)">Elegir productos (${pids.length})</button>
         <input type="number" class="ci-cant" min="1" value="${cant}" oninput="actualizarCostosCombo()">
-        <span style="font-size:12px;color:#888">opciones</span>
+        <span style="font-size:12px;color: var(--tx-5, #888)">opciones</span>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove();actualizarCostosCombo()">✕</button>
     `;
     cont.appendChild(row);
@@ -1903,7 +1903,7 @@ async function abrirComboProds(row) {
         }
         html += `</div>`;
     }
-    document.getElementById('cp-lista').innerHTML = html || '<p style="color:#888;font-size:14px">No hay productos en carta.</p>';
+    document.getElementById('cp-lista').innerHTML = html || '<p style="color: var(--tx-5, #888);font-size:14px">No hay productos en carta.</p>';
     const buscar = document.getElementById('cp-buscar');
     buscar.value = '';
     document.getElementById('modal-combo-prods').classList.add('active');
@@ -2069,24 +2069,24 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
     function renderRnItems() {
         const cont = document.getElementById("rn-items");
         if (!_rnItems.length) {
-            cont.innerHTML = `<div style="color:#9ca3af;font-size:13px;text-align:center;padding:6px 0;">Sin ingredientes agregados aún</div>`;
+            cont.innerHTML = `<div style="color: var(--tx-4, #9ca3af);font-size:13px;text-align:center;padding:6px 0;">Sin ingredientes agregados aún</div>`;
             return;
         }
         cont.innerHTML = _rnItems.map((it, idx) => `
-            <div style="display:flex;align-items:center;gap:8px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px 12px;">
+            <div style="display:flex;align-items:center;gap:8px;background: var(--sup-2, #f9fafb);border: 1.5px solid var(--bd, #e5e7eb);border-radius:8px;padding:8px 12px;">
                 <span style="flex:1;font-size:13px;font-weight:500;">${esc(it.nombre)}</span>
                 <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;
-                             background:${it.tipo==='prod'?'#ede9fe':'#dbeafe'};
+                             background: ${it.tipo==='prod'?'var(--ac-sf-2, #ede9fe)':'#dbeafe'};
                              color:${it.tipo==='prod'?'#6d28d9':'#1d4ed8'};">
                     ${it.tipo==='prod'?'PROD':'STOCK'}
                 </span>
                 <input type="number" min="0.001" step="0.001" value="${it.cantidad||''}"
                        placeholder="Cant."
                        oninput="_rnItems[${idx}].cantidad=parseFloat(this.value)||0"
-                       style="width:88px;padding:5px 8px;border:1.5px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
-                <span style="color:#6b7280;font-size:12px;min-width:28px;">${it.unidad}</span>
+                       style="width:88px;padding:5px 8px;border: 1.5px solid var(--bd-3, #d1d5db);border-radius:6px;font-size:13px;outline:none;">
+                <span style="color: var(--tx-3, #6b7280);font-size:12px;min-width:28px;">${it.unidad}</span>
                 <button onclick="_rnItems.splice(${idx},1);renderRnItems();filtrarInsumosNueva();"
-                        style="background:transparent;border:none;color:#dc2626;font-size:17px;cursor:pointer;padding:0 2px;line-height:1;">✕</button>
+                        style="background:transparent;border:none;color: var(--pel-tx-2, #dc2626);font-size:17px;cursor:pointer;padding:0 2px;line-height:1;">✕</button>
             </div>
         `).join("");
     }
@@ -2110,7 +2110,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
 
         const lista = document.getElementById("rn-lista");
         if (!filtrados.length) {
-            lista.innerHTML = `<div style="color:#9ca3af;font-size:13px;text-align:center;padding:8px;">${busq ? 'Sin resultados para "'+busq+'"' : 'Todos los insumos ya fueron agregados'}</div>`;
+            lista.innerHTML = `<div style="color: var(--tx-4, #9ca3af);font-size:13px;text-align:center;padding:8px;">${busq ? 'Sin resultados para "'+busq+'"' : 'Todos los insumos ya fueron agregados'}</div>`;
             return;
         }
         lista.innerHTML = filtrados.map(i => `
@@ -2118,9 +2118,9 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
                  data-tipo="${i.tipo}" data-id="${i.id}"
                  style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;"
                  onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
-                <span style="flex:1;font-size:13px;">${esc(i.nombre)} <span style="color:#9ca3af;font-size:12px;">(${i.unidad})</span></span>
+                <span style="flex:1;font-size:13px;">${esc(i.nombre)} <span style="color: var(--tx-4, #9ca3af);font-size:12px;">(${i.unidad})</span></span>
                 <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;
-                             background:${i.tipo==='prod'?'#ede9fe':'#dbeafe'};
+                             background: ${i.tipo==='prod'?'var(--ac-sf-2, #ede9fe)':'#dbeafe'};
                              color:${i.tipo==='prod'?'#6d28d9':'#1d4ed8'};">
                     ${i.tipo==='prod'?'PROD':'STOCK'}
                 </span>
@@ -2239,12 +2239,12 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
                    </td>`
                 : `<td style="text-align:center;">
                        ${soloVista
-                           ? '<span style="color:#9ca3af;font-size:12px;">Sin receta</span>'
+                           ? '<span style="color: var(--tx-4, #9ca3af);font-size:12px;">Sin receta</span>'
                            : `<button class="btn btn-secondary btn-sm"
                                       onclick="abrirEditorReceta(${p.id},'${safe(p.nombre)}')">+ Escribir receta</button>`}
                    </td>`;
             return `<tr>
-                <td><strong>${esc(p.nombre)}</strong>${p.descripcion ? `<br><small style="color:#888">${esc(p.descripcion)}</small>` : ''}</td>
+                <td><strong>${esc(p.nombre)}</strong>${p.descripcion ? `<br><small style="color: var(--tx-5, #888)">${esc(p.descripcion)}</small>` : ''}</td>
                 <td>${p.categoria || '—'}</td>
                 <td>${p.area || '—'}</td>
                 ${celda}
@@ -2256,7 +2256,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
         _recDocProdId = prodId;
         document.getElementById('vr-titulo').textContent = `📓 ${prodNombre}`;
         const cont = document.getElementById('vr-contenido');
-        cont.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#888;">Cargando…</div>';
+        cont.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color: var(--tx-5, #888);">Cargando…</div>';
         document.getElementById('modal-ver-receta').classList.add('active');
         try {
             const doc = await api.get(`/productos/${prodId}/receta-doc`);
@@ -2270,7 +2270,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
                     </div>`;
             }
         } catch(e) {
-            cont.innerHTML = `<div style="padding:24px;color:#dc2626;">Error al cargar la receta: ${e.message}</div>`;
+            cont.innerHTML = `<div style="padding:24px;color: var(--pel-tx-2, #dc2626);">Error al cargar la receta: ${e.message}</div>`;
         }
     }
 
@@ -2366,15 +2366,15 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
     function _gcRenderLista() {
         const cont = document.getElementById('gc-lista');
         if (!categorias.length) {
-            cont.innerHTML = '<p style="color:#888;text-align:center;padding:16px;">Sin categorías</p>';
+            cont.innerHTML = '<p style="color: var(--tx-5, #888);text-align:center;padding:16px;">Sin categorías</p>';
             return;
         }
         cont.innerHTML = categorias.map(c => `
             <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;
-                        background:#f9fafb;border-radius:8px;margin-bottom:6px;border:1px solid #f0f0f0;">
+                        background: var(--sup-2, #f9fafb);border-radius:8px;margin-bottom:6px;border: 1px solid var(--bd-4, #f0f0f0);">
                 <span id="gc-sp-${c.id}" style="flex:1;font-size:14px;font-weight:600;">${esc(c.nombre)}</span>
                 <input type="text" id="gc-in-${c.id}" value="${esc(c.nombre)}"
-                       style="flex:1;display:none;padding:5px 8px;border:1.5px solid #4f46e5;border-radius:6px;font-size:13px;outline:none;"
+                       style="flex:1;display:none;padding:5px 8px;border: 1.5px solid var(--ac, #4f46e5);border-radius:6px;font-size:13px;outline:none;"
                        onkeydown="if(event.key==='Enter')gcGuardarEdicion(${c.id})">
                 <button class="btn btn-secondary btn-sm" id="gc-eb-${c.id}" onclick="gcIniciarEdicion(${c.id})">✏️</button>
                 <button class="btn btn-success btn-sm"   id="gc-sb-${c.id}" style="display:none" onclick="gcGuardarEdicion(${c.id})">✓</button>
@@ -2445,15 +2445,15 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
     function _gaRenderLista() {
         const cont = document.getElementById('ga-lista');
         if (!areas.length) {
-            cont.innerHTML = '<p style="color:#888;text-align:center;padding:16px;">Sin áreas</p>';
+            cont.innerHTML = '<p style="color: var(--tx-5, #888);text-align:center;padding:16px;">Sin áreas</p>';
             return;
         }
         cont.innerHTML = areas.map(a => `
             <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;
-                        background:#f9fafb;border-radius:8px;margin-bottom:6px;border:1px solid #f0f0f0;">
+                        background: var(--sup-2, #f9fafb);border-radius:8px;margin-bottom:6px;border: 1px solid var(--bd-4, #f0f0f0);">
                 <span id="ga-sp-${a.id}" style="flex:1;font-size:14px;font-weight:600;">${esc(a.nombre)}</span>
                 <input type="text" id="ga-in-${a.id}" value="${escAttr(a.nombre)}"
-                       style="flex:1;display:none;padding:5px 8px;border:1.5px solid #4f46e5;border-radius:6px;font-size:13px;outline:none;"
+                       style="flex:1;display:none;padding:5px 8px;border: 1.5px solid var(--ac, #4f46e5);border-radius:6px;font-size:13px;outline:none;"
                        onkeydown="if(event.key==='Enter')gaGuardarEdicion(${a.id})">
                 <button class="btn btn-secondary btn-sm" id="ga-eb-${a.id}" onclick="gaIniciarEdicion(${a.id})">✏️</button>
                 <button class="btn btn-success btn-sm"   id="ga-sb-${a.id}" style="display:none" onclick="gaGuardarEdicion(${a.id})">✓</button>
@@ -2557,16 +2557,16 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
             `<option value="prod_${i.id}" ${`prod_${i.id}` === val ? 'selected' : ''}>${esc(i.nombre)} (${esc(i.unidad)})</option>`
         ).join("");
         fila.innerHTML = `
-            <select style="flex:1;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;">
+            <select style="flex:1;padding:7px 10px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:13px;outline:none;">
                 <option value="">-- Insumo --</option>
                 ${optsStock.length ? `<optgroup label="📦 Insumos de Stock">${optsStock}</optgroup>` : ""}
                 ${optsProd.length  ? `<optgroup label="🏭 Insumos de Producción">${optsProd}</optgroup>` : ""}
             </select>
             <input type="number" min="0.001" step="0.001" value="${cantidad}"
                 placeholder="Cantidad"
-                style="width:110px;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;">
+                style="width:110px;padding:7px 10px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:13px;outline:none;">
             <button onclick="this.parentElement.remove()"
-                style="background:transparent;border:none;color:#dc2626;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+                style="background:transparent;border:none;color: var(--pel-tx-2, #dc2626);font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
         `;
         cont.appendChild(fila);
     }

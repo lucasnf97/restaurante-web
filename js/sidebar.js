@@ -397,7 +397,7 @@
             const act = currentPage === c.href ? " active" : "";
             return `<a href="#" onclick="navCuenta('${c.href}');return false;" class="sidebar-link${act}"><span class="si-icon">${c.icon}</span>${c.label}</a>`;
         }).join("");
-        return comunes + `<div id="emp-rest-groups"><div style="padding:10px 16px;color:#9ca3af;font-size:12px;">Cargando tus restaurantes…</div></div>`;
+        return comunes + `<div id="emp-rest-groups"><div style="padding:10px 16px;color: var(--tx-4, #9ca3af);font-size:12px;">Cargando tus restaurantes…</div></div>`;
     }
 
     function _grupoRestaurante(r) {
@@ -428,7 +428,7 @@
             if (res.ok) rests = await res.json();
         } catch (e) { rests = []; }
         const html = (rests || []).map(_grupoRestaurante).filter(Boolean).join("");
-        cont.innerHTML = html || '<div style="padding:10px 16px;color:#9ca3af;font-size:12px;">Sin restaurantes asignados.</div>';
+        cont.innerHTML = html || '<div style="padding:10px 16px;color: var(--tx-4, #9ca3af);font-size:12px;">Sin restaurantes asignados.</div>';
     }
 
     window.navCuenta = function (href) {
@@ -697,13 +697,13 @@
             const imgs = (p.adjuntos || []).filter(a => a.tipo === "imagen").map(a =>
                 `<img src="${_escS(a.url)}" alt="" style="max-width:100%;border-radius:10px;margin-top:10px;display:block;">`).join("");
             const files = (p.adjuntos || []).filter(a => a.tipo === "archivo").map(a =>
-                `<a href="${_escS(a.url)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:#4f46e5;font-weight:600;font-size:13px;text-decoration:none;">📄 ${_escS(a.nombre)}</a>`).join("");
+                `<a href="${_escS(a.url)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color: var(--tx-ac, #4f46e5);font-weight:600;font-size:13px;text-decoration:none;">📄 ${_escS(a.nombre)}</a>`).join("");
             // Solo linkear si el enlace es http(s): un enlace 'javascript:...' guardado en
             // la publicación ejecutaría JS en el origen de la app al hacer clic (robo de token).
             const _urlOk = p.enlace && /^https?:\/\//i.test(String(p.enlace).trim());
             const enlace = _urlOk
-                ? `<a href="${_escS(p.enlace)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:#4f46e5;font-size:13px;word-break:break-all;">🔗 ${_escS(p.enlace)}</a>`
-                : (p.enlace ? `<div style="margin-top:8px;color:#6b7280;font-size:13px;word-break:break-all;">🔗 ${_escS(p.enlace)}</div>` : "");
+                ? `<a href="${_escS(p.enlace)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;color: var(--tx-ac, #4f46e5);font-size:13px;word-break:break-all;">🔗 ${_escS(p.enlace)}</a>`
+                : (p.enlace ? `<div style="margin-top:8px;color: var(--tx-3, #6b7280);font-size:13px;word-break:break-all;">🔗 ${_escS(p.enlace)}</div>` : "");
             const grupo = (p.grupo_nombre ? ` · grupo ${_escS(p.grupo_nombre)}` : "")
                 + (p.restaurante ? ` · 🏠 ${_escS(p.restaurante)}` : "");
             ov.innerHTML = `
@@ -713,13 +713,13 @@
                   <span style="font-size:12px;font-weight:700;opacity:.9;">${idx + 1} de ${posts.length}</span>
                 </div>
                 <div style="padding:16px 20px;overflow-y:auto;flex:1;">
-                  <div style="font-size:12px;color:#6b7280;margin-bottom:10px;"><b style="color:#1a1a2e">${_escS(p.nombre_display || p.username)}</b> · ${fmtF(p.creado_en)}${grupo}</div>
-                  <div style="font-size:14px;color:#1f2937;white-space:pre-wrap;word-break:break-word;">${_escS(p.contenido || "")}</div>
+                  <div style="font-size:12px;color: var(--tx-3, #6b7280);margin-bottom:10px;"><b style="color:#1a1a2e">${_escS(p.nombre_display || p.username)}</b> · ${fmtF(p.creado_en)}${grupo}</div>
+                  <div style="font-size:14px;color: var(--tx-13, #1f2937);white-space:pre-wrap;word-break:break-word;">${_escS(p.contenido || "")}</div>
                   ${imgs}${files}${enlace}
-                  <div id="prio-err" style="display:none;color:#b91c1c;font-size:13px;font-weight:600;margin-top:12px;"></div>
+                  <div id="prio-err" style="display:none;color: var(--pel-tx, #b91c1c);font-size:13px;font-weight:600;margin-top:12px;"></div>
                 </div>
-                <div style="border-top:1px solid #e5e7eb;padding:14px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fafafa;">
-                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer;">
+                <div style="border-top: 1px solid var(--bd, #e5e7eb);padding:14px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background: var(--sup-2, #fafafa);">
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;color: var(--tx-2, #374151);cursor:pointer;">
                     <input type="checkbox" id="prio-check" style="width:17px;height:17px;"> Leí y entiendo esta publicación
                   </label>
                   <button id="prio-aceptar" disabled style="margin-left:auto;background:#b91c1c;color:#fff;border:none;border-radius:8px;padding:9px 24px;font-size:14px;font-weight:700;cursor:pointer;opacity:.5;">Aceptar</button>
@@ -780,24 +780,24 @@
             "display:flex;align-items:center;justify-content:center;padding:16px;";
         ov.innerHTML = `
           <div style="background:#fff;border-radius:16px;width:540px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.4);">
-            <div style="background:#4f46e5;color:#fff;padding:14px 20px;font-weight:800;font-size:15px;">
+            <div style="background: var(--ac, #4f46e5);color:#fff;padding:14px 20px;font-weight:800;font-size:15px;">
                 📜 Términos y Condiciones — versión ${est.version}</div>
-            <div style="padding:20px 22px;overflow-y:auto;font-size:14px;color:#374151;line-height:1.6;">
+            <div style="padding:20px 22px;overflow-y:auto;font-size:14px;color: var(--tx-2, #374151);line-height:1.6;">
                 <p style="margin-bottom:10px;">Para seguir usando el sistema, el restaurante debe aceptar los
                 Términos y Condiciones del Servicio y tomar conocimiento de la Política de Privacidad
                 (incluye el encargo de tratamiento de datos RGPD y la lista de subencargados).</p>
                 <p style="margin-bottom:10px;">
-                    <a href="terminos.html" target="_blank" rel="noopener" style="color:#4f46e5;font-weight:700;">📄 Leer los Términos y Condiciones</a><br>
-                    <a href="privacidad.html" target="_blank" rel="noopener" style="color:#4f46e5;font-weight:700;">🔒 Leer la Política de Privacidad</a></p>
-                <p style="font-size:12.5px;color:#9ca3af;">La aceptación queda registrada (usuario, fecha y versión)
+                    <a href="terminos.html" target="_blank" rel="noopener" style="color: var(--tx-ac, #4f46e5);font-weight:700;">📄 Leer los Términos y Condiciones</a><br>
+                    <a href="privacidad.html" target="_blank" rel="noopener" style="color: var(--tx-ac, #4f46e5);font-weight:700;">🔒 Leer la Política de Privacidad</a></p>
+                <p style="font-size:12.5px;color: var(--tx-4, #9ca3af);">La aceptación queda registrada (usuario, fecha y versión)
                 a nombre de este restaurante. Solo la ven las cuentas de gerencia.</p>
                 <label style="display:flex;gap:9px;align-items:flex-start;margin-top:12px;font-size:13.5px;font-weight:600;cursor:pointer;">
                     <input type="checkbox" id="legal-check" style="margin-top:3px;">
                     Leí y acepto los Términos y Condiciones en nombre del restaurante</label>
-                <div id="legal-err" style="color:#dc2626;font-size:12.5px;margin-top:8px;"></div>
+                <div id="legal-err" style="color: var(--pel-tx-2, #dc2626);font-size:12.5px;margin-top:8px;"></div>
             </div>
-            <div style="padding:14px 20px;border-top:1px solid #eee;text-align:right;">
-                <button id="legal-btn" style="background:#4f46e5;color:#fff;border:none;border-radius:9px;
+            <div style="padding:14px 20px;border-top: 1px solid var(--bd-4, #eee);text-align:right;">
+                <button id="legal-btn" style="background: var(--ac, #4f46e5);color:#fff;border:none;border-radius:9px;
                     padding:10px 22px;font-size:14px;font-weight:700;cursor:pointer;">Aceptar y continuar</button>
             </div>
           </div>`;

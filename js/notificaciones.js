@@ -33,7 +33,7 @@
     function dn(u) { return (u && (u.nombre_display || u.username)) || "Sistema"; }
     function linkify(s) {
         return esc(s).replace(/(https?:\/\/[^\s]+|[\w./-]+\.html(?:\?[^\s]*)?)/g,
-            m => `<a href="${m}" target="_blank" rel="noopener" style="color:#4f46e5;font-weight:600;">${m}</a>`);
+            m => `<a href="${m}" target="_blank" rel="noopener" style="color: var(--tx-ac, #4f46e5);font-weight:600;">${m}</a>`);
     }
     function fechaFull(ts) {
         if (!ts) return "—";

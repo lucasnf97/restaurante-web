@@ -12,7 +12,7 @@
 
         body {
             font-family: 'Segoe UI', sans-serif;
-            background: #f0f2f5;
+            background: var(--sup-app, #f0f2f5);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -20,7 +20,7 @@
         }
 
         .card {
-            background: white;
+            background: var(--sup, white);
             border-radius: 12px;
             padding: 48px 40px;
             width: 100%;
@@ -40,7 +40,7 @@
         .logo h1 img { width: 200px; max-width: 100%; height: auto; }
 
         .logo p {
-            color: #666;
+            color: var(--tx-7, #666);
             font-size: 14px;
             margin-top: 6px;
         }
@@ -53,14 +53,14 @@
             display: block;
             font-size: 13px;
             font-weight: 600;
-            color: #444;
+            color: var(--tx-10, #444);
             margin-bottom: 6px;
         }
 
         input {
             width: 100%;
             padding: 12px 16px;
-            border: 1.5px solid #e0e0e0;
+            border: 1.5px solid var(--bd-2, #e0e0e0);
             border-radius: 8px;
             font-size: 15px;
             transition: border-color 0.2s;
@@ -68,14 +68,14 @@
         }
 
         input:focus {
-            border-color: #4f46e5;
+            border-color: var(--ac, #4f46e5);
         }
 
         button {
             width: 100%;
             padding: 13px;
-            background: #4f46e5;
-            color: white;
+            background: var(--ac, #4f46e5);
+            color: var(--tx-inv, white);
             border: none;
             border-radius: 8px;
             font-size: 15px;
@@ -86,7 +86,7 @@
         }
 
         button:hover {
-            background: #4338ca;
+            background: var(--ac-h, #4338ca);
         }
 
         button:disabled {
@@ -95,9 +95,9 @@
         }
 
         .error {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
+            background: var(--pel-sf-2, #fef2f2);
+            border: 1px solid var(--pel-bd, #fecaca);
+            color: var(--pel-tx-2, #dc2626);
             padding: 12px 16px;
             border-radius: 8px;
             font-size: 14px;
@@ -137,18 +137,18 @@
         <button id="btn-login" onclick="handleLogin()">Ingresar</button>
 
         <div style="text-align:center;margin-top:14px;">
-            <a href="#" id="toggle-modo" onclick="toggleModo(event)" style="font-size:13px;color:#4f46e5;text-decoration:none;">Ingresar con código (gerente / administración)</a>
+            <a href="#" id="toggle-modo" onclick="toggleModo(event)" style="font-size:13px;color: var(--tx-ac, #4f46e5);text-decoration:none;">Ingresar con código (gerente / administración)</a>
         </div>
         <div style="text-align:center;margin-top:8px;">
-            <a href="#" onclick="abrirReset(event)" style="font-size:13px;color:#6b7280;text-decoration:none;">¿Olvidaste tu contraseña?</a>
+            <a href="#" onclick="abrirReset(event)" style="font-size:13px;color: var(--tx-3, #6b7280);text-decoration:none;">¿Olvidaste tu contraseña?</a>
         </div>
 
         <div class="error" id="error-msg"></div>
 
-        <div style="text-align:center;margin-top:18px;font-size:11.5px;color:#9ca3af;">
-            <a href="terminos.html" style="color:#9ca3af;">Términos y Condiciones</a>
+        <div style="text-align:center;margin-top:18px;font-size:11.5px;color: var(--tx-4, #9ca3af);">
+            <a href="terminos.html" style="color: var(--tx-4, #9ca3af);">Términos y Condiciones</a>
             &nbsp;·&nbsp;
-            <a href="privacidad.html" style="color:#9ca3af;">Privacidad y Protección de Datos</a>
+            <a href="privacidad.html" style="color: var(--tx-4, #9ca3af);">Privacidad y Protección de Datos</a>
         </div>
     </div>
 
@@ -156,14 +156,14 @@
     <div id="reset-ov" style="display:none;position:fixed;inset:0;background:rgba(10,10,25,.6);z-index:900;align-items:center;justify-content:center;padding:16px;">
         <div style="background:#fff;border-radius:14px;width:400px;max-width:94vw;padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.4);">
             <h3 style="margin:0 0 6px;font-size:18px;color:#1a1a2e;">Recuperar contraseña</h3>
-            <p style="font-size:13px;color:#6b7280;margin:0 0 14px;line-height:1.5;">Ingresá tu <b>correo</b>. Si tiene una cuenta con email cargado, te mandamos un enlace para elegir una nueva contraseña. Si no tenés correo, pedile al encargado que te la cambie.</p>
+            <p style="font-size:13px;color: var(--tx-3, #6b7280);margin:0 0 14px;line-height:1.5;">Ingresá tu <b>correo</b>. Si tiene una cuenta con email cargado, te mandamos un enlace para elegir una nueva contraseña. Si no tenés correo, pedile al encargado que te la cambie.</p>
             <input type="email" id="reset-email" placeholder="tu@correo.com" autocomplete="email"
-                   style="width:100%;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;"
+                   style="width:100%;padding:10px 12px;border: 1.5px solid var(--bd-3, #d1d5db);border-radius:8px;font-size:14px;box-sizing:border-box;"
                    onkeydown="if(event.key==='Enter') enviarReset()">
             <div id="reset-msg" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px;">
-                <button onclick="cerrarReset()" style="background:#fff;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;color:#6b7280;cursor:pointer;">Cerrar</button>
-                <button id="reset-btn" onclick="enviarReset()" style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;">Enviar enlace</button>
+                <button onclick="cerrarReset()" style="background:#fff;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;color: var(--tx-3, #6b7280);cursor:pointer;">Cerrar</button>
+                <button id="reset-btn" onclick="enviarReset()" style="background: var(--ac, #4f46e5);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;">Enviar enlace</button>
             </div>
         </div>
     </div>

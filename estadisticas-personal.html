@@ -9,7 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; }
+body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); min-height:100vh; }
 
 /* ── Navbar ─────────────────────────────────────────────────── */
 .navbar {
@@ -20,26 +20,26 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
 .navbar-brand { font-size:18px; font-weight:700; }
 .navbar-links  { display:flex; gap:12px; align-items:center; }
 .btn-logout {
-    background:transparent; border:1px solid #4f46e5; color:#a5b4fc;
+    background:transparent; border: 1px solid var(--ac, #4f46e5); color: var(--nav-tx, #a5b4fc);
     padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px;
 }
-.btn-logout:hover { background:#4f46e5; color:white; }
+.btn-logout:hover { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
 
 .content { margin-top:60px; padding:24px 28px; max-width:1500px; margin-left:auto; margin-right:auto; }
 
 /* ── Header + selector de período ───────────────────────────── */
 .page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
 .btn-back {
-    background:white; border:1.5px solid #e0e0e0; border-radius:8px;
-    padding:7px 16px; font-size:13px; font-weight:600; color:#4f46e5;
+    background: var(--sup, white); border: 1.5px solid var(--bd-2, #e0e0e0); border-radius:8px;
+    padding:7px 16px; font-size:13px; font-weight:600; color: var(--tx-ac, #4f46e5);
     cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px;
     transition:background .15s, border-color .15s;
 }
-.btn-back:hover { background:#f5f3ff; border-color:#c4b5fd; }
-.page-title { font-size:20px; font-weight:800; color:#1a1a2e; }
+.btn-back:hover { background: var(--ac-sf, #f5f3ff); border-color: var(--ac-bd-2, #c4b5fd); }
+.page-title { font-size:20px; font-weight:800; color: var(--tx, #1a1a2e); }
 .periodo-picker { display:flex; gap:8px; align-items:center; }
 .periodo-picker select, .periodo-picker input {
-    border:1px solid #d1d5db; border-radius:8px; padding:8px 10px; font-size:14px; background:#fff;
+    border: 1px solid var(--bd-3, #d1d5db); border-radius:8px; padding:8px 10px; font-size:14px; background: var(--sup, #fff);
 }
 .periodo-picker input { width:90px; }
 .btn-primary {
@@ -47,47 +47,47 @@ body { font-family:'Segoe UI',sans-serif; background:#f0f2f5; min-height:100vh; 
     font-size:13px; font-weight:700; cursor:pointer;
 }
 .btn-primary:hover { background:#4338ca; }
-.periodo-label { font-size:13px; color:#6b7280; }
+.periodo-label { font-size:13px; color: var(--tx-3, #6b7280); }
 
 /* ── Secciones y cards ──────────────────────────────────────── */
 .sec { margin-bottom:30px; }
-.sec-title { font-size:17px; font-weight:800; color:#1a1a2e; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
-.sec-sub { font-size:12px; color:#9ca3af; font-weight:400; }
+.sec-title { font-size:17px; font-weight:800; color: var(--tx, #1a1a2e); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.sec-sub { font-size:12px; color: var(--tx-4, #9ca3af); font-weight:400; }
 .stat-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:14px; }
-.stat-card { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:14px 16px; }
-.stat-lbl { font-size:11.5px; color:#6b7280; font-weight:700; text-transform:uppercase; letter-spacing:.3px; }
-.stat-val { font-size:22px; font-weight:800; color:#1a1a2e; margin-top:4px; }
-.stat-hint { font-size:11px; color:#9ca3af; margin-top:2px; }
+.stat-card { background: var(--sup, #fff); border-radius:12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,.06)); padding:14px 16px; }
+.stat-lbl { font-size:11.5px; color: var(--tx-3, #6b7280); font-weight:700; text-transform:uppercase; letter-spacing:.3px; }
+.stat-val { font-size:22px; font-weight:800; color: var(--tx, #1a1a2e); margin-top:4px; }
+.stat-hint { font-size:11px; color: var(--tx-4, #9ca3af); margin-top:2px; }
 
 .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 @media (max-width:980px) { .grid-2 { grid-template-columns:1fr; } }
-.panel { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px 18px; }
-.panel h4 { font-size:13.5px; font-weight:700; color:#374151; margin-bottom:10px; }
+.panel { background: var(--sup, #fff); border-radius:12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,.06)); padding:16px 18px; }
+.panel h4 { font-size:13.5px; font-weight:700; color: var(--tx-2, #374151); margin-bottom:10px; }
 .chart-box { position:relative; height:260px; }
 
 /* ── Tablas ─────────────────────────────────────────────────── */
 .tbl-wrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
-th { text-align:left; padding:8px 10px; color:#6b7280; font-size:11.5px; text-transform:uppercase;
-     letter-spacing:.3px; border-bottom:2px solid #f0f0f0; white-space:nowrap; }
-td { padding:8px 10px; border-bottom:1px solid #f6f6f6; color:#1f2937; white-space:nowrap; }
+th { text-align:left; padding:8px 10px; color: var(--tx-3, #6b7280); font-size:11.5px; text-transform:uppercase;
+     letter-spacing:.3px; border-bottom: 2px solid var(--bd-4, #f0f0f0); white-space:nowrap; }
+td { padding:8px 10px; border-bottom: 1px solid var(--bd-4, #f6f6f6); color: var(--tx-13, #1f2937); white-space:nowrap; }
 td.num, th.num { text-align:right; }
-tr:hover td { background:#fafaff; }
+tr:hover td { background: var(--sup-2, #fafaff); }
 .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:7px; vertical-align:baseline; }
-.empty { color:#9ca3af; font-size:13px; padding:18px; text-align:center; }
+.empty { color: var(--tx-4, #9ca3af); font-size:13px; padding:18px; text-align:center; }
 
 /* ── Chip de filtro por empleado ────────────────────────────── */
-.chip-filtro { display:inline-flex; align-items:center; gap:6px; background:#eef2ff;
-    border:1px solid #c7d2fe; color:#4338ca; border-radius:20px; padding:3px 6px 3px 12px;
+.chip-filtro { display:inline-flex; align-items:center; gap:6px; background: var(--ac-sf, #eef2ff);
+    border: 1px solid var(--ac-bd, #c7d2fe); color:#4338ca; border-radius:20px; padding:3px 6px 3px 12px;
     font-size:12px; font-weight:700; }
-.chip-filtro button { background:#4f46e5; color:#fff; border:none; border-radius:50%;
+.chip-filtro button { background: var(--ac, #4f46e5); color: var(--tx-inv, #fff); border:none; border-radius:50%;
     width:18px; height:18px; font-size:11px; cursor:pointer; line-height:1; }
 
 /* ── Toggle de insumos ──────────────────────────────────────── */
-.tgl { display:inline-flex; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; }
-.tgl button { background:#fff; border:none; padding:6px 12px; font-size:12px; cursor:pointer; color:#6b7280; }
-.tgl button.on { background:#4f46e5; color:#fff; }
-.aviso-inline { font-size:11.5px; color:#9ca3af; margin-top:6px; }
+.tgl { display:inline-flex; border: 1px solid var(--bd, #e5e7eb); border-radius:8px; overflow:hidden; }
+.tgl button { background: var(--sup, #fff); border:none; padding:6px 12px; font-size:12px; cursor:pointer; color: var(--tx-3, #6b7280); }
+.tgl button.on { background: var(--ac, #4f46e5); color: var(--tx-inv, #fff); }
+.aviso-inline { font-size:11.5px; color: var(--tx-4, #9ca3af); margin-top:6px; }
 </style>
 </head>
 <body>
@@ -277,7 +277,7 @@ function render() {
         (selCam ? [selCam] : c.empleados).forEach(e => {
             html += `<tr>
                 <td><span class="dot" style="background:${colorDe(e.usuario_id)}"></span>${esc(e.nombre)}
-                    <span style="color:#9ca3af;font-size:11px;"> ${esc(e.rol || '')}</span></td>
+                    <span style="color: var(--tx-4, #9ca3af);font-size:11px;"> ${esc(e.rol || '')}</span></td>
                 <td class="num">${fmtH(e.horas)}</td>
                 <td class="num">${fmtI.format(e.mesas_cerradas)}</td>
                 <td class="num">${fmtI.format(e.ordenes_entregadas)}</td>
@@ -368,7 +368,7 @@ function render() {
         html += `<div class="sec"><div class="sec-title">📎 Otros</div><div class="grid-2">`;
         if (o.sin_atribuir.mesas > 0) {
             html += `<div class="panel"><h4>Mesas sin camarero registrado</h4>
-                <div style="font-size:13.5px;color:#374151;">${fmtI.format(o.sin_atribuir.mesas)} mesa(s) ·
+                <div style="font-size:13.5px;color: var(--tx-2, #374151);">${fmtI.format(o.sin_atribuir.mesas)} mesa(s) ·
                 ${money(o.sin_atribuir.total_facturado)} facturado</div>
                 <div class="aviso-inline">Pedidos sin usuario que los abriera (históricos o cargas externas).
                 Se cuentan en la facturación total pero no se atribuyen a nadie.</div></div>`;

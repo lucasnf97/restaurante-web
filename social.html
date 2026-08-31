@@ -8,68 +8,68 @@
 <link rel="stylesheet" href="css/tema.css?v=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
         .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .navbar-brand { font-size: 18px; font-weight: 700; }
         .navbar-links { display: flex; gap: 16px; align-items: center; }
-        .btn-logout { background: transparent; border: 1px solid #4f46e5; color: #a5b4fc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
-        .btn-logout:hover { background: #4f46e5; color: white; }
+        .btn-logout { background: transparent; border: 1px solid var(--ac, #4f46e5); color: var(--nav-tx, #a5b4fc); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
 
         .content { margin-top: 60px; padding: 24px 16px 60px; max-width: 760px; margin-left: auto; margin-right: auto; }
 
         /* Selector de feed — tabs estilo "Para ti / Siguiendo" */
         .feeds-bar { display: flex; gap: 24px; align-items: center; margin-bottom: 18px;
-            border-bottom: 1px solid #e5e7eb; overflow-x: auto;
-            position: sticky; top: 60px; background: #f0f2f5; z-index: 50; }
-        .feed-tab { padding: 12px 2px; font-size: 15px; font-weight: 600; color: #9ca3af;
+            border-bottom: 1px solid var(--bd, #e5e7eb); overflow-x: auto;
+            position: sticky; top: 60px; background: var(--sup-app, #f0f2f5); z-index: 50; }
+        .feed-tab { padding: 12px 2px; font-size: 15px; font-weight: 600; color: var(--tx-4, #9ca3af);
             cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
         .feed-tab:hover { color: #4b5563; }
-        .feed-tab.active { color: #1a1a2e; font-weight: 800; border-bottom-color: #1a1a2e; }
+        .feed-tab.active { color: var(--tx, #1a1a2e); font-weight: 800; border-bottom-color: #1a1a2e; }
         .feed-cog { font-size: 12px; opacity: .7; margin-left: 4px; }
-        .feed-add { color: #7c3aed; font-weight: 800; }
+        .feed-add { color: var(--tx-ac-2, #7c3aed); font-weight: 800; }
 
         /* Composer */
-        .composer { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); padding: 16px; margin-bottom: 22px; }
-        .composer textarea { width: 100%; border: 1px solid #e5e7eb; border-radius: 10px; padding: 11px 13px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 70px; outline: none; }
-        .composer textarea:focus { border-color: #4f46e5; }
+        .composer { background: var(--sup, #fff); border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); padding: 16px; margin-bottom: 22px; }
+        .composer textarea { width: 100%; border: 1px solid var(--bd, #e5e7eb); border-radius: 10px; padding: 11px 13px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 70px; outline: none; }
+        .composer textarea:focus { border-color: var(--ac, #4f46e5); }
         .composer-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-        .comp-link { flex: 1; min-width: 180px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 11px; font-size: 13px; outline: none; }
-        .comp-link:focus { border-color: #4f46e5; }
-        .btn-attach { padding: 8px 13px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #4f46e5; cursor: pointer; }
-        .btn-publicar { padding: 8px 22px; border: none; background: #4f46e5; color: #fff; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: auto; }
+        .comp-link { flex: 1; min-width: 180px; border: 1px solid var(--bd, #e5e7eb); border-radius: 8px; padding: 8px 11px; font-size: 13px; outline: none; }
+        .comp-link:focus { border-color: var(--ac, #4f46e5); }
+        .btn-attach { padding: 8px 13px; border: 1px solid var(--bd-6, #d7dbe3); background: var(--sup, #fff); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--tx-ac, #4f46e5); cursor: pointer; }
+        .btn-publicar { padding: 8px 22px; border: none; background: var(--ac, #4f46e5); color: var(--tx-inv, #fff); border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: auto; }
         .btn-publicar:disabled { opacity: .5; cursor: default; }
         /* Autocompletar menciones */
-        .mention-box { border: 1px solid #e5e7eb; border-radius: 10px; margin-top: 6px; max-height: 210px; overflow-y: auto; box-shadow: 0 6px 18px rgba(0,0,0,.1); background: #fff; }
+        .mention-box { border: 1px solid var(--bd, #e5e7eb); border-radius: 10px; margin-top: 6px; max-height: 210px; overflow-y: auto; box-shadow: 0 6px 18px rgba(0,0,0,.1); background: var(--sup, #fff); }
         .mention-item { display: flex; align-items: center; gap: 8px; padding: 9px 12px; font-size: 13px; cursor: pointer; }
-        .mention-item:hover { background: #eef2ff; }
-        .mention-item .mi-tag { margin-left: auto; font-size: 11px; color: #9ca3af; }
-        .mention { color: #4f46e5; font-weight: 600; }
+        .mention-item:hover { background: var(--ac-sf, #eef2ff); }
+        .mention-item .mi-tag { margin-left: auto; font-size: 11px; color: var(--tx-4, #9ca3af); }
+        .mention { color: var(--tx-ac, #4f46e5); font-weight: 600; }
 
         .adj-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .adj-chip { font-size: 12px; background: #eef2ff; color: #3730a3; border-radius: 8px; padding: 4px 10px; display: flex; align-items: center; gap: 6px; }
+        .adj-chip { font-size: 12px; background: var(--ac-sf, #eef2ff); color: #3730a3; border-radius: 8px; padding: 4px 10px; display: flex; align-items: center; gap: 6px; }
         .adj-chip .x { cursor: pointer; font-weight: 800; color: #6366f1; }
 
         /* Post card */
-        .post { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 18px; overflow: hidden; transition: box-shadow .3s; }
+        .post { background: var(--sup, #fff); border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 18px; overflow: hidden; transition: box-shadow .3s; }
         .post.post-highlight { box-shadow: 0 0 0 3px #4f46e5, 0 2px 10px rgba(0,0,0,.06); }
         .post-head { display: flex; align-items: center; gap: 10px; padding: 13px 16px; }
-        .post-avatar { width: 38px; height: 38px; border-radius: 50%; background: #4f46e5; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+        .post-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--ac, #4f46e5); color: var(--tx-inv, #fff); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
         .post-meta { flex: 1; min-width: 0; }
-        .post-user { font-size: 14px; font-weight: 700; color: #1a1a2e; }
-        .post-fecha { font-size: 11px; color: #9ca3af; }
+        .post-user { font-size: 14px; font-weight: 700; color: var(--tx, #1a1a2e); }
+        .post-fecha { font-size: 11px; color: var(--tx-4, #9ca3af); }
         .post-acciones { display: flex; gap: 4px; }
-        .post-acc-btn { border: none; background: transparent; cursor: pointer; font-size: 15px; padding: 4px 6px; border-radius: 6px; color: #6b7280; }
-        .post-acc-btn:hover { background: #f3f4f6; }
-        .post-texto { padding: 0 16px 12px; font-size: 14px; color: #1f2937; white-space: pre-wrap; word-break: break-word; }
-        .post-img { width: 100%; height: auto; display: block; background: #f3f4f6; }
+        .post-acc-btn { border: none; background: transparent; cursor: pointer; font-size: 15px; padding: 4px 6px; border-radius: 6px; color: var(--tx-3, #6b7280); }
+        .post-acc-btn:hover { background: var(--sup-3, #f3f4f6); }
+        .post-texto { padding: 0 16px 12px; font-size: 14px; color: var(--tx-13, #1f2937); white-space: pre-wrap; word-break: break-word; }
+        .post-img { width: 100%; height: auto; display: block; background: var(--sup-3, #f3f4f6); }
         .post-files { display: flex; flex-direction: column; gap: 6px; padding: 0 16px 12px; }
-        .post-file { display: flex; align-items: center; gap: 10px; border: 1px solid #eef0f3; border-radius: 10px; padding: 9px 12px; text-decoration: none; color: #1f2937; font-size: 13px; font-weight: 600; }
-        .post-file:hover { background: #fafafe; }
+        .post-file { display: flex; align-items: center; gap: 10px; border: 1px solid var(--bd-4, #eef0f3); border-radius: 10px; padding: 9px 12px; text-decoration: none; color: var(--tx-13, #1f2937); font-size: 13px; font-weight: 600; }
+        .post-file:hover { background: var(--sup-2, #fafafe); }
         .post-file .fi { font-size: 20px; }
         .post-enlace { padding: 0 16px 14px; }
-        .post-enlace a { color: #4f46e5; font-size: 13px; font-weight: 600; word-break: break-all; }
-        .empty { text-align: center; color: #9ca3af; font-size: 14px; padding: 40px 0; }
-        .btn-mas { display: block; margin: 0 auto; padding: 9px 24px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #4f46e5; cursor: pointer; }
+        .post-enlace a { color: var(--tx-ac, #4f46e5); font-size: 13px; font-weight: 600; word-break: break-all; }
+        .empty { text-align: center; color: var(--tx-4, #9ca3af); font-size: 14px; padding: 40px 0; }
+        .btn-mas { display: block; margin: 0 auto; padding: 9px 24px; border: 1px solid var(--bd-6, #d7dbe3); background: var(--sup, #fff); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--tx-ac, #4f46e5); cursor: pointer; }
 
         /* Badges 📌 fijado / 🚨 prioritaria */
         .badge-pin { background: #fef3c7; color: #92400e; border-radius: 6px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
@@ -78,59 +78,59 @@
         .post.prio { border: 1px solid #fca5a5; }
 
         /* Barra de acciones del post (reacciones, comentarios, vistas, acuses) */
-        .post-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid #f3f4f6; }
-        .react-chip { border: 1px solid #e5e7eb; background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: #4b5563; }
-        .react-chip:hover { background: #f3f4f6; }
-        .react-chip.mine { background: #eef2ff; border-color: #a5b4fc; color: #3730a3; font-weight: 700; }
+        .post-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--bd-4, #f3f4f6); }
+        .react-chip { border: 1px solid var(--bd, #e5e7eb); background: var(--sup, #fff); border-radius: 999px; padding: 4px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: #4b5563; }
+        .react-chip:hover { background: var(--sup-3, #f3f4f6); }
+        .react-chip.mine { background: var(--ac-sf, #eef2ff); border-color: #a5b4fc; color: #3730a3; font-weight: 700; }
         .react-chip .rn { font-size: 12px; font-weight: 700; }
-        .act-chip { border: none; background: transparent; border-radius: 8px; padding: 5px 9px; font-size: 12.5px; font-weight: 600; color: #6b7280; cursor: pointer; }
-        .act-chip:hover { background: #f3f4f6; }
-        .act-chip.acuses { color: #b91c1c; }
+        .act-chip { border: none; background: transparent; border-radius: 8px; padding: 5px 9px; font-size: 12.5px; font-weight: 600; color: var(--tx-3, #6b7280); cursor: pointer; }
+        .act-chip:hover { background: var(--sup-3, #f3f4f6); }
+        .act-chip.acuses { color: var(--pel-tx, #b91c1c); }
 
         /* Comentarios */
-        .post-comments { border-top: 1px solid #f3f4f6; padding: 10px 16px 14px; background: #fafafe; }
+        .post-comments { border-top: 1px solid var(--bd-4, #f3f4f6); padding: 10px 16px 14px; background: var(--sup-2, #fafafe); }
         .coment { display: flex; gap: 9px; padding: 7px 0; align-items: flex-start; }
-        .coment-avatar { width: 28px; height: 28px; border-radius: 50%; background: #6366f1; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; flex-shrink: 0; }
-        .coment-body { flex: 1; min-width: 0; background: #fff; border: 1px solid #eef0f3; border-radius: 10px; padding: 7px 11px; }
-        .coment-user { font-size: 12px; font-weight: 700; color: #1a1a2e; }
-        .coment-user .cf { font-weight: 400; color: #9ca3af; font-size: 11px; margin-left: 6px; }
-        .coment-texto { font-size: 13px; color: #1f2937; white-space: pre-wrap; word-break: break-word; }
-        .coment-del { border: none; background: transparent; cursor: pointer; color: #9ca3af; font-size: 12px; padding: 2px 4px; }
-        .coment-del:hover { color: #dc2626; }
+        .coment-avatar { width: 28px; height: 28px; border-radius: 50%; background: #6366f1; color: var(--tx-inv, #fff); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; flex-shrink: 0; }
+        .coment-body { flex: 1; min-width: 0; background: var(--sup, #fff); border: 1px solid var(--bd-4, #eef0f3); border-radius: 10px; padding: 7px 11px; }
+        .coment-user { font-size: 12px; font-weight: 700; color: var(--tx, #1a1a2e); }
+        .coment-user .cf { font-weight: 400; color: var(--tx-4, #9ca3af); font-size: 11px; margin-left: 6px; }
+        .coment-texto { font-size: 13px; color: var(--tx-13, #1f2937); white-space: pre-wrap; word-break: break-word; }
+        .coment-del { border: none; background: transparent; cursor: pointer; color: var(--tx-4, #9ca3af); font-size: 12px; padding: 2px 4px; }
+        .coment-del:hover { color: var(--pel-tx-2, #dc2626); }
         .coment-form { display: flex; gap: 8px; margin-top: 8px; }
-        .coment-form input { flex: 1; border: 1px solid #e5e7eb; border-radius: 999px; padding: 8px 14px; font-size: 13px; outline: none; }
-        .coment-form input:focus { border-color: #4f46e5; }
-        .coment-form button { border: none; background: #4f46e5; color: #fff; border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .coment-form input { flex: 1; border: 1px solid var(--bd, #e5e7eb); border-radius: 999px; padding: 8px 14px; font-size: 13px; outline: none; }
+        .coment-form input:focus { border-color: var(--ac, #4f46e5); }
+        .coment-form button { border: none; background: var(--ac, #4f46e5); color: var(--tx-inv, #fff); border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
 
         /* Toggles del composer (📌 / 🚨, solo edición) */
-        .comp-toggle { padding: 8px 13px; border: 1px solid #d7dbe3; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; }
-        .comp-toggle.on-pin { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
-        .comp-toggle.on-prio { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+        .comp-toggle { padding: 8px 13px; border: 1px solid var(--bd-6, #d7dbe3); background: var(--sup, #fff); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--tx-3, #6b7280); cursor: pointer; }
+        .comp-toggle.on-pin { background: var(--av-sf, #fef3c7); border-color: #f59e0b; color: var(--av-tx, #92400e); }
+        .comp-toggle.on-prio { background: var(--pel-sf, #fee2e2); border-color: #ef4444; color: var(--pel-tx, #b91c1c); }
 
         /* Sección de fijados */
-        .fijados-titulo { font-size: 12px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: .5px; margin: 2px 0 10px; }
+        .fijados-titulo { font-size: 12px; font-weight: 800; color: var(--av-tx, #92400e); text-transform: uppercase; letter-spacing: .5px; margin: 2px 0 10px; }
 
         /* Listados en modal (acuses / vistas) */
         .lista-det { max-height: 320px; overflow-y: auto; }
-        .lista-det .li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 4px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151; }
-        .lista-det .li .lf { color: #9ca3af; font-size: 12px; white-space: nowrap; }
-        .lista-sub { font-size: 12px; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; margin: 14px 0 4px; }
+        .lista-det .li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--bd-4, #f3f4f6); font-size: 13px; color: var(--tx-2, #374151); }
+        .lista-det .li .lf { color: var(--tx-4, #9ca3af); font-size: 12px; white-space: nowrap; }
+        .lista-sub { font-size: 12px; font-weight: 800; color: var(--tx-3, #6b7280); text-transform: uppercase; letter-spacing: .4px; margin: 14px 0 4px; }
         .lista-sub.ok { color: #059669; }
-        .lista-sub.falta { color: #b91c1c; }
+        .lista-sub.falta { color: var(--pel-tx, #b91c1c); }
 
         /* Modal grupo */
         .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 400; align-items: center; justify-content: center; }
         .modal-ov.open { display: flex; }
-        .modal { background: #fff; border-radius: 14px; width: 460px; max-width: 94vw; max-height: 88vh; overflow-y: auto; padding: 22px; }
-        .modal h3 { font-size: 18px; margin-bottom: 14px; color: #1a1a2e; }
-        .modal label.lbl { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; display: block; margin: 12px 0 6px; }
-        .modal input.txt { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; font-size: 14px; outline: none; }
-        .checks { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 8px; }
-        .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; padding: 3px 4px; }
+        .modal { background: var(--sup, #fff); border-radius: 14px; width: 460px; max-width: 94vw; max-height: 88vh; overflow-y: auto; padding: 22px; }
+        .modal h3 { font-size: 18px; margin-bottom: 14px; color: var(--tx, #1a1a2e); }
+        .modal label.lbl { font-size: 12px; font-weight: 700; color: var(--tx-3, #6b7280); text-transform: uppercase; letter-spacing: .4px; display: block; margin: 12px 0 6px; }
+        .modal input.txt { width: 100%; border: 1px solid var(--bd, #e5e7eb); border-radius: 8px; padding: 9px 12px; font-size: 14px; outline: none; }
+        .checks { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; border: 1px solid var(--bd-4, #f0f0f0); border-radius: 8px; padding: 8px; }
+        .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--tx-2, #374151); padding: 3px 4px; }
         .modal-acc { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
-        .btn-save { padding: 9px 20px; border: none; background: #4f46e5; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-        .btn-sec { padding: 9px 16px; border: 1px solid #d1d5db; background: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; }
-        .btn-del { padding: 9px 16px; border: 1px solid #fecaca; background: #fef2f2; color: #dc2626; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-left: auto; }
+        .btn-save { padding: 9px 20px; border: none; background: var(--ac, #4f46e5); color: var(--tx-inv, #fff); border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .btn-sec { padding: 9px 16px; border: 1px solid var(--bd-3, #d1d5db); background: var(--sup, #fff); border-radius: 8px; font-size: 13px; cursor: pointer; }
+        .btn-del { padding: 9px 16px; border: 1px solid var(--pel-bd, #fecaca); background: var(--pel-sf-2, #fef2f2); color: var(--pel-tx-2, #dc2626); border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-left: auto; }
     </style>
 </head>
 <body>
@@ -199,9 +199,9 @@
         <input type="file" id="edit-files" multiple>
         <div id="edit-flags" style="display:none">
             <label class="lbl">Opciones</label>
-            <label class="check-row" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;padding:3px 4px;">
+            <label class="check-row" style="display:flex;align-items:center;gap:8px;font-size:13px;color: var(--tx-2, #374151);padding:3px 4px;">
                 <input type="checkbox" id="edit-fijado"> 📌 Fijada arriba del muro</label>
-            <label class="check-row" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;padding:3px 4px;">
+            <label class="check-row" style="display:flex;align-items:center;gap:8px;font-size:13px;color: var(--tx-2, #374151);padding:3px 4px;">
                 <input type="checkbox" id="edit-prio"> 🚨 Prioritaria (todos deben aceptarla)</label>
         </div>
         <div class="modal-acc">
@@ -412,7 +412,7 @@ function renderPost(p) {
         const href = `horarios.html?solicitud=${p.solicitud_id}${rid}`;
         const primTxt = esAb ? '✋ Postularme → ir a la grilla' : '✋ Tomar este turno → ir a la grilla';
         const btnPrim = `<a href="${href}" style="display:inline-block;background:#6d28d9;color:#fff;text-decoration:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px;">${primTxt}</a>`;
-        const btnSec  = `<a href="${href}" style="display:inline-block;background:#fff;color:#6d28d9;border:1px solid #c4b5fd;text-decoration:none;border-radius:8px;padding:7px 13px;font-weight:700;font-size:13px;">📅 Ir a la grilla</a>`;
+        const btnSec  = `<a href="${href}" style="display:inline-block;background:#fff;color:#6d28d9;border: 1px solid var(--ac-bd-2, #c4b5fd);text-decoration:none;border-radius:8px;padding:7px 13px;font-weight:700;font-size:13px;">📅 Ir a la grilla</a>`;
         const activa = esAb ? (p.solicitud_estado === 'abierta') : (p.solicitud_estado === 'disponible');
         if (activa)
             solBlock = `<div style="margin-top:8px;">${btnPrim}</div>`;
@@ -421,7 +421,7 @@ function renderPost(p) {
                 ? ({ asignada:'✔ Cubierto', cancelada:'Cerrado' })
                 : ({ pend_confirmacion:'Reclamado — pendiente de confirmación', aprobada:'✔ Tomado', cancelada:'Cerrado', denegada:'Disponible nuevamente' })
               )[p.solicitud_estado] || p.solicitud_estado;
-            solBlock = `<div style="margin-top:8px;font-size:13px;font-weight:700;color:#6b7280;margin-bottom:6px;">📣 ${esc(lbl)}</div><div>${btnSec}</div>`;
+            solBlock = `<div style="margin-top:8px;font-size:13px;font-weight:700;color: var(--tx-3, #6b7280);margin-bottom:6px;">📣 ${esc(lbl)}</div><div>${btnSec}</div>`;
         }
     }
     let accBtns = '';
@@ -434,7 +434,7 @@ function renderPost(p) {
     const editado = p.editado_en ? ' · editado' : '';
     const badges = (p.fijado ? ' <span class="badge-pin">📌 Fijada</span>' : '')
         + (p.prioritaria ? ' <span class="badge-prio">🚨 Prioritaria</span>' : '')
-        + (p.prioritaria && p.aceptado_por_mi ? ' <span class="badge-pin" style="background:#d1fae5;color:#065f46;">✔ Aceptada</span>' : '')
+        + (p.prioritaria && p.aceptado_por_mi ? ' <span class="badge-pin" style="background: var(--ok-sf, #d1fae5);color:#065f46;">✔ Aceptada</span>' : '')
         // Publicación DIRIGIDA (roles/personas): solo la ven los destinatarios + editores
         + (((p.dest_roles && p.dest_roles.length) || (p.dest_usuarios && p.dest_usuarios.length))
             ? ` <span class="badge-pin" style="background:#e0e7ff;color:#3730a3;" title="Dirigida${(p.dest_roles || []).length ? ' a: ' + p.dest_roles.join(', ') : ' a personas puntuales'}">🎯 Dirigida</span>` : '');
@@ -443,7 +443,7 @@ function renderPost(p) {
         <div class="post-head">
             <div class="post-avatar">${esc(iniciales(p.nombre_display || p.username))}</div>
             <div class="post-meta">
-                <div class="post-user">${esc(p.nombre_display || p.username)}${p.restaurante ? ` <span style="background:#eef2ff;color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${esc(p.restaurante)}</span>` : ''}</div>
+                <div class="post-user">${esc(p.nombre_display || p.username)}${p.restaurante ? ` <span style="background: var(--ac-sf, #eef2ff);color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${esc(p.restaurante)}</span>` : ''}</div>
                 <div class="post-fecha">${fmtFecha(p.creado_en)}${editado}${badges}</div>
             </div>
             ${acc}
@@ -498,10 +498,10 @@ async function toggleComentarios(postId) {
 }
 async function cargarComentarios(postId) {
     const box = document.getElementById('coments-' + postId);
-    box.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:6px 0">Cargando…</div>';
+    box.innerHTML = '<div style="font-size:12px;color: var(--tx-4, #9ca3af);padding:6px 0">Cargando…</div>';
     let lista = [];
     try { lista = await api.get(`/social/posts/${postId}/comentarios`); }
-    catch (e) { box.innerHTML = '<div style="font-size:12px;color:#9ca3af">No se pudieron cargar los comentarios.</div>'; return; }
+    catch (e) { box.innerHTML = '<div style="font-size:12px;color: var(--tx-4, #9ca3af)">No se pudieron cargar los comentarios.</div>'; return; }
     box.dataset.cargado = '1';
     box.innerHTML = `<div id="coments-lista-${postId}">${lista.map(c => _comentHtml(c)).join('')}</div>
         <div class="coment-form">
@@ -592,9 +592,9 @@ async function abrirAcuses(postId) {
         const falta = (r.pendientes || []).map(u => `<div class="li"><span>${esc(u.username)}</span></div>`).join('');
         _abrirLista(`🚨 Acuses (${(r.aceptaron || []).length}/${r.audiencia_total})`,
             `<div class="lista-sub ok">Aceptaron (${(r.aceptaron || []).length})</div>` +
-            (ok || '<div style="font-size:13px;color:#9ca3af;padding:4px">Nadie todavía.</div>') +
+            (ok || '<div style="font-size:13px;color: var(--tx-4, #9ca3af);padding:4px">Nadie todavía.</div>') +
             `<div class="lista-sub falta">Pendientes (${(r.pendientes || []).length})</div>` +
-            (falta || '<div style="font-size:13px;color:#9ca3af;padding:4px">Nadie pendiente 🎉</div>'));
+            (falta || '<div style="font-size:13px;color: var(--tx-4, #9ca3af);padding:4px">Nadie pendiente 🎉</div>'));
     } catch (e) { alert('No se pudo cargar: ' + (e.message || e)); }
 }
 
@@ -690,7 +690,7 @@ async function abrirEditar(k) {
     document.getElementById('edit-files').value = '';
     document.getElementById('edit-adjuntos').innerHTML = _editAdjuntos.length
         ? _editAdjuntos.map(a => `<label class="check-row"><input type="checkbox" value="${esc(a.public_id)}"> Quitar: ${esc(a.nombre)} (${a.tipo})</label>`).join('')
-        : '<span style="font-size:12px;color:#9ca3af">Sin adjuntos</span>';
+        : '<span style="font-size:12px;color: var(--tx-4, #9ca3af)">Sin adjuntos</span>';
     _editMenciones = [];   // solo se notifican las menciones agregadas en esta edición
     document.getElementById('edit-mention-box').style.display = 'none';
     // Flags 📌/🚨: solo editores los tocan (el autor común edita sin verlos)
@@ -753,10 +753,10 @@ async function abrirGrupoModal(grupoId) {
     const usrSel = new Set(_grupoEdit ? (_grupoEdit.usuarios || []) : []);
     document.getElementById('grupo-roles').innerHTML = _rolesDisp.map(r =>
         `<label class="check-row"><input type="checkbox" value="${esc(r.nombre)}" ${rolesSel.has(r.nombre) ? 'checked' : ''}> ${esc(r.nombre)}</label>`).join('')
-        || '<span style="font-size:12px;color:#9ca3af">Sin roles</span>';
+        || '<span style="font-size:12px;color: var(--tx-4, #9ca3af)">Sin roles</span>';
     document.getElementById('grupo-usuarios').innerHTML = _usuariosDisp.map(u =>
-        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(displayName(u))} <span style="color:#9ca3af">(${esc(u.rol)})</span></label>`).join('')
-        || '<span style="font-size:12px;color:#9ca3af">Sin usuarios</span>';
+        `<label class="check-row"><input type="checkbox" value="${u.id}" ${usrSel.has(u.id) ? 'checked' : ''}> ${esc(displayName(u))} <span style="color: var(--tx-4, #9ca3af)">(${esc(u.rol)})</span></label>`).join('')
+        || '<span style="font-size:12px;color: var(--tx-4, #9ca3af)">Sin usuarios</span>';
     document.getElementById('grupo-del').style.display = _grupoEdit ? '' : 'none';
     document.getElementById('modal-grupo').classList.add('open');
 }
