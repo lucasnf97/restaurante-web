@@ -111,8 +111,11 @@ async function main() {
   const guardar  = args.includes("--guardar");
   const comparar = args.includes("--comparar");
   const sinTema  = args.includes("--sin-tema");
-  const etiqueta = (args[args.indexOf(guardar ? "--guardar" : "--comparar") + 1] || "base")
-                   + (sinTema ? "-sin-tema" : "");
+  // ⚠ --sin-tema NO cambia la etiqueta: se compara contra la MISMA línea base.
+  // El sentido de esa pasada es comprobar que con los respaldos solos el
+  // resultado sea idéntico al original. Con etiqueta propia buscaría una base
+  // inexistente, saltaría todas las páginas y daría un falso verde.
+  const etiqueta = args[args.indexOf(guardar ? "--guardar" : "--comparar") + 1] || "base";
   if (!guardar && !comparar) {
     console.log("Usá --guardar <etiqueta> o --comparar <etiqueta>  [--sin-tema]");
     process.exit(2);
@@ -221,7 +224,12 @@ async function main() {
     if (guardar) {
       fs.writeFileSync(archivo, json);
     } else {
-      if (!fs.existsSync(archivo)) { console.log("  ? " + pag + " sin línea base"); await p.close(); await ctxNav.close(); continue; }
+      // ⚠ Sin línea base no se puede afirmar nada: cuenta como fallo. Saltarla
+      // en silencio convertía "0 diferencias" en "0 páginas comprobadas".
+      if (!fs.existsSync(archivo)) {
+        console.log("  ? " + pag + " SIN línea base — no se puede verificar");
+        difieren++; await p.close(); await ctxNav.close(); continue;
+      }
       const previo = fs.readFileSync(archivo, "utf8");
       if (previo !== json) {
         difieren++;
@@ -251,7 +259,7 @@ async function main() {
   console.log("\n" + (guardar ? "LÍNEA BASE guardada" : "COMPARACIÓN") + `  [${etiqueta}]`);
   console.log("  páginas: " + revisadas);
   if (comparar) {
-    console.log("  difieren: " + difieren);
+    console.log("  difieren o sin base: " + difieren);
     console.log(difieren ? "\n  ⚠ DIFF NO ES CERO — el codemod cambió algo que no debía."
                          : "\n  ✓ diff cero");
   }
