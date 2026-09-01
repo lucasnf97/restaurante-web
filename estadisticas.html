@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Restaurante — Facturación y Estadísticas</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=1">
+<link rel="stylesheet" href="css/tema.css?v=2">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); min-height:100vh; }
@@ -60,16 +60,16 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
     border-radius:12px 12px 0 0;
 }
 .bill-card.ventas::before    { background: var(--ok, #16a34a); }
-.bill-card.stock::before     { background:#0891b2; }
+.bill-card.stock::before     { background: var(--bg-a2, #0891b2); }
 .bill-card.insumos::before   { background: var(--pel, #dc2626); }
-.bill-card.servicios::before { background:#6366f1; }
+.bill-card.servicios::before { background: var(--bg-a20, #6366f1); }
 .bill-card.desechos::before  { background: var(--av, #f59e0b); }
-.bill-card.descuentos::before{ background:#db2777; }
-.bill-card.balance::before   { background:#0ea5e9; }
+.bill-card.descuentos::before{ background: var(--bg-a37, #db2777); }
+.bill-card.balance::before   { background: var(--bg-a3, #0ea5e9); }
 .bill-card.gastos::before          { background: var(--pel, #dc2626); }
-.bill-card.salarios::before        { background:#7c3aed; }
+.bill-card.salarios::before        { background: var(--bg-a23, #7c3aed); }
 .bill-card.corrientes::before      { background: var(--av, #f59e0b); }
-.bill-card.extraordinarios::before { background:#db2777; }
+.bill-card.extraordinarios::before { background: var(--bg-a37, #db2777); }
 
 .bill-icon { font-size:26px; margin-bottom:10px; }
 .bill-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color: var(--tx-5, #888); margin-bottom:6px; }
@@ -93,8 +93,8 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
     cursor:pointer; padding:5px 10px; font-size:16px; line-height:1;
     color: var(--tx-5, #888); transition:background .15s, border-color .15s;
 }
-.btn-gear:hover { background: var(--sup-3, #f3f4f6); border-color:#bbb; }
-.btn-gear.active { background: var(--ac-sf-2, #ede9fe); border-color:#7c3aed; color: var(--tx-ac, #4f46e5); }
+.btn-gear:hover { background: var(--sup-3, #f3f4f6); border-color: var(--bd-a22, #bbb); }
+.btn-gear.active { background: var(--ac-sf-2, #ede9fe); border-color: var(--bd-a12, #7c3aed); color: var(--tx-ac, #4f46e5); }
 
 /* ── Threshold config bar ── */
 .umbral-bar {
@@ -114,10 +114,10 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 .umbral-group input:focus { outline:none; border-color: var(--ac, #4f46e5); }
 .umbral-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
 .dot-verde   { background: var(--ok, #16a34a); }
-.dot-azul    { background:#2563eb; }
+.dot-azul    { background: var(--bg-a14, #2563eb); }
 .dot-amarillo{ background: var(--av, #f59e0b); }
 .dot-rojo    { background: var(--pel, #dc2626); }
-.umbral-sep { color:#ddd; }
+.umbral-sep { color: var(--fg-a46, #ddd); }
 
 /* ── Search bar ── */
 .search-bar {
@@ -142,7 +142,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 }
 .cost-table th:nth-child(1) { text-align:center; width:30px; }
 .cost-table th:nth-child(2) { text-align:left; }
-.cost-table td { padding:11px 16px; border-bottom:1px solid #f7f7f7; font-size:13px; vertical-align:middle; text-align:center; }
+.cost-table td { padding:11px 16px; border-bottom: 1px solid var(--bd-a34, #f7f7f7); font-size:13px; vertical-align:middle; text-align:center; }
 .cost-table td:nth-child(2) { text-align:left; }
 .cost-table tr:last-child td { border-bottom:none; }
 .cost-table tr.product-row { cursor:pointer; transition:background .12s; }
@@ -155,8 +155,8 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
     padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;
 }
 .estado-verde    { background: var(--ok-sf-2, #f0fdf4); color: var(--ok-tx-2, #16a34a); }
-.estado-azul     { background: var(--ac-sf, #eff6ff); color:#2563eb; }
-.estado-amarillo { background: var(--pel-sf-2, #fffbeb); color:#d97706; }
+.estado-azul     { background: var(--ac-sf, #eff6ff); color: var(--fg-a10, #2563eb); }
+.estado-amarillo { background: var(--pel-sf-2, #fffbeb); color: var(--fg-a45, #d97706); }
 .estado-rojo     { background: var(--pel-sf-2, #fef2f2); color: var(--pel-tx-2, #dc2626); }
 .estado-sin      { background: var(--sup-3, #f3f4f6); color: var(--tx-4, #9ca3af); }
 
@@ -165,7 +165,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 .expanded .expand-icon { transform:rotate(90deg); }
 
 /* Ingredient sub-table */
-.ingredient-row > td { background: var(--sup-2, #f9f7ff) !important; padding:0 !important; border-bottom:1px solid #ede9fe; }
+.ingredient-row > td { background: var(--sup-2, #f9f7ff) !important; padding:0 !important; border-bottom: 1px solid var(--bd-a29, #ede9fe); }
 .ingredient-table {
     width:100%; border-collapse:collapse; font-size:12px;
     table-layout:fixed;
@@ -177,11 +177,11 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 .ingredient-table th {
     background:transparent; padding:7px 12px; font-size:10px; color: var(--tx-ac-2, #7c3aed);
     font-weight:700; text-transform:uppercase; letter-spacing:.4px;
-    border-bottom:1px solid #ede9fe; text-align:center;
+    border-bottom: 1px solid var(--bd-a29, #ede9fe); text-align:center;
 }
 .ingredient-table th:first-child { text-align:left; padding-left:28px; }
 .ingredient-table th:last-child  { padding-right:16px; }
-.ingredient-table td { padding:7px 12px; color: var(--tx-10, #444); border-bottom:1px solid #f0eeff; text-align:center; }
+.ingredient-table td { padding:7px 12px; color: var(--tx-10, #444); border-bottom: 1px solid var(--bd-a32, #f0eeff); text-align:center; }
 .ingredient-table td:first-child { text-align:left; padding-left:28px; }
 .ingredient-table td:last-child  { padding-right:16px; }
 .ingredient-table tr:last-child td { border-bottom:none; }
@@ -215,7 +215,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 }
 .prog-fill {
     height:100%; border-radius:14px; overflow:hidden;
-    background:linear-gradient(90deg,#15803d 0%,#22c55e 100%);
+    background: linear-gradient(90deg,var(--bg-a8, #15803d) 0%,var(--bg-a13, #22c55e) 100%);
     transition:width .55s cubic-bezier(.4,0,.2,1);
     max-width:100%; display:flex; align-items:center; justify-content:flex-end;
 }
@@ -242,7 +242,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 .prog-mk-lbl.down { top:calc(100% + 14px); }
 .prog-scale {
     display:flex; justify-content:space-between;
-    font-size:11px; color:#bbb; margin-top:-30px;
+    font-size:11px; color: var(--fg-a36, #bbb); margin-top:-30px;
 }
 .prog-no-data { color: var(--tx-12, #aaa); font-size:13px; padding:12px 0; }
 
@@ -271,7 +271,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
     transition:background .15s;
 }
 .chart-nav button:hover:not(:disabled) { background: var(--ac-sf-2, #ede9fe); }
-.chart-nav button:disabled { color:#ccc; border-color: var(--bd-4, #f0f0f0); cursor:default; }
+.chart-nav button:disabled { color: var(--fg-a44, #ccc); border-color: var(--bd-4, #f0f0f0); cursor:default; }
 .chart-nav-period {
     font-size:12px; font-weight:600; color: var(--tx-11, #555); min-width:130px; text-align:center;
 }
@@ -282,7 +282,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 /* Chart canvas */
 .gchart    { display:flex; height:260px; }
 .g-yaxis   { width:58px; flex-shrink:0; position:relative; }
-.ytick     { position:absolute; right:8px; font-size:10px; color:#bbb;
+.ytick     { position:absolute; right:8px; font-size:10px; color: var(--fg-a36, #bbb);
              transform:translateY(50%); white-space:nowrap; text-align:right; }
 .g-plot    { flex:1; position:relative; border-left: 1.5px solid var(--bd, #e8e8e8); }
 .g-gridlines { position:absolute; top:0; left:0; right:0; bottom:28px; pointer-events:none; }
@@ -294,8 +294,8 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 .bar       { flex:1; max-width:38px; border-radius:4px 4px 0 0; min-height:0;
              transition:height .45s cubic-bezier(.4,0,.2,1); cursor:default; }
 .bar:hover { filter:brightness(1.1); }
-.bar-g     { background:#ef4444; }
-.bar-v     { background:#22c55e; }
+.bar-g     { background: var(--bg-a42, #ef4444); }
+.bar-v     { background: var(--bg-a13, #22c55e); }
 .g-xlabels { position:absolute; bottom:0; left:0; right:0; height:28px;
              display:flex; padding:0 20px; gap:16px; }
 .xlbl      { flex:1; display:flex; align-items:center; justify-content:center;
@@ -305,7 +305,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 /* ── Sort arrows ── */
 .th-sort { cursor:pointer; user-select:none; }
 .th-sort:hover { background: var(--sup-4, #efefef); }
-.sort-arrow { margin-left:5px; font-size:11px; color:#ccc; transition:color .15s; }
+.sort-arrow { margin-left:5px; font-size:11px; color: var(--fg-a44, #ccc); transition:color .15s; }
 .sort-arrow.active { color: var(--tx-ac, #4f46e5); }
 
 /* ── Resumen costos ── */
@@ -319,8 +319,8 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 }
 .res-pill:hover { filter:brightness(.95); }
 .res-verde    { background: var(--ok-sf-2, #f0fdf4); color: var(--ok-tx-2, #16a34a); border: 1px solid var(--ok-bd, #bbf7d0); }
-.res-azul     { background: var(--ac-sf, #eff6ff); color:#2563eb; border:1px solid #bfdbfe; }
-.res-amarillo { background: var(--pel-sf-2, #fffbeb); color:#d97706; border: 1px solid var(--av-bd, #fde68a); }
+.res-azul     { background: var(--ac-sf, #eff6ff); color: var(--fg-a10, #2563eb); border: 1px solid var(--bd-a23, #bfdbfe); }
+.res-amarillo { background: var(--pel-sf-2, #fffbeb); color: var(--fg-a45, #d97706); border: 1px solid var(--av-bd, #fde68a); }
 .res-rojo     { background: var(--pel-sf-2, #fef2f2); color: var(--pel-tx-2, #dc2626); border: 1px solid var(--pel-bd, #fecaca); }
 .res-sin      { background: var(--sup-3, #f3f4f6); color: var(--tx-4, #9ca3af); border: 1px solid var(--bd, #e5e7eb); }
 .res-pill.pill-activo { box-shadow:0 0 0 3px currentColor; filter:brightness(.92); }
@@ -424,7 +424,7 @@ body.config-open .content { margin-right:390px; }
 .cfg-body { flex:1; overflow-y:auto; padding:16px 20px; }
 .cfg-sec-title {
     font-size:11px; font-weight:700; text-transform:uppercase;
-    letter-spacing:1px; color:#6366f1; margin:16px 0 4px;
+    letter-spacing:1px; color: var(--fg-a19, #6366f1); margin:16px 0 4px;
 }
 .cfg-sec-title:first-child { margin-top:0; }
 .cfg-hint { font-size:12px; color: var(--tx-4, #9ca3af); margin-bottom:10px; }
@@ -439,7 +439,7 @@ body.config-open .content { margin-right:390px; }
 }
 .cblock-name { flex:1; font-size:13px; font-weight:600; color: var(--tx-2, #374151); }
 .span-badge {
-    font-size:11px; background: var(--ac-sf-2, #ede9fe); color:#5b21b6;
+    font-size:11px; background: var(--ac-sf-2, #ede9fe); color: var(--fg-a18, #5b21b6);
     border-radius:12px; padding:2px 7px; white-space:nowrap;
 }
 .cblock-opts {
@@ -489,7 +489,7 @@ input:checked + .tsl::before { transform:translateX(14px); }
 
 /* Drag handle en cada widget (vive dentro del header de cada uno) */
 .wgt-drag {
-    cursor:grab; color:#c4b5fd; font-size:16px;
+    cursor:grab; color: var(--fg-a40, #c4b5fd); font-size:16px;
     padding:2px 4px; border-radius:4px; line-height:1;
     display:none; flex-shrink:0; align-self:center;
     user-select:none;
@@ -513,7 +513,7 @@ body.config-open .hub-wgt-grid {
     align-items:center; justify-content:center; padding:20px;
 }
 .detalle-overlay.visible { display:flex; }
-.btn-ver-mesa { background:#6366f1; color: var(--tx-inv, #fff); border:none; border-radius:6px; padding:3px 10px; font-size:12px; font-weight:600; cursor:pointer; }
+.btn-ver-mesa { background: var(--bg-a20, #6366f1); color: var(--tx-inv, #fff); border:none; border-radius:6px; padding:3px 10px; font-size:12px; font-weight:600; cursor:pointer; }
 .btn-ver-mesa:hover { background: var(--ac, #4f46e5); }
 .detalle-modal {
     background: var(--sup, white); border-radius:14px;
@@ -530,7 +530,7 @@ body.config-open .hub-wgt-grid {
     background:none; border:none; font-size:20px; cursor:pointer;
     color: var(--tx-5, #888); padding:2px 8px; border-radius:6px; transition:background .15s;
 }
-.det-close:hover { background: var(--sup-3, #f3f4f6); color:#333; }
+.det-close:hover { background: var(--sup-3, #f3f4f6); color: var(--fg-a12, #333); }
 .detalle-body { flex:1; overflow-y:auto; padding:20px 24px; }
 .det-table { width:100%; border-collapse:collapse; font-size:13px; }
 .det-table th {
@@ -677,7 +677,7 @@ body.config-open .hub-wgt-grid {
                 <label>Objetivo de ventas $</label>
                 <input type="number" id="meta-valor" min="0" step="100" style="width:130px;" placeholder="Auto (20% extra)">
             </div>
-            <button onclick="guardarMeta()" style="background: var(--ac, #4f46e5);color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Aplicar</button>
+            <button onclick="guardarMeta()" style="background: var(--ac, #4f46e5);color: var(--tx-inv, white);border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Aplicar</button>
             <button onclick="borrarMeta()" style="background: var(--sup-3, #f3f4f6);color: var(--tx-7, #666);border: 1.5px solid var(--bd-2, #e0e0e0);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">Sin meta (auto)</button>
         </div>
 
@@ -694,10 +694,10 @@ body.config-open .hub-wgt-grid {
             <span class="section-title" style="font-size:15px;">📈 Gastos vs Ventas</span>
             <div class="chart-legend">
                 <div class="legend-item">
-                    <div class="legend-dot" style="background:#ef4444;"></div>Gastos
+                    <div class="legend-dot" style="background: var(--bg-a42, #ef4444);"></div>Gastos
                 </div>
                 <div class="legend-item">
-                    <div class="legend-dot" style="background:#22c55e;"></div>Ventas
+                    <div class="legend-dot" style="background: var(--bg-a13, #22c55e);"></div>Ventas
                 </div>
             </div>
         </div>
@@ -760,7 +760,7 @@ body.config-open .hub-wgt-grid {
             <label>%</label>
         </div>
 
-        <button onclick="guardarUmbrales()" style="margin-left:auto;background: var(--ac, #4f46e5);color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">
+        <button onclick="guardarUmbrales()" style="margin-left:auto;background: var(--ac, #4f46e5);color: var(--tx-inv, white);border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">
             Aplicar
         </button>
     </div>
@@ -944,7 +944,7 @@ function buildCfgPanel(cfg) {
             return `
             <div class="cblock">
                 <div class="cblock-head">
-                    <span class="cblock-drag" style="color:#c4b5fd;font-size:15px;cursor:grab;">⠿</span>
+                    <span class="cblock-drag" style="color: var(--fg-a40, #c4b5fd);font-size:15px;cursor:grab;">⠿</span>
                     <span style="font-size:16px;">${w.icon}</span>
                     <span class="cblock-name">${w.name}</span>
                     <span class="span-badge">${w.fixedSpan} col${w.fixedSpan > 1 ? 's' : ''}</span>
@@ -961,7 +961,7 @@ function buildCfgPanel(cfg) {
         return `
         <div class="cblock">
             <div class="cblock-head">
-                <span class="cblock-drag" style="color:#c4b5fd;font-size:15px;cursor:grab;">⠿</span>
+                <span class="cblock-drag" style="color: var(--fg-a40, #c4b5fd);font-size:15px;cursor:grab;">⠿</span>
                 <span style="font-size:16px;">${w.icon}</span>
                 <span class="cblock-name">${w.name}</span>
                 <span class="span-badge" id="span-badge-wgt-${w.key}">${activeSpan} col${activeSpan>1?'s':''}</span>
@@ -1301,7 +1301,7 @@ async function cargarFacturacion() {
         ${["ventas","salarios","gastos","corrientes","extraordinarios","balance","stock"].map(c=>`
         <div class="bill-card ${c} loading-card">
             <div class="bill-icon">${{ventas:"💰",salarios:"👥",gastos:"📦",corrientes:"🏠",extraordinarios:"⚡",balance:"⚖️",stock:"🏗️"}[c]}</div>
-            <div class="bill-value" style="color:#ddd;background: var(--sup-4, #f0f0f0);border-radius:6px;width:80%;height:28px;margin-top:14px;"></div>
+            <div class="bill-value" style="color: var(--fg-a46, #ddd);background: var(--sup-4, #f0f0f0);border-radius:6px;width:80%;height:28px;margin-top:14px;"></div>
         </div>`).join("")}`;
     document.getElementById("prog-wrap").innerHTML = '<p class="prog-no-data">Cargando…</p>';
 
@@ -1505,7 +1505,7 @@ async function verResumenMesa(pid){
                     <tr class="det-total"><td colspan="4">Total cobrado</td><td class="num">${fmt(d.total != null ? d.total : d.neto)}</td></tr>
                 </tbody>
             </table>
-            ${d.ticket_url ? `<div style="margin-top:12px;text-align:right;"><a href="${d.ticket_url}" target="_blank" rel="noopener" style="display:inline-block;background: var(--ac, #4f46e5);color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;">🖨 Reimprimir ticket</a></div>` : '<div style="margin-top:10px;font-size:12px;color: var(--tx-4, #9ca3af);text-align:right;">Sin ticket guardado para esta mesa.</div>'}`;
+            ${d.ticket_url ? `<div style="margin-top:12px;text-align:right;"><a href="${d.ticket_url}" target="_blank" rel="noopener" style="display:inline-block;background: var(--ac, #4f46e5);color: var(--tx-inv, #fff);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;">🖨 Reimprimir ticket</a></div>` : '<div style="margin-top:10px;font-size:12px;color: var(--tx-4, #9ca3af);text-align:right;">Sin ticket guardado para esta mesa.</div>'}`;
     } catch(e){ bd.innerHTML = `<div class="det-empty">Error: ${e.message||''}</div>`; }
 }
 
@@ -1663,7 +1663,7 @@ async function cargarDetalle(tipo) {
                 let sd = null;
                 try { sd = await apiFetch(`/salarios/resumen?year=${y}&month=${m}`); } catch(e) {}
                 const aviso = d0.salarios_aprobado === false
-                    ? `<div class="bill-sub" style="margin-bottom:8px;color:#b45309;background: var(--av-sf, #fef3c7);border-radius:6px;padding:6px 10px;">
+                    ? `<div class="bill-sub" style="margin-bottom:8px;color: var(--fg-a35, #b45309);background: var(--av-sf, #fef3c7);border-radius:6px;padding:6px 10px;">
                          ⏳ Número ESTIMATIVO: hay fichajes del mes sin aprobar (revisalos en Fichajes).</div>` : '';
                 const emp = (sd && sd.usuarios ? sd.usuarios : []).filter(e =>
                     (e.salario_total||0) !== 0 || (e.horas_fichadas||0) > 0 || (e.horas_declaradas||0) > 0);
@@ -1904,7 +1904,7 @@ async function cargarDetalle(tipo) {
                         <div class="bal-op">=</div>
                         <div class="bal-row bal-total">
                             <span class="bal-label">⚖️ Resultado del mes</span>
-                            <span class="bal-val" style="color:${res >= 0 ? '#4ade80' : '#f87171'}">${fmt(res)}</span>
+                            <span class="bal-val" style="color: ${res >= 0 ? '#4ade80' : 'var(--fg-a53, #f87171)'}">${fmt(res)}</span>
                         </div>
                         <div class="bill-sub" style="margin-top:10px;">La merma del mes ${fmt(d.merma_total || d.desechos || 0)} NO resta (el insumo ya se contó al comprarlo) — está detallada en la tarjeta de Stock.</div>
                     </div>`;

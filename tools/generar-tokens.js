@@ -39,6 +39,65 @@ const dist = (a, b) => {
 };
 const lum = h => { const [r, g, b] = hex2rgb(h); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 
+// ── Contraste WCAG y ajuste de luminosidad ────────────────────────────────
+// Necesario para acunar tokens de los HUERFANOS (ver mas abajo): un color de
+// texto que en claro se lee perfecto sobre blanco es ILEGIBLE sobre una
+// superficie oscura, y hay que subirle la luminosidad SIN cambiarle el tono.
+const relLum = h => {
+  const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+  const [r, g, b] = hex2rgb(h);
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+};
+const contraste = (a, b) => {
+  const L1 = relLum(a), L2 = relLum(b);
+  return (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+};
+const rgb2hsl = ([r, g, b]) => {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) {
+    if (mx === r) h = ((g - b) / d) % 6;
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  const l = (mx + mn) / 2;
+  const sat = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+  return [h, sat, l];
+};
+const hsl2hex = (h, s, l) => {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  let p = [0, 0, 0];
+  if (h < 60) p = [c, x, 0]; else if (h < 120) p = [x, c, 0]; else if (h < 180) p = [0, c, x];
+  else if (h < 240) p = [0, x, c]; else if (h < 300) p = [x, 0, c]; else p = [c, 0, x];
+  return "#" + p.map(v => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("");
+};
+// Sube la luminosidad conservando tono y saturacion hasta alcanzar `objetivo`
+// de contraste contra `fondo`. Si ni el blanco alcanza, devuelve lo mas claro.
+const aclararHasta = (hex, fondo, objetivo) => {
+  const [h, sat] = rgb2hsl(hex2rgb(hex));
+  if (contraste(hex, fondo) >= objetivo) return hex;
+  let mejor = hex;
+  for (let l = 0.30; l <= 0.95; l += 0.01) {
+    const cand = hsl2hex(h, sat, l);
+    mejor = cand;
+    if (contraste(cand, fondo) >= objetivo) return cand;
+  }
+  return mejor;
+};
+// Oscurece un fondo TENIDO claro conservando su tono: un chip lila claro pasa a
+// un lila oscuro, no a gris.
+const oscurecerTinte = hex => {
+  const [h, sat] = rgb2hsl(hex2rgb(hex));
+  return hsl2hex(h, Math.min(sat, 0.45), 0.20);
+};
+
+// Superficie oscura de REFERENCIA. Es la mas CLARA de las tres habituales
+// (#12131a pagina, #1b1d26 tarjeta, #242732 relleno): si el texto contrasta
+// contra esta, contrasta contra las otras dos tambien.
+const REF_OSCURA = "#242732";
+
 // ── Semillas: los colores de referencia con su papel y su valor OSCURO ──────
 // El valor claro NO se escribe acá: es el hex de la semilla. Sólo se decide qué
 // significa cada uno y a qué se convierte en oscuro.
@@ -181,6 +240,46 @@ for (const clase of ["bg", "fg", "bd"]) {
     } else {
       huerfanos[clase].push([color, n, mejor ? mejor[2] : "-", Math.round(mejorD)]);
     }
+  }
+}
+
+// ── Huerfanos: token propio con valor oscuro CALCULADO ─────────────────────
+// ⚠ Antes se descartaban, y esa era la causa de "las letras grises no se leen":
+// un color como #333 (13 usos en tablas) no cae cerca de ninguna semilla, se
+// quedaba sin token, el codemod no lo tocaba y terminaba siendo #333 sobre
+// #1b1d26 -> contraste 1.33, invisible. Medido en las 31 paginas: 1.034 textos
+// ilegibles, y 611 de ellos eran ese unico color.
+//
+// El valor CLARO sigue siendo el hex exacto de hoy (el modo claro no se mueve).
+// Solo se decide el oscuro, y por regla, no a ojo:
+//   fg  -> se aclara conservando el tono hasta REPRODUCIR el contraste que ese
+//          color tenia en claro sobre blanco. Apuntar solo a 4.5:1 no alcanza:
+//          #333 es texto PRINCIPAL (12.6:1 sobre blanco) y con 4.5 quedaba en
+//          un gris medio, que es exactamente de lo que se quejo el dueno. Se
+//          acota a [4.5, 13] para que nada quede ilegible ni deslumbre.
+//   bd  -> se aclara hasta 1.6:1 (un borde solo tiene que VERSE).
+//   bg  -> si es un tinte claro (luminancia alta) se oscurece conservando el
+//          tono; si es un color saturado de estado (verde, rojo) se deja igual,
+//          porque en oscuro sigue funcionando y cambiarlo rompe el significado.
+const OBJ_BD = 1.6;
+const objetivoFg = color => Math.min(13, Math.max(4.5, contraste(color, "#fff")));
+for (const clase of ["fg", "bd", "bg"]) {
+  // Orden estable por hex: los nombres generados no bailan entre corridas.
+  const lista = huerfanos[clase].slice().sort((a, b) => a[0].localeCompare(b[0]));
+  let i = 0;
+  for (const [color, n] of lista) {
+    i++;
+    const nombre = clase + "-a" + i;
+    let oscuro;
+    if (clase === "bg") {
+      oscuro = relLum(color) > 0.55 ? oscurecerTinte(color) : color;
+    } else {
+      oscuro = aclararHasta(color, REF_OSCURA,
+                            clase === "fg" ? objetivoFg(color) : OBJ_BD);
+    }
+    tokens.set(nombre, { claro: color, oscuro,
+      para: "auto (" + n + " usos" + (clase === "bg" && oscuro === color ? ", se deja igual" : "") + ")" });
+    mapa[clase][color] = "--" + nombre;
   }
 }
 

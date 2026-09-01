@@ -654,7 +654,7 @@ async function abrirDocumento(url) {
     #ui-cargando {
         position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-14px);
         z-index: 99997; display: flex; align-items: center; gap: 9px;
-        background: var(--cp-navy); color: #E9EBE1;
+        background: var(--cp-navy); color: var(--fg-a50, #E9EBE1);
         font-family: 'Segoe UI', sans-serif; font-size: 13.5px;
         padding: 9px 16px 9px 12px; border-radius: 999px;
         box-shadow: 0 8px 26px rgba(0,0,0,.28);

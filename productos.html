@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurante — Carta y productos</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=1">
+<link rel="stylesheet" href="css/tema.css?v=2">
     <!-- Quill rich-text editor -->
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
@@ -47,7 +47,7 @@
         .btn-success { background: #16a34a; color: white; }
         .btn-success:hover { background: #15803d; }
         .btn-warning { background: var(--av, #f59e0b); color: var(--tx-inv, white); }
-        .btn-warning:hover { background: #d97706; }
+        .btn-warning:hover { background: var(--bg-a36, #d97706); }
         .btn-sm { padding: 5px 10px; font-size: 12px; }
 
         /* ── TABS ── */
@@ -82,7 +82,7 @@
             display: flex; gap: 10px; align-items: center; margin-bottom: 16px;
             box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); flex-wrap: wrap;
         }
-        .sep { width: 1px; height: 28px; background: #e0e0e0; margin: 0 4px; }
+        .sep { width: 1px; height: 28px; background: var(--bg-a39, #e0e0e0); margin: 0 4px; }
 
         /* ── TABLA ── */
         .tabla-wrapper {
@@ -94,7 +94,7 @@
             font-size: 12px; font-weight: 700; color: var(--tx-7, #666);
             text-transform: uppercase; letter-spacing: 0.5px;
         }
-        td { padding: 12px 14px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: #333; }
+        td { padding: 12px 14px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: var(--fg-a12, #333); }
         tr:hover td { background: var(--sup-2, #fafafa); }
         tr.sel td { background: var(--ac-sf, #f5f3ff); }
 
@@ -105,9 +105,9 @@
         .badge-green { background: var(--ok-sf, #dcfce7); color: var(--ok-tx-2, #16a34a); }
         .badge-red { background: var(--pel-sf, #fee2e2); color: var(--pel-tx-2, #dc2626); }
         .badge-gray { background: var(--sup-3, #f3f4f6); color: var(--tx-7, #666); }
-        .badge-orange { background: var(--pel-sf-2, #fff7ed); color: #c2410c; }
-        .badge-blue { background: #dbeafe; color: #1d4ed8; }
-        .badge-yellow { background: var(--av-sf, #fef9c3); color: #854d0e; }
+        .badge-orange { background: var(--pel-sf-2, #fff7ed); color: var(--fg-a38, #c2410c); }
+        .badge-blue { background: var(--bg-a38, #dbeafe); color: var(--fg-a8, #1d4ed8); }
+        .badge-yellow { background: var(--av-sf, #fef9c3); color: var(--fg-a24, #854d0e); }
 
         .fav-star { font-size: 16px; user-select: none; }
         .fav-star.gold { color: var(--av-tx-2, #f59e0b); }
@@ -121,7 +121,7 @@
             display: inline-block; margin: 2px; padding: 2px 9px; border-radius: 4px;
             font-size: 12px; font-weight: 600;
         }
-        .btn-edit-mode.active { background: var(--av, #f59e0b) !important; color: var(--tx-inv, white) !important; border-color: #d97706 !important; }
+        .btn-edit-mode.active { background: var(--av, #f59e0b) !important; color: var(--tx-inv, white) !important; border-color: var(--bd-a25, #d97706) !important; }
         .empty { text-align: center; padding: 48px; color: var(--tx-5, #888); }
 
         /* ── MODAL ── */
@@ -209,8 +209,8 @@
             text-align: left; max-width: 220px; overflow: hidden;
             text-overflow: ellipsis; white-space: nowrap; color: var(--tx-7, #666);
         }
-        .cc-tabla tfoot td { border-top: 1px solid var(--bd-5, #e2e8f0); font-weight: 700; color: #333; }
-        .cc-nota { font-size: 11px; color: #999; margin-top: 5px; max-width: 250px; }
+        .cc-tabla tfoot td { border-top: 1px solid var(--bd-5, #e2e8f0); font-weight: 700; color: var(--fg-a12, #333); }
+        .cc-nota { font-size: 11px; color: var(--fg-a29, #999); margin-top: 5px; max-width: 250px; }
         /* Modo solo-vista: oculta todos los controles de edición */
         /* La barra de acciones solo tiene botones de edición → ocultarla entera
            para que no quede una franja vacía entre las solapas y los filtros. */
@@ -280,7 +280,7 @@
             box-sizing:border-box; transition:border-color .15s;
         }
         .pm-inp:focus { outline:none; border-color: var(--ac, #4f46e5); }
-        .pm-inp.pm-inp-active { border-color:#a5b4fc; background: var(--sup-2, #fafafe); }
+        .pm-inp.pm-inp-active { border-color: var(--bd-a19, #a5b4fc); background: var(--sup-2, #fafafe); }
         .pm-inp.pm-inp-active:focus { border-color: var(--ac, #4f46e5); }
     </style>
 </head>
@@ -545,7 +545,7 @@
     <div class="modal" style="max-width:560px;">
         <h3 id="receta-titulo">Receta</h3>
         <div id="receta-items" style="margin:16px 0;display:flex;flex-direction:column;gap:8px;"></div>
-        <button onclick="recetaAgregarFila()" style="background: var(--ac-sf, #f0f9ff);color:#0369a1;border:1.5px dashed #7dd3fc;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-bottom:12px;">
+        <button onclick="recetaAgregarFila()" style="background: var(--ac-sf, #f0f9ff);color: var(--fg-a1, #0369a1);border: 1.5px dashed var(--bd-a13, #7dd3fc);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-bottom:12px;">
             + Agregar ingrediente
         </button>
         <div class="modal-footer">
@@ -1433,7 +1433,7 @@ function _renderIngredientes(prodId) {
         ings.map(i => {
             if (i.agotado) {   // insumo sin stock → resaltar en rojo
                 return `<span class="ing-tag" title="Sin stock"
-                    style="background: var(--pel-sf-2, #fef2f2);color: var(--pel-tx, #b91c1c);border:1px solid #fca5a5;font-weight:600;">
+                    style="background: var(--pel-sf-2, #fef2f2);color: var(--pel-tx, #b91c1c);border: 1px solid var(--bd-a36, #fca5a5);font-weight:600;">
                     ⚠️ ${i.insumo_nombre} × ${i.cantidad} ${i.unidad}</span>`;
             }
             return `<span class="ing-tag" style="background: ${i.es_produccion ? 'var(--ac-sf-2, #ede9fe)' : 'var(--ok-sf-2, #f0fdf4)'};
@@ -2077,7 +2077,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
                 <span style="flex:1;font-size:13px;font-weight:500;">${esc(it.nombre)}</span>
                 <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;
                              background: ${it.tipo==='prod'?'var(--ac-sf-2, #ede9fe)':'#dbeafe'};
-                             color:${it.tipo==='prod'?'#6d28d9':'#1d4ed8'};">
+                             color: ${it.tipo==='prod'?'var(--fg-a21, #6d28d9)':'var(--fg-a8, #1d4ed8)'};">
                     ${it.tipo==='prod'?'PROD':'STOCK'}
                 </span>
                 <input type="number" min="0.001" step="0.001" value="${it.cantidad||''}"
@@ -2121,7 +2121,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
                 <span style="flex:1;font-size:13px;">${esc(i.nombre)} <span style="color: var(--tx-4, #9ca3af);font-size:12px;">(${i.unidad})</span></span>
                 <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;
                              background: ${i.tipo==='prod'?'var(--ac-sf-2, #ede9fe)':'#dbeafe'};
-                             color:${i.tipo==='prod'?'#6d28d9':'#1d4ed8'};">
+                             color: ${i.tipo==='prod'?'var(--fg-a21, #6d28d9)':'var(--fg-a8, #1d4ed8)'};">
                     ${i.tipo==='prod'?'PROD':'STOCK'}
                 </span>
             </div>

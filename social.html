@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurante — Social</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=1">
+<link rel="stylesheet" href="css/tema.css?v=2">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
@@ -23,8 +23,8 @@
             position: sticky; top: 60px; background: var(--sup-app, #f0f2f5); z-index: 50; }
         .feed-tab { padding: 12px 2px; font-size: 15px; font-weight: 600; color: var(--tx-4, #9ca3af);
             cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
-        .feed-tab:hover { color: #4b5563; }
-        .feed-tab.active { color: var(--tx, #1a1a2e); font-weight: 800; border-bottom-color: #1a1a2e; }
+        .feed-tab:hover { color: var(--fg-a16, #4b5563); }
+        .feed-tab.active { color: var(--tx, #1a1a2e); font-weight: 800; border-bottom-color: var(--bd-a5, #1a1a2e); }
         .feed-cog { font-size: 12px; opacity: .7; margin-left: 4px; }
         .feed-add { color: var(--tx-ac-2, #7c3aed); font-weight: 800; }
 
@@ -46,8 +46,8 @@
         .mention { color: var(--tx-ac, #4f46e5); font-weight: 600; }
 
         .adj-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .adj-chip { font-size: 12px; background: var(--ac-sf, #eef2ff); color: #3730a3; border-radius: 8px; padding: 4px 10px; display: flex; align-items: center; gap: 6px; }
-        .adj-chip .x { cursor: pointer; font-weight: 800; color: #6366f1; }
+        .adj-chip { font-size: 12px; background: var(--ac-sf, #eef2ff); color: var(--fg-a13, #3730a3); border-radius: 8px; padding: 4px 10px; display: flex; align-items: center; gap: 6px; }
+        .adj-chip .x { cursor: pointer; font-weight: 800; color: var(--fg-a19, #6366f1); }
 
         /* Post card */
         .post { background: var(--sup, #fff); border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 18px; overflow: hidden; transition: box-shadow .3s; }
@@ -74,14 +74,14 @@
         /* Badges 📌 fijado / 🚨 prioritaria */
         .badge-pin { background: var(--av-sf, #fef3c7); color: var(--av-tx, #92400e); border-radius: 6px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
         .badge-prio { background: var(--pel-sf, #fee2e2); color: var(--pel-tx, #b91c1c); border-radius: 6px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
-        .post.fijado { border: 1px solid #fcd34d; }
-        .post.prio { border: 1px solid #fca5a5; }
+        .post.fijado { border: 1px solid var(--bd-a37, #fcd34d); }
+        .post.prio { border: 1px solid var(--bd-a36, #fca5a5); }
 
         /* Barra de acciones del post (reacciones, comentarios, vistas, acuses) */
         .post-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--bd-4, #f3f4f6); }
-        .react-chip { border: 1px solid var(--bd, #e5e7eb); background: var(--sup, #fff); border-radius: 999px; padding: 4px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: #4b5563; }
+        .react-chip { border: 1px solid var(--bd, #e5e7eb); background: var(--sup, #fff); border-radius: 999px; padding: 4px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: var(--fg-a16, #4b5563); }
         .react-chip:hover { background: var(--sup-3, #f3f4f6); }
-        .react-chip.mine { background: var(--ac-sf, #eef2ff); border-color: #a5b4fc; color: #3730a3; font-weight: 700; }
+        .react-chip.mine { background: var(--ac-sf, #eef2ff); border-color: var(--bd-a19, #a5b4fc); color: var(--fg-a13, #3730a3); font-weight: 700; }
         .react-chip .rn { font-size: 12px; font-weight: 700; }
         .act-chip { border: none; background: transparent; border-radius: 8px; padding: 5px 9px; font-size: 12.5px; font-weight: 600; color: var(--tx-3, #6b7280); cursor: pointer; }
         .act-chip:hover { background: var(--sup-3, #f3f4f6); }
@@ -90,7 +90,7 @@
         /* Comentarios */
         .post-comments { border-top: 1px solid var(--bd-4, #f3f4f6); padding: 10px 16px 14px; background: var(--sup-2, #fafafe); }
         .coment { display: flex; gap: 9px; padding: 7px 0; align-items: flex-start; }
-        .coment-avatar { width: 28px; height: 28px; border-radius: 50%; background: #6366f1; color: var(--tx-inv, #fff); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; flex-shrink: 0; }
+        .coment-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--bg-a20, #6366f1); color: var(--tx-inv, #fff); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; flex-shrink: 0; }
         .coment-body { flex: 1; min-width: 0; background: var(--sup, #fff); border: 1px solid var(--bd-4, #eef0f3); border-radius: 10px; padding: 7px 11px; }
         .coment-user { font-size: 12px; font-weight: 700; color: var(--tx, #1a1a2e); }
         .coment-user .cf { font-weight: 400; color: var(--tx-4, #9ca3af); font-size: 11px; margin-left: 6px; }
@@ -104,8 +104,8 @@
 
         /* Toggles del composer (📌 / 🚨, solo edición) */
         .comp-toggle { padding: 8px 13px; border: 1px solid var(--bd-6, #d7dbe3); background: var(--sup, #fff); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--tx-3, #6b7280); cursor: pointer; }
-        .comp-toggle.on-pin { background: var(--av-sf, #fef3c7); border-color: #f59e0b; color: var(--av-tx, #92400e); }
-        .comp-toggle.on-prio { background: var(--pel-sf, #fee2e2); border-color: #ef4444; color: var(--pel-tx, #b91c1c); }
+        .comp-toggle.on-pin { background: var(--av-sf, #fef3c7); border-color: var(--bd-a33, #f59e0b); color: var(--av-tx, #92400e); }
+        .comp-toggle.on-prio { background: var(--pel-sf, #fee2e2); border-color: var(--bd-a30, #ef4444); color: var(--pel-tx, #b91c1c); }
 
         /* Sección de fijados */
         .fijados-titulo { font-size: 12px; font-weight: 800; color: var(--av-tx, #92400e); text-transform: uppercase; letter-spacing: .5px; margin: 2px 0 10px; }
@@ -115,7 +115,7 @@
         .lista-det .li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--bd-4, #f3f4f6); font-size: 13px; color: var(--tx-2, #374151); }
         .lista-det .li .lf { color: var(--tx-4, #9ca3af); font-size: 12px; white-space: nowrap; }
         .lista-sub { font-size: 12px; font-weight: 800; color: var(--tx-3, #6b7280); text-transform: uppercase; letter-spacing: .4px; margin: 14px 0 4px; }
-        .lista-sub.ok { color: #059669; }
+        .lista-sub.ok { color: var(--fg-a2, #059669); }
         .lista-sub.falta { color: var(--pel-tx, #b91c1c); }
 
         /* Modal grupo */
@@ -411,8 +411,8 @@ function renderPost(p) {
         const rid = (p.restaurante_id != null) ? ('&restaurante_id=' + p.restaurante_id) : '';
         const href = `horarios.html?solicitud=${p.solicitud_id}${rid}`;
         const primTxt = esAb ? '✋ Postularme → ir a la grilla' : '✋ Tomar este turno → ir a la grilla';
-        const btnPrim = `<a href="${href}" style="display:inline-block;background:#6d28d9;color:#fff;text-decoration:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px;">${primTxt}</a>`;
-        const btnSec  = `<a href="${href}" style="display:inline-block;background:#fff;color:#6d28d9;border: 1px solid var(--ac-bd-2, #c4b5fd);text-decoration:none;border-radius:8px;padding:7px 13px;font-weight:700;font-size:13px;">📅 Ir a la grilla</a>`;
+        const btnPrim = `<a href="${href}" style="display:inline-block;background: var(--bg-a21, #6d28d9);color: var(--tx-inv, #fff);text-decoration:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px;">${primTxt}</a>`;
+        const btnSec  = `<a href="${href}" style="display:inline-block;background: var(--sup, #fff);color: var(--fg-a21, #6d28d9);border: 1px solid var(--ac-bd-2, #c4b5fd);text-decoration:none;border-radius:8px;padding:7px 13px;font-weight:700;font-size:13px;">📅 Ir a la grilla</a>`;
         const activa = esAb ? (p.solicitud_estado === 'abierta') : (p.solicitud_estado === 'disponible');
         if (activa)
             solBlock = `<div style="margin-top:8px;">${btnPrim}</div>`;
@@ -434,16 +434,16 @@ function renderPost(p) {
     const editado = p.editado_en ? ' · editado' : '';
     const badges = (p.fijado ? ' <span class="badge-pin">📌 Fijada</span>' : '')
         + (p.prioritaria ? ' <span class="badge-prio">🚨 Prioritaria</span>' : '')
-        + (p.prioritaria && p.aceptado_por_mi ? ' <span class="badge-pin" style="background: var(--ok-sf, #d1fae5);color:#065f46;">✔ Aceptada</span>' : '')
+        + (p.prioritaria && p.aceptado_por_mi ? ' <span class="badge-pin" style="background: var(--ok-sf, #d1fae5);color: var(--fg-a3, #065f46);">✔ Aceptada</span>' : '')
         // Publicación DIRIGIDA (roles/personas): solo la ven los destinatarios + editores
         + (((p.dest_roles && p.dest_roles.length) || (p.dest_usuarios && p.dest_usuarios.length))
-            ? ` <span class="badge-pin" style="background:#e0e7ff;color:#3730a3;" title="Dirigida${(p.dest_roles || []).length ? ' a: ' + p.dest_roles.join(', ') : ' a personas puntuales'}">🎯 Dirigida</span>` : '');
+            ? ` <span class="badge-pin" style="background: var(--bg-a40, #e0e7ff);color: var(--fg-a13, #3730a3);" title="Dirigida${(p.dest_roles || []).length ? ' a: ' + p.dest_roles.join(', ') : ' a personas puntuales'}">🎯 Dirigida</span>` : '');
     return `
     <div class="post${p.fijado ? ' fijado' : ''}${p.prioritaria ? ' prio' : ''}" id="post-${p.restaurante_id!=null?(p.restaurante_id+'-'):''}${p.id}">
         <div class="post-head">
             <div class="post-avatar">${esc(iniciales(p.nombre_display || p.username))}</div>
             <div class="post-meta">
-                <div class="post-user">${esc(p.nombre_display || p.username)}${p.restaurante ? ` <span style="background: var(--ac-sf, #eef2ff);color:#4338ca;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${esc(p.restaurante)}</span>` : ''}</div>
+                <div class="post-user">${esc(p.nombre_display || p.username)}${p.restaurante ? ` <span style="background: var(--ac-sf, #eef2ff);color: var(--fg-a14, #4338ca);border-radius:5px;padding:1px 6px;font-size:11px;font-weight:600;">🏠 ${esc(p.restaurante)}</span>` : ''}</div>
                 <div class="post-fecha">${fmtFecha(p.creado_en)}${editado}${badges}</div>
             </div>
             ${acc}

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurante — Facturas</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=1">
+<link rel="stylesheet" href="css/tema.css?v=2">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
@@ -46,7 +46,7 @@
         .tabla-wrapper { background: var(--sup, white); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); overflow: hidden; }
         table { width: 100%; border-collapse: collapse; }
         th { background: var(--sup-2, #f8f9fa); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: var(--tx-7, #666); text-transform: uppercase; letter-spacing: 0.5px; }
-        td { padding: 13px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: #333; }
+        td { padding: 13px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: var(--fg-a12, #333); }
         tr:hover td { background: var(--sup-2, #fafafa); }
         .empty { text-align: center; padding: 48px; color: var(--tx-5, #888); }
         .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
@@ -77,7 +77,7 @@
         /* Resaltado de la fuente del dato (Parte B): recuadros sobre la imagen */
         #modal-confirmacion .conf-viewer-imgwrap { position: relative; width: 100%; }
         #modal-confirmacion .conf-viewer-overlay { position: absolute; inset: 0; pointer-events: none; }
-        #modal-confirmacion .fuente-box { position: absolute; background: rgba(250,204,21,.30); border: 2px solid #f59e0b; border-radius: 3px; box-shadow: 0 0 0 2px rgba(245,158,11,.25); }
+        #modal-confirmacion .fuente-box { position: absolute; background: rgba(250,204,21,.30); border: 2px solid var(--bd-a33, #f59e0b); border-radius: 3px; box-shadow: 0 0 0 2px rgba(245,158,11,.25); }
         @media (max-width: 900px) {
             #modal-confirmacion .modal-conf-split { flex-direction: column; }
             #modal-confirmacion .modal-conf-viewer { border-left: 0; border-top: 1px solid var(--bd, #e5e7eb); min-height: 320px; }
@@ -96,16 +96,16 @@
         .tab.active { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
         .tab:hover:not(.active) { background: var(--ac-sf, #f5f3ff); color: var(--tx-ac, #4f46e5); }
         .dropzone { border: 2.5px dashed var(--ac-bd-2, #c4b5fd); border-radius: 16px; background: var(--sup-2, #faf5ff); padding: 48px 32px; text-align: center; cursor: pointer; transition: all 0.2s; }
-        .dropzone:hover, .dropzone.drag-over { border-color: #7c3aed; background: var(--ac-sf-2, #ede9fe); }
+        .dropzone:hover, .dropzone.drag-over { border-color: var(--bd-a12, #7c3aed); background: var(--ac-sf-2, #ede9fe); }
         .dropzone-icon { font-size: 48px; margin-bottom: 12px; }
-        .dropzone-text { font-size: 16px; font-weight: 600; color: #4c1d95; margin-bottom: 6px; }
+        .dropzone-text { font-size: 16px; font-weight: 600; color: var(--fg-a17, #4c1d95); margin-bottom: 6px; }
         .dropzone-sub { font-size: 13px; color: var(--tx-ac-2, #7c3aed); margin-bottom: 20px; }
         .dropzone-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
         .archivos-cargados { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
         .fcard { background: var(--sup, white); border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-        .fcard.procesado { border-color: #86efac; }
-        .fcard.error { border-color: #fca5a5; }
-        .fcard.confirmado { border-color: #86efac; background: var(--ok-sf-2, #f0fdf4); }
+        .fcard.procesado { border-color: var(--bd-a14, #86efac); }
+        .fcard.error { border-color: var(--bd-a36, #fca5a5); }
+        .fcard.confirmado { border-color: var(--bd-a14, #86efac); background: var(--ok-sf-2, #f0fdf4); }
         .fcard-icon { font-size: 24px; flex-shrink: 0; }
         .fcard-info { flex: 1; min-width: 0; }
         .fcard-name { font-size: 13px; font-weight: 600; color: var(--tx, #1a1a2e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -113,9 +113,9 @@
         .fcard-actions { display: flex; gap: 6px; flex-shrink: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .item-confirm-row { background: var(--sup-2, #f9fafb); border: 1px solid var(--bd-5, #e2e8f0); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; }
-        .item-confirm-row.pendiente { border-left: 4px solid #f59e0b; }
+        .item-confirm-row.pendiente { border-left: 4px solid var(--bd-a33, #f59e0b); }
         .item-confirm-row.ok { border-left: 4px solid var(--ok, #16a34a); }
-        .item-confirm-row.servicio { border-left: 4px solid #8b5cf6; }
+        .item-confirm-row.servicio { border-left: 4px solid var(--bd-a15, #8b5cf6); }
         .item-confirm-row.omitido { border-left: 4px solid var(--bd-3, #d1d5db); opacity: 0.5; }
         .item-confirm-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
         .item-desc-wrap { display: flex; align-items: center; gap: 6px; }
@@ -130,8 +130,8 @@
         .item-field input, .item-field select { width: 100%; padding: 5px 8px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 6px; font-size: 12px; outline: none; }
         .item-field input:focus, .item-field select:focus { border-color: var(--ac, #4f46e5); }
         .item-field input[disabled] { background: var(--sup-3, #f3f4f6); color: var(--tx-3, #6b7280); cursor: default; }
-        .precio-unit-calc { background: var(--ok-sf-2, #f0fdf4) !important; border-color: #86efac !important; color: var(--ok-tx-3, #166534) !important; font-weight: 700 !important; }
-        .prov-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--ac-sf-2, #ede9fe); color: #5b21b6; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+        .precio-unit-calc { background: var(--ok-sf-2, #f0fdf4) !important; border-color: var(--bd-a14, #86efac) !important; color: var(--ok-tx-3, #166534) !important; font-weight: 700 !important; }
+        .prov-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--ac-sf-2, #ede9fe); color: var(--fg-a18, #5b21b6); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
         #camara-video { width: 100%; border-radius: 10px; }
         .cat-chip { display: inline-block; background: var(--sup-3, #f3f4f6); color: var(--tx-2, #374151); border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
         /* Picker del período de facturación (el nativo de Chrome no deja elegir el año tocándolo) */
@@ -167,8 +167,8 @@
 
     <!-- CARGAR FACTURA -->
     <div id="vista-cargar">
-        <div style="background:white;border-radius:12px;padding:28px;box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06));">
-            <h3 style="margin-bottom:8px;font-size:16px;color:#1a1a2e;">Procesar factura con IA</h3>
+        <div style="background: var(--sup, white);border-radius:12px;padding:28px;box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06));">
+            <h3 style="margin-bottom:8px;font-size:16px;color: var(--tx, #1a1a2e);">Procesar factura con IA</h3>
             <p style="font-size:13px;color: var(--tx-5, #888);margin-bottom:20px;">Subí una factura. Claude analizará automáticamente los ítems, cantidades y precios.</p>
             <div style="display:flex;gap:10px;margin-bottom:18px;">
             <button class="btn btn-primary" onclick="document.getElementById('file-input-main').click()">🤖 Procesar con IA</button>
@@ -216,9 +216,9 @@
             <div style="display:flex;flex-direction:column;gap:4px;position:relative;">
                 <label style="font-size:12px;font-weight:600;color: var(--tx-3, #6b7280);">Período de facturación</label>
                 <input type="text" id="filtro-periodo-vis" readonly placeholder="Todos" onclick="abrirPeriodoPicker()"
-                    style="padding:7px 10px;border: 1px solid var(--bd-3, #d1d5db);border-radius:6px;font-size:13px;outline:none;cursor:pointer;background:#fff;width:150px;">
+                    style="padding:7px 10px;border: 1px solid var(--bd-3, #d1d5db);border-radius:6px;font-size:13px;outline:none;cursor:pointer;background: var(--sup, #fff);width:150px;">
                 <input type="hidden" id="filtro-periodo">
-                <div id="periodo-picker" class="periodo-pick" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border: 1px solid var(--bd-3, #d1d5db);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:10px;z-index:120;width:238px;"></div>
+                <div id="periodo-picker" class="periodo-pick" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background: var(--sup, #fff);border: 1px solid var(--bd-3, #d1d5db);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:10px;z-index:120;width:238px;"></div>
             </div>
             <button onclick="limpiarFiltrosHistorial()" style="padding:7px 14px;background: var(--sup-3, #f3f4f6);border: 1px solid var(--bd-3, #d1d5db);border-radius:6px;font-size:13px;cursor:pointer;color: var(--tx-2, #374151);">✕ Limpiar</button>
         </div>
@@ -297,7 +297,7 @@
         <h3 id="modal-conf-titulo">✅ Confirmar datos de la factura</h3>
         <p style="font-size:13px;color: var(--tx-5, #888);margin-bottom:16px;">Revisá y corregí los datos. Cada ítem puede ser un insumo de stock, un servicio o puede omitirse.</p>
 
-        <div style="background: var(--ok-sf-2, #f0fdf4);border:1.5px solid #86efac;border-radius:10px;padding:16px;margin-bottom:12px;">
+        <div style="background: var(--ok-sf-2, #f0fdf4);border: 1.5px solid var(--bd-a14, #86efac);border-radius:10px;padding:16px;margin-bottom:12px;">
             <div style="font-size:13px;font-weight:700;color: var(--ok-tx-3, #166534);margin-bottom:10px;">🏢 Proveedor</div>
             <div class="form-row">
                 <div class="form-group" style="margin:0;"><label>Nombre *</label><input type="text" id="conf-prov-nombre" placeholder="Nombre del proveedor"></div>
@@ -311,64 +311,64 @@
             <div id="conf-prov-warn" style="display:none;margin-top:8px;font-size:12.5px;line-height:1.45;border-radius:8px;padding:8px 12px;"></div>
         </div>
 
-        <div style="background: var(--ac-sf, #eff6ff);border:1.5px solid #93c5fd;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div style="font-size:13px;font-weight:700;color:#1d4ed8;">💱 Moneda</div>
-            <span id="conf-moneda-badge" style="font-size:13px;font-weight:700;color:#1e40af;background:#dbeafe;padding:3px 12px;border-radius:20px;">—</span>
+        <div style="background: var(--ac-sf, #eff6ff);border: 1.5px solid var(--bd-a17, #93c5fd);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="font-size:13px;font-weight:700;color: var(--fg-a8, #1d4ed8);">💱 Moneda</div>
+            <span id="conf-moneda-badge" style="font-size:13px;font-weight:700;color: var(--fg-a9, #1e40af);background: var(--bg-a38, #dbeafe);padding:3px 12px;border-radius:20px;">—</span>
             <span style="font-size:12px;color: var(--tx-9, #64748b);">Si difiere, corregí:</span>
             <!-- input hidden siempre sincronizado — todo el código JS existente lo sigue leyendo -->
             <input type="hidden" id="conf-moneda-codigo">
             <select id="conf-moneda-select" onchange="onMonedaSelect()"
-                    style="padding:5px 10px;border:1.5px solid #93c5fd;border-radius:7px;font-size:13px;outline:none;cursor:pointer;">
+                    style="padding:5px 10px;border: 1.5px solid var(--bd-a17, #93c5fd);border-radius:7px;font-size:13px;outline:none;cursor:pointer;">
             </select>
             <input type="text" id="conf-moneda-custom" placeholder="Ej: CHF" maxlength="10"
-                   style="display:none;padding:5px 10px;border:1.5px solid #f59e0b;border-radius:7px;font-size:13px;width:90px;outline:none;"
+                   style="display:none;padding:5px 10px;border: 1.5px solid var(--bd-a33, #f59e0b);border-radius:7px;font-size:13px;width:90px;outline:none;"
                    oninput="onMonedaCustomInput()">
         </div>
 
         <!-- Banner de conversión de divisa (visible solo cuando moneda ≠ sistema) -->
-        <div id="conf-conversion-banner" style="display:none;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#9a3412;line-height:1.6;">
+        <div id="conf-conversion-banner" style="display:none;background: var(--pel-sf-2, #fff7ed);border: 1.5px solid var(--bd-a38, #fed7aa);border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px;color: var(--fg-a30, #9a3412);line-height:1.6;">
         </div>
 
         <!-- Fecha de la factura y período de facturación asignado -->
         <div style="background: var(--ac-sf, #eef2ff);border: 1.5px solid var(--ac-bd, #c7d2fe);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-            <div style="font-size:13px;font-weight:700;color:#3730a3;">📅 Fecha, período y Nº</div>
-            <label style="font-size:12px;color:#3730a3;display:flex;align-items:center;gap:6px;">
+            <div style="font-size:13px;font-weight:700;color: var(--fg-a13, #3730a3);">📅 Fecha, período y Nº</div>
+            <label style="font-size:12px;color: var(--fg-a13, #3730a3);display:flex;align-items:center;gap:6px;">
                 Fecha de la factura
                 <input type="date" id="conf-fecha" onchange="onFechaFacturaChange()"
-                       style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;">
+                       style="padding:5px 8px;border: 1.5px solid var(--bd-a19, #a5b4fc);border-radius:7px;font-size:13px;outline:none;">
             </label>
             <!-- span (no <label>): un label reenviaría los clicks del popup al input y lo cerraría -->
-            <span style="font-size:12px;color:#3730a3;display:inline-flex;align-items:center;gap:6px;position:relative;">
+            <span style="font-size:12px;color: var(--fg-a13, #3730a3);display:inline-flex;align-items:center;gap:6px;position:relative;">
                 Período
                 <input type="text" id="conf-periodo-vis" readonly placeholder="—" onclick="abrirPeriodoPicker('conf-periodo')"
-                       style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;cursor:pointer;background:#fff;width:118px;">
+                       style="padding:5px 8px;border: 1.5px solid var(--bd-a19, #a5b4fc);border-radius:7px;font-size:13px;outline:none;cursor:pointer;background: var(--sup, #fff);width:118px;">
                 <input type="hidden" id="conf-periodo">
-                <div id="conf-periodo-picker" class="periodo-pick" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border: 1px solid var(--bd-3, #d1d5db);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:10px;z-index:400;width:238px;text-align:left;"></div>
+                <div id="conf-periodo-picker" class="periodo-pick" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background: var(--sup, #fff);border: 1px solid var(--bd-3, #d1d5db);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:10px;z-index:400;width:238px;text-align:left;"></div>
             </span>
-            <span id="conf-periodo-label" style="font-size:12px;font-weight:700;color:#4338ca;"></span>
-            <label style="font-size:12px;color:#3730a3;display:flex;align-items:center;gap:6px;">
+            <span id="conf-periodo-label" style="font-size:12px;font-weight:700;color: var(--fg-a14, #4338ca);"></span>
+            <label style="font-size:12px;color: var(--fg-a13, #3730a3);display:flex;align-items:center;gap:6px;">
                 Nº de factura
                 <input type="text" id="conf-numero" placeholder="Ej: A-0001-00001234" onblur="verificarNumeroFactura()"
-                       style="padding:5px 8px;border:1.5px solid #a5b4fc;border-radius:7px;font-size:13px;outline:none;width:170px;">
+                       style="padding:5px 8px;border: 1.5px solid var(--bd-a19, #a5b4fc);border-radius:7px;font-size:13px;outline:none;width:170px;">
                 <button type="button" id="conf-numero-lupa" class="btn-lupa-fuente" onclick="resaltarNumeroFuente()"
                         title="Resaltar en la factura de dónde se obtuvo el número" style="display:none;">🔍</button>
             </label>
-            <span id="conf-numero-warn" style="font-size:12px;font-weight:700;color:#b45309;display:none;"></span>
+            <span id="conf-numero-warn" style="font-size:12px;font-weight:700;color: var(--fg-a35, #b45309);display:none;"></span>
         </div>
 
         <!-- Impuesto de la factura (global): % por defecto + cómo interpretar el precio leído -->
-        <div style="background:#fffbeb;border: 1.5px solid var(--av-bd, #fde68a);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-            <div style="font-size:13px;font-weight:700;color:#854d0e;">🧾 Impuesto</div>
-            <label style="font-size:12px;color:#854d0e;display:flex;align-items:center;gap:6px;">
+        <div style="background: var(--pel-sf-2, #fffbeb);border: 1.5px solid var(--av-bd, #fde68a);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div style="font-size:13px;font-weight:700;color: var(--fg-a24, #854d0e);">🧾 Impuesto</div>
+            <label style="font-size:12px;color: var(--fg-a24, #854d0e);display:flex;align-items:center;gap:6px;">
                 % a toda la factura
                 <input type="number" id="conf-imp-global" step="0.1" min="0"
-                       style="width:74px;padding:5px 8px;border:1.5px solid #fcd34d;border-radius:7px;font-size:13px;outline:none;"
+                       style="width:74px;padding:5px 8px;border: 1.5px solid var(--bd-a37, #fcd34d);border-radius:7px;font-size:13px;outline:none;"
                        oninput="aplicarImpGlobal()"> %
             </label>
-            <label style="font-size:12px;color:#854d0e;display:flex;align-items:center;gap:6px;">
+            <label style="font-size:12px;color: var(--fg-a24, #854d0e);display:flex;align-items:center;gap:6px;">
                 El precio de la factura es
                 <select id="conf-imp-modo" onchange="aplicarModoImp()"
-                        style="padding:5px 8px;border:1.5px solid #fcd34d;border-radius:7px;font-size:13px;outline:none;cursor:pointer;">
+                        style="padding:5px 8px;border: 1.5px solid var(--bd-a37, #fcd34d);border-radius:7px;font-size:13px;outline:none;cursor:pointer;">
                     <option value="sin">Sin impuesto</option>
                     <option value="con">Con impuesto</option>
                 </select>
@@ -385,7 +385,7 @@
                 <span style="font-weight:400;color: var(--tx-4, #9ca3af);font-size:12px;"> — opcional</span>
             </div>
             <label id="conf-archivo-label" for="conf-archivo-input"
-                   style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:white;border: 1.5px solid var(--bd, #e5e7eb);border-radius:8px;transition:border-color .15s;">
+                   style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background: var(--sup, white);border: 1.5px solid var(--bd, #e5e7eb);border-radius:8px;transition:border-color .15s;">
                 <span id="conf-archivo-icon" style="font-size:22px;flex-shrink:0;">📄</span>
                 <div style="flex:1;min-width:0;">
                     <div id="conf-archivo-name" style="font-size:13px;font-weight:600;color: var(--tx-4, #9ca3af);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
@@ -393,7 +393,7 @@
                     </div>
                     <div style="font-size:11px;color: var(--tx-4, #9ca3af);margin-top:1px;">PDF, JPG, PNG, WEBP</div>
                 </div>
-                <span style="flex-shrink:0;font-size:11px;color:#6366f1;font-weight:600;padding:4px 12px;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:6px;background: var(--sup-2, #faf5ff);">
+                <span style="flex-shrink:0;font-size:11px;color: var(--fg-a19, #6366f1);font-weight:600;padding:4px 12px;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:6px;background: var(--sup-2, #faf5ff);">
                     Elegir archivo
                 </span>
             </label>
@@ -674,7 +674,7 @@ function _resumenFcard(a) {
     if (d.numero_factura)   partes.push('Nº ' + esc(String(d.numero_factura)));
     partes.push(nLineas + ' producto' + (nLineas === 1 ? '' : 's'));
     if (neto > 0 || bruto > 0) partes.push(`${fnum(neto)} s/imp · <b>${fnum(bruto)}</b> c/imp`);
-    return `<div class="fcard-resumen" style="font-size:12px;color:#4b5563;margin-top:3px;">${partes.join(' · ')}</div>`;
+    return `<div class="fcard-resumen" style="font-size:12px;color: var(--fg-a16, #4b5563);margin-top:3px;">${partes.join(' · ')}</div>`;
 }
 
 function renderArchivos() {
@@ -685,8 +685,8 @@ function renderArchivos() {
     // solo PDF (una hoja por archivo) y analizarla como una única factura.
     const nPend = _archivosFactura.filter(a => a.estado === 'pendiente' && a.file).length;
     const barraUnir = nPend >= 2 ? `
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background: var(--ac-sf, #eef2ff);border:1px dashed #a5b4fc;border-radius:10px;padding:9px 12px;margin-bottom:10px;">
-            <span style="font-size:13px;color:#3730a3;">¿Son <b>hojas de la misma factura</b>?</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background: var(--ac-sf, #eef2ff);border: 1px dashed var(--bd-a19, #a5b4fc);border-radius:10px;padding:9px 12px;margin-bottom:10px;">
+            <span style="font-size:13px;color: var(--fg-a13, #3730a3);">¿Son <b>hojas de la misma factura</b>?</span>
             <button class="btn btn-secondary btn-sm" onclick="unirArchivos()">🧷 Unir los ${nPend} pendientes en UNA factura</button>
             <span style="font-size:12px;color: var(--tx-3, #6b7280);">Se combinan en un solo PDF (una hoja por archivo, en el orden de la lista) y se analiza todo junto.</span>
         </div>` : '';
@@ -1000,7 +1000,7 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
         <div class="item-field">
             <label>Precio s/imp</label>
             <input type="number" id="ci-precio-neto-${idx}" value="${netoStr}"
-                   step="0.01" placeholder="Neto" style="border-color:#86efac;"
+                   step="0.01" placeholder="Neto" style="border-color: var(--bd-a14, #86efac);"
                    oninput="onEditNeto('${idx}')">
         </div>
         <div class="item-field">
@@ -1026,7 +1026,7 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
                         <option value="">— Seleccioná —</option>${esBien ? optsBienes(insumoId) : optsInsumos(insumoId)}
                     </select>
                     <button type="button" onclick="nuevoDesdeFila('${idx}')" title="Nuevo"
-                            style="flex-shrink:0;padding:5px 8px;background: var(--ac, #4f46e5);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;">+</button>
+                            style="flex-shrink:0;padding:5px 8px;background: var(--ac, #4f46e5);color: var(--tx-inv, #fff);border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;">+</button>
                 </div>
             </div>
             <div class="item-field">
@@ -1059,7 +1059,7 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
                         <option value="__extra__" ${esExtra ? 'selected' : ''}>⚡ Gasto extraordinario (no se guarda)</option>
                         ${optsServicios(esExtra ? null : servicioId)}
                     </select>
-                    <button type="button" id="cs-nuevo-btn-${idx}" onclick="abrirServicioRapido('${idx}')" title="Agregar nuevo servicio" style="flex-shrink:0;padding:7px 10px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;${esExtra ? 'display:none;' : ''}">+ Nuevo</button>
+                    <button type="button" id="cs-nuevo-btn-${idx}" onclick="abrirServicioRapido('${idx}')" title="Agregar nuevo servicio" style="flex-shrink:0;padding:7px 10px;background: var(--bg-a23, #7c3aed);color: var(--tx-inv, #fff);border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;${esExtra ? 'display:none;' : ''}">+ Nuevo</button>
                 </div>
                 <input type="text" id="cs-concepto-${idx}" value="${conceptoAttr}"
                        placeholder="Concepto del gasto (ej: Reparación urgente heladera)"
@@ -1075,7 +1075,7 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
             <div class="item-field">
                 <label>Monto s/imp</label>
                 <input type="number" id="cs-precio-neto-${idx}" value="${netoStr}"
-                       step="0.01" placeholder="Neto" style="border-color:#86efac;"
+                       step="0.01" placeholder="Neto" style="border-color: var(--bd-a14, #86efac);"
                        oninput="onEditSrvNeto('${idx}')">
             </div>
             <div class="item-field">
@@ -1760,7 +1760,7 @@ async function verificarNumeroFactura() {
         const docUrl = dup.archivo_url ? (dup.archivo_url.startsWith('http') ? dup.archivo_url : `${API_URL}${dup.archivo_url}`) : null;
         warn.style.display = '';
         warn.innerHTML = `⚠️ Ya cargada${prov ? ' — ' + _escFactHtml(prov) : ''}${fecha}` +
-            (docUrl ? ` · <a href="javascript:void(0)" onclick="abrirDocumento('${docUrl.replace(/'/g,'%27')}')" style="color:#4338ca;font-weight:700;">ver factura</a>` : '');
+            (docUrl ? ` · <a href="javascript:void(0)" onclick="abrirDocumento('${docUrl.replace(/'/g,'%27')}')" style="color: var(--fg-a14, #4338ca);font-weight:700;">ver factura</a>` : '');
     } else {
         warn.style.display = 'none'; warn.innerHTML = '';
     }
@@ -2329,12 +2329,12 @@ function filtrarHistorial() {
                 : "—";
             const fFactura = f.fecha_factura ? String(f.fecha_factura).slice(0, 10) : formatFecha(f.creado_en);
             const numTxt = f.numero_factura
-                ? ` · <span style="color:#4338ca;font-weight:600;">Nº ${_escFactHtml(f.numero_factura)}</span>` : '';
+                ? ` · <span style="color: var(--fg-a14, #4338ca);font-weight:600;">Nº ${_escFactHtml(f.numero_factura)}</span>` : '';
             html += `<tr class="factg-${gi}" style="display:none;">
                 <td style="padding-left:26px;font-size:12px;color: var(--tx-11, #555);">${fFactura}
                     <span style="color: var(--tx-4, #9ca3af);">· ${_periodoTextoFactura(f)}</span>${numTxt}</td>
                 <td style="font-size:12px;color: var(--tx-5, #888);">${f.usuario || '—'}</td>
-                <td style="text-align:right;font-size:13px;color:#1a1a2e;">${_fmtSys(f.total_neto)}</td>
+                <td style="text-align:right;font-size:13px;color: var(--tx, #1a1a2e);">${_fmtSys(f.total_neto)}</td>
                 <td style="text-align:right;font-size:13px;color: var(--ok-tx-2, #16a34a);">${_fmtSys(f.total_detectado)}</td>
                 <td>${docLink}</td>
                 <td><div style="display:flex;gap:6px;">
@@ -2778,7 +2778,7 @@ function _totDeclAviso(netoLineas, brutoLineas) {
         av.innerHTML = '<span style="color: var(--ok-tx-2, #16a34a);">✓ Cuadra con la suma de las líneas.</span>';
     } else {
         const f = v => v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        av.innerHTML = `<span style="color:#b45309;">⚠ Difiere de la suma de las líneas en ${f(Math.abs(peor))}. `
+        av.innerHTML = `<span style="color: var(--fg-a35, #b45309);">⚠ Difiere de la suma de las líneas en ${f(Math.abs(peor))}. `
                      + `Se guarda el total de la factura; las líneas quedan como están.</span>`;
     }
 }
@@ -2811,9 +2811,9 @@ function _actualizarTotalesConf() {
     if (facCod && sysCod && facCod !== sysCod && typeof convertirASistema === 'function') {
         const nS = convertirASistema(neto, facCod), bS = convertirASistema(bruto, facCod);
         if (nS != null && bS != null)
-            extra = `<span style="border-left: 1px solid var(--bd, #e5e7eb);padding-left:14px;color: var(--tx-3, #6b7280);">Se guarda (${sysCod}): s/imp <b style="color:#1a1a2e;">${sysSym} ${f(nS)}</b> · c/imp <b style="color: var(--ok-tx-2, #16a34a);">${sysSym} ${f(bS)}</b></span>`;
+            extra = `<span style="border-left: 1px solid var(--bd, #e5e7eb);padding-left:14px;color: var(--tx-3, #6b7280);">Se guarda (${sysCod}): s/imp <b style="color: var(--tx, #1a1a2e);">${sysSym} ${f(nS)}</b> · c/imp <b style="color: var(--ok-tx-2, #16a34a);">${sysSym} ${f(bS)}</b></span>`;
     }
-    el.innerHTML = `<span>Suma de líneas: s/imp <b style="color:#1a1a2e;">${sym} ${f(neto)}</b></span>`
+    el.innerHTML = `<span>Suma de líneas: s/imp <b style="color: var(--tx, #1a1a2e);">${sym} ${f(neto)}</b></span>`
                  + `<span>c/imp <b style="color: var(--ok-tx-2, #16a34a);">${sym} ${f(bruto)}</b></span>`
                  + extra;
     _totDeclAviso(neto, bruto);
@@ -2914,7 +2914,7 @@ function actualizarBannerConversion(codigoFactura) {
             Esta factura está en <strong>${codigoFactura}</strong>
             pero no hay tasa de cambio configurada para esta divisa.<br>
             Los importes se guardarán en <strong>${codigoFactura}</strong> sin conversión.
-            Podés configurar la tasa en <a href="configuracion.html" style="color:#b45309;font-weight:700;">Configuración → Divisa del sistema</a>.
+            Podés configurar la tasa en <a href="configuracion.html" style="color: var(--fg-a35, #b45309);font-weight:700;">Configuración → Divisa del sistema</a>.
         `;
     }
     banner.style.display = '';

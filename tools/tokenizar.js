@@ -189,17 +189,28 @@ function procesarArchivo(arch, texto) {
   });
 
   // 2. Atributos style="..." — del markup estático y de los template literals.
-  //    ⚠ Sin selector no se puede saber si un blanco es "superficie" o "sobre
-  //    oscuro". Por eso acá se usa un mapa RECORTADO: se saltan los ambiguos.
-  out = out.replace(/style\s*=\s*"([^"]*)"/g, (todo, decls) => {
+  //    ⚠ Un atributo no trae selector, así que antes se saltaban TODOS los
+  //    blancos y navys por ambiguos (111 casos): no se podía distinguir una
+  //    superficie de una chapita blanca sobre una barra oscura. Resultado
+  //    visible: la tarjeta de "Cargar nueva factura" seguía BLANCA en modo
+  //    oscuro. La ambigüedad se resuelve con el TAG que envuelve al atributo,
+  //    que sí trae class/id: si ese tag (o el trozo de markup inmediatamente
+  //    anterior) huele a barra oscura, se sigue saltando; si no, se convierte.
+  out = out.replace(/style\s*=\s*"([^"]*)"/g, (todo, decls, off, str) => {
     if (!RE_COLOR.test(decls)) return todo;
     RE_COLOR.lastIndex = 0;
+    const ini = str.lastIndexOf("<", off);
+    const fin = str.indexOf(">", off + todo.length);
+    const tag = ini >= 0 ? str.slice(ini, fin > 0 ? fin + 1 : off + todo.length) : "";
+    // Ventana previa: cubre el caso del div sin clase DENTRO de una barra.
+    const previo = str.slice(Math.max(0, (ini >= 0 ? ini : off) - 400), ini >= 0 ? ini : off);
+    const enOscuro = SOBRE_OSCURO.test(tag) || SOBRE_OSCURO.test(previo);
     const nuevo = decls.replace(/([-a-zA-Z]+)\s*:\s*([^;"]+)/g, (d, prop, valor) => {
       const c = clase(prop);
       if (!c) return d;
       const amb = /(white|#fff|#ffffff|#1a1a2e)/i.test(valor);
-      if (amb && (c === "bg" || c === "fg")) {
-        anotar(arch, "style=", "(sin selector)", prop, valor.trim(), "", "ambiguo-sin-selector");
+      if (amb && (c === "bg" || c === "fg") && enOscuro) {
+        anotar(arch, "style=", "(tag sobre oscuro)", prop, valor.trim(), "", "sobre-oscuro");
         return d;
       }
       const n = convertirDecl(arch, "style=", "", prop, valor);

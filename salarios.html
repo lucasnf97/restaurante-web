@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurante — Salarios</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=1">
+<link rel="stylesheet" href="css/tema.css?v=2">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
@@ -36,12 +36,12 @@
         /* Period picker */
         .periodo-picker { display: flex; align-items: center; gap: 8px; background: var(--sup, white); border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 8px; padding: 6px 12px; }
         .periodo-picker label { font-size: 13px; color: var(--tx-7, #666); white-space: nowrap; }
-        .periodo-picker select, .periodo-picker input[type=number] { border: none; outline: none; font-size: 13px; color: #333; background: transparent; cursor: pointer; }
+        .periodo-picker select, .periodo-picker input[type=number] { border: none; outline: none; font-size: 13px; color: var(--fg-a12, #333); background: transparent; cursor: pointer; }
         .periodo-picker input[type=number] { width: 62px; }
         .periodo-label { font-size: 12px; color: var(--tx-3, #6b7280); padding: 4px 10px; background: var(--sup-2, #f8f9fa); border-radius: 6px; white-space: nowrap; }
 
         /* Lock banner */
-        .lock-banner { background: var(--av-sf, #fef3c7); border: 1.5px solid #f59e0b; border-radius: 10px; padding: 12px 18px; display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+        .lock-banner { background: var(--av-sf, #fef3c7); border: 1.5px solid var(--bd-a33, #f59e0b); border-radius: 10px; padding: 12px 18px; display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
         .lock-banner-icon { font-size: 20px; }
         .lock-banner-text { font-size: 13px; color: var(--av-tx, #92400e); flex: 1; }
         .lock-banner-text strong { display: block; font-size: 14px; margin-bottom: 2px; }
@@ -50,7 +50,7 @@
         /* ── Períodos pendientes ── */
         .pendientes-section { margin-bottom: 24px; }
         .pendientes-title { font-size: 14px; font-weight: 700; color: var(--av-tx, #92400e); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .pendiente-card { background: var(--sup, white); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); overflow: hidden; margin-bottom: 10px; border-left: 4px solid #f59e0b; }
+        .pendiente-card { background: var(--sup, white); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); overflow: hidden; margin-bottom: 10px; border-left: 4px solid var(--bd-a33, #f59e0b); }
         .pendiente-card.confirmado { border-left-color: var(--ok, #16a34a); opacity: 0.75; }
         .pendiente-summary { display: flex; align-items: center; padding: 14px 20px; cursor: pointer; gap: 12px; }
         .pendiente-summary:hover { background: var(--sup-2, #fafafa); }
@@ -69,8 +69,8 @@
         .sum-card { flex: 0 0 auto; width: 175px; background: var(--sup, white); border-radius: 12px; padding: 20px 24px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); border-top: 3px solid var(--bd-2, #e0e0e0); display: flex; flex-direction: column; }
         .sum-card.indigo { border-top-color: var(--ac, #4f46e5); }
         .sum-card.green  { border-top-color: var(--ok, #16a34a); }
-        .sum-card.amber  { border-top-color: #d97706; }
-        .sum-card.teal   { border-top-color: #0891b2; }
+        .sum-card.amber  { border-top-color: var(--bd-a25, #d97706); }
+        .sum-card.teal   { border-top-color: var(--bd-a2, #0891b2); }
         .sum-label { font-size: 11px; color: var(--tx-5, #888); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
         .sum-label .fuente-tag { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; white-space: nowrap; }
         .fuente-tag.confirmado { background: var(--ok-sf, #dcfce7); color: var(--ok-tx-2, #16a34a); }
@@ -79,13 +79,13 @@
         .sum-value.masked { color: var(--tx-12, #aaa); letter-spacing: 3px; cursor: pointer; font-size: 18px; }
         .sum-value.masked:hover { color: var(--tx-ac, #4f46e5); }
         .sum-sub { font-size: 11px; color: var(--tx-4, #9ca3af); margin-top: 4px; min-height: 16px; }
-        .ref-anterior { color: #b0b8c8; font-style: italic; }
+        .ref-anterior { color: var(--fg-a34, #b0b8c8); font-style: italic; }
 
         /* Table */
         .tabla-wrap { background: var(--sup, white); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); overflow: hidden; margin-bottom: 24px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: var(--sup-2, #f8f9fa); padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--tx-7, #666); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
-        td { padding: 13px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: #333; vertical-align: middle; }
+        td { padding: 13px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: var(--fg-a12, #333); vertical-align: middle; }
         tr:hover td { background: var(--sup-2, #fafafa); }
         .empty { text-align: center; padding: 48px; color: var(--tx-5, #888); }
 
@@ -104,7 +104,7 @@
         .neu { color: var(--tx-5, #888); }
 
         /* Masked cells */
-        .masked-cell { color: #ccc; letter-spacing: 3px; cursor: pointer; font-weight: 700; user-select: none; }
+        .masked-cell { color: var(--fg-a44, #ccc); letter-spacing: 3px; cursor: pointer; font-weight: 700; user-select: none; }
         .masked-cell:hover { color: var(--tx-ac, #4f46e5); }
 
         /* Sueldo editable */
@@ -143,8 +143,8 @@
         .modal-info-row:last-child { border-bottom: none; }
         .modal-info-row span:first-child { color: var(--tx-5, #888); }
         .modal-info-row span:last-child { font-weight: 600; }
-        .ajuste-preview { background: var(--ac-sf, #f0f9ff); border: 1.5px solid #bae6fd; border-radius: 8px; padding: 12px 14px; margin-top: 10px; }
-        .ajuste-preview .modal-info-row { border-bottom-color: #e0f2fe; }
+        .ajuste-preview { background: var(--ac-sf, #f0f9ff); border: 1.5px solid var(--bd-a21, #bae6fd); border-radius: 8px; padding: 12px 14px; margin-top: 10px; }
+        .ajuste-preview .modal-info-row { border-bottom-color: var(--bd-a27, #e0f2fe); }
         .ajuste-total-row { font-size: 14px !important; padding: 8px 0 2px !important; }
         .ajuste-total-row span { font-size: 15px !important; font-weight: 700 !important; color: var(--tx, #1a1a2e) !important; }
         .dif-saldo-cell { display: flex; align-items: center; gap: 8px; }
@@ -966,13 +966,13 @@ async function verCargosEmpleado(uid, username, desde, hasta) {
     ov.id = 'cargos-modal-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:600;display:flex;align-items:center;justify-content:center;';
     ov.innerHTML = `
-        <div style="background:#fff;border-radius:14px;width:430px;max-width:94vw;max-height:80vh;overflow-y:auto;padding:22px;">
+        <div style="background: var(--sup, #fff);border-radius:14px;width:430px;max-width:94vw;max-height:80vh;overflow-y:auto;padding:22px;">
             <h3 style="font-size:17px;margin-bottom:4px;">🍽 Cargos de ${username}</h3>
             <div style="font-size:12px;color: var(--tx-4, #9ca3af);margin-bottom:12px;">${desde} → ${hasta} · se restan del salario del período</div>
             ${filas}
             <div style="margin-top:16px;text-align:right;">
                 <button onclick="document.getElementById('cargos-modal-ov').remove()"
-                        style="padding:8px 18px;border: 1px solid var(--bd-3, #d1d5db);background:#fff;border-radius:8px;cursor:pointer;font-size:13px;">Cerrar</button>
+                        style="padding:8px 18px;border: 1px solid var(--bd-3, #d1d5db);background: var(--sup, #fff);border-radius:8px;cursor:pointer;font-size:13px;">Cerrar</button>
             </div>
         </div>`;
     document.body.appendChild(ov);

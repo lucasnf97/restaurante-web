@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Restaurante — Importar</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=1">
+<link rel="stylesheet" href="css/tema.css?v=2">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); min-height:100vh; }
@@ -20,14 +20,14 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 .btn { padding:9px 18px; border-radius:8px; border:none; cursor:pointer; font-size:14px; font-weight:600; }
 .btn-primary { background:#4f46e5; color:#fff; } .btn-primary:hover{ background:#4338ca; }
 .btn-primary:disabled { opacity:.55; cursor:default; }
-.btn-secondary { background: var(--ac-sf, #eef2ff); color: var(--tx-ac, #4f46e5); } .btn-secondary:hover{ background:#e0e7ff; }
+.btn-secondary { background: var(--ac-sf, #eef2ff); color: var(--tx-ac, #4f46e5); } .btn-secondary:hover{ background: var(--bg-a40, #e0e7ff); }
 .btn-sm { padding:6px 11px; font-size:12px; }
 .btn-x { background: var(--pel-sf, #fee2e2); color: var(--pel-tx-2, #dc2626); border:none; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer; }
 .field label { display:block; font-size:12px; font-weight:600; color: var(--tx-2, #374151); margin-bottom:5px; }
 .field input, .field select { padding:9px 11px; border: 1px solid var(--bd-3, #d1d5db); border-radius:8px; font-size:14px; }
 .hint { font-size:12px; color: var(--tx-4, #9ca3af); }
 .msg { font-size:13px; font-weight:600; } .msg.ok{ color: var(--ok-tx-2, #16a34a); } .msg.err{ color: var(--pel-tx-2, #dc2626); }
-.mapeo { background: var(--sup-2, #f8fafc); border: 1px solid var(--bd, #e5e7eb); border-radius:8px; padding:10px 12px; font-size:13px; color:#475569; margin-bottom:12px; }
+.mapeo { background: var(--sup-2, #f8fafc); border: 1px solid var(--bd, #e5e7eb); border-radius:8px; padding:10px 12px; font-size:13px; color: var(--fg-a15, #475569); margin-bottom:12px; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
 th,td { text-align:left; padding:8px 9px; border-bottom: 1px solid var(--bd-4, #f0f0f0); }
 th { color: var(--tx-4, #9ca3af); font-size:11px; text-transform:uppercase; }
@@ -45,7 +45,7 @@ tr.nuevo { background: var(--ok-sf-2, #f0fdf4); }
 .fcard input.fcom { flex:1; min-width:220px; border: 1px solid var(--bd, #e5e7eb); border-radius:8px; padding:7px 10px; font-size:13px; }
 /* Cards de sección (revisión) */
 .sec-card { border: 1px solid var(--bd, #e5e7eb); border-radius:12px; padding:14px; margin-bottom:14px; background: var(--sup-2, #fafafa); }
-.sec-card.confirmada { border-color:#86efac; background: var(--ok-sf-2, #f0fdf4); }
+.sec-card.confirmada { border-color: var(--bd-a14, #86efac); background: var(--ok-sf-2, #f0fdf4); }
 .sec-inp { border: 1px solid var(--bd, #e5e7eb); border-radius:6px; padding:4px 6px; width:100%; }
 .aviso { background: var(--pel-sf-2, #fffbeb); border: 1px solid var(--av-bd, #fde68a); color: var(--av-tx, #92400e); border-radius:8px; padding:8px 12px; font-size:12.5px; margin-bottom:8px; }
 /* Modal crear usuario (alta unificada desde el matcheo de fichajes) */
@@ -139,13 +139,13 @@ tr.nuevo { background: var(--ok-sf-2, #f0fdf4); }
             </table></div>
         </div>
         <div id="prev-dias" style="display:none;">
-            <div id="dias-ref" style="background: var(--ac-sf, #eff6ff);border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
-                <div style="font-weight:600;font-size:13px;color:#1e40af;margin-bottom:6px;">📅 Vinculá un día con su fecha real</div>
+            <div id="dias-ref" style="background: var(--ac-sf, #eff6ff);border: 1px solid var(--bd-a23, #bfdbfe);border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+                <div style="font-weight:600;font-size:13px;color: var(--fg-a9, #1e40af);margin-bottom:6px;">📅 Vinculá un día con su fecha real</div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <span>El día</span>
-                    <input id="ref-dia" type="number" min="1" style="width:70px;text-align:center;border:1px solid #93c5fd;border-radius:6px;padding:4px 6px;">
+                    <input id="ref-dia" type="number" min="1" style="width:70px;text-align:center;border: 1px solid var(--bd-a17, #93c5fd);border-radius:6px;padding:4px 6px;">
                     <span>corresponde a la fecha</span>
-                    <input id="ref-fecha" type="date" style="border:1px solid #93c5fd;border-radius:6px;padding:4px 6px;">
+                    <input id="ref-fecha" type="date" style="border: 1px solid var(--bd-a17, #93c5fd);border-radius:6px;padding:4px 6px;">
                 </div>
             </div>
             <div class="tbl-wrap"><table>
@@ -434,14 +434,14 @@ function _seccionHTML(si){
         head+=_fichajesUserMap(si);
         const pend=(s.usuarios_detectados||[]).filter(m=>!m.usuario_id).length;
         if(pend>0){
-            head+=`<div class="aviso" style="background: var(--av-sf, #fef3c7);border-color:#fcd34d;color: var(--av-tx, #92400e);">
+            head+=`<div class="aviso" style="background: var(--av-sf, #fef3c7);border-color: var(--bd-a37, #fcd34d);color: var(--av-tx, #92400e);">
                 👤 Hay <b>${pend} empleado${pend>1?'s':''} sin usuario</b> en el sistema. Agregalos con <b>➕ Crear usuario</b>, asignalos a uno existente o quitalos con ✕ —
                 la tabla para revisar y confirmar aparece cuando estén todos resueltos.</div>`;
             return `<div class="sec-card">${head}</div>`;
         }
     }
     if(s.tipo==='otras'){
-        head+=`<div class="aviso" style="background: var(--av-sf, #fef3c7);border-color:#fcd34d;color: var(--av-tx, #92400e);">
+        head+=`<div class="aviso" style="background: var(--av-sf, #fef3c7);border-color: var(--bd-a37, #fcd34d);color: var(--av-tx, #92400e);">
             ⚠ <b>«Otras» no carga nada en el sistema</b>: sólo archiva estas filas en el PDF del lote, como respaldo. No suma a ventas, stock ni salarios.
             Si esto son <b>horas trabajadas por empleado</b>, cambiá el destino a <b>🧾 Horas de nómina</b> para que cuenten en Salarios; si son ventas/compras/insumos, elegí el destino que corresponda arriba.</div>`;
         const tv=(s.titulo||'').replace(/"/g,'&quot;');
@@ -466,7 +466,7 @@ function _fichajesUserMap(si){
     const puedeCrear = hasPermiso('acceso_usuarios');
     const opts=(uid)=>'<option value="">— elegir usuario —</option>'+
         (_usuarios||[]).map(u=>`<option value="${u.id}" ${String(u.id)===String(uid)?'selected':''}>${esc(displayName(u))}</option>`).join('');
-    return `<div style="background:#fff;border: 1px solid var(--bd, #e5e7eb);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+    return `<div style="background: var(--sup, #fff);border: 1px solid var(--bd, #e5e7eb);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
             <span style="font-size:12px;font-weight:700;color: var(--tx-2, #374151);">Matcheo de empleados (aplica a todas sus filas):</span>
             <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="_rebuscarUsuarios(${si})"
@@ -657,7 +657,7 @@ function _seccionTabla(si){
             return `<tr>${chk(fi)}${tds}</tr>`;
         }).join('');
     }
-    return pre+`<div class="tbl-wrap" style="max-height:340px;background:#fff;"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    return pre+`<div class="tbl-wrap" style="max-height:340px;background: var(--sup, #fff);"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 function _otraDetalle(f){
@@ -677,9 +677,9 @@ function _refControl(si){
     if(!nums.length) return '';
     if(s._refDia==null) s._refDia=Math.min(...nums);
     if(s._refFecha==null) s._refFecha=document.getElementById('p-desde').value||'';
-    return `<div style="background: var(--ac-sf, #eff6ff);border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:13px;color:#1e40af;">`+
-        `📅 El día <input type="number" min="1" value="${s._refDia}" oninput="_secs[${si}]._refDia=parseInt(this.value)||1" style="width:64px;text-align:center;border:1px solid #93c5fd;border-radius:6px;padding:3px 5px;">`+
-        ` corresponde a la fecha <input type="date" value="${s._refFecha||''}" oninput="_secs[${si}]._refFecha=this.value" style="border:1px solid #93c5fd;border-radius:6px;padding:3px 5px;">`+
+    return `<div style="background: var(--ac-sf, #eff6ff);border: 1px solid var(--bd-a23, #bfdbfe);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:13px;color: var(--fg-a9, #1e40af);">`+
+        `📅 El día <input type="number" min="1" value="${s._refDia}" oninput="_secs[${si}]._refDia=parseInt(this.value)||1" style="width:64px;text-align:center;border: 1px solid var(--bd-a17, #93c5fd);border-radius:6px;padding:3px 5px;">`+
+        ` corresponde a la fecha <input type="date" value="${s._refFecha||''}" oninput="_secs[${si}]._refFecha=this.value" style="border: 1px solid var(--bd-a17, #93c5fd);border-radius:6px;padding:3px 5px;">`+
         ` <span class="hint">— se calcula la fecha real de cada día.</span></div>`;
 }
 

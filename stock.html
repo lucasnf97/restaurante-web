@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurante — Stock</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=1">
+<link rel="stylesheet" href="css/tema.css?v=2">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
@@ -30,7 +30,7 @@
         .stat-card.activa { outline: 2.5px solid var(--ac, #4f46e5); outline-offset: 2px; }
         .stat-label { font-size: 12px; color: var(--tx-5, #888); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
         .stat-value { font-size: 22px; font-weight: 700; color: var(--tx, #1a1a2e); line-height: 1.1; }
-        .stat-value.green { color: var(--ok-tx-2, #16a34a); } .stat-value.yellow { color: #ca8a04; } .stat-value.red { color: var(--pel-tx-2, #dc2626); }
+        .stat-value.green { color: var(--ok-tx-2, #16a34a); } .stat-value.yellow { color: var(--fg-a43, #ca8a04); } .stat-value.red { color: var(--pel-tx-2, #dc2626); }
         .stat-sub { font-size: 10.5px; color: var(--tx-4, #9ca3af); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .filtros { background: var(--sup, white); border-radius: 12px; padding: 14px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); flex-wrap: wrap; }
         .filtros input, .filtros select { padding: 7px 12px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 8px; font-size: 13px; outline: none; }
@@ -50,11 +50,11 @@
         .tabla-wrapper { background: var(--sup, white); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); overflow: hidden; }
         table { width: 100%; border-collapse: collapse; }
         th { background: var(--sup-2, #f8f9fa); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: var(--tx-7, #666); text-transform: uppercase; letter-spacing: 0.5px; }
-        td { padding: 13px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: #333; }
+        td { padding: 13px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: var(--fg-a12, #333); }
         tr:hover td { background: var(--sup-2, #fafafa); }
         .empty { text-align: center; padding: 48px; color: var(--tx-5, #888); }
         .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-        .badge-ok { background: var(--ok-sf, #dcfce7); color: var(--ok-tx-2, #16a34a); } .badge-warn { background: var(--av-sf, #fef9c3); color: #ca8a04; } .badge-alert { background: var(--pel-sf, #fee2e2); color: var(--pel-tx-2, #dc2626); }
+        .badge-ok { background: var(--ok-sf, #dcfce7); color: var(--ok-tx-2, #16a34a); } .badge-warn { background: var(--av-sf, #fef9c3); color: var(--fg-a43, #ca8a04); } .badge-alert { background: var(--pel-sf, #fee2e2); color: var(--pel-tx-2, #dc2626); }
         .stock-bar { width: 100%; height: 8px; background: var(--sup-5, #e5e7eb); border-radius: 4px; overflow: hidden; }
         .stock-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
@@ -76,7 +76,7 @@
         .tab { padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--tx-7, #666); transition: all 0.2s; border: none; background: transparent; }
         .tab.active { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
         .tab:hover:not(.active) { background: var(--ac-sf, #f5f3ff); color: var(--tx-ac, #4f46e5); }
-        .prov-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--ac-sf-2, #ede9fe); color: #5b21b6; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+        .prov-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--ac-sf-2, #ede9fe); color: var(--fg-a18, #5b21b6); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
 
         /* ── Revisión de stock ── */
         .rev-modal { max-width: 860px; display:flex; flex-direction:column; max-height:88vh; padding:0; overflow:hidden; }
@@ -109,7 +109,7 @@
                          background: var(--pel-sf-2, #fef2f2); border: 1.5px solid var(--pel-bd, #fecaca); border-radius: 10px;
                          padding: 12px 18px; margin-top: 14px; }
         .rev-total-bar.cero { background: var(--ok-sf-2, #f0fdf4); border-color: var(--ok-bd, #bbf7d0); }
-        .rev-total-lbl { font-size: 13px; font-weight: 700; color: #991b1b; }
+        .rev-total-lbl { font-size: 13px; font-weight: 700; color: var(--fg-a28, #991b1b); }
         .rev-total-bar.cero .rev-total-lbl { color: var(--ok-tx-3, #166534); }
         .rev-total-val { font-size: 20px; font-weight: 800; color: var(--pel-tx-2, #dc2626); }
         .rev-total-bar.cero .rev-total-val { color: var(--ok-tx-2, #16a34a); }
@@ -171,7 +171,7 @@
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumo()">+ Nuevo insumo</button>
             <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalDesecho()" style="border-color: var(--pel, #dc2626);color: var(--pel-tx-2, #dc2626);">🗑 Registrar desecho</button>
-            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color: var(--bd-a33, #f59e0b);color: var(--fg-a35, #b45309);">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
             <input type="text" id="filtro-ins-nombre" placeholder="Buscar por nombre..." oninput="cargarInsumos()">
@@ -199,9 +199,9 @@
     <div id="vista-produccion" style="display:none">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalInsumoProduccion()">+ Nuevo insumo de producción</button>
-            <button class="btn btn-secondary btn-sm" onclick="abrirModalRegistrarProduccion()" style="border-color:#7c3aed;color: var(--tx-ac-2, #7c3aed);">📋 Registrar producción</button>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalRegistrarProduccion()" style="border-color: var(--bd-a12, #7c3aed);color: var(--tx-ac-2, #7c3aed);">📋 Registrar producción</button>
             <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalDesecho()" style="border-color: var(--pel, #dc2626);color: var(--pel-tx-2, #dc2626);">🗑 Registrar desecho</button>
-            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevision()" style="border-color: var(--bd-a33, #f59e0b);color: var(--fg-a35, #b45309);">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
             <input type="text" id="filtro-prod-nombre" placeholder="Buscar por nombre..." oninput="cargarInsumosProduccion()">
@@ -230,7 +230,7 @@
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalBien()">+ Nuevo bien de uso</button>
             <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalPerdida()" style="border-color: var(--pel, #dc2626);color: var(--pel-tx-2, #dc2626);">🗑 Registrar pérdida</button>
-            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevisionBienes()" style="border-color:#f59e0b;color:#b45309;">🔍 Revisión de stock</button>
+            <button class="btn btn-secondary btn-sm btn-revision" onclick="abrirModalRevisionBienes()" style="border-color: var(--bd-a33, #f59e0b);color: var(--fg-a35, #b45309);">🔍 Revisión de stock</button>
         </div>
         <div class="filtros">
             <input type="text" id="filtro-bien-nombre" placeholder="Buscar por nombre..." oninput="renderBienesUso()">
@@ -310,8 +310,8 @@
                 <small style="display:block;color: var(--tx-4, #9ca3af);">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
             </span>
         </label>
-        <div id="ins-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background: var(--sup-2, #faf7ff);border:1px solid #e9d5ff;border-radius:8px;">
-            <div style="font-size:12px;font-weight:600;color:#6b21a8;margin-bottom:6px;">¿En qué categorías se puede agregar como extra?</div>
+        <div id="ins-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background: var(--sup-2, #faf7ff);border: 1px solid var(--bd-a28, #e9d5ff);border-radius:8px;">
+            <div style="font-size:12px;font-weight:600;color: var(--fg-a20, #6b21a8);margin-bottom:6px;">¿En qué categorías se puede agregar como extra?</div>
             <div id="ins-extra-cats" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
         </div><!-- /modal-ins-body -->
@@ -366,8 +366,8 @@
                 <small style="display:block;color: var(--tx-4, #9ca3af);">Genera un producto «Extra {nombre}» (categoría Extra) con su precio y receta.</small>
             </span>
         </label>
-        <div id="ip-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background: var(--sup-2, #faf7ff);border:1px solid #e9d5ff;border-radius:8px;">
-            <div style="font-size:12px;font-weight:600;color:#6b21a8;margin-bottom:6px;">¿En qué categorías se puede agregar como extra?</div>
+        <div id="ip-extra-cats-wrap" style="display:none;margin-top:8px;padding:10px 12px;background: var(--sup-2, #faf7ff);border: 1px solid var(--bd-a28, #e9d5ff);border-radius:8px;">
+            <div style="font-size:12px;font-weight:600;color: var(--fg-a20, #6b21a8);margin-bottom:6px;">¿En qué categorías se puede agregar como extra?</div>
             <div id="ip-extra-cats" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
 
@@ -406,7 +406,7 @@
 
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-registrar-produccion')">Cancelar</button>
-            <button class="btn btn-primary" onclick="confirmarProduccion()" style="background:#7c3aed;">Registrar producción</button>
+            <button class="btn btn-primary" onclick="confirmarProduccion()" style="background: var(--bg-a23, #7c3aed);">Registrar producción</button>
         </div>
     </div>
 </div>
@@ -486,7 +486,7 @@ function _renderListaUbicaciones() {
                     background: var(--sup-2, #f9fafb);border: 1px solid var(--bd, #e5e7eb);border-radius:8px;">
             <span style="flex:1;font-size:13px;font-weight:600;color: var(--tx-2, #374151);">${esc(u.nombre)}</span>
             <button onclick="eliminarUbicacion(${u.id})"
-                    style="background:none;border:none;color:#fca5a5;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;"
+                    style="background:none;border:none;color: var(--fg-a56, #fca5a5);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;"
                     title="Eliminar ubicación"
                     onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#fca5a5'">✕</button>
         </div>`).join('');
@@ -761,7 +761,7 @@ async function toggleExtraCats(prefix, show) {
         const cont = document.getElementById(prefix + '-extra-cats');
         const visibles = cats.filter(c => c.nombre !== 'Extra');
         cont.innerHTML = visibles.length ? visibles.map(c => `
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;background:#fff;border: 1px solid var(--bd, #e5e7eb);border-radius:6px;padding:4px 10px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;background: var(--sup, #fff);border: 1px solid var(--bd, #e5e7eb);border-radius:6px;padding:4px 10px;cursor:pointer;">
                 <input type="checkbox" class="${prefix}-cat-chk" value="${c.id}" ${sel.has(c.id) ? 'checked' : ''}>
                 ${esc(c.nombre)}
             </label>`).join('') : '<span style="font-size:12px;color: var(--tx-4, #9ca3af);">No hay categorías creadas todavía.</span>';
@@ -914,7 +914,7 @@ async function cargarHistorial() {
             } else if (esDesecho) {
                 cantCell = `<span style="color: var(--pel-tx-2, #dc2626);font-weight:600;">−${fmtNum(Math.abs(m.cantidad))} <span style="font-size:10px;background: var(--pel-sf, #fee2e2);color: var(--pel-tx-2, #dc2626);border-radius:4px;padding:1px 5px;font-weight:700;">DESECHO</span></span>`;
             } else if (esProduccion) {
-                cantCell = `<span style="color: var(--tx-ac-2, #7c3aed);font-weight:600;">+${fmtNum(m.cantidad)} <span style="font-size:10px;background: var(--ac-sf-2, #ede9fe);color:#6d28d9;border-radius:4px;padding:1px 5px;font-weight:700;">PROD</span></span>`;
+                cantCell = `<span style="color: var(--tx-ac-2, #7c3aed);font-weight:600;">+${fmtNum(m.cantidad)} <span style="font-size:10px;background: var(--ac-sf-2, #ede9fe);color: var(--fg-a21, #6d28d9);border-radius:4px;padding:1px 5px;font-weight:700;">PROD</span></span>`;
             } else {
                 cantCell = `<span style="color: var(--ok-tx-2, #16a34a);font-weight:600;">+${fmtNum(m.cantidad)}</span>`;
             }
@@ -928,7 +928,7 @@ async function cargarHistorial() {
                     : '—';
             } else if (m.precio_unitario) {
                 const num = parseFloat(m.precio_unitario).toFixed(2);
-                precioCell = m.moneda ? `${num} <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:1px 5px;">${m.moneda}</span>` : num;
+                precioCell = m.moneda ? `${num} <span style="font-size:10px;background: var(--bg-a38, #dbeafe);color: var(--fg-a8, #1d4ed8);border-radius:3px;padding:1px 5px;">${m.moneda}</span>` : num;
             } else {
                 precioCell = '—';
             }
@@ -1109,7 +1109,7 @@ async function verReceta(ipId, nombre) {
 
             const monedaLabel = monedaComun ? `<span style="font-size:12px;color: var(--ok-tx-3, #166534);font-weight:400;"> ${monedaComun}</span>` : "";
             const totalLabel  = alguno_sin_precio
-                ? `${totalCosto.toFixed(2)} <span style="color:#ca8a04;font-size:11px;">(parcial)</span>`
+                ? `${totalCosto.toFixed(2)} <span style="color: var(--fg-a43, #ca8a04);font-size:11px;">(parcial)</span>`
                 : totalCosto.toFixed(2);
 
             document.getElementById("modal-receta-contenido").innerHTML = `
@@ -1134,7 +1134,7 @@ async function verReceta(ipId, nombre) {
                         </tr>
                     </tfoot>
                 </table>
-                ${monedasMixtas ? '<p style="font-size:11px;color:#ca8a04;margin-top:10px;">⚠ Ingredientes con distintas monedas; el total puede no ser exacto.</p>' : ''}
+                ${monedasMixtas ? '<p style="font-size:11px;color: var(--fg-a43, #ca8a04);margin-top:10px;">⚠ Ingredientes con distintas monedas; el total puede no ser exacto.</p>' : ''}
                 ${alguno_sin_precio ? '<p style="font-size:11px;color: var(--tx-4, #9ca3af);margin-top:6px;">* Ingredientes sin precio registrado se cuentan como $0 en el total.</p>' : ''}
             `;
         }
@@ -1236,7 +1236,7 @@ async function agregarItemReceta() {
     fila.className = "receta-add-row";
     fila.style.cssText = "display:flex;gap:8px;align-items:center;padding:8px 10px;background:#ede9fe;border-radius:8px;";
     fila.innerHTML = `
-        <div style="flex:1;display:flex;align-items:center;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:6px;background:white;overflow:hidden;">
+        <div style="flex:1;display:flex;align-items:center;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:6px;background: var(--sup, white);overflow:hidden;">
             <input type="text" class="cb-input" autocomplete="off"
                    placeholder="Buscar insumo..."
                    oninput="comboboxInput(event, this)"
@@ -1250,7 +1250,7 @@ async function agregarItemReceta() {
         <input type="number" class="cb-cant" step="0.001" min="0.001" placeholder="Cantidad"
                style="width:100px;padding:6px 8px;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:6px;font-size:13px;">
         <button type="button" onclick="confirmarItemReceta(this)"
-                style="background:#7c3aed;color:white;border:none;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700;">✓</button>
+                style="background: var(--bg-a23, #7c3aed);color: var(--tx-inv, white);border:none;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700;">✓</button>
         <button type="button" onclick="cancelarItemReceta(this)"
                 style="background:none;border:none;color: var(--pel-tx-2, #dc2626);cursor:pointer;font-size:16px;">✕</button>
     `;
@@ -1473,7 +1473,7 @@ async function cargarPreviewProduccion() {
         const negativo   = disponible !== null && disponible - necesario < 0;
         const color      = negativo ? "#92400e" : "#166534";
         const aviso      = negativo
-            ? ` <span style="color:#b45309;font-size:11px;">⚠ quedaría en ${fmtNum(disponible - necesario)} ${r.unidad}</span>`
+            ? ` <span style="color: var(--fg-a35, #b45309);font-size:11px;">⚠ quedaría en ${fmtNum(disponible - necesario)} ${r.unidad}</span>`
             : "";
         return `<div style="color:${color};">• ${esc(r.insumo_nombre)}: −${fmtNum(necesario)} ${r.unidad}${aviso}</div>`;
     }).join("");
@@ -2013,7 +2013,7 @@ async function verFacturasBien(id, nombre) {
             <input type="hidden" id="des-insumo">
             <div id="des-insumo-lista"
                  style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;
-                        background:white;border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:8px;
+                        background: var(--sup, white);border: 1.5px solid var(--ac-bd-2, #c4b5fd);border-radius:8px;
                         box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:200px;overflow-y:auto;"></div>
         </div>
         <div class="form-row">
@@ -2099,7 +2099,7 @@ async function verFacturasBien(id, nombre) {
                 <button class="btn btn-secondary" onclick="cerrarModal('modal-revision')">Cancelar</button>
                 <button class="btn btn-primary" id="rev-btn-confirmar"
                         onclick="confirmarRevision()"
-                        style="background: var(--av, #f59e0b);border-color:#f59e0b;">Guardar revisión</button>
+                        style="background: var(--av, #f59e0b);border-color: var(--bd-a33, #f59e0b);">Guardar revisión</button>
             </div>
         </div>
 
@@ -2170,7 +2170,7 @@ async function verFacturasBien(id, nombre) {
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cerrarModal('modal-revision-bienes')">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarRevisionBienes()" style="background: var(--av, #f59e0b);border-color:#f59e0b;">Guardar revisión</button>
+            <button class="btn btn-primary" onclick="guardarRevisionBienes()" style="background: var(--av, #f59e0b);border-color: var(--bd-a33, #f59e0b);">Guardar revisión</button>
         </div>
     </div>
 </div>
@@ -2218,7 +2218,7 @@ async function verFacturasBien(id, nombre) {
 <div class="modal-overlay" id="modal-imprimir-stock">
     <div class="modal" style="max-width:680px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <h3 id="imprimir-titulo" style="margin:0;font-size:17px;color:#1a1a2e;">Listado de stock</h3>
+            <h3 id="imprimir-titulo" style="margin:0;font-size:17px;color: var(--tx, #1a1a2e);">Listado de stock</h3>
             <button class="btn btn-secondary btn-sm no-print" onclick="cerrarModal('modal-imprimir-stock')">✕</button>
         </div>
         <div id="imprimir-body"></div>

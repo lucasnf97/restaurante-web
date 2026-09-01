@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurante — Tareas</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=1">
+<link rel="stylesheet" href="css/tema.css?v=2">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
@@ -31,7 +31,7 @@
         .btn-primary { background: #4f46e5; color: #fff; border-color: var(--ac, #4f46e5); }
         .btn-primary:hover { background: #4338ca; }
         .btn-suave { background: var(--ac-sf, #eef2ff); border-color: var(--ac-bd, #c7d2fe); }
-        .mini { border: 1px solid var(--bd, #e5e7eb); background: var(--sup, #fff); border-radius: 6px; cursor: pointer; font-size: 12px; padding: 3px 7px; color: #4b5563; flex-shrink: 0; }
+        .mini { border: 1px solid var(--bd, #e5e7eb); background: var(--sup, #fff); border-radius: 6px; cursor: pointer; font-size: 12px; padding: 3px 7px; color: var(--fg-a16, #4b5563); flex-shrink: 0; }
         .mini:hover:not(:disabled) { background: var(--sup-3, #f3f4f6); }
         .mini:disabled { opacity: .3; cursor: default; }
         .mini.rojo { color: var(--pel-tx-2, #dc2626); }
@@ -47,8 +47,8 @@
         .fila-tarea .tx { flex: 1; min-width: 0; }
         .fila-tarea .tx .t { font-size: 13.5px; color: var(--tx-13, #1f2937); }
         .fila-tarea .tx .b { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
-        .chip { font-size: 10px; border-radius: 10px; padding: 1px 7px; font-weight: 700; white-space: nowrap; background: var(--sup-3, #f3f4f6); color: #4b5563; }
-        .chip.mom { background: var(--ac-sf, #eef2ff); color: #4338ca; }
+        .chip { font-size: 10px; border-radius: 10px; padding: 1px 7px; font-weight: 700; white-space: nowrap; background: var(--sup-3, #f3f4f6); color: var(--fg-a16, #4b5563); }
+        .chip.mom { background: var(--ac-sf, #eef2ff); color: var(--fg-a14, #4338ca); }
         .chip.freq { background: var(--av-sf, #fef3c7); color: var(--av-tx, #92400e); }
         .vacio { color: var(--tx-4, #9ca3af); font-size: 13px; padding: 22px; text-align: center; }
         .sec-title { font-size: 12px; font-weight: 800; color: var(--tx-4, #9ca3af); text-transform: uppercase; letter-spacing: .6px; margin: 4px 0 8px; }
@@ -477,7 +477,7 @@ function _barraSeleccionHtml() {
         _cfg.grupos.map(g => `<option value="${g.id}">${esc(g.nombre)}</option>`).join('');
     return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background: var(--ac-sf-2, #ede9fe);
                 border: 1.5px solid var(--ac-bd, #c7d2fe);border-radius:10px;padding:10px 14px;margin-bottom:10px;">
-        <b style="font-size:13px;color:#4338ca;">${_sel.size} seleccionada${_sel.size === 1 ? '' : 's'}</b>
+        <b style="font-size:13px;color: var(--fg-a14, #4338ca);">${_sel.size} seleccionada${_sel.size === 1 ? '' : 's'}</b>
         <span style="font-size:12.5px;color: var(--tx-3, #6b7280);">Mover a:</span>
         <select class="inp" id="sel-grupo" style="max-width:200px;">${ops}</select>
         <button class="btn btn-primary" style="padding:6px 14px;" onclick="moverSeleccion()">Mover</button>
@@ -1149,9 +1149,9 @@ async function cargarDiariasHist() {
         }).join('');
         return `<div class="card" style="margin-bottom:8px;">
             <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background: var(--sup-2, #f8f9fb);border-bottom: 1px solid var(--bd-4, #eef0f3);">
-                <b style="font-size:13px;color:#1a1a2e;">📅 ${_fechaLargaLocal(dia.fecha)}</b>
+                <b style="font-size:13px;color: var(--tx, #1a1a2e);">📅 ${_fechaLargaLocal(dia.fecha)}</b>
                 ${esHoy ? '<span class="chip" style="background: var(--av-sf, #fef3c7);color: var(--av-tx, #92400e);">hoy</span>' : ''}
-                <span style="margin-left:auto;font-weight:800;font-size:13px;color:${completo ? '#16a34a' : '#1a1a2e'};">✓ ${dia.hechas}/${dia.total}</span>
+                <span style="margin-left:auto;font-weight:800;font-size:13px;color: ${completo ? 'var(--ok-tx-2, #16a34a)' : 'var(--tx, #1a1a2e)'};">✓ ${dia.hechas}/${dia.total}</span>
             </div>
             ${filas}
         </div>`;
@@ -1206,15 +1206,15 @@ async function cargarJornadas(offset) {
         return `<div class="card" style="margin-bottom:8px;cursor:pointer;" onclick="_toggleJornada(${j.id})">
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;flex-wrap:wrap;">
                 <b style="min-width:80px;">${fecha}</b>
-                <span style="font-weight:700;color:#1a1a2e;">${esc(j.username || '')}</span>
+                <span style="font-weight:700;color: var(--tx, #1a1a2e);">${esc(j.username || '')}</span>
                 <span style="font-size:12px;color: var(--tx-4, #9ca3af);">${esc(j.rol || '')}</span>
                 <span style="font-size:12px;color: var(--tx-3, #6b7280);">Aceptó ${_horaJ(j.aceptada_en) || '—'}</span>
                 <span style="font-size:12px;color: ${abierta ? '#d97706' : 'var(--tx-3, #6b7280)'};">
                     ${abierta ? '⏳ jornada abierta' : 'Cerró ' + _horaJ(j.cerrada_en)}</span>
-                <span style="margin-left:auto;font-weight:700;color:${hechas === items.length - tach ? '#16a34a' : '#1a1a2e'};">
+                <span style="margin-left:auto;font-weight:700;color: ${hechas === items.length - tach ? 'var(--ok-tx-2, #16a34a)' : 'var(--tx, #1a1a2e)'};">
                     ✓ ${hechas}/${items.length - tach}</span>
                 ${tach ? `<span style="font-size:12px;color: var(--tx-4, #9ca3af);">✕ ${tach}</span>` : ''}
-                ${propias ? `<span style="font-size:12px;color:#b45309;">➕ ${propias}</span>` : ''}
+                ${propias ? `<span style="font-size:12px;color: var(--fg-a35, #b45309);">➕ ${propias}</span>` : ''}
                 <span style="color: var(--tx-4, #9ca3af);">${exp ? '▾' : '▸'}</span>
             </div>${detalle}
         </div>`;
@@ -1270,16 +1270,16 @@ async function cargarConfirmaciones(offset) {
         return `<div class="conf-fila">
             <div style="font-size:12.5px;color: var(--tx-3, #6b7280);">${fecha}<br><span style="color: var(--tx-4, #9ca3af);">${hora}</span></div>
             <div style="min-width:0;">
-                <div style="font-size:14px;font-weight:700;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.username)}</div>
+                <div style="font-size:14px;font-weight:700;color: var(--tx, #1a1a2e);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.username)}</div>
                 <div style="font-size:11.5px;color: var(--tx-4, #9ca3af);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.rol || '—')}</div>
             </div>
-            <div style="font-size:12px;font-weight:700;color:#4b5563;">${TA_MOM[c.momento] || esc(c.momento)}</div>
+            <div style="font-size:12px;font-weight:700;color: var(--fg-a16, #4b5563);">${TA_MOM[c.momento] || esc(c.momento)}</div>
             <div style="text-align:center;">
                 <span style="display:inline-block;font-size:12px;font-weight:800;border-radius:20px;padding:4px 12px;white-space:nowrap;
                              background: ${completa ? 'var(--ok-sf, #dcfce7)' : 'var(--pel-sf, #fee2e2)'};color: ${completa ? 'var(--ok-tx-3, #166534)' : 'var(--pel-tx, #b91c1c)'};">
                     ${c.tildadas}/${c.total}</span>
             </div>
-            <div style="text-align:center;font-size:12px;font-weight:700;color:${c.comentarios ? '#b45309' : '#e5e7eb'};">
+            <div style="text-align:center;font-size:12px;font-weight:700;color: ${c.comentarios ? 'var(--fg-a35, #b45309)' : 'var(--fg-a49, #e5e7eb)'};">
                 ${c.comentarios || '—'}</div>
             <div style="text-align:right;"><button class="btn" style="padding:6px 14px;" onclick="verConfirmacion(${c.id})">Ver</button></div>
         </div>`;
@@ -1316,7 +1316,7 @@ async function verConfirmacion(id) {
     });
     document.getElementById('mc-items').innerHTML = orden.map(g => `
         <div style="margin-bottom:8px;">
-            <div style="font-size:12px;font-weight:800;color:${g.includes('📌') ? '#b45309' : '#1a1a2e'};
+            <div style="font-size:12px;font-weight:800;color: ${g.includes('📌') ? 'var(--fg-a35, #b45309)' : 'var(--tx, #1a1a2e)'};
                         padding:5px 4px;border-bottom: 1px solid var(--bd-4, #eef0f3);">${esc(g)}</div>
             ${grupos[g].map(i => `
             <div style="padding:7px 4px;border-bottom: 1px dashed var(--bd-4, #f3f4f6);">
@@ -1324,7 +1324,7 @@ async function verConfirmacion(id) {
                     <span style="flex-shrink:0;">${i.tildada ? '✅' : '⬜'}</span>
                     <span style="${i.tildada ? '' : 'color: var(--tx-4, #9ca3af);'}">${esc(i.texto)}${i.puntual ? ' <span style="font-size:10px;background: var(--av-sf, #fef3c7);color: var(--av-tx, #92400e);border-radius:8px;padding:1px 6px;font-weight:700;">📌 del día</span>' : ''}</span>
                 </div>
-                ${i.comentario ? `<div style="margin:4px 0 0 26px;font-size:12.5px;color:#b45309;background:#fffdf6;border-left: 3px solid var(--av-bd, #fde68a);padding:5px 8px;border-radius:0 6px 6px 0;">💬 ${esc(i.comentario)}</div>` : ''}
+                ${i.comentario ? `<div style="margin:4px 0 0 26px;font-size:12.5px;color: var(--fg-a35, #b45309);background: var(--sup-2, #fffdf6);border-left: 3px solid var(--av-bd, #fde68a);padding:5px 8px;border-radius:0 6px 6px 0;">💬 ${esc(i.comentario)}</div>` : ''}
             </div>`).join('')}
         </div>`).join('');
     document.getElementById('modal-conf').classList.add('open');

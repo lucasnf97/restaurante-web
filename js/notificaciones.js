@@ -102,7 +102,7 @@
         #notif-bubble:hover{background:#4338ca;}
         #notif-bubble-count{position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:11px;
             min-width:22px;height:22px;padding:0 6px;font-size:12px;font-weight:800;display:flex;align-items:center;
-            justify-content:center;border:2px solid #fff;box-sizing:border-box;}
+            justify-content:center;border: 2px solid var(--bd-a39, #fff);box-sizing:border-box;}
         #notif-bubble-x{position:absolute;top:-6px;left:-6px;width:21px;height:21px;border-radius:50%;background:#fff;
             color:#6b7280;border: 1px solid var(--bd, #e5e7eb);font-size:11px;font-weight:800;line-height:1;display:flex;
             align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 2px 6px rgba(0,0,0,.22);}

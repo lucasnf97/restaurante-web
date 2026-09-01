@@ -190,7 +190,11 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1.2px;
-            color: #6366f1;
+            /* ⚠ Era #6366f1: 3.82:1 sobre el #1a1a2e de la barra — por debajo de
+               4.5:1 y apagado en los DOS modos, porque el menú es oscuro siempre.
+               No es un problema del modo oscuro, estaba así desde el principio.
+               #a5b4fc es el mismo indigo un paso más claro y da 8.56:1. */
+            color: #a5b4fc;
         }
 
         /* Nav links */
@@ -492,7 +496,7 @@
             padding: 0 4px;
             text-align: center;
             line-height: 16px;
-            border: 1.5px solid #1a1a2e;
+            border: 1.5px solid var(--bd-a5, #1a1a2e);
         }
     `;
 
@@ -707,13 +711,13 @@
             const grupo = (p.grupo_nombre ? ` · grupo ${_escS(p.grupo_nombre)}` : "")
                 + (p.restaurante ? ` · 🏠 ${_escS(p.restaurante)}` : "");
             ov.innerHTML = `
-              <div style="background:#fff;border-radius:16px;width:560px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.4);">
-                <div style="background:#b91c1c;color:#fff;padding:13px 20px;display:flex;justify-content:space-between;align-items:center;">
+              <div style="background: var(--sup, #fff);border-radius:16px;width:560px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.4);">
+                <div style="background: var(--bg-a32, #b91c1c);color: var(--tx-inv, #fff);padding:13px 20px;display:flex;justify-content:space-between;align-items:center;">
                   <span style="font-weight:800;font-size:15px;">🚨 Publicación prioritaria</span>
                   <span style="font-size:12px;font-weight:700;opacity:.9;">${idx + 1} de ${posts.length}</span>
                 </div>
                 <div style="padding:16px 20px;overflow-y:auto;flex:1;">
-                  <div style="font-size:12px;color: var(--tx-3, #6b7280);margin-bottom:10px;"><b style="color:#1a1a2e">${_escS(p.nombre_display || p.username)}</b> · ${fmtF(p.creado_en)}${grupo}</div>
+                  <div style="font-size:12px;color: var(--tx-3, #6b7280);margin-bottom:10px;"><b style="color: var(--tx, #1a1a2e)">${_escS(p.nombre_display || p.username)}</b> · ${fmtF(p.creado_en)}${grupo}</div>
                   <div style="font-size:14px;color: var(--tx-13, #1f2937);white-space:pre-wrap;word-break:break-word;">${_escS(p.contenido || "")}</div>
                   ${imgs}${files}${enlace}
                   <div id="prio-err" style="display:none;color: var(--pel-tx, #b91c1c);font-size:13px;font-weight:600;margin-top:12px;"></div>
@@ -722,7 +726,7 @@
                   <label style="display:flex;align-items:center;gap:8px;font-size:13px;color: var(--tx-2, #374151);cursor:pointer;">
                     <input type="checkbox" id="prio-check" style="width:17px;height:17px;"> Leí y entiendo esta publicación
                   </label>
-                  <button id="prio-aceptar" disabled style="margin-left:auto;background:#b91c1c;color:#fff;border:none;border-radius:8px;padding:9px 24px;font-size:14px;font-weight:700;cursor:pointer;opacity:.5;">Aceptar</button>
+                  <button id="prio-aceptar" disabled style="margin-left:auto;background: var(--bg-a32, #b91c1c);color: var(--tx-inv, #fff);border:none;border-radius:8px;padding:9px 24px;font-size:14px;font-weight:700;cursor:pointer;opacity:.5;">Aceptar</button>
                 </div>
               </div>`;
             const chk = ov.querySelector("#prio-check");
@@ -779,8 +783,8 @@
         ov.style.cssText = "position:fixed;inset:0;background:rgba(10,10,25,.78);z-index:5200;" +
             "display:flex;align-items:center;justify-content:center;padding:16px;";
         ov.innerHTML = `
-          <div style="background:#fff;border-radius:16px;width:540px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.4);">
-            <div style="background: var(--ac, #4f46e5);color:#fff;padding:14px 20px;font-weight:800;font-size:15px;">
+          <div style="background: var(--sup, #fff);border-radius:16px;width:540px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.4);">
+            <div style="background: var(--ac, #4f46e5);color: var(--tx-inv, #fff);padding:14px 20px;font-weight:800;font-size:15px;">
                 📜 Términos y Condiciones — versión ${est.version}</div>
             <div style="padding:20px 22px;overflow-y:auto;font-size:14px;color: var(--tx-2, #374151);line-height:1.6;">
                 <p style="margin-bottom:10px;">Para seguir usando el sistema, el restaurante debe aceptar los
@@ -797,7 +801,7 @@
                 <div id="legal-err" style="color: var(--pel-tx-2, #dc2626);font-size:12.5px;margin-top:8px;"></div>
             </div>
             <div style="padding:14px 20px;border-top: 1px solid var(--bd-4, #eee);text-align:right;">
-                <button id="legal-btn" style="background: var(--ac, #4f46e5);color:#fff;border:none;border-radius:9px;
+                <button id="legal-btn" style="background: var(--ac, #4f46e5);color: var(--tx-inv, #fff);border:none;border-radius:9px;
                     padding:10px 22px;font-size:14px;font-weight:700;cursor:pointer;">Aceptar y continuar</button>
             </div>
           </div>`;

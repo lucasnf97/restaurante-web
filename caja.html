@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurante — Caja</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=1">
+<link rel="stylesheet" href="css/tema.css?v=2">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
@@ -46,7 +46,7 @@
         .tabla-wrapper { background: var(--sup, white); border-radius: 12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); overflow: hidden; }
         table { width: 100%; border-collapse: collapse; }
         th { background: var(--sup-2, #f8f9fa); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: var(--tx-7, #666); text-transform: uppercase; letter-spacing: 0.5px; }
-        td { padding: 14px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: #333; }
+        td { padding: 14px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: var(--fg-a12, #333); }
         tr:hover td { background: var(--sup-2, #fafafa); }
         .empty { text-align: center; padding: 48px; color: var(--tx-5, #888); }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; }
@@ -202,7 +202,7 @@
 <div class="modal-overlay" id="modal-ticket">
     <div class="modal" style="max-width:460px;">
         <h3 id="ticket-titulo">Ticket</h3>
-        <iframe id="ticket-frame" style="width:100%;height:min(60vh,520px);border: 1px solid var(--bd, #e5e7eb);border-radius:8px;background:#fff;margin-top:12px;"></iframe>
+        <iframe id="ticket-frame" style="width:100%;height:min(60vh,520px);border: 1px solid var(--bd, #e5e7eb);border-radius:8px;background: var(--sup, #fff);margin-top:12px;"></iframe>
         <div class="modal-footer">
             <button class="btn btn-primary" onclick="imprimirTicketCaja()">🖨 Reimprimir</button>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-ticket')">Cerrar</button>
@@ -238,8 +238,8 @@
      la única corrección válida es Refund + volver a cobrar (revision/duplicar, ver facturas.html). -->
 <div class="modal-overlay" id="modal-revision">
     <div class="modal" style="max-width:780px;padding:0;overflow:hidden;">
-        <div style="background:#1a1a2e;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;">
-            <div style="color:white;font-size:17px;font-weight:700;">🔍 Revisión — cuentas cobradas</div>
+        <div style="background: var(--sup-inv, #1a1a2e);padding:20px 28px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="color: var(--tx-inv, white);font-size:17px;font-weight:700;">🔍 Revisión — cuentas cobradas</div>
             <button onclick="cerrarModal('modal-revision')" style="background:transparent;border: 1px solid var(--ac, #4f46e5);color: var(--nav-tx, #a5b4fc);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">Cerrar</button>
         </div>
         <div style="padding:20px 28px 0;">
@@ -301,7 +301,7 @@
         </div>
         <datalist id="refund-productos-list"></datalist>
         <div id="refund-items-lista"></div>
-        <button onclick="revRefundAgregarItem()" style="margin-top:12px;background: var(--ac-sf, #f0f9ff);color:#0369a1;border:1.5px dashed #7dd3fc;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">+ Agregar producto manual</button>
+        <button onclick="revRefundAgregarItem()" style="margin-top:12px;background: var(--ac-sf, #f0f9ff);color: var(--fg-a1, #0369a1);border: 1.5px dashed var(--bd-a13, #7dd3fc);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">+ Agregar producto manual</button>
 
         <div style="margin-top:20px;text-align:right;font-size:20px;font-weight:800;color: var(--pel-tx-2, #dc2626);">
             Total a devolver: <span id="refund-total">—</span>
@@ -452,7 +452,7 @@ function revClienteFila(c) {
     const visitas = (c.visitas != null) ? `${c.visitas} visita${c.visitas != 1 ? 's' : ''}` : '';
     return `<div class="rev-cli-row" onclick="revElegirCliente(${c.id})">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-            <span style="font-weight:700;color:#1a1a2e;">${esc(c.nombre || 'Sin nombre')}</span>
+            <span style="font-weight:700;color: var(--tx, #1a1a2e);">${esc(c.nombre || 'Sin nombre')}</span>
             ${visitas ? `<span style="font-size:12px;color: var(--tx-9, #64748b);">${visitas}</span>` : ''}
         </div>
         ${contactos ? `<div style="font-size:12px;color: var(--tx-5, #888);margin-top:3px;">${esc(contactos)}</div>` : ''}
@@ -534,9 +534,9 @@ function revFilaCuenta(c) {
     const mesaLabel  = esTakeAway ? `🥡 Take Away` : `Mesa ${c.mesa_numero}`;
     const mesaArg    = c.mesa_numero ?? 'null';
     const personas   = c.comensales != null ? `${c.comensales} persona${c.comensales != 1 ? 's' : ''} · ` : '';
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:white;border: 1px solid var(--bd-5, #e2e8f0);border-radius:10px;margin-bottom:8px;">
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background: var(--sup, white);border: 1px solid var(--bd-5, #e2e8f0);border-radius:10px;margin-bottom:8px;">
         <div>
-            <div style="font-weight:700;color:${esTakeAway ? '#7c3aed' : '#1a1a2e'};">
+            <div style="font-weight:700;color: ${esTakeAway ? 'var(--tx-ac-2, #7c3aed)' : 'var(--tx, #1a1a2e)'};">
                 ${mesaLabel}
                 ${c.refund_ticket_id ? `<button class="btn-libreta" onclick="verRefundTicket(${c.refund_ticket_id})" title="Ver refund previo">📒</button>` : ''}
             </div>
@@ -562,10 +562,10 @@ async function verHistorialRev(cierreId) {
             cont.innerHTML = data.map(r => {
                 const tipos = { cobro_adicional: "⚠️ Cobro adicional", refund: "✅ Refund", sin_diferencia: "ℹ️ Sin diferencia" };
                 const diffColor = r.tipo === "cobro_adicional" ? "#92400e" : r.tipo === "refund" ? "#166534" : "#075985";
-                return `<div style="background:white;border: 1px solid var(--bd-5, #e2e8f0);border-radius:10px;padding:16px;margin-bottom:10px;">
+                return `<div style="background: var(--sup, white);border: 1px solid var(--bd-5, #e2e8f0);border-radius:10px;padding:16px;margin-bottom:10px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <span style="font-weight:700;color:#1a1a2e;">Mesa ${r.mesa_numero}</span>
+                            <span style="font-weight:700;color: var(--tx, #1a1a2e);">Mesa ${r.mesa_numero}</span>
                             <span style="margin-left:10px;font-size:12px;color: var(--tx-5, #888);">${formatTs(r.creado_en)} · por ${r.creado_por}</span>
                         </div>
                         <span style="font-weight:700;color:${diffColor};">${tipos[r.tipo] || r.tipo}</span>
@@ -783,11 +783,11 @@ async function revReimprimir(pedidoId, mesaNumero) {
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ticket</title>
         <style>
-            body { font-family: 'Courier New', monospace; width: 280px; margin: 0 auto; padding: 12px; color: #111; }
-            .copia { text-align:center; font-size:22px; font-weight:800; letter-spacing:2px; border:3px solid #111; padding:6px 0; margin-bottom:10px; }
+            body { font-family: 'Courier New', monospace; width: 280px; margin: 0 auto; padding: 12px; color: var(--fg-a7, #111); }
+            .copia { text-align:center; font-size:22px; font-weight:800; letter-spacing:2px; border: 3px solid var(--bd-a4, #111); padding:6px 0; margin-bottom:10px; }
             .neg { text-align:center; font-weight:700; font-size:14px; margin-bottom:4px; }
             .sub { text-align:center; font-size:11px; color: var(--tx-10, #444); margin-bottom:10px; }
-            hr { border:none; border-top:1px dashed #111; margin:8px 0; }
+            hr { border:none; border-top: 1px dashed var(--bd-a4, #111); margin:8px 0; }
             .total { display:flex; justify-content:space-between; font-weight:800; font-size:16px; margin-top:8px; }
         </style></head><body>
             <div class="copia">COPIA</div>
@@ -827,7 +827,7 @@ async function verRefundTicket(ticketId) {
         }).join("");
 
         const info = `
-            <tr style="background:#fff1f2;border-top:2px solid #fca5a5;">
+            <tr style="background: var(--pel-sf-2, #fff1f2);border-top: 2px solid var(--bd-a36, #fca5a5);">
                 <td colspan="5" style="padding:10px 16px;font-size:13px;color: var(--tx-7, #666);">
                     ${t.pedido_id_ref ? `📋 Pedido de referencia: #${t.pedido_id_ref}` : '📋 Sin pedido de referencia'}
                     ${t.motivo ? `&nbsp;&nbsp;·&nbsp;&nbsp; 📝 ${t.motivo}` : ''}
@@ -836,7 +836,7 @@ async function verRefundTicket(ticketId) {
                     &nbsp;&nbsp;·&nbsp;&nbsp; Por: ${t.creado_por}
                 </td>
             </tr>
-            <tr style="background:#fff1f2;">
+            <tr style="background: var(--pel-sf-2, #fff1f2);">
                 <td colspan="4" style="text-align:right;font-weight:700;color: var(--pel-tx-2, #dc2626);">TOTAL REFUND</td>
                 <td style="text-align:right;font-weight:700;font-size:15px;color: var(--pel-tx-2, #dc2626);">-${simboloMoneda()} ${parseFloat(t.total).toFixed(2)}</td>
             </tr>`;
@@ -993,7 +993,7 @@ async function cargarCierres() {
 
 function filaCajaAbierta(ab) {
     return `<tr style="background: var(--ok-sf-2, #f0fdf4);">
-        <td>#${ab.id} <span style="background: var(--ok, #16a34a);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-left:4px;">ABIERTA</span></td>
+        <td>#${ab.id} <span style="background: var(--ok, #16a34a);color: var(--tx-inv, #fff);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-left:4px;">ABIERTA</span></td>
         <td>${ab.abierto_por || '—'}</td>
         <td>${formatTs(ab.ts_apertura)}</td>
         <td>—</td>
@@ -1028,7 +1028,7 @@ function filaDetalleCaja(d) {
         const refHint = d.pedido_ref
             ? ` <span style="color: var(--tx-4, #9ca3af);font-size:11px;font-weight:400;">Ref #${d.pedido_ref}</span>`
             : '';
-        return `<tr style="background:#fff1f2;">
+        return `<tr style="background: var(--pel-sf-2, #fff1f2);">
             <td style="font-size:12px;">${refId}</td>
             <td>${d.mesa_numero ? `Mesa ${d.mesa_numero}` : '<span style="color: var(--tx-4, #9ca3af);">—</span>'}</td>
             <td style="color: var(--pel-tx-2, #dc2626);font-weight:600;">↩ Refound${refHint}</td>
@@ -1051,7 +1051,7 @@ function filaDetalleCaja(d) {
         : `${d.comensales} persona${d.comensales != 1 ? 's' : ''}`;
     const desc = (parseFloat(d.descuento) || 0) > 0.005
         ? `<span style="color: var(--pel-tx-2, #dc2626);">-${s} ${parseFloat(d.descuento).toFixed(2)}</span>`
-        : `<span style="color:#c4c4cc;">—</span>`;
+        : `<span style="color: var(--fg-a42, #c4c4cc);">—</span>`;
     const impPct = d.impuesto_pct != null ? parseFloat(d.impuesto_pct) : null;
     const imp = d.impuesto != null
         ? `${s} ${parseFloat(d.impuesto).toFixed(2)} <span class="det-sub">(${(impPct || 0).toFixed(1)}%)</span>`
@@ -1200,7 +1200,7 @@ async function verItems(pedidoId, mesaNumero) {
                 const linea = i._cant_ef * parseFloat(i.precio_unit) * (1 - descuento / 100);
                 subtotal += linea;
                 const parcialBadge = i._cant_el > 0
-                    ? `<br><small style="color:#b45309;">(${i._cant_el} elim.)</small>` : '';
+                    ? `<br><small style="color: var(--fg-a35, #b45309);">(${i._cant_el} elim.)</small>` : '';
                 return `<tr>
                     <td>${esc(i.nombre)}${i.notas ? `<br><small style="color: var(--tx-5, #888)">📝 ${esc(i.notas)}</small>` : ''}${parcialBadge}${persCaja(i)}</td>
                     <td style="text-align:center;">${i._cant_ef}</td>
