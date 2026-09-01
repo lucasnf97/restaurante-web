@@ -214,11 +214,21 @@
             "#tema-ov :focus-visible{outline:2px solid var(--ac,#4f46e5);outline-offset:2px;}",
             /* El botón del pie del sidebar. El panel es flex-column con el <nav>
                en flex:1, así que este pie queda abajo del todo solo. */
-            ".sidebar-pie{display:flex;justify-content:flex-end;padding:10px 14px 16px;",
+            ".sidebar-pie{display:flex;align-items:center;justify-content:flex-end;",
+            "  padding:10px 14px 16px;",
             "  border-top:1px solid rgba(255,255,255,.08);flex-shrink:0;}",
+            /* COLOR EXPLICITO, no heredado. El panel del menu es OSCURO en los DOS
+               temas (#1a1a2e fijo), pero el boton heredaba el color del body: en
+               modo claro eso es texto casi negro sobre panel casi negro y el boton
+               desaparecia. Mismo tono que los enlaces del menu. */
             ".sidebar-pie button{background:transparent;border:none;cursor:pointer;font-size:17px;",
-            "  line-height:1;padding:6px 8px;border-radius:8px;opacity:.75;}",
+            "  line-height:1;padding:6px 8px;border-radius:8px;opacity:.85;color:#a5b4fc;}",
             ".sidebar-pie button:hover{background:var(--nav-hov,rgba(99,102,241,.18));opacity:1;}",
+            /* El de cerrar sesion se muda aca desde la barra superior y va contra el
+               margen IZQUIERDO; el de apariencia queda a la derecha. */
+            ".sidebar-pie .btn-logout{margin-right:auto;font-size:19px;font-weight:400;",
+            "  border:none;background:transparent;color:#a5b4fc;padding:6px 8px;}",
+            ".sidebar-pie .btn-logout:hover{background:rgba(239,68,68,.18);color:#fca5a5;opacity:1;}",
             /* Botón de repuesto para las páginas SIN sidebar (superadmin, cadena,
                cocina): sin esto, tres de los seis tipos de cuenta no tendrían
                forma de cambiar el tema. */
@@ -343,6 +353,18 @@
             // con justify-content:flex-end, abajo a la DERECHA.
             var pie = document.createElement("div");
             pie.className = "sidebar-pie";
+            // Cerrar sesion: se MUEVE el boton que ya existe en la barra superior
+            // (26 paginas lo tienen con el mismo marcado) en vez de editar 26 HTML.
+            // Efecto lateral buscado: en las paginas SIN menu lateral (superadmin,
+            // cadena, cocina) no hay pie, no entra aca y el boton se queda donde
+            // estaba, que es justo lo que hace falta ahi.
+            var salir = document.querySelector(".btn-logout");
+            if (salir) {
+                salir.textContent = "🚪";
+                salir.title = "Cerrar sesion";
+                salir.setAttribute("aria-label", "Cerrar sesion");
+                pie.appendChild(salir);
+            }
             pie.appendChild(b);
             panel.appendChild(pie);
             return;
@@ -355,9 +377,48 @@
         cont.appendChild(b);
     }
 
+    // ── Chart.js ─────────────────────────────────────────────────────────
+    // ⚠ Un <canvas> NO hereda CSS para lo que se dibuja dentro. Los rotulos de
+    // los ejes, la leyenda y la grilla los pinta Chart.js con Chart.defaults, y
+    // por defecto son grises pensados para fondo blanco: sobre tarjeta oscura
+    // no se leen. Se fijan desde los tokens del tema y se rehacen al cambiarlo.
+    //
+    // Se llama en DOMContentLoaded: Chart.js entra por <script src> en el head,
+    // asi que ya esta, y los graficos se construyen despues (al volver los datos
+    // del servidor), por lo que toman estos valores.
+    function color(nombre, respaldo) {
+        try {
+            var v = getComputedStyle(document.documentElement)
+                        .getPropertyValue(nombre).trim();
+            return v || respaldo;
+        } catch (e) { return respaldo; }
+    }
+
+    function _chartDefaults() {
+        if (!window.Chart || !window.Chart.defaults) return false;
+        window.Chart.defaults.color = color("--tx-2", "#374151");
+        window.Chart.defaults.borderColor = color("--bd", "#e5e7eb");
+        return true;
+    }
+
+    // Al cambiar de tema en vivo: nuevos defaults y un update() a cada grafico
+    // que este en pantalla. Chart.getChart existe desde la v3.
+    function _chartRefrescar() {
+        if (!_chartDefaults()) return;
+        try {
+            var cs = document.querySelectorAll("canvas");
+            for (var i = 0; i < cs.length; i++) {
+                var ch = window.Chart.getChart && window.Chart.getChart(cs[i]);
+                if (ch) ch.update("none");
+            }
+        } catch (e) { /* un grafico roto no puede tumbar el cambio de tema */ }
+    }
+    document.addEventListener("temacambiado", _chartRefrescar);
+
     function _init() {
         _css();
         _boton();
+        _chartDefaults();
         _leerServidor();
     }
     if (document.readyState === "loading") {
@@ -371,6 +432,9 @@
         set: set,
         aplicar: aplicar,
         abrirModal: abrirModal,
+        // Valor resuelto de un token, para lo que se pinta por JS y no puede
+        // usar var() — Chart.js dentro del canvas, sobre todo.
+        color: color,
         // sidebar.js consulta esto antes de dibujar el botón del pie del menú.
         uiLista: UI_LISTA
     };

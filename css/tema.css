@@ -452,14 +452,12 @@
    cubre también lo que se inserta dinámicamente (el visor de comprobantes y los
    gráficos que se arman por JS).
 
-   ⚠ Los CANVAS no heredan CSS para lo que dibujan por dentro: Chart.js y el
-   timeline de reservas pintan con colores fijos en JavaScript. Portarlos a
-   oscuro es reescribir su lógica de color, y se decidió dejarlos claros. El
-   fondo blanco del CSS es lo que hace que ese dibujo se lea. */
+   ⚠ Los CANVAS no heredan CSS para lo que dibujan por dentro. Los GRÁFICOS ya
+   no están en esta lista: js/tema.js les fija Chart.defaults desde los tokens y
+   los repinta al cambiar de tema, así que van en oscuro como el resto. El
+   timeline de reservas sigue acá porque pinta con colores fijos propios. */
 :root[data-tema="oscuro"] iframe,
-:root[data-tema="oscuro"] .chart-box,
 :root[data-tema="oscuro"] .grid-outer,
-:root[data-tema="oscuro"] canvas[id$="-canvas"]:not(#grid-canvas):not(#canvas-time):not(#camara-canvas),
 :root[data-tema="oscuro"] #quill-toolbar,
 :root[data-tema="oscuro"] #quill-editor,
 :root[data-tema="oscuro"] .ql-toolbar,
@@ -469,9 +467,8 @@
   border-color: var(--bd);
   color-scheme: light;
 }
-/* ⚠ El redondeo va sólo en el contenedor de reservas y en los gráficos: un
-   iframe de ticket con esquinas redondeadas recorta el comprobante. */
-:root[data-tema="oscuro"] .chart-box,
+/* ⚠ El redondeo va sólo en el contenedor de reservas: un iframe de ticket con
+   esquinas redondeadas recorta el comprobante. */
 :root[data-tema="oscuro"] .grid-outer { border-radius: 10px; padding: 6px; }
 
 /* El editor de texto: lo que se escribe ahí se guarda con colores propios, así

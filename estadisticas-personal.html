@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Restaurante — Estadísticas de Personal</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=3">
+<link rel="stylesheet" href="css/tema.css?v=5">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -166,6 +166,10 @@ function _asignarColores(payload) {
 }
 const colorDe = uid => _colores[uid] || GRIS_OTROS;
 
+// Color de tema para lo que se pinta DENTRO del canvas (Chart.js no hereda CSS).
+// Con guarda: si tema.js no cargo, queda el valor de siempre.
+const tcol = (t, r) => (window.Tema && window.Tema.color) ? window.Tema.color(t, r) : r;
+
 function _mkChart(id, cfg) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -193,7 +197,7 @@ function donut(id, items, fmtVal, opts = {}) {
     const elegir = idx => { const uid = uids[idx]; if (uid != null && onPick) onPick(uid); };
     _mkChart(id, {
         type: 'doughnut',
-        data: { labels, datasets: [{ data, backgroundColor: cols, borderColor: '#fff', borderWidth: 2 }] },
+        data: { labels, datasets: [{ data, backgroundColor: cols, borderColor: tcol('--sup', '#fff'), borderWidth: 2 }] },
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '55%',
             onClick: onPick ? (e, els) => { if (els.length) elegir(els[0].index); } : undefined,
@@ -225,7 +229,7 @@ function barras(id, labels, values, fmtVal, color) {
             plugins: { legend: { display: false },
                        tooltip: { callbacks: { label: ctx => ` ${fmtVal(ctx.parsed.y)}` } } },
             scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-                      y: { grid: { color: '#f0f0f0' }, ticks: { font: { size: 11 } }, beginAtZero: true } },
+                      y: { grid: { color: tcol('--bd', '#f0f0f0') }, ticks: { font: { size: 11 } }, beginAtZero: true } },
         },
     });
 }
