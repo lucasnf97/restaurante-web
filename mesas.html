@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurante — Herramienta de Edición</title>
 <script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
-<link rel="stylesheet" href="css/tema.css?v=2">
+<link rel="stylesheet" href="css/tema.css?v=3">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
@@ -182,15 +182,20 @@
             position: absolute; display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             cursor: grab; user-select: none; transition: box-shadow 0.15s;
-            font-size: 13px; font-weight: 700; color: var(--tx, #1a1a2e);
+            /* ⚠ ISLA CLARA: la caja de la mesa tiene fondo FIJO (#bff2bf, el verde
+               de "libre") en los dos temas, asi que su texto tambien tiene que ser
+               fijo. Con var(--tx) el modo oscuro lo aclaraba a #e8e9f0 y quedaba
+               blanco sobre verde claro: contraste 1.04, ilegible. --hoja-tx y
+               --hoja-tx-2 valen lo mismo en claro y en oscuro, justo para esto. */
+            font-size: 13px; font-weight: 700; color: var(--hoja-tx, #1a1a2e);
         }
         .mesa-editor:active { cursor: grabbing; }
         .mesa-editor.sel {
             box-shadow: 0 0 0 3px #4f46e5 !important;
             z-index: 10;
         }
-        .mesa-editor .m-num { font-size: 16px; font-weight: 700; color: var(--tx, #1a1a2e); }
-        .mesa-editor .m-cap { font-size: 11px; color: var(--tx-7, #666); }
+        .mesa-editor .m-num { font-size: 16px; font-weight: 700; color: var(--hoja-tx, #1a1a2e); }
+        .mesa-editor .m-cap { font-size: 11px; color: var(--hoja-tx-2, #666); }
 
         .resize-handle {
             position: absolute; bottom: 0; right: 0; width: 16px; height: 16px;

@@ -297,6 +297,7 @@ tokens.set("on-ac", { claro: "#fff", oscuro: "#fff", para: "texto sobre acento" 
 tokens.set("nav-hov", { claro: "rgba(99,102,241,.18)", oscuro: "rgba(129,140,248,.22)", para: "hover del menú" });
 tokens.set("hoja", { claro: "#fff", oscuro: "#fff", para: "islas que quedan claras" });
 tokens.set("hoja-tx", { claro: "#16171e", oscuro: "#16171e", para: "texto de la hoja" });
+tokens.set("hoja-tx-2", { claro: "#666", oscuro: "#666", para: "texto secundario de la hoja" });
 
 fs.writeFileSync(path.join(__dirname, "tokens-mapa.json"),
   JSON.stringify({ umbral: UMBRAL, mapa, tokens: Object.fromEntries(tokens) }, null, 2));

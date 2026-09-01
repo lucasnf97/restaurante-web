@@ -21,7 +21,7 @@ const fs = require("fs");
 const path = require("path");
 
 const RAIZ = path.resolve(__dirname, "..");
-const VERSION = 2;
+const VERSION = 3;
 const MARCA = "tema-boot";       // para reconocer lo ya insertado
 
 // reserva.html queda fuera: es la página pública para comensales y tiene su
