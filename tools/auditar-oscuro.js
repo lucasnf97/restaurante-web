@@ -108,7 +108,15 @@ function analizar() {
     }
     return s;
   };
-  const enHoja = el => !!el.closest(".hoja");
+  // Islas claras DELIBERADAS: comprobantes, gráficos, timeline y editor se
+  // quedan claros por decisión (portarlos exige reescribir su lógica de color
+  // en JavaScript, que no hereda CSS). El auditor tiene que saberlo o reporta
+  // decisiones como fallos, y un informe que grita por lo que está bien deja de
+  // servir para encontrar lo que está mal.
+  const DELIBERADAS = ".hoja, iframe, .chart-box, .grid-outer, #quill-toolbar, " +
+                      "#quill-editor, .ql-toolbar, .ql-container";
+  const enHoja = el => !!el.closest(DELIBERADAS) ||
+                       (el.tagName === "CANVAS" && /-canvas$/.test(el.id || ""));
   const visible = el => {
     const r = el.getBoundingClientRect();
     if (r.width < 8 || r.height < 8) return false;

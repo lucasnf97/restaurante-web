@@ -108,6 +108,14 @@ const SEMILLAS = [
   ["bd", "#bbf7d0",  "ok-bd",     "rgba(34,197,94,.38)", "borde de éxito"],
   ["bd", "#fde68a",  "av-bd",     "rgba(245,158,11,.38)", "borde de aviso"],
   ["bd", "#d7dbe3",  "bd-6",      "#3d404e", "borde gris azulado"],
+
+  // ⚠ Grises que sólo estaban mapeados como BORDE y en varias páginas se usan
+  //    como FONDO (pestañas de restaurantes.html, interruptores de
+  //    configuracion.html). Es el mismo fallo que tenía el esqueleto de carga:
+  //    sin entrada en la tabla de fondos quedaban literales y en oscuro salían
+  //    como rectángulos claros.
+  ["bg", "#e5e7eb",  "sup-5",     "#2e3140", "relleno gris medio (pestañas)"],
+  ["bg", "#d1d5db",  "sup-6",     "#3c4052", "control apagado (interruptores)"],
 ];
 
 // ── Recolectar los colores que el repo usa de verdad, por clase ─────────────
@@ -259,12 +267,49 @@ console.log("\n  -> tools/tokens-mapa.json");
         border-radius: 10px; box-shadow: var(--sh-1); color-scheme: light; }
 .hoja iframe { color-scheme: light; background: #fff; }
 
-/* El logo del restaurante lo sube el cliente y puede traer fondo blanco.
-   ⚠ Nada de filter:invert ni mix-blend-mode: destrozan los logos a color.  */
-:root[data-tema="oscuro"] .logo-cliente { background: #fff; padding: 2px 6px; border-radius: 6px; }
+/* ⚠ SIN BACKTICKS en estos comentarios: todo este bloque vive dentro de un
+   template literal y un backtick lo cierra a la mitad.
 
-/* La marca ya existe en dos versiones. Se alternan por CSS y no por JS: así no
-   hay parpadeo y funciona antes de que cargue tema.js.                      */
+   Las islas concretas, enmarcadas sin tocar el marcado de seis páginas — así
+   cubre también lo que se inserta dinámicamente (el visor de comprobantes y los
+   gráficos que se arman por JS).
+
+   ⚠ Los CANVAS no heredan CSS para lo que dibujan por dentro: Chart.js y el
+   timeline de reservas pintan con colores fijos en JavaScript. Portarlos a
+   oscuro es reescribir su lógica de color, y se decidió dejarlos claros. El
+   fondo blanco del CSS es lo que hace que ese dibujo se lea. */
+:root[data-tema="oscuro"] iframe,
+:root[data-tema="oscuro"] .chart-box,
+:root[data-tema="oscuro"] .grid-outer,
+:root[data-tema="oscuro"] canvas[id$="-canvas"]:not(#grid-canvas):not(#canvas-time):not(#camara-canvas),
+:root[data-tema="oscuro"] #quill-toolbar,
+:root[data-tema="oscuro"] #quill-editor,
+:root[data-tema="oscuro"] .ql-toolbar,
+:root[data-tema="oscuro"] .ql-container {
+  background: var(--hoja);
+  color: var(--hoja-tx);
+  border-color: var(--bd);
+  color-scheme: light;
+}
+/* ⚠ El redondeo va sólo en el contenedor de reservas y en los gráficos: un
+   iframe de ticket con esquinas redondeadas recorta el comprobante. */
+:root[data-tema="oscuro"] .chart-box,
+:root[data-tema="oscuro"] .grid-outer { border-radius: 10px; padding: 6px; }
+
+/* El editor de texto: lo que se escribe ahí se guarda con colores propios, así
+   que una descripción escrita en claro quedaría negro sobre oscuro. Por eso el
+   contenido del usuario se muestra SIEMPRE sobre hoja clara. */
+:root[data-tema="oscuro"] .ql-editor { color: var(--hoja-tx); }
+:root[data-tema="oscuro"] .ql-editor.ql-blank::before { color: #9ca3af; }
+:root[data-tema="oscuro"] .ql-stroke { stroke: #444; }
+:root[data-tema="oscuro"] .ql-fill { fill: #444; }
+:root[data-tema="oscuro"] .ql-picker-label { color: #444; }
+
+/* ⚠ NO hay regla para el logo del cliente. Lo sube el restaurante y puede traer
+   fondo blanco, pero vive en la barra superior, que es OSCURA en los dos temas:
+   su contexto no cambia, así que darle un chip sólo en oscuro lo haría verse
+   distinto entre temas sin motivo. Si algún día ese logo va a una superficie
+   clara, ahí sí hará falta.                                                  */
 .marca-oscuro { display: none; }
 :root[data-tema="oscuro"] .marca-claro  { display: none; }
 :root[data-tema="oscuro"] .marca-oscuro { display: inline; }

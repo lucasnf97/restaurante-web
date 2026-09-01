@@ -31,7 +31,10 @@ const ARCHIVOS_EXCLUIDOS = new Set(["reserva.html"]);
 
 // ⚠ Selectores donde un fondo blanco es blanco A PROPÓSITO porque vive DENTRO de
 // una barra oscura. Invertirlos los rompería. Se saltan y se listan.
-const SOBRE_OSCURO = /(navbar|sidebar|notif-head|notif-bubble|ui-toast|ui-overlay-box|\bcp-|btn-primary|btn-danger|btn-success|\.badge|tema-)/i;
+// ⚠ `\.badge` a secas era demasiado ancho: atrapaba las insignias de
+// configuracion.html, que viven sobre tarjeta CLARA, y las dejaba sin
+// tokenizar. Sólo las de la barra y el menú están sobre fondo oscuro.
+const SOBRE_OSCURO = /(navbar|sidebar|notif-head|notif-bubble|ui-toast|ui-overlay-box|\bcp-|btn-primary|btn-danger|btn-success|mensajes-badge|tema-)/i;
 
 // ── Tablas por clase de propiedad ───────────────────────────────────────────
 // ⚠ Tiene que normalizar IGUAL que tools/generar-tokens.js o las claves no se
