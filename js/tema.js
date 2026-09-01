@@ -21,13 +21,9 @@
     var VALIDOS = ["claro", "oscuro", "auto"];
     var K_ULTIMO = "tema_ultimo";     // sin ámbito: lo usa el login, que aún no sabe quién sos
 
-    // ⚠ El SELECTOR todavía no se muestra. Los colores de las páginas aún no
-    // están tokenizados (eso es el codemod de la fase siguiente), así que elegir
-    // "oscuro" no cambiaría nada y parecería roto. Todo el resto del motor
-    // —resolución, persistencia, evento, sincronización— ya funciona y se puede
-    // probar desde la consola con `Tema.set('oscuro')`.
-    // Poner en true junto con los valores oscuros de las páginas.
-    var UI_LISTA = false;
+    // El selector ya se muestra: las páginas están tokenizadas y hay valores
+    // oscuros. Queda como interruptor por si hiciera falta apagarlo sin revertir.
+    var UI_LISTA = true;
 
     // ── Identidad ────────────────────────────────────────────────────────
     // La preferencia se guarda por `sub` del JWT y NO por esquema: así un

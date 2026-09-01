@@ -237,7 +237,7 @@
         }
         .sidebar-group-head:hover { background:rgba(99,102,241,0.18); color:white; }
         .sidebar-group-head.active { background:#4f46e5; color:white; }
-        .grp-arrow { font-size:13px; color:#a5b4fc; margin-left:auto; transition:transform .22s; flex-shrink:0; }
+        .grp-arrow { font-size:13px; color: var(--nav-tx, #a5b4fc); margin-left:auto; transition:transform .22s; flex-shrink:0; }
         .sidebar-group-head.active .grp-arrow { color:white; }
         .grp-arrow.open { transform:rotate(90deg); }
 
@@ -466,7 +466,7 @@
             background: none;
             border: none;
             cursor: pointer;
-            color: white;
+            color: var(--tx-inv, white);
             font-size: 18px;
             padding: 4px 8px;
             border-radius: 6px;
@@ -482,8 +482,8 @@
             position: absolute;
             top: -2px;
             right: -2px;
-            background: #dc2626;
-            color: white;
+            background: var(--pel, #dc2626);
+            color: var(--tx-inv, white);
             border-radius: 10px;
             font-size: 10px;
             font-weight: 800;

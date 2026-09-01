@@ -123,8 +123,32 @@ function selectorDe(texto, pos) {
   return texto.slice(corte + 1, llave).replace(/\s+/g, " ").trim();
 }
 
+// Devuelve los rangos [ini,fin) de los bloques @media print, emparejando llaves.
+// ⚠ Hace falta porque saltar el <style> ENTERO cuando contiene una regla de
+// impresión dejaba páginas completas sin tokenizar: a stock.html y reservas.html
+// les costó ~180 reglas cada una, y en pantalla se veían íntegramente en claro.
+function rangosImpresion(css) {
+  const rangos = [];
+  const re = /@media[^{]*\bprint\b[^{]*\{/gi;
+  let m;
+  while ((m = re.exec(css))) {
+    let i = m.index + m[0].length, prof = 1;
+    while (i < css.length && prof > 0) {
+      if (css[i] === "{") prof++;
+      else if (css[i] === "}") prof--;
+      i++;
+    }
+    rangos.push([m.index, i]);
+  }
+  return rangos;
+}
+
 function procesarCSS(arch, region, css) {
+  const impr = rangosImpresion(css);
+  const enImpresion = off => impr.some(([a, b]) => off >= a && off < b);
   return css.replace(/([-a-zA-Z]+)\s*:\s*([^;{}]+)/g, (todo, prop, valor, off) => {
+    // El papel es blanco: lo de dentro de @media print se deja literal.
+    if (enImpresion(off)) return todo;
     const sel = selectorDe(css, off);
     const nuevo = convertirDecl(arch, region, sel, prop, valor);
     return nuevo === null ? todo : `${prop}: ${nuevo}`;
@@ -137,11 +161,28 @@ function procesarArchivo(arch, texto) {
   // 1. Bloques <style> — incluye el de ventas-estadisticas.html:721, que vive
   //    dentro de un template literal: el marcador sobre texto crudo lo captura.
   out = out.replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi, (todo, attrs, css) => {
-    if (esRegionImpresion(css)) {
-      anotar(arch, "<style>", "", "(bloque)", "@media print / documento", "", "impresion");
+    // ⚠ NO se saltea el bloque entero por contener un @media print: eso dejaba
+    // stock.html y reservas.html íntegramente en modo claro, que era el fallo
+    // más visible de todo el trabajo. procesarCSS respeta los rangos de
+    // impresión por dentro.
+    return `<style${attrs}>${procesarCSS(arch, "<style>", css)}</style>`;
+  });
+
+  // 1b. CSS dentro de template literals — así lo declaran js/api.js (`const css =`),
+  //     js/sidebar.js y js/notificaciones.js (`style.textContent =`). Esos tres
+  //     cubren 24-29 páginas cada uno, o sea que son el mayor retorno por línea
+  //     tocada; buscando sólo los marcadores <style> se quedaban casi enteros
+  //     sin tokenizar (notificaciones.js tenía UN token de 37 declaraciones).
+  out = out.replace(/((?:const\s+\w+|[\w.]+)\s*(?:=|\+=)\s*)`([\s\S]*?)`/g, (todo, pre, cuerpo) => {
+    // ⚠ Sólo si PARECE CSS: hay muchos template literals que arman HTML o texto
+    // (`${_idx+1}/${_cola.length}`) y tocarlos sería estropear datos.
+    const decls = (cuerpo.match(/\{[^{}]*:[^{}]*;/g) || []).length;
+    if (decls < 3) return todo;
+    if (esRegionImpresion(cuerpo)) {
+      anotar(arch, "template CSS", "", "(bloque)", "@media print / documento", "", "impresion");
       return todo;
     }
-    return `<style${attrs}>${procesarCSS(arch, "<style>", css)}</style>`;
+    return pre + "`" + procesarCSS(arch, "template CSS", cuerpo) + "`";
   });
 
   // 2. Atributos style="..." — del markup estático y de los template literals.

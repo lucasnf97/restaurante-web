@@ -677,14 +677,22 @@ async function abrirDocumento(url) {
         min-width: 200px; text-align: center;
     }
     .ui-overlay-box .cp-prog { --cp-prog-bg: var(--cp-navy); }
+    /* ⚠ Los esqueletos de carga eran la mayor fuente de "islas claras" en modo
+       oscuro: 72 de 115 rectángulos blancos venían de acá, porque #e5e7eb estaba
+       mapeado como color de BORDE y acá se usa como FONDO, así que el codemod lo
+       dejó literal. Van a tokens de superficie, y el degradado del brillo
+       también: un linear-gradient acepta var() sin problema. */
     .ui-skel {
-        display: inline-block; height: 12px; border-radius: 6px; background: #e5e7eb;
-        background-image: linear-gradient(90deg,#e5e7eb 0px,#f3f4f6 200px,#e5e7eb 400px);
+        display: inline-block; height: 12px; border-radius: 6px;
+        background: var(--bd, #e5e7eb);
+        background-image: linear-gradient(90deg, var(--bd, #e5e7eb) 0px,
+                          var(--sup-3, #f3f4f6) 200px, var(--bd, #e5e7eb) 400px);
         background-size: 800px 100%; animation: ui-shimmer 1.2s infinite linear;
     }
     .ui-skel-card {
-        border-radius: 12px; min-height: 90px; background: #f3f4f6;
-        background-image: linear-gradient(90deg,#f3f4f6 0px,#e9eaee 200px,#f3f4f6 400px);
+        border-radius: 12px; min-height: 90px; background: var(--sup-3, #f3f4f6);
+        background-image: linear-gradient(90deg, var(--sup-3, #f3f4f6) 0px,
+                          var(--sup-4, #e9eaee) 200px, var(--sup-3, #f3f4f6) 400px);
         background-size: 800px 100%; animation: ui-shimmer 1.2s infinite linear;
     }
     button[data-ui-busy] { pointer-events: none; opacity: .7; }
@@ -695,7 +703,7 @@ async function abrirDocumento(url) {
     .ui-toast {
         font-family: 'Segoe UI', sans-serif; font-size: 14px; color: #fff;
         background: #374151; padding: 12px 16px; border-radius: 10px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.22); max-width: 360px;
+        box-shadow: var(--sh-2, 0 8px 24px rgba(0,0,0,.22)); max-width: 360px;
         white-space: pre-line; line-height: 1.35;
         opacity: 0; transform: translateX(20px); transition: opacity .25s ease, transform .25s ease;
     }

@@ -151,6 +151,7 @@ async function main() {
 
   const paginas = fs.readdirSync(RAIZ).filter(f => f.endsWith(".html")).sort();
   let difieren = 0, revisadas = 0, totalMovidos = 0, maxGlobal = 0;
+  const altas = [];
 
   for (const pag of paginas) {
     // ⚠ Un contexto NUEVO por página. Con uno solo, el localStorage se comparte
@@ -253,11 +254,27 @@ async function main() {
       // distancia RGB < N y se sigue fallando ante cualquier salto mayor, que es
       // lo que de verdad significaría que el codemod mandó un color a otro lado.
       const a = JSON.parse(fs.readFileSync(archivo, "utf8")), b = datos;
+      // ⚠ Se compara por RUTA, no por posición. Con índices, agregar UN elemento
+      // al DOM —el botón del tema en el pie del menú— corría todo un lugar y el
+      // arnés reportaba 25 páginas rotas cuando no había cambiado ni un color.
+      // Los elementos que sólo están en un lado se informan aparte: son altas o
+      // bajas legítimas, no fallos de color.
+      const clave = (arr) => {
+        const m = new Map(), n = {};
+        for (const x of arr) {
+          n[x.ruta] = (n[x.ruta] || 0) + 1;
+          m.set(x.ruta + "#" + n[x.ruta], x);
+        }
+        return m;
+      };
+      const mA = clave(a), mB = clave(b);
       const excesos = [];
-      let movidos = 0, maxDist = 0;
-      for (let k = 0; k < Math.max(a.length, b.length); k++) {
-        const x = a[k], y = b[k];
-        if (!x || !y) { excesos.push(["(la página cambió de estructura)", "", ""]); continue; }
+      let movidos = 0, maxDist = 0, soloA = 0, soloB = 0;
+      for (const k of mA.keys()) if (!mB.has(k)) soloA++;
+      for (const k of mB.keys()) if (!mA.has(k)) soloB++;
+      for (const [k, x] of mA) {
+        const y = mB.get(k);
+        if (!y) continue;
         for (const pr of PROPS) {
           if (x[pr] === y[pr]) continue;
           const d = distancia(x[pr], y[pr]);
@@ -268,6 +285,9 @@ async function main() {
           } else movidos++;
         }
       }
+      // Altas y bajas del DOM: no son fallos de color, pero callarlas dejaría
+      // pasar una página que perdió media interfaz sin que nadie se entere.
+      if (soloA + soloB) altas.push([pag, soloB, soloA]);
       if (excesos.length) {
         difieren++;
         console.log("\n  ✗ " + pag + "  (" + excesos.length + " fuera de tolerancia)");
@@ -289,6 +309,11 @@ async function main() {
   console.log("  páginas: " + revisadas);
   if (comparar) {
     console.log("  páginas fuera de tolerancia: " + difieren);
+    if (altas.length) {
+      console.log("  paginas con altas/bajas de elementos (no es fallo de color):");
+      altas.slice(0, 6).forEach(a => console.log("    " + a[0] + "  +" + a[1] + " / -" + a[2]));
+      if (altas.length > 6) console.log("    ... y " + (altas.length - 6) + " mas");
+    }
     if (TOL) console.log("  colores consolidados dentro de tolerancia: " + totalMovidos +
                          "  (movimiento máximo " + maxGlobal.toFixed(1) + ", límite " + TOL + ")");
     console.log(difieren ? "\n  ⚠ DIFF NO ES CERO — el codemod cambió algo que no debía."
