@@ -197,8 +197,12 @@
             ".tema-op input{margin-top:2px;accent-color:var(--ac,#4f46e5);flex:none;}",
             ".tema-op input:checked ~ .tema-txt .tema-t{color:var(--tx-acc,#4f46e5);}",
             ".tema-op.sel{border-color:var(--ac,#4f46e5);}",
+            // ⚠ .tema-txt tiene que ser un bloque: son tres <span> y en flujo
+            // en linea el titulo y la descripcion salen PEGADOS ("ClaroFondo
+            // claro siempre.") porque margin-top no aplica a un inline.
+            ".tema-txt{display:flex;flex-direction:column;gap:3px;min-width:0;}",
             ".tema-t{font-size:13.5px;font-weight:700;color:var(--tx,#1a1a2e);}",
-            ".tema-d{font-size:11.5px;color:var(--tx-3,#9ca3af);margin-top:2px;}",
+            ".tema-d{font-size:11.5px;color:var(--tx-3,#9ca3af);line-height:1.45;}",
             "#tema-nota{font-size:11.5px;color:var(--tx-3,#9ca3af);margin-top:12px;display:none;}",
             "#tema-pie{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}",
             "#tema-pie button{padding:9px 18px;border-radius:8px;cursor:pointer;font-size:13px;",

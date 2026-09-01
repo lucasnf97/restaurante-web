@@ -1,4 +1,17 @@
-const API_URL = "https://restaurante-backend-production-459b.up.railway.app";
+// A dónde habla la web. En producción (GitHub Pages) es Railway; servida desde
+// localhost, la API que corras en tu máquina. Así se puede probar la web ENTERA
+// sin desplegar nada: `python -m http.server 5500` acá + la API en el 8000.
+// El origen de Pages nunca es localhost, así que esa rama no puede activarse en
+// producción. Para apuntar a otra API sin tocar código, desde la consola del
+// navegador: localStorage.setItem("api_url", "http://192.168.1.50:8000")
+const API_URL = (function () {
+    var h = location.hostname;
+    if (h !== "localhost" && h !== "127.0.0.1") {
+        return "https://restaurante-backend-production-459b.up.railway.app";
+    }
+    try { return localStorage.getItem("api_url") || "http://127.0.0.1:8000"; }
+    catch (e) { return "http://127.0.0.1:8000"; }
+})();
 
 // ── ESCAPE / XSS ──────────────────────────────────────────────
 // Helpers canónicos para insertar datos cargados por usuarios en HTML sin ejecutar
