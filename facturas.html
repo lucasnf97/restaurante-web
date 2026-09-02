@@ -913,6 +913,101 @@ function cargarManual() {
     abrirModalConfirmacion({ items: [{ tipo: "insumo", descripcion_factura: "" }] });
 }
 
+// ── Combobox de insumo / bien de uso: se escribe y se filtra ──────────────
+// El <select> SIGUE SIENDO la fuente de verdad: 10 lugares leen su .value y dos
+// reescriben sus <option>. Por eso no se reemplaza, se ESCONDE y se le pone
+// delante un input. Cero cambios en esos diez sitios.
+//
+// El filtro sale de los <option> del propio select, no de _insumos: asi la misma
+// funcion sirve para las filas de insumo y para las de bien de uso, sin tener
+// que saber cual es cual. Y usa coincide() de js/api.js, el mismo criterio que
+// el resto del programa: sin acentos y con las palabras en cualquier orden.
+let _comboInsIdx = null;   // fila con la lista abierta
+
+function _comboInsLista() {
+    let l = document.getElementById("ci-ins-lista");
+    if (!l) {
+        l = document.createElement("div");
+        l.id = "ci-ins-lista";
+        l.style.cssText = "position:fixed;z-index:1200;display:none;max-height:230px;" +
+            "overflow:auto;background:var(--sup,#fff);border:1.5px solid var(--bd-2,#e0e0e0);" +
+            "border-radius:8px;box-shadow:var(--sh-2,0 8px 24px rgba(0,0,0,.22));font-size:12.5px;";
+        document.body.appendChild(l);
+    }
+    return l;
+}
+
+function comboInsCerrar() {
+    const l = document.getElementById("ci-ins-lista");
+    if (l) l.style.display = "none";
+    _comboInsIdx = null;
+}
+
+// El texto del input SIEMPRE se deriva del select: si algo cambia la seleccion
+// por codigo (crear un insumo nuevo, repoblar los desplegables), el input lo
+// acompana sin que haya que acordarse en cada sitio.
+function comboInsSync(idx) {
+    const sel = document.getElementById(`ci-insumo-${idx}`);
+    const txt = document.getElementById(`ci-ins-txt-${idx}`);
+    if (!sel || !txt) return;
+    const op = sel.selectedOptions[0];
+    txt.value = (op && op.value) ? op.textContent.trim() : "";
+}
+
+function comboInsFiltrar(idx) {
+    const sel = document.getElementById(`ci-insumo-${idx}`);
+    const txt = document.getElementById(`ci-ins-txt-${idx}`);
+    if (!sel || !txt) return;
+    _comboInsIdx = idx;
+    const q = txt.value.trim();
+    const ops = Array.from(sel.options).filter(o => o.value && coincide(o.textContent, q));
+    const l = _comboInsLista();
+    l.innerHTML = ops.length
+        ? ops.map(o => `<div class="ci-ins-op" data-v="${escAttr(o.value)}"
+              style="padding:7px 11px;cursor:pointer;">${esc(o.textContent.trim())}</div>`).join("")
+        : `<div style="padding:8px 11px;color:var(--tx-4,#9ca3af);">Sin resultados</div>`;
+    // mousedown y no click: el blur del input llega antes que el click y cerraria
+    // la lista con el dedo todavia encima de la opcion.
+    l.querySelectorAll(".ci-ins-op").forEach(d => {
+        d.onmousedown = ev => { ev.preventDefault(); comboInsElegir(idx, d.dataset.v); };
+        d.onmouseover = () => d.style.background = "var(--sup-3,#f3f4f6)";
+        d.onmouseout  = () => d.style.background = "";
+    });
+    const r = txt.getBoundingClientRect();
+    l.style.top   = (r.bottom + 2) + "px";
+    l.style.left  = r.left + "px";
+    l.style.width = r.width + "px";
+    l.style.display = "";
+}
+
+function comboInsElegir(idx, valor) {
+    const sel = document.getElementById(`ci-insumo-${idx}`);
+    if (!sel) return;
+    sel.value = valor;
+    comboInsSync(idx);
+    comboInsCerrar();
+    // El change es lo que dispara actualizarIconoItem y el resto de la logica de
+    // la fila; ponerlo a mano no alcanza porque asignar .value no lo emite.
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function comboInsTecla(e, idx) {
+    if (e.key === "Escape") { comboInsCerrar(); return; }
+    if (e.key === "Enter") {
+        const l = document.getElementById("ci-ins-lista");
+        const primera = l && l.style.display !== "none" && l.querySelector(".ci-ins-op");
+        if (primera) { e.preventDefault(); comboInsElegir(idx, primera.dataset.v); }
+    }
+}
+
+// Al salir del campo sin elegir, el texto vuelve a lo que dice el select: dejar
+// escrito "morr" cuando no hay nada seleccionado hace creer que si lo hay.
+function comboInsBlur(idx) {
+    setTimeout(() => { comboInsCerrar(); comboInsSync(idx); }, 120);
+}
+
+window.addEventListener("scroll", () => { if (_comboInsIdx !== null) comboInsCerrar(); }, true);
+
 // ── CONFIRMACIÓN ──────────────────────────────────────────────
 function optsInsumos(selId) {
     return _insumos.map(i => `<option value="${i.id}" ${i.id === selId ? 'selected' : ''}>${esc(i.nombre)} (${esc(i.unidad)})</option>`).join("");
@@ -932,6 +1027,7 @@ function _refrescarSelectsInsumo(forzarIdx, nuevoId) {
         if (document.getElementById(`ci-tipo-${idx}`)?.value === 'bien') return;  // las filas de bien usan optsBienes
         const selId = (String(idx) === String(forzarIdx)) ? nuevoId : (parseInt(sel.value) || null);
         sel.innerHTML = `<option value="">— Seleccioná —</option>` + optsInsumos(selId);
+        comboInsSync(idx);
         actualizarIconoItem(idx);
     });
 }
@@ -941,6 +1037,7 @@ function _refrescarSelectsBien(forzarIdx, nuevoId) {
         if (document.getElementById(`ci-tipo-${idx}`)?.value !== 'bien') return;
         const selId = (String(idx) === String(forzarIdx)) ? nuevoId : (parseInt(sel.value) || null);
         sel.innerHTML = `<option value="">— Seleccioná —</option>` + optsBienes(selId);
+        comboInsSync(idx);
         actualizarIconoItem(idx);
     });
 }
@@ -1022,9 +1119,14 @@ function itemRow(idx, tipo, descripcion, insumoId, servicioId, cantidad, precioR
             <div class="item-field">
                 <label id="ci-sel-label-${idx}">${esBien ? 'Bien de uso *' : 'Insumo *'}</label>
                 <div style="display:flex;gap:5px;align-items:center;">
-                    <select id="ci-insumo-${idx}" onchange="actualizarIconoItem('${idx}')" style="flex:1;min-width:0;padding:5px 6px;font-size:12px;">
+                    <select id="ci-insumo-${idx}" onchange="actualizarIconoItem('${idx}')" style="display:none">
                         <option value="">— Seleccioná —</option>${esBien ? optsBienes(insumoId) : optsInsumos(insumoId)}
                     </select>
+                    <input type="text" id="ci-ins-txt-${idx}" class="ci-ins-txt" autocomplete="off"
+                           placeholder="Escribí para buscar…"
+                           oninput="comboInsFiltrar('${idx}')" onfocus="comboInsFiltrar('${idx}')"
+                           onblur="comboInsBlur('${idx}')" onkeydown="comboInsTecla(event,'${idx}')"
+                           style="flex:1;min-width:0;padding:5px 6px;font-size:12px;">
                     <button type="button" onclick="nuevoDesdeFila('${idx}')" title="Nuevo"
                             style="flex-shrink:0;padding:5px 8px;background: var(--ac, #4f46e5);color: var(--tx-inv, #fff);border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;">+</button>
                 </div>
@@ -1311,6 +1413,10 @@ function abrirModalConfirmacion(datos) {
                        item.cantidad, precioRaw, pct, incluyeImp, monedaSimbolo, item.marca || '',
                        item.concepto || '', item.es_extra || false);
     }).join("");
+    // El input del combobox arranca vacio: se lo llena desde el select, que es
+    // donde vino la seleccion que propuso la IA.
+    document.querySelectorAll("#conf-items select[id^='ci-insumo-']").forEach(
+        sel => comboInsSync(sel.id.replace('ci-insumo-', '')));
     // Restaurar la clase corriente/extraordinario guardada (si el snapshot/borrador la trae
     // y difiere del default derivado del catálogo).
     items.forEach((item, idx) => {
@@ -1380,6 +1486,7 @@ function cambiarTipoItem(idx) {
         const match = _matchCatalogo(desc, lista);
         sel.innerHTML = `<option value="">— Seleccioná —</option>`
             + (tipo === 'bien' ? optsBienes(match ? match.id : null) : optsInsumos(match ? match.id : null));
+        comboInsSync(idx);   // el catalogo cambio: el input tiene que seguirlo
     }
     if (tipo === 'servicio') {
         const selS = document.getElementById(`ci-servicio-${idx}`);
@@ -1512,6 +1619,7 @@ function agregarItemConf() {
     const div = document.createElement("div");
     div.innerHTML = itemRow(idx, "insumo", "Ítem manual", null, null, null, null, pct, _confModoImp === 'con', monedaSimbolo, '');
     container.appendChild(div.firstElementChild);
+    comboInsSync(idx);
     _actualizarTotalesConf();
 }
 

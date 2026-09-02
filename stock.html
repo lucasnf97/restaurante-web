@@ -40,6 +40,10 @@
         .print-table th, .print-table td { border: 1px solid var(--bd, #e5e7eb); padding:6px 10px; text-align:left; }
         .print-table th { background: var(--sup-3, #f3f4f6); font-weight:700; }
         .print-table td.num, .print-table th.num { text-align:right; }
+        /* Columna para anotar A MANO en el papel: ancho fijo y alto suficiente
+           para que entre una linea escrita. Va vacia a proposito. */
+        .print-table th.obs { width:26%; }
+        .print-table td.obs { height:26px; }
         @media print {
             body > *:not(#modal-imprimir-stock) { display:none !important; }
             #modal-imprimir-stock { display:block !important; position:static; padding:0; background:#fff; }
@@ -719,28 +723,27 @@ function _ordenarImpresion(data, orden) {
 // Con orden por ubicacion o por estado se agrega la columna de ESE criterio:
 // ordenar por algo que no se ve en el papel es ilegible. Con "Alfabetico" la
 // salida queda IGUAL que antes.
+// El listado impreso tiene columnas FIJAS, sin importar el filtro ni el orden:
+// se imprime para recorrer el deposito con una lapicera, y una hoja que cambia
+// de forma segun como filtraste no sirve para eso. Ubicacion y Estado van
+// siempre, y la ultima columna va VACIA a proposito, para anotar a mano.
+// Se saco "Falta para stock habitual" por pedido del dueno.
 function _filasStockImprimir(data, orden) {
-    const extra = orden === 'ubicacion' || orden === 'estado';
     return _ordenarImpresion(data, orden).map(i => {
-        const colExtra = !extra ? '' : (orden === 'ubicacion'
-            ? `<td>${_escH(i.ubicacion_nombre || '—')}</td>`
-            : `<td>${_escH(_estadoInsumo(i).txt)}</td>`);
-        const actual   = parseFloat(i.cantidad_actual) || 0;
-        const estandar = parseFloat(i.cantidad_estandar) || 0;
-        const faltante = Math.max(estandar - actual, 0);
+        const actual = parseFloat(i.cantidad_actual) || 0;
         const u = _escH(i.unidad || '');
         return `<tr>
             <td>${_escH(i.nombre)}</td>
-            ${colExtra}
+            <td>${_escH(i.ubicacion_nombre || '—')}</td>
+            <td>${_escH(_estadoInsumo(i).txt)}</td>
             <td class="num">${+actual.toFixed(3)} ${u}</td>
-            <td class="num">${faltante > 0 ? '<strong>' + (+faltante.toFixed(3)) + ' ' + u + '</strong>' : '—'}</td>
+            <td class="obs"></td>
         </tr>`;
     }).join('');
 }
-function _theadStock(orden) {
-    const extra = orden === 'ubicacion' ? '<th>Ubicación</th>'
-                : orden === 'estado'    ? '<th>Estado</th>' : '';
-    return `<tr><th>Producto</th>${extra}<th class="num">Stock actual</th><th class="num">Falta para stock habitual</th></tr>`;
+function _theadStock() {
+    return `<tr><th>Producto</th><th>Ubicación</th><th>Estado</th>` +
+           `<th class="num">Stock actual</th><th class="obs">Observaciones</th></tr>`;
 }
 
 // Último listado con orden elegible, para repintarlo al cambiar el desplegable
@@ -756,8 +759,8 @@ function _mostrarImpresionOrdenable(titulo, data) {
 
 function _repintarImpresion() {
     if (!_impCtx) return;
-    const orden = document.getElementById('imprimir-orden')?.value || 'nombre';
-    _mostrarImpresion(_impCtx.titulo, _theadStock(orden),
+    const orden = document.getElementById('imprimir-orden')?.value || 'ubicacion';
+    _mostrarImpresion(_impCtx.titulo, _theadStock(),
                       _filasStockImprimir(_impCtx.data, orden), _impCtx.data.length);
 }
 
@@ -2325,8 +2328,8 @@ async function verFacturasBien(id, nombre) {
                 <select id="imprimir-orden" class="no-print" onchange="_repintarImpresion()"
                         title="Orden de las filas del listado"
                         style="padding:5px 9px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:12.5px;background: var(--sup, #fff);color: var(--tx-2, #374151);">
+                    <option value="ubicacion" selected>Por ubicación</option>
                     <option value="nombre">Alfabético</option>
-                    <option value="ubicacion">Por ubicación</option>
                     <option value="estado">Por estado</option>
                 </select>
             </div>
