@@ -45,9 +45,34 @@
         .print-table th.obs { width:26%; }
         .print-table td.obs { height:26px; }
         @media print {
+            /* Hoja A4 con margen: el listado se ajusta al ancho util. */
+            @page { size: A4; margin: 12mm; }
+
             body > *:not(#modal-imprimir-stock) { display:none !important; }
             #modal-imprimir-stock { display:block !important; position:static; padding:0; background:#fff; }
-            #modal-imprimir-stock .modal { box-shadow:none; max-width:none; width:auto; margin:0; }
+
+            /* ⚠ ESTO ES LO QUE ROMPIA LA IMPRESION. `.modal` es una caja de
+               `max-height:85vh; overflow-y:auto`, y en papel eso significa: se
+               imprime SOLO lo que entra en esa caja -y desde donde este el
+               scroll, o sea los ultimos renglones-, sale dibujada la barra de
+               desplazamiento, y el navegador no puede repartir en varias hojas
+               porque el contenido esta encerrado en un alto fijo. Al soltar el
+               alto y el overflow, el flujo vuelve a ser normal y pagina solo. */
+            #modal-imprimir-stock .modal {
+                box-shadow:none; max-width:none; width:auto; margin:0; padding:0;
+                max-height:none !important; height:auto !important;
+                overflow:visible !important; border-radius:0;
+            }
+            #modal-imprimir-stock, #imprimir-body { overflow:visible !important; }
+
+            /* La cabecera se repite en CADA hoja: sin esto, de la segunda en
+               adelante son columnas de numeros sin decir de que son. */
+            .print-table thead { display: table-header-group; }
+            .print-table tfoot { display: table-footer-group; }
+            /* Que no se parta un renglon al medio entre dos hojas. */
+            .print-table tr, .print-table td, .print-table th { break-inside: avoid; page-break-inside: avoid; }
+            .print-table { width:100%; }
+
             .no-print { display:none !important; }
         }
         .acciones-bar { background: var(--sup, white); border-radius: 12px; padding: 12px 20px; display: flex; gap: 10px; align-items: center; margin-bottom: 16px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); flex-wrap: wrap; }
@@ -1739,12 +1764,16 @@ async function guardarDesecho() {
 
 // _revData declarado arriba como global
 let _revDataFull = [];  // todos los insumos sin filtrar
+// Lo CONTADO por el usuario, por id de insumo. Es la fuente de verdad del modal:
+// el DOM se redibuja con cada filtro y no puede guardar nada.
+let _revDeclarado = {};
 let _monedaSimbolo = '';
 
 async function abrirModalRevision() {
     document.getElementById("rev-notas").value = "";
     document.getElementById("rev-filtro-nombre").value = "";
     document.getElementById("rev-filtro-ubicacion").value = "";
+    _revDeclarado = {};   // conteo en limpio en cada revisión
     document.getElementById("rev-tbody").innerHTML = `<tr><td colspan="7" class="empty">Cargando…</td></tr>`;
     document.getElementById("rev-total-val").textContent = simboloMoneda() + " 0,00";
     document.getElementById("rev-total-bar").classList.add("cero");
@@ -1786,32 +1815,45 @@ function revRenderTabla() {
         tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin insumos para mostrar</td></tr>`;
         return;
     }
-    tbody.innerHTML = _revData.map((ins, idx) => {
+    tbody.innerHTML = _revData.map(ins => {
         const teorico = parseFloat(ins.cantidad_actual) || 0;
         const precio  = ins.ultimo_precio !== null && ins.ultimo_precio !== undefined
                         ? parseFloat(ins.ultimo_precio) : null;
         const precioStr = precio !== null ? `${sym} ${precio.toFixed(2)}` : "—";
-        return `<tr id="rev-row-${idx}">
+        // Lo ya contado manda sobre el teorico: al filtrar se vuelve a dibujar
+        // la tabla y sin esto el conteo se perderia.
+        const val = (_revDeclarado[ins.id] !== undefined) ? _revDeclarado[ins.id] : teorico;
+        return `<tr id="rev-row-${ins.id}">
             <td><strong>${esc(ins.nombre)}</strong></td>
             <td>${ins.unidad}</td>
             <td style="text-align:right;">${fmtNum(teorico)}</td>
             <td style="text-align:right;">
-                <input type="number" class="rev-inp" id="rev-inp-${idx}"
-                       value="${fmtNum(teorico)}" min="0" step="0.001"
-                       oninput="revRecalcRow(${idx})">
+                <input type="number" class="rev-inp" id="rev-inp-${ins.id}"
+                       value="${fmtNum(val)}" min="0" step="0.001"
+                       oninput="revRecalcRow(${ins.id})">
             </td>
-            <td style="text-align:right;" id="rev-dif-${idx}"><span class="rev-dif">0</span></td>
+            <td style="text-align:right;" id="rev-dif-${ins.id}"><span class="rev-dif">0</span></td>
             <td style="text-align:right;">${precioStr}</td>
-            <td style="text-align:right;" id="rev-perd-${idx}">—</td>
+            <td style="text-align:right;" id="rev-perd-${ins.id}">—</td>
         </tr>`;
     }).join("");
+    // Repintar diferencia y perdida de lo ya contado que sigue a la vista.
+    _revData.forEach(ins => { if (_revDeclarado[ins.id] !== undefined) revRecalcRow(ins.id); });
+    revActualizarTotal();
 }
 
-function revRecalcRow(idx) {
-    const ins     = _revData[idx];
+function revRecalcRow(id) {
+    const ins = _revDataFull.find(x => x.id === id);
+    if (!ins) return;
     const teorico = parseFloat(ins.cantidad_actual) || 0;
-    const real    = parseFloat(document.getElementById(`rev-inp-${idx}`).value);
-    if (isNaN(real)) return;
+    const inp  = document.getElementById(`rev-inp-${id}`);
+    const real = parseFloat(inp.value);
+    // ⚠ EL CONTEO VIVE ACA, NO EN EL DOM. Filtrar redibuja la tabla, y antes
+    //   eso borraba lo escrito: contabas 5 aguacates, buscabas "palta" y el 5 se
+    //   perdia. Peor: las filas se identificaban por POSICION en la lista
+    //   filtrada, asi que `rev-inp-0` pasaba a ser otro insumo.
+    if (isNaN(real)) { delete _revDeclarado[id]; return; }
+    _revDeclarado[id] = real;
 
     const dif     = real - teorico;
     const precio  = ins.ultimo_precio !== null && ins.ultimo_precio !== undefined
@@ -1819,8 +1861,9 @@ function revRecalcRow(idx) {
     const perdida = precio !== null ? Math.max(0, -dif) * precio : null;
     const sym     = _monedaSimbolo;
 
-    const difEl  = document.getElementById(`rev-dif-${idx}`);
-    const perdEl = document.getElementById(`rev-perd-${idx}`);
+    const difEl  = document.getElementById(`rev-dif-${id}`);
+    const perdEl = document.getElementById(`rev-perd-${id}`);
+    if (!difEl || !perdEl) { revActualizarTotal(); return; }   // fila filtrada
 
     const sign = dif > 0 ? "+" : "";
     difEl.innerHTML = `<span class="rev-dif ${dif < 0 ? 'neg' : dif > 0 ? 'pos' : ''}">${sign}${fmtNum(dif)}</span>`;
@@ -1831,14 +1874,219 @@ function revRecalcRow(idx) {
     revActualizarTotal();
 }
 
+// ══ Calculadora flotante de la revisión ═══════════════════════════════════
+// Para contar stock: sumar cajas, dividir bultos, pasar gramos a kilos sin
+// salir de la pantalla ni perder lo ya contado.
+//
+// ⚠ NO se usa eval(). El display es texto que escribe una persona y eval() ahí
+//   ejecuta lo que sea; se evalúa con un parser propio de 4 operaciones que
+//   sólo entiende números, + - * / y paréntesis.
+let _calcExpr = "0";
+let _calcModoUni = false;
+
+const _CALC_TECLAS = [
+    ["C", "\u232b", "(", ")"],
+    ["7", "8", "9", "\u00f7"],
+    ["4", "5", "6", "\u00d7"],
+    ["1", "2", "3", "\u2212"],
+    ["0", ".", "=", "+"],
+];
+
+// Unidades por MAGNITUD: no se puede pasar de litros a kilos sin la densidad
+// del producto, así que el conversor no lo ofrece en vez de dar un número falso.
+const _CALC_UNIDADES = {
+    peso:    { g: 1, kg: 1000, mg: 0.001, lb: 453.59237, oz: 28.349523125 },
+    volumen: { ml: 1, l: 1000, cl: 10, dl: 100, "fl oz": 29.5735295625, gal: 3785.411784 },
+};
+
+function calcAbrir() {
+    const p = document.getElementById("calc-panel");
+    if (!p) return;
+    if (!document.getElementById("calc-teclas").children.length) _calcPintarTeclas();
+    if (!document.getElementById("cu-de").options.length) _calcPoblarUnidades();
+    p.style.display = "";
+    _calcDentroDePantalla();
+}
+
+function calcCerrar() {
+    const p = document.getElementById("calc-panel");
+    if (p) p.style.display = "none";
+}
+
+function calcModo() {
+    _calcModoUni = !_calcModoUni;
+    document.getElementById("calc-vista-num").style.display = _calcModoUni ? "none" : "";
+    document.getElementById("calc-vista-uni").style.display = _calcModoUni ? "" : "none";
+    const tab = document.getElementById("calc-tab");
+    tab.textContent = _calcModoUni ? "\u2328" : "\u21c4";
+    tab.title = _calcModoUni ? "Calculadora" : "Conversor de unidades";
+    if (_calcModoUni) calcConvertir();
+}
+
+function _calcPintarTeclas() {
+    const cont = document.getElementById("calc-teclas");
+    cont.innerHTML = _CALC_TECLAS.flat().map(t => {
+        const op = "\u00f7\u00d7\u2212+=".indexOf(t) >= 0;
+        const fondo = t === "=" ? "var(--ac,#4f46e5)"
+                    : op       ? "var(--sup-4,#f0f0f0)"
+                    : t === "C" ? "var(--pel-sf,#fee2e2)" : "var(--sup-2,#f8f9fa)";
+        const color = t === "=" ? "var(--tx-inv,#fff)"
+                    : t === "C" ? "var(--pel-tx-2,#dc2626)" : "var(--tx,#1a1a2e)";
+        return '<button type="button" onclick="calcTecla(\'' + t + '\')" ' +
+               'style="padding:11px 0;border:none;border-radius:9px;cursor:pointer;font-size:15px;' +
+               'font-weight:600;background:' + fondo + ';color:' + color + ';">' + t + '</button>';
+    }).join("");
+}
+
+function calcTecla(t) {
+    const vis = document.getElementById("calc-vis");
+    if (t === "C") {
+        _calcExpr = "0";
+    } else if (t === "\u232b") {
+        _calcExpr = _calcExpr.length > 1 ? _calcExpr.slice(0, -1) : "0";
+    } else if (t === "=") {
+        const r = _calcEvaluar(_calcExpr);
+        _calcExpr = (r === null) ? "Error" : String(r);
+    } else {
+        if (_calcExpr === "0" || _calcExpr === "Error") _calcExpr = "";
+        _calcExpr += t;
+    }
+    vis.textContent = _calcExpr || "0";
+}
+
+// Parser propio: tokeniza y evalúa con precedencia. null si la expresión no cierra.
+function _calcEvaluar(txt) {
+    const src = String(txt).replace(/\u00f7/g, "/").replace(/\u00d7/g, "*").replace(/\u2212/g, "-");
+    if (!/^[0-9.+\-*/() ]+$/.test(src)) return null;
+    let i = 0;
+    const espacios = () => { while (src[i] === " ") i++; };
+    function numero() {
+        espacios();
+        if (src[i] === "(") { i++; const v = suma(); espacios(); if (src[i] === ")") i++; return v; }
+        if (src[i] === "-") { i++; return -numero(); }
+        if (src[i] === "+") { i++; return numero(); }
+        const j = i;
+        while (i < src.length && /[0-9.]/.test(src[i])) i++;
+        if (i === j) return NaN;
+        return parseFloat(src.slice(j, i));
+    }
+    function producto() {
+        let v = numero();
+        for (;;) {
+            espacios();
+            if (src[i] === "*") { i++; v *= numero(); }
+            else if (src[i] === "/") { i++; const d = numero(); v = (d === 0) ? NaN : v / d; }
+            else return v;
+        }
+    }
+    function suma() {
+        let v = producto();
+        for (;;) {
+            espacios();
+            if (src[i] === "+") { i++; v += producto(); }
+            else if (src[i] === "-") { i++; v -= producto(); }
+            else return v;
+        }
+    }
+    const v = suma();
+    espacios();
+    if (i !== src.length || !isFinite(v)) return null;
+    return Math.round(v * 1e10) / 1e10;
+}
+
+function _calcPoblarUnidades() {
+    const opts = Object.keys(_CALC_UNIDADES).map(mag =>
+        '<optgroup label="' + (mag === "peso" ? "Peso" : "Volumen") + '">' +
+        Object.keys(_CALC_UNIDADES[mag]).map(u =>
+            '<option value="' + mag + '|' + u + '">' + u + '</option>').join("") +
+        '</optgroup>').join("");
+    document.getElementById("cu-de").innerHTML = opts;
+    document.getElementById("cu-a").innerHTML = opts;
+    document.getElementById("cu-de").value = "peso|kg";
+    document.getElementById("cu-a").value = "peso|g";
+    calcConvertir();
+}
+
+function calcInvertir() {
+    const de = document.getElementById("cu-de"), a = document.getElementById("cu-a");
+    const t = de.value; de.value = a.value; a.value = t;
+    calcConvertir();
+}
+
+function calcConvertir() {
+    const val = parseFloat(document.getElementById("cu-val").value);
+    const de = (document.getElementById("cu-de").value || "").split("|");
+    const a  = (document.getElementById("cu-a").value  || "").split("|");
+    const out = document.getElementById("cu-res");
+    if (isNaN(val) || !de[1] || !a[1]) { out.textContent = "\u2014"; return; }
+    if (de[0] !== a[0]) {
+        out.innerHTML = '<span style="font-size:12.5px;font-weight:600;color:var(--pel-tx-2,#dc2626);">' +
+                        'No se puede: hace falta la densidad</span>';
+        return;
+    }
+    const r = val * _CALC_UNIDADES[de[0]][de[1]] / _CALC_UNIDADES[a[0]][a[1]];
+    out.textContent = (Math.round(r * 1e6) / 1e6).toLocaleString("es-ES") + " " + a[1];
+}
+
+// ── Arrastre por la barra de título ───────────────────────────────────────
+(function () {
+    let sx = 0, sy = 0, ox = 0, oy = 0, arrastrando = false;
+    function mover(e) {
+        if (!arrastrando) return;
+        const p = document.getElementById("calc-panel");
+        const t = e.touches ? e.touches[0] : e;
+        p.style.left = (ox + t.clientX - sx) + "px";
+        p.style.top  = (oy + t.clientY - sy) + "px";
+        p.style.right = "auto";
+        _calcDentroDePantalla();
+    }
+    function soltar() {
+        arrastrando = false;
+        document.removeEventListener("mousemove", mover);
+        document.removeEventListener("touchmove", mover);
+    }
+    function tomar(e) {
+        const p = document.getElementById("calc-panel");
+        const t = e.touches ? e.touches[0] : e;
+        const r = p.getBoundingClientRect();
+        ox = r.left; oy = r.top; sx = t.clientX; sy = t.clientY; arrastrando = true;
+        p.style.left = r.left + "px"; p.style.top = r.top + "px"; p.style.right = "auto";
+        document.addEventListener("mousemove", mover);
+        document.addEventListener("mouseup", soltar);
+        document.addEventListener("touchmove", mover, { passive: true });
+        document.addEventListener("touchend", soltar);
+        e.preventDefault();
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+        const barra = document.getElementById("calc-barra");
+        if (!barra) return;
+        barra.addEventListener("mousedown", tomar);
+        barra.addEventListener("touchstart", tomar, { passive: false });
+    });
+    window.addEventListener("resize", () => _calcDentroDePantalla());
+})();
+
+// Que nunca quede fuera de la pantalla, ni al arrastrar ni al achicar la
+// ventana: una calculadora que se fue del borde no se recupera sin recargar.
+function _calcDentroDePantalla() {
+    const p = document.getElementById("calc-panel");
+    if (!p || p.style.display === "none") return;
+    const r = p.getBoundingClientRect();
+    const maxX = Math.max(0, window.innerWidth - r.width);
+    const maxY = Math.max(0, window.innerHeight - r.height);
+    p.style.left = Math.min(Math.max(0, r.left), maxX) + "px";
+    p.style.top  = Math.min(Math.max(0, r.top), maxY) + "px";
+    p.style.right = "auto";
+}
+
 function revActualizarTotal() {
+    // ⚠ Recorre TODO lo contado, no lo que se ve. Con un filtro puesto el total
+    //   mostraba solo la perdida de las filas visibles y bajaba solo al buscar.
     let total = 0;
-    _revData.forEach((ins, idx) => {
-        const inp = document.getElementById(`rev-inp-${idx}`);
-        if (!inp) return;
+    _revDataFull.forEach(ins => {
+        const real = _revDeclarado[ins.id];
+        if (real === undefined || isNaN(real)) return;
         const teorico = parseFloat(ins.cantidad_actual) || 0;
-        const real    = parseFloat(inp.value);
-        if (isNaN(real)) return;
         const precio  = ins.ultimo_precio !== null ? parseFloat(ins.ultimo_precio) : 0;
         total += Math.max(0, teorico - real) * precio;
     });
@@ -1852,12 +2100,13 @@ function revActualizarTotal() {
 
 async function confirmarRevision() {
     // Recopilar solo ítems con diferencia
+    // ⚠ De TODO lo contado, no de lo visible. Antes se recorria la lista
+    //   filtrada leyendo el DOM: si guardabas con un filtro puesto, los conteos
+    //   que no estaban a la vista se descartaban EN SILENCIO.
     const items = [];
-    _revData.forEach((ins, idx) => {
-        const inp  = document.getElementById(`rev-inp-${idx}`);
-        if (!inp) return;
-        const real = parseFloat(inp.value);
-        if (isNaN(real)) return;
+    _revDataFull.forEach(ins => {
+        const real = _revDeclarado[ins.id];
+        if (real === undefined || isNaN(real)) return;
         const teorico = parseFloat(ins.cantidad_actual) || 0;
         if (Math.abs(real - teorico) > 0.0001) {
             items.push({ insumo_id: ins.id, stock_real: real });
@@ -2150,11 +2399,65 @@ async function verFacturasBien(id, nombre) {
 </div>
 
 <!-- Modal Revisión de stock -->
+<!-- Calculadora flotante de la revisión de stock. Fuera del modal a
+     propósito: dentro quedaría atrapada por su scroll y su recorte, y la idea
+     es poder dejarla donde uno quiera de la pantalla mientras cuenta. -->
+<div id="calc-panel" style="display:none;position:fixed;top:90px;right:40px;z-index:400;width:262px;
+     background:var(--sup,#fff);border:1.5px solid var(--bd-2,#e0e0e0);border-radius:14px;
+     box-shadow:var(--sh-3,0 18px 60px rgba(0,0,0,.35));overflow:hidden;user-select:none;">
+  <div id="calc-barra" style="display:flex;align-items:center;justify-content:space-between;gap:8px;
+       padding:8px 10px;background:var(--sup-3,#f3f4f6);cursor:move;">
+    <span class="calc-tit" style="font-size:12.5px;font-weight:700;color:var(--tx,#1a1a2e);">🧮 Calculadora</span>
+    <span class="calc-acc" style="display:flex;gap:6px;">
+      <button type="button" id="calc-tab" onclick="calcModo()" title="Conversor de unidades"
+              style="border:none;background:transparent;cursor:pointer;font-size:14px;padding:2px 5px;
+                     border-radius:6px;color:var(--tx-2,#374151);">⇄</button>
+      <button type="button" onclick="calcCerrar()" title="Cerrar"
+              style="border:none;background:transparent;cursor:pointer;font-size:14px;padding:2px 5px;
+                     border-radius:6px;color:var(--tx-2,#374151);">✕</button>
+    </span>
+  </div>
+
+  <!-- Calculadora -->
+  <div id="calc-vista-num" style="padding:10px;">
+    <div id="calc-vis" style="text-align:right;font-size:22px;font-weight:700;padding:8px 10px;
+         min-height:40px;word-break:break-all;background:var(--sup-2,#f8f9fa);border-radius:9px;
+         color:var(--tx,#1a1a2e);">0</div>
+    <div id="calc-teclas" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px;"></div>
+  </div>
+
+  <!-- Conversor de unidades -->
+  <div id="calc-vista-uni" style="display:none;padding:10px;">
+    <input type="number" id="cu-val" value="1" step="any" oninput="calcConvertir()"
+           style="width:100%;padding:8px 10px;border:1.5px solid var(--bd-2,#e0e0e0);border-radius:9px;
+                  font-size:15px;box-sizing:border-box;background:var(--sup,#fff);color:var(--tx,#1a1a2e);">
+    <div style="display:flex;gap:6px;align-items:center;margin-top:8px;">
+      <select id="cu-de" onchange="calcConvertir()" style="flex:1;min-width:0;padding:7px;border:1.5px solid var(--bd-2,#e0e0e0);
+              border-radius:9px;font-size:13px;background:var(--sup,#fff);color:var(--tx,#1a1a2e);"></select>
+      <button type="button" onclick="calcInvertir()" title="Invertir"
+              style="border:none;background:var(--sup-3,#f3f4f6);cursor:pointer;padding:7px 9px;
+                     border-radius:9px;font-size:13px;color:var(--tx,#1a1a2e);">⇅</button>
+      <select id="cu-a" onchange="calcConvertir()" style="flex:1;min-width:0;padding:7px;border:1.5px solid var(--bd-2,#e0e0e0);
+              border-radius:9px;font-size:13px;background:var(--sup,#fff);color:var(--tx,#1a1a2e);"></select>
+    </div>
+    <div id="cu-res" style="text-align:right;font-size:20px;font-weight:700;padding:9px 10px;margin-top:9px;
+         background:var(--sup-2,#f8f9fa);border-radius:9px;color:var(--tx,#1a1a2e);">—</div>
+    <p class="calc-nota" style="font-size:11px;color:var(--tx-4,#9ca3af);margin:8px 2px 0;line-height:1.45;">
+      Peso y volumen no se mezclan: para pasar de litros a kilos hace falta la densidad del producto.
+    </p>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-revision">
     <div class="modal rev-modal">
 
         <!-- Header fijo -->
-        <div class="rev-modal-header">
+        <div class="rev-modal-header" style="position:relative;">
+            <button type="button" id="rev-btn-calc" onclick="calcAbrir()"
+                    title="Calculadora y conversor de unidades"
+                    style="position:absolute;top:0;right:0;padding:6px 11px;font-size:16px;line-height:1;
+                           background:var(--sup-3,#f3f4f6);border:1.5px solid var(--bd-2,#e0e0e0);
+                           border-radius:8px;cursor:pointer;color:var(--tx,#1a1a2e);">🧮</button>
             <h3 style="margin-bottom:4px;">🔍 Revisión de stock</h3>
             <p style="font-size:13px;color: var(--tx-7, #666);margin-bottom:10px;">
                 Ingresá el stock <strong>real</strong> de cada insumo. Solo se guardan los insumos con diferencia.
