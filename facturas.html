@@ -1278,33 +1278,34 @@ function _iniciarSelectorMoneda(monedaCodigo) {
 
 // ── Período de facturación (según dia_inicio_periodo del sistema) ──
 const _MESES_PER = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-function _diaInicioPeriodo() { return Math.max(1, Math.min(28, parseInt(window.SISTEMA_MONEDA?.dia_inicio_periodo || 1))); }
 function _fmtYMD(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
-// fecha 'YYYY-MM-DD' → período 'YYYY-MM' (mes de cierre). Con dia_inicio=1 el período es el
-// mes calendario (no se corre al mes siguiente).
+
+// ⚠ UNA FACTURA VA AL MES DE SU FECHA DE EMISIÓN. Punto.
+//
+//   Acá se usaba `dia_inicio_periodo`, que es el corte del PERÍODO DE FACTURACIÓN
+//   SALARIAL (Configuración lo llama así). Con el día 26 -el que tienen los dos
+//   locales de Dinamarca- una factura del 28 de julio se guardaba con período
+//   26/7 → 25/8, y como los informes agrupan por el MES de `periodo_hasta`
+//   (reportes.py), esa factura de julio aparecía en agosto. Medido sobre datos
+//   reales: 16 de 130 facturas de Breto y 3 de 30 de Breto 2 estaban corridas.
+//
+//   El corte salarial sigue existiendo y sigue aplicando a los sueldos: lo que
+//   NO puede hacer es mover una factura de mes. Si el dueño quiere que entre en
+//   otro mes, cambia la FECHA; el período la sigue.
 function _periodoMesDeFecha(fechaStr) {
     const d = fechaStr ? new Date(fechaStr + 'T00:00:00') : new Date();
     if (isNaN(d)) return _periodoMesDeFecha(null);
-    const D = _diaInicioPeriodo();
-    let y = d.getFullYear(), m = d.getMonth();   // 0-based
-    if (D > 1 && d.getDate() >= D) m += 1;       // solo con período NO calendario: el cierre es el mes siguiente
-    if (m > 11) { m = 0; y += 1; }
-    return `${y}-${String(m+1).padStart(2,'0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 }
-// período 'YYYY-MM' → { desde, hasta } 'YYYY-MM-DD'. Con dia_inicio=1 = mes calendario completo;
-// si no, [día D del mes anterior, día D-1 del mes de cierre].
+// período 'YYYY-MM' → { desde, hasta } = el MES CALENDARIO completo, siempre.
+// Antes se partía por el día de corte salarial y el rango de "Septiembre" podía
+// ser 26/8 → 25/9, un rango que ni siquiera contiene al 28 de septiembre: la
+// factura quedaba fuera de su propio período.
 function _periodoRango(periodoMes) {
-    const D = _diaInicioPeriodo();
     const [y, m] = (periodoMes || '').split('-').map(Number);   // m 1-based
     if (!y || !m) return { desde: null, hasta: null };
-    if (D <= 1) {
-        const desde = new Date(y, m - 1, 1);   // primer día del mes elegido
-        const hasta = new Date(y, m, 0);       // último día del mes elegido
-        return { desde: _fmtYMD(desde), hasta: _fmtYMD(hasta) };
-    }
-    const hasta = new Date(y, m - 1, D - 1);   // mes de cierre, día (D-1)
-    const desde = new Date(y, m - 2, D);       // mes anterior, día D
-    return { desde: _fmtYMD(desde), hasta: _fmtYMD(hasta) };
+    return { desde: _fmtYMD(new Date(y, m - 1, 1)),   // primer día del mes
+             hasta: _fmtYMD(new Date(y, m, 0)) };     // último día del mes
 }
 function _periodoLabel(periodoMes) {
     const [y, m] = (periodoMes || '').split('-').map(Number);
@@ -1316,7 +1317,14 @@ let _periodoManual = false;   // true cuando el usuario eligió el período a ma
 function onFechaFacturaChange() {
     const f = document.getElementById('conf-fecha')?.value;
     const pEl = document.getElementById('conf-periodo');
-    if (pEl && !_periodoManual) pEl.value = _periodoMesDeFecha(f);   // no pisar el período elegido a mano
+    // ⚠ TOCAR LA FECHA MANDA, SIEMPRE. Antes esto respetaba `_periodoManual`, que
+    //    queda en true al ABRIR una factura ya cargada (se le pasa su período
+    //    guardado para no reescribir historia sola). Consecuencia: entrabas a
+    //    corregir la fecha de una factura y el período se quedaba en el mes viejo,
+    //    en silencio. Corregir la fecha es exactamente el gesto con el que el dueño
+    //    dice a qué mes va, asi que a partir de acá el período la sigue.
+    _periodoManual = false;
+    if (pEl) pEl.value = _periodoMesDeFecha(f);
     onPeriodoChange();
 }
 function onPeriodoChange() {
