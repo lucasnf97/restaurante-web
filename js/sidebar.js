@@ -82,10 +82,32 @@
 
     // ── CSS ──────────────────────────────────────────────────────
     const style = document.createElement("style");
+    // /!\ SIN BACKTICKS en los comentarios de aca abajo: todo este CSS vive
+    //     dentro de un template literal y un backtick lo corta a la mitad,
+    //     dejando la pagina entera sin parsear.
     style.textContent = `
         /* Subir navbar por encima del sidebar */
         nav.navbar {
             z-index: 300 !important;
+        }
+
+        /* ⚠ NINGÚN MODAL DEBE QUEDAR TAPADO POR LA BARRA SUPERIOR.
+           La barra es fija y va por encima (z-index 300 contra los 200 del velo),
+           pero los modales se centran en TODA la ventana con align-items:center.
+           Con un modal alto (la revisión de stock es 88vh; fichajes y tareas son
+           92vh) en una pantalla no muy alta el modal sube por detrás de la barra
+           y se le come el encabezado: el título, la X y el botón de la
+           calculadora quedan debajo de la barra, inalcanzables.
+
+           Se arregla acá y no en cada página porque el problema es de las OCHO
+           que tienen modales altos, y porque la barra -su alto y su capa- se
+           gobierna desde este archivo.
+
+           @media screen: sin eso, este relleno se sumaría al imprimir y
+           empujaría el listado 76px hacia abajo en la primera hoja. */
+        @media screen {
+            .modal-overlay { padding-top: 76px; }          /* 60 de barra + 16 de aire */
+            .modal-overlay > * { max-height: calc(100vh - 92px); }
         }
         /* Centrar el título en todas las páginas */
         .navbar-brand {
