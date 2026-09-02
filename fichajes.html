@@ -694,7 +694,7 @@ async function descargarRegistro(formato) {
     try {
         const res = await fetch(`${API_URL}/turnos/registro-jornada?${qs}`,
                                 { headers: { "Authorization": `Bearer ${getToken()}` } });
-        if (res.status === 401) { logout(); return; }
+        if (res.status === 401) { logout(true); return; }
         if (!res.ok) {
             const e = await res.json().catch(() => ({}));
             alert("No se pudo generar el registro: " + (e.detail || res.status));

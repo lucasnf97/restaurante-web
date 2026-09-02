@@ -13,6 +13,13 @@ const API_URL = (function () {
     catch (e) { return "http://127.0.0.1:8000"; }
 })();
 
+// notificaciones.js, sidebar.js y tema.js resuelven su URL con
+// `window._API_URL || <Railway>`, pero nadie la seteaba nunca: iban SIEMPRE a
+// Railway. En produccion daba igual (es la misma), pero servida desde
+// localhost esas llamadas mueren por CORS. Se publica acá, que es donde se
+// decide, y así los cuatro archivos hablan con la misma API.
+window._API_URL = API_URL;
+
 // ── ESCAPE / XSS ──────────────────────────────────────────────
 // Helpers canónicos para insertar datos cargados por usuarios en HTML sin ejecutar
 // scripts. `esc` para texto dentro de HTML; `escAttr` para valores dentro de atributos
@@ -181,10 +188,79 @@ function setUser(user) {
     localStorage.setItem("user", JSON.stringify(user));
 }
 
-function logout() {
+function logout(sinPreguntar) {
     // En la web, cerrar sesión va directo al login. (La "vista previa al cerrar
     // sesión" es una función exclusiva del ejecutable, no de la web.)
-    _doLogout();
+    //
+    // ⚠ `sinPreguntar` NO es cosmético. A logout() se llega por tres caminos muy
+    //    distintos y sólo UNO es un gesto del usuario:
+    //      1. el botón (la puerta del menú, "Salir")  -> hay que preguntar;
+    //      2. un 401: la sesión ya venció             -> preguntar seria mentir,
+    //         no hay nada que cancelar;
+    //      3. las guardas de "cambios sin guardar" de productos.html y
+    //         configuracion.html, que YA preguntaron lo suyo -> encadenar una
+    //         segunda ventana es peor que no tener ninguna.
+    //    Por eso 2 y 3 pasan true, y el caso por defecto -el del botón- pregunta.
+    if (sinPreguntar) { _doLogout(); return; }
+    _confirmarSalir(_doLogout);
+}
+
+// Ventana de confirmación de cerrar sesión. Propia y no confirm() del navegador:
+// el diálogo nativo ignora el tema y aparece pegado al borde de arriba, lejos del
+// botón que lo disparó (que vive abajo a la izquierda del menú).
+// ⚠ z-index 5400: por encima del menú (260), la barra (300), el modal de
+//   apariencia (5000) y el legal (5200).
+function _confirmarSalir(alAceptar) {
+    if (document.getElementById("salir-ov")) return;
+    if (!document.getElementById("salir-css")) {
+        const st = document.createElement("style");
+        st.id = "salir-css";
+        st.textContent = [
+            "#salir-ov{position:fixed;inset:0;z-index:5400;display:flex;align-items:center;",
+            "  justify-content:center;padding:16px;background:var(--scrim,rgba(10,10,25,.6));}",
+            "#salir-card{background:var(--sup,#fff);color:var(--tx,#1a1a2e);border-radius:14px;",
+            "  width:390px;max-width:94vw;padding:22px 24px;box-shadow:var(--sh-3,0 18px 60px rgba(0,0,0,.35));}",
+            "#salir-card h3{margin:0 0 6px;font-size:17px;font-weight:700;color:var(--tx,#1a1a2e);}",
+            "#salir-card p{margin:0 0 18px;font-size:13.5px;line-height:1.5;color:var(--tx-3,#6b7280);}",
+            "#salir-pie{display:flex;gap:10px;justify-content:flex-end;}",
+            "#salir-pie button{padding:9px 18px;border-radius:8px;cursor:pointer;font-size:13px;",
+            "  font-weight:600;font-family:inherit;border:none;}",
+            "#salir-no{background:var(--sup-3,#f3f4f6);color:var(--tx-2,#374151);",
+            "  border:1px solid var(--bd,#e5e7eb);}",
+            "#salir-si{background:var(--pel,#dc2626);color:#fff;}",
+            "#salir-si:hover{filter:brightness(1.08);}"
+        ].join(" ");
+        document.head.appendChild(st);
+    }
+
+    const ov = document.createElement("div");
+    ov.id = "salir-ov";
+    ov.innerHTML =
+        '<div id="salir-card" role="dialog" aria-modal="true" aria-label="Cerrar sesión">' +
+        "<h3>Cerrar sesión</h3>" +
+        "<p>Vas a salir de tu cuenta y volver a la pantalla de acceso.</p>" +
+        '<div id="salir-pie">' +
+        '<button id="salir-no" type="button">Cancelar</button>' +
+        '<button id="salir-si" type="button">Cerrar sesión</button>' +
+        "</div></div>";
+    document.body.appendChild(ov);
+
+    const cerrar = () => {
+        document.removeEventListener("keydown", tecla, true);
+        ov.remove();
+    };
+    // ⚠ Fase de CAPTURA: sidebar.js escucha Escape a nivel document sin condición
+    //   y cerraría el menú por detrás. Mismo truco que el modal de apariencia.
+    const tecla = (e) => {
+        if (e.key === "Escape") { e.stopPropagation(); cerrar(); }
+    };
+    document.addEventListener("keydown", tecla, true);
+
+    ov.querySelector("#salir-no").onclick = cerrar;
+    ov.querySelector("#salir-si").onclick = () => { cerrar(); alAceptar(); };
+    ov.addEventListener("mousedown", (e) => { if (e.target === ov) cerrar(); });
+    // Foco en Cancelar, no en Cerrar sesión: un Enter de reflejo no te saca.
+    setTimeout(() => { try { ov.querySelector("#salir-no").focus(); } catch (e) {} }, 30);
 }
 
 function _doLogout() {
@@ -372,7 +448,7 @@ async function apiFetch(endpoint, options = {}) {
             }
             clearTimeout(timer);
 
-            if (res.status === 401) { logout(); return; }
+            if (res.status === 401) { logout(true); return; }
 
             // Cold start de Railway (502/503/504) y 500 intermitentes del pooler
             // (search_path perdido): reintentar los idempotentes con backoff.

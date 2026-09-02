@@ -246,7 +246,7 @@ async function guardarDatos() {
         const r = await api.patch('/auth/perfil', body);
         if (r.username_cambiado) {
             alert('Tus datos se actualizaron. Como cambiaste tu nombre de usuario, por seguridad tenés que iniciar sesión nuevamente.');
-            logout();
+            logout(true);   // ya se avisó y no hay nada que cancelar: es obligatorio
             return;
         }
         // Actualizar la sesión local para que el sidebar/UI reflejen los cambios
