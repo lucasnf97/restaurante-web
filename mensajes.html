@@ -571,10 +571,10 @@ function _mensajesFiltrados() {
     if (_busqueda) {
         visibles = visibles.filter(m => {
             const nombre = _tabActual === "recibidos" ? (m.de_nombre_display || m.de_username || "Sistema") : (m.para_nombre_display || m.para_username || "");
-            return (m.asunto || "").toLowerCase().includes(_busqueda)
-                || (m.cuerpo || "").toLowerCase().includes(_busqueda)
-                || nombre.toLowerCase().includes(_busqueda)
-                || (m.restaurante || "").toLowerCase().includes(_busqueda);
+            return coincide((m.asunto || ""), _busqueda)
+                || coincide((m.cuerpo || ""), _busqueda)
+                || coincide(nombre, _busqueda)
+                || coincide((m.restaurante || ""), _busqueda);
         });
     }
     return visibles;

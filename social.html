@@ -276,8 +276,8 @@ function mentionOnInput(ta, box, sel) {
     if (!m) { box.style.display = 'none'; return; }
     const q = m[2].toLowerCase();
     _mCtx.tok = { start: m.index + m[1].length, end: caret };
-    const us = _menUsuarios.filter(u => (u.username || '').toLowerCase().includes(q)).slice(0, 6);
-    const rs = _menRoles.filter(r => (r.nombre || '').toLowerCase().includes(q)).slice(0, 4);
+    const us = _menUsuarios.filter(u => coincide((u.username || ''), q)).slice(0, 6);
+    const rs = _menRoles.filter(r => coincide((r.nombre || ''), q)).slice(0, 4);
     _mCtx.cands = us.map(u => ({ tipo: 'u', id: u.id, nombre: u.username }))
         .concat(rs.map(r => ({ tipo: 'r', id: null, nombre: r.nombre })));
     if (!_mCtx.cands.length) { box.style.display = 'none'; return; }

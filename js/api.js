@@ -20,6 +20,36 @@ const API_URL = (function () {
 // decide, y así los cuatro archivos hablan con la misma API.
 window._API_URL = API_URL;
 
+// ── BÚSQUEDA ──────────────────────────────────────────────────
+// Criterio ÚNICO de todos los buscadores de la web. Antes cada pantalla hacía
+// `nombre.toLowerCase().includes(q)`, que ya buscaba por subcadena pero fallaba
+// en dos casos muy reales (medido sobre datos del local):
+//   · acentos y ñ: "champinones" no encontraba "Champiñones". Pesa mucho más de
+//     lo que parece porque el producto se vende en Suecia y Dinamarca, donde los
+//     nombres llevan ø, æ y å y nadie los escribe al buscar.
+//   · orden de las palabras: "mineral agua" no encontraba "Agua mineral 500ml".
+//
+// Reglas: se ignoran mayúsculas, tildes y diacríticos, y CADA palabra escrita
+// tiene que aparecer en algún lado del texto, en cualquier orden. Las palabras
+// no necesitan estar completas: "min agu" encuentra "Agua mineral".
+function normBusca(s) {
+    return String(s == null ? "" : s)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")     // tildes y diacríticos combinables
+        .replace(/ø/g, "o").replace(/æ/g, "ae").replace(/å/g, "a")
+        .replace(/ß/g, "ss");
+}
+
+// ¿`texto` (uno o varios campos) satisface lo escrito en `consulta`?
+// Consulta vacía = pasa todo, para que el filtro no haya que envolverlo en un if.
+function coincide(texto, consulta) {
+    const q = normBusca(consulta).trim();
+    if (!q) return true;
+    const t = Array.isArray(texto) ? texto.map(normBusca).join(" ") : normBusca(texto);
+    return q.split(/\s+/).every(palabra => t.includes(palabra));
+}
+
 // ── ESCAPE / XSS ──────────────────────────────────────────────
 // Helpers canónicos para insertar datos cargados por usuarios en HTML sin ejecutar
 // scripts. `esc` para texto dentro de HTML; `escAttr` para valores dentro de atributos

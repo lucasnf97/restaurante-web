@@ -2036,7 +2036,7 @@ function filtrarTabla() {
 
 function renderTabla() {
     const q = document.getElementById("buscar-producto").value.toLowerCase();
-    let lista = q ? productosData.filter(p => p.nombre.toLowerCase().includes(q)) : productosData;
+    let lista = q ? productosData.filter(p => coincide(p.nombre, q)) : productosData;
     if (filtroEstado) lista = lista.filter(p => estadoProducto(p.porcentaje_costo).cls === filtroEstado);
     renderTablaRows(sortProductos(lista));
     updateSortArrows();

@@ -184,6 +184,9 @@
             <select id="filtro-ins-prov" onchange="cargarInsumos()" style="min-width:160px;">
                 <option value="">Todos los proveedores</option>
             </select>
+            <select id="filtro-ins-ubic" onchange="cargarInsumos()" style="min-width:160px;">
+                <option value="">Todas las ubicaciones</option>
+            </select>
             <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirStock()"
                     title="Imprimir el listado según el filtro aplicado">🖨 Imprimir listado</button>
         </div>
@@ -213,6 +216,9 @@
             </select>
             <select id="filtro-prod-prov" onchange="cargarInsumosProduccion()" style="min-width:160px;">
                 <option value="">Todos los proveedores</option>
+            </select>
+            <select id="filtro-prod-ubic" onchange="cargarInsumosProduccion()" style="min-width:160px;">
+                <option value="">Todas las ubicaciones</option>
             </select>
             <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirProduccion()"
                     title="Imprimir el listado según el filtro aplicado">🖨 Imprimir listado</button>
@@ -442,6 +448,7 @@ async function cargarUbicaciones() {
     try {
         _ubicaciones = await api.get('/stock/ubicaciones');
     } catch(e) { _ubicaciones = []; }
+    poblarFiltrosUbicacion();
 }
 
 function poblarSelectUbicacion(selectId, selectedId) {
@@ -453,6 +460,29 @@ function poblarSelectUbicacion(selectId, selectedId) {
     if (!sel) return;
     sel.innerHTML = '<option value="">Sin ubicación</option>' +
         _ubicaciones.map(u => `<option value="${u.id}" ${u.id === selectedId ? 'selected' : ''}>${esc(u.nombre)}</option>`).join('');
+}
+
+// Los DOS selects de FILTRO por ubicación (no los del formulario). Llevan
+// "Todas las ubicaciones" y una opción para lo que no tiene ubicación asignada,
+// que es justo lo que hay que poder listar para ir a ubicarlo.
+function poblarFiltrosUbicacion() {
+    ['filtro-ins-ubic', 'filtro-prod-ubic'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const cur = sel.value;                       // no perder lo elegido al repoblar
+        sel.innerHTML = '<option value="">Todas las ubicaciones</option>' +
+            _ubicaciones.map(u => `<option value="${u.id}">${esc(u.nombre)}</option>`).join('') +
+            '<option value="__sin">Sin ubicación</option>';
+        sel.value = cur;
+        if (sel.selectedIndex < 0) sel.value = '';   // la ubicación elegida ya no existe
+    });
+}
+
+// ¿Pasa el insumo el filtro de ubicación? '' = todas, '__sin' = las que no tienen.
+function _pasaUbicacion(i, filtro) {
+    if (!filtro) return true;
+    if (filtro === '__sin') return !i.ubicacion_id;
+    return String(i.ubicacion_id || '') === String(filtro);
 }
 
 function _refrescarTodosLosSelects() {
@@ -590,15 +620,17 @@ async function cargarInsumos() {
     const nombre = document.getElementById("filtro-ins-nombre").value.trim();
     const estado = document.getElementById("filtro-ins-estado").value;
     const prov   = document.getElementById("filtro-ins-prov")?.value || "";
+    const ubic   = document.getElementById("filtro-ins-ubic")?.value || "";
     window.UI && UI.skeleton(document.getElementById("tbody-insumos"), 6, 10);
     try {
         _insumos = await api.get("/stock/insumos");
         let data = _insumos;
-        if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre.toLowerCase()));
+        if (nombre) data = data.filter(i => coincide(i.nombre, nombre));
         if (estado === "agotado")          data = data.filter(i => i.agotado);
         else if (estado === "advertencia") data = data.filter(i => i.en_advertencia && !i.agotado);
         else if (estado === "ok")          data = data.filter(i => !i.en_advertencia);
         if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || "") === prov);
+        if (ubic) data = data.filter(i => _pasaUbicacion(i, ubic));
         actualizarStats();
 
         const tbody = document.getElementById("tbody-insumos");
@@ -658,38 +690,97 @@ function _mostrarImpresion(titulo, theadHtml, filasHtml, count) {
     document.getElementById('modal-imprimir-stock').classList.add('active');
 }
 
-// Filas Producto / Stock actual / Falta (compartidas por insumos y producción)
-function _filasStockImprimir(data) {
-    return data.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(i => {
+// El estado, tal como lo pinta la tabla. Se ordena de lo urgente a lo tranquilo:
+// un listado "por estado" se imprime para ir a resolver los agotados primero.
+function _estadoInsumo(i) {
+    return i.agotado ? { orden: 0, txt: 'Agotado' }
+         : i.en_advertencia ? { orden: 1, txt: 'Advertencia' }
+         : { orden: 2, txt: 'OK' };
+}
+
+function _ordenarImpresion(data, orden) {
+    const porNombre = (a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
+    const d = data.slice();
+    if (orden === 'ubicacion') {
+        // Sin ubicacion va al FINAL: es el resto, no una ubicación más.
+        return d.sort((a, b) => {
+            const ua = a.ubicacion_nombre || '', ub = b.ubicacion_nombre || '';
+            if (!ua !== !ub) return ua ? -1 : 1;
+            return ua.localeCompare(ub, 'es') || porNombre(a, b);
+        });
+    }
+    if (orden === 'estado') {
+        return d.sort((a, b) => (_estadoInsumo(a).orden - _estadoInsumo(b).orden) || porNombre(a, b));
+    }
+    return d.sort(porNombre);
+}
+
+// Filas Producto / Stock actual / Falta (compartidas por insumos y producción).
+// Con orden por ubicacion o por estado se agrega la columna de ESE criterio:
+// ordenar por algo que no se ve en el papel es ilegible. Con "Alfabetico" la
+// salida queda IGUAL que antes.
+function _filasStockImprimir(data, orden) {
+    const extra = orden === 'ubicacion' || orden === 'estado';
+    return _ordenarImpresion(data, orden).map(i => {
+        const colExtra = !extra ? '' : (orden === 'ubicacion'
+            ? `<td>${_escH(i.ubicacion_nombre || '—')}</td>`
+            : `<td>${_escH(_estadoInsumo(i).txt)}</td>`);
         const actual   = parseFloat(i.cantidad_actual) || 0;
         const estandar = parseFloat(i.cantidad_estandar) || 0;
         const faltante = Math.max(estandar - actual, 0);
         const u = _escH(i.unidad || '');
         return `<tr>
             <td>${_escH(i.nombre)}</td>
+            ${colExtra}
             <td class="num">${+actual.toFixed(3)} ${u}</td>
             <td class="num">${faltante > 0 ? '<strong>' + (+faltante.toFixed(3)) + ' ' + u + '</strong>' : '—'}</td>
         </tr>`;
     }).join('');
 }
-const _THEAD_STOCK = `<tr><th>Producto</th><th class="num">Stock actual</th><th class="num">Falta para stock habitual</th></tr>`;
+function _theadStock(orden) {
+    const extra = orden === 'ubicacion' ? '<th>Ubicación</th>'
+                : orden === 'estado'    ? '<th>Estado</th>' : '';
+    return `<tr><th>Producto</th>${extra}<th class="num">Stock actual</th><th class="num">Falta para stock habitual</th></tr>`;
+}
+
+// Último listado con orden elegible, para repintarlo al cambiar el desplegable
+// sin volver a filtrar ni a consultar el servidor.
+let _impCtx = null;   // { titulo, data }
+
+function _mostrarImpresionOrdenable(titulo, data) {
+    _impCtx = { titulo, data };
+    const sel = document.getElementById('imprimir-orden');
+    if (sel) { sel.style.display = ''; }
+    _repintarImpresion();
+}
+
+function _repintarImpresion() {
+    if (!_impCtx) return;
+    const orden = document.getElementById('imprimir-orden')?.value || 'nombre';
+    _mostrarImpresion(_impCtx.titulo, _theadStock(orden),
+                      _filasStockImprimir(_impCtx.data, orden), _impCtx.data.length);
+}
 
 // Insumos de stock
 function abrirImprimirStock() {
     const nombre = (document.getElementById('filtro-ins-nombre').value || '').toLowerCase();
     const estado = document.getElementById('filtro-ins-estado').value || '';
     const prov   = document.getElementById('filtro-ins-prov').value || '';
+    const ubic   = document.getElementById('filtro-ins-ubic')?.value || '';
     let data = (_insumos || []).slice();
-    if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre));
+    if (nombre) data = data.filter(i => coincide(i.nombre, nombre));
     if (estado === 'agotado')          data = data.filter(i => i.agotado);
     else if (estado === 'advertencia') data = data.filter(i => i.en_advertencia && !i.agotado);
     else if (estado === 'ok')          data = data.filter(i => !i.en_advertencia);
     if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || '') === prov);
+    if (ubic) data = data.filter(i => _pasaUbicacion(i, ubic));
     const titMap = { '': 'Insumos de stock — todos', agotado: 'Insumos agotados', advertencia: 'Insumos en alerta', ok: 'Insumos OK' };
     let titulo = titMap[estado] || 'Listado de stock';
     if (prov) titulo += ' · ' + prov;
     if (nombre) titulo += ` · "${document.getElementById('filtro-ins-nombre').value.trim()}"`;
-    _mostrarImpresion(titulo, _THEAD_STOCK, _filasStockImprimir(data), data.length);
+    if (ubic) titulo += ' · ' + (ubic === '__sin' ? 'sin ubicación'
+                                 : (_ubicaciones.find(u => String(u.id) === String(ubic))?.nombre || ''));
+    _mostrarImpresionOrdenable(titulo, data);
 }
 
 // Insumos de producción
@@ -697,17 +788,21 @@ function abrirImprimirProduccion() {
     const nombre = (document.getElementById('filtro-prod-nombre').value || '').toLowerCase();
     const estado = document.getElementById('filtro-prod-estado').value || '';
     const prov   = document.getElementById('filtro-prod-prov')?.value || '';
+    const ubic   = document.getElementById('filtro-prod-ubic')?.value || '';
     let data = (_insumosProduccion || []).slice();
     if (estado === 'agotado')          data = data.filter(i => i.agotado);
     else if (estado === 'advertencia') data = data.filter(i => i.en_advertencia && !i.agotado);
     else if (estado === 'ok')          data = data.filter(i => !i.en_advertencia);
-    if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre));
+    if (nombre) data = data.filter(i => coincide(i.nombre, nombre));
     if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || '') === prov);
+    if (ubic) data = data.filter(i => _pasaUbicacion(i, ubic));
     const titMap = { '': 'Insumos de producción — todos', agotado: 'Producción — agotados', advertencia: 'Producción — en alerta', ok: 'Producción — OK' };
     let titulo = titMap[estado] || 'Insumos de producción';
     if (prov) titulo += ' · ' + prov;
     if (nombre) titulo += ` · "${document.getElementById('filtro-prod-nombre').value.trim()}"`;
-    _mostrarImpresion(titulo, _THEAD_STOCK, _filasStockImprimir(data), data.length);
+    if (ubic) titulo += ' · ' + (ubic === '__sin' ? 'sin ubicación'
+                                 : (_ubicaciones.find(u => String(u.id) === String(ubic))?.nombre || ''));
+    _mostrarImpresionOrdenable(titulo, data);
 }
 
 // Historial de movimientos (re-consulta con el mismo filtro de nombre)
@@ -739,6 +834,11 @@ async function abrirImprimirHistorial() {
     const thead = `<tr><th>Fecha</th><th>Insumo</th><th>Tipo</th><th class="num">Cantidad</th><th class="num">Precio</th><th>Proveedor</th><th>Usuario</th></tr>`;
     let titulo = 'Historial de movimientos';
     if (nombre) titulo += ` · "${nombre}"`;
+    // El historial va por fecha y no tiene ubicación ni estado: se esconde el
+    // desplegable en vez de ofrecer un orden que no haria nada.
+    _impCtx = null;
+    const selOrd = document.getElementById('imprimir-orden');
+    if (selOrd) selOrd.style.display = 'none';
     _mostrarImpresion(titulo, thead, filas, data.length);
 }
 
@@ -996,6 +1096,7 @@ async function cargarInsumosProduccion() {
     const nombre = document.getElementById("filtro-prod-nombre").value.trim();
     const estado = document.getElementById("filtro-prod-estado").value;
     const prov   = document.getElementById("filtro-prod-prov")?.value || "";
+    const ubic   = document.getElementById("filtro-prod-ubic")?.value || "";
     window.UI && UI.skeleton(document.getElementById("tbody-produccion"), 6, 9);
     try {
         let data = await api.get("/stock/insumos-produccion");
@@ -1009,8 +1110,9 @@ async function cargarInsumosProduccion() {
         if (estado === "agotado")          data = data.filter(i => i.agotado);
         else if (estado === "advertencia") data = data.filter(i => i.en_advertencia && !i.agotado);
         else if (estado === "ok")          data = data.filter(i => !i.en_advertencia);
-        if (nombre) data = data.filter(i => i.nombre.toLowerCase().includes(nombre.toLowerCase()));
+        if (nombre) data = data.filter(i => coincide(i.nombre, nombre));
         if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || "") === prov);
+        if (ubic) data = data.filter(i => _pasaUbicacion(i, ubic));
 
         const tbody = document.getElementById("tbody-produccion");
         if (!data.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Sin insumos de producción</td></tr>`; return; }
@@ -1309,7 +1411,7 @@ function comboboxRenderLista(busq, input) {
     _comboActivo = input;
 
     const filtrados = (busq || "").trim()
-        ? _comboInsumosDisp.filter(i => i.nombre.toLowerCase().includes(busq.toLowerCase()))
+        ? _comboInsumosDisp.filter(i => coincide(i.nombre, busq))
         : _comboInsumosDisp;
 
     lista.innerHTML = filtrados.length
@@ -1566,7 +1668,7 @@ function abrirModalDesecho() {
 function desechoFiltrar() {
     const q     = document.getElementById('des-insumo-input').value.toLowerCase();
     const lista = document.getElementById('des-insumo-lista');
-    const hits  = _insumos.filter(i => !q || i.nombre.toLowerCase().includes(q)).slice(0, 60);
+    const hits  = _insumos.filter(i => !q || coincide(i.nombre, q)).slice(0, 60);
     if (!hits.length) { lista.style.display = 'none'; return; }
     lista.innerHTML = hits.map(i => `
         <div onmousedown="event.preventDefault()" onclick="desechoSeleccionar(${i.id})"
@@ -1667,7 +1769,7 @@ function revAplicarFiltros() {
     const qNom = document.getElementById("rev-filtro-nombre").value.toLowerCase().trim();
     const qUb  = document.getElementById("rev-filtro-ubicacion").value;
     _revData = _revDataFull.filter(i => {
-        if (qNom && !i.nombre.toLowerCase().includes(qNom)) return false;
+        if (qNom && !coincide(i.nombre, qNom)) return false;
         if (qUb  && (i.ubicacion_nombre || "") !== qUb) return false;
         return true;
     });
@@ -1833,7 +1935,7 @@ function renderBienesUso() {
     const nombre = (document.getElementById("filtro-bien-nombre").value || "").trim().toLowerCase();
     const estado = document.getElementById("filtro-bien-estado").value;
     let data = (_bienes || []).slice();
-    if (nombre) data = data.filter(b => (b.nombre || "").toLowerCase().includes(nombre));
+    if (nombre) data = data.filter(b => coincide((b.nombre || ""), nombre));
     if (estado === "agotado")          data = data.filter(b => b.agotado);
     else if (estado === "advertencia") data = data.filter(b => b.en_advertencia && !b.agotado);
     else if (estado === "ok")          data = data.filter(b => !b.en_advertencia);
@@ -2218,7 +2320,16 @@ async function verFacturasBien(id, nombre) {
 <div class="modal-overlay" id="modal-imprimir-stock">
     <div class="modal" style="max-width:680px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <h3 id="imprimir-titulo" style="margin:0;font-size:17px;color: var(--tx, #1a1a2e);">Listado de stock</h3>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <h3 id="imprimir-titulo" style="margin:0;font-size:17px;color: var(--tx, #1a1a2e);">Listado de stock</h3>
+                <select id="imprimir-orden" class="no-print" onchange="_repintarImpresion()"
+                        title="Orden de las filas del listado"
+                        style="padding:5px 9px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:12.5px;background: var(--sup, #fff);color: var(--tx-2, #374151);">
+                    <option value="nombre">Alfabético</option>
+                    <option value="ubicacion">Por ubicación</option>
+                    <option value="estado">Por estado</option>
+                </select>
+            </div>
             <button class="btn btn-secondary btn-sm no-print" onclick="cerrarModal('modal-imprimir-stock')">✕</button>
         </div>
         <div id="imprimir-body"></div>

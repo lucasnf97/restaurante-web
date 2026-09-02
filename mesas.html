@@ -1834,12 +1834,12 @@ function renderMenuSidebar() {
     let prods = _menuEsFavoritos
         ? _menuProds.filter(p => p.favorito)
         : _menuProds;
-    if (q)     prods = prods.filter(p => p.nombre.toLowerCase().includes(q));
+    if (q)     prods = prods.filter(p => coincide(p.nombre, q));
     if (!_menuEsFavoritos && catId) prods = prods.filter(p => p.categoria_id === catId);
 
     // Combos (siempre disponibles, NO en página Favoritos)
     let combos = _menuEsFavoritos ? [] : _menuCombos;
-    if (q) combos = combos.filter(c => c.nombre.toLowerCase().includes(q));
+    if (q) combos = combos.filter(c => coincide(c.nombre, q));
 
     function itemRow(id, nombre, precio, agotado, esCombo) {
         const colorKey = _menuProdColors[id] || 'green';

@@ -589,7 +589,7 @@
         let arr=Object.values(_users);
         // Restaurante: muestra los usuarios que pertenezcan a alguno de los seleccionados
         if(_selRest.size) arr=arr.filter(u=>u.memberships.some(m=>_selRest.has(m.restaurante_id)));
-        if(filtroNombre) arr=arr.filter(u=>u.nombre.toLowerCase().includes(filtroNombre));
+        if(filtroNombre) arr=arr.filter(u=>coincide(u.nombre, filtroNombre));
         // Filtro por ROL: no oculta a nadie — DOS niveles (multi-rol, roles iguales):
         //  1) tiene el rol (cualquiera de los suyos) · 2) no lo tiene, en gris al final
         //  (asignarle un turno de ese rol dispara la alarma para agregárselo).

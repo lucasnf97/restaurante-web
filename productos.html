@@ -928,7 +928,7 @@ function renderCostos() {
     const nombre = (document.getElementById("filtro-cos-nombre").value || "").trim().toLowerCase();
     const filtroR = document.getElementById("filtro-cos-receta").value;
     let data = _costos;
-    if (nombre)          data = data.filter(p => p.nombre.toLowerCase().includes(nombre));
+    if (nombre)          data = data.filter(p => coincide(p.nombre, nombre));
     if (filtroR === "con") data = data.filter(p => p.tiene_receta);
     if (filtroR === "sin") data = data.filter(p => !p.tiene_receta);
     const tbody = document.getElementById("tbody-costos");
@@ -985,7 +985,7 @@ function imprimirCostos() {
     const nombre = (document.getElementById("filtro-cos-nombre").value || "").trim().toLowerCase();
     const filtroR = document.getElementById("filtro-cos-receta").value;
     let data = (_costos || []).slice();
-    if (nombre)          data = data.filter(p => p.nombre.toLowerCase().includes(nombre));
+    if (nombre)          data = data.filter(p => coincide(p.nombre, nombre));
     if (filtroR === "con") data = data.filter(p => p.tiene_receta);
     if (filtroR === "sin") data = data.filter(p => !p.tiene_receta);
     data.sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -1055,7 +1055,7 @@ async function cargarProductos() {
 
 function filtrarLocal() {
     const q = document.getElementById('filtro-buscar').value.toLowerCase();
-    _productosFiltrados = q ? productos.filter(p => p.nombre.toLowerCase().includes(q)) : null;
+    _productosFiltrados = q ? productos.filter(p => coincide(p.nombre, q)) : null;
     _expandedProdId = null;
     renderProductos(_productosFiltrados || productos);
 }
@@ -1106,7 +1106,7 @@ function pmAplicarFiltros() {
 
     let lista = _pmListaBase;
 
-    if (qNombre) lista = lista.filter(p => p.nombre.toLowerCase().includes(qNombre));
+    if (qNombre) lista = lista.filter(p => coincide(p.nombre, qNombre));
     if (qCat)    lista = lista.filter(p => (p.categoria || '') === qCat);
 
     if (qInsumo) {
@@ -1120,7 +1120,7 @@ function pmAplicarFiltros() {
                         try { ings = JSON.parse(ings); } catch { return false; }
                     }
                     return (ings || []).some(i =>
-                        (i.insumo_nombre || '').toLowerCase().includes(qInsumo)
+                        coincide((i.insumo_nombre || ''), qInsumo)
                     );
                 })
                 .map(r => r.producto_id)
@@ -2104,7 +2104,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
         const filtrados = todos.filter(i => {
             if (i.tipo==='stock' && usadosStock.has(i.id)) return false;
             if (i.tipo==='prod'  && usadosProd.has(i.id))  return false;
-            if (busq && !i.nombre.toLowerCase().includes(busq)) return false;
+            if (busq && !coincide(i.nombre, busq)) return false;
             return true;
         });
 
@@ -2211,7 +2211,7 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('active'
         const catId  = document.getElementById('rec-filtro-cat')?.value || '';
         const estado = document.getElementById('rec-filtro-estado')?.value || '';
         let lista = _prodListaRecetas.filter(p => {
-            if (busq  && !p.nombre.toLowerCase().includes(busq)) return false;
+            if (busq  && !coincide(p.nombre, busq)) return false;
             if (catId && String(p.categoria_id) !== catId) return false;
             const tieneDoc = !!_recDocsIndex[p.id];
             if (estado === 'con' && !tieneDoc) return false;
