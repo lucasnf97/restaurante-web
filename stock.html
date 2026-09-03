@@ -1958,10 +1958,14 @@ function calcTecla(t) {
     } else {
         if (_calcExpr === "0" || _calcExpr === "Error") _calcExpr = "";
         // Dos signos seguidos no son una cuenta: 4x+6 no significa nada y daba
-        // "Error". El ultimo gana, que es lo que uno quiere al corregirse sin
-        // borrar: tecleando 5 + x + / + 5 queda 5+5 = 10.
+        // "Error". Gana el PRIMERO y los siguientes se ignoran: si tecleaste x,
+        // querias multiplicar, y un + de mas no deberia convertirlo en una suma.
+        // Con esta regla 5 + x + / + 5 queda 5+5 = 10 y 4 x + 6 queda 4x6 = 24.
+        // Para un negativo va entre parentesis -5x(-3)-, porque despues de "("
+        // el signo si se acepta.
         if (_CALC_SIGNOS.indexOf(t) >= 0 && _CALC_SIGNOS.indexOf(_calcExpr.slice(-1)) >= 0) {
-            _calcExpr = _calcExpr.slice(0, -1);
+            vis.textContent = _calcExpr;
+            return;
         }
         _calcExpr += t;
     }
