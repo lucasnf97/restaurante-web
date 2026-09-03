@@ -843,7 +843,13 @@ function renderBillingCards(d) {
             cls:"stock", icon:"🏗️", label:"Monto acumulado de stock",
             value: fmt(d.monto_acumulado_stock), extraCls:"",
             sub: (d.stock_es_cierre ? "Valor al cierre del mes" : "Valor actual en inventario")
-                 + (mermaTotal > 0 ? ` · merma del mes ${fmt(mermaTotal)}` : " · sin merma este mes")
+                 // La merma es un BALANCE: si en la revisión aparece stock de MÁS
+                 // (se vendió un plato sin uno de sus insumos y no se declaró), el
+                 // neto puede ser negativo. Antes eso caía en "sin merma este mes"
+                 // y el excedente no se veía en ningún lado.
+                 + (mermaTotal > 0.005  ? ` · merma del mes ${fmt(mermaTotal)}`
+                  : mermaTotal < -0.005 ? ` · excedente del mes ${fmt(-mermaTotal)}`
+                                        : " · sin merma este mes")
         },
     ];
 

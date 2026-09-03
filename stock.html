@@ -134,6 +134,7 @@
         .rev-dif.neg { color: var(--pel-tx-2, #dc2626); }
         .rev-dif.pos { color: var(--ok-tx-2, #16a34a); }
         .rev-perdida { color: var(--pel-tx-2, #dc2626); font-weight: 600; }
+        .rev-excedente { color: var(--ok-tx-2, #16a34a); font-weight: 600; }
         /* La barra de perdida y los dos botones comparten renglon: la barra se
            estira con lo que le dejen (flex:1) y asi el alto que antes ocupaban
            dos filas se lo queda la lista, que arranca mas larga. */
@@ -853,8 +854,13 @@ async function abrirImprimirHistorial() {
         const fecha = new Date(m.creado_en).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
         const cant = m.tipo === 'revision_resumen' ? '—'
             : (m.tipo === 'desecho' ? '−' : '+') + (+Math.abs(parseFloat(m.cantidad) || 0));
-        const precio = (m.precio_unitario != null && +m.precio_unitario > 0)
-            ? (+m.precio_unitario).toFixed(2) + (m.moneda ? (' ' + _escH(m.moneda)) : '') : '—';
+        // En una revision el importe es un balance con signo (positivo = perdida):
+        // se muestra igual, con su signo, en vez de esconder los excedentes.
+        const _pu = m.precio_unitario == null ? null : +m.precio_unitario;
+        const precio = (_pu == null || Math.abs(_pu) < 0.005) ? '—'
+            : (m.tipo === 'revision_resumen' ? (_pu > 0 ? '−' : '+') + ' ' + Math.abs(_pu).toFixed(2)
+                                             : _pu.toFixed(2))
+              + (m.moneda ? (' ' + _escH(m.moneda)) : '');
         return `<tr>
             <td>${fecha}</td>
             <td>${_escH(m.insumo_nombre || '')} ${_escH(m.unidad || '')}</td>
@@ -1056,10 +1062,14 @@ async function cargarHistorial() {
             // Precio unificado con moneda
             let precioCell;
             if (esRevision) {
-                const p = m.precio_unitario;
-                precioCell = p != null && p > 0
-                    ? `<span style="color: var(--pel-tx-2, #dc2626);font-weight:700;">— ${parseFloat(p).toFixed(2)}</span>`
-                    : '—';
+                // El total de una revision es un BALANCE: positivo = perdida,
+                // negativo = excedente. Antes el filtro era `> 0`, asi que una
+                // revision con sobrante se mostraba como si no tuviera importe.
+                const p = m.precio_unitario == null ? null : parseFloat(m.precio_unitario);
+                precioCell = (p == null || Math.abs(p) < 0.005) ? '—'
+                    : p > 0
+                        ? `<span style="color: var(--pel-tx-2, #dc2626);font-weight:700;">− ${p.toFixed(2)}</span>`
+                        : `<span style="color: var(--ok-tx-2, #16a34a);font-weight:700;">+ ${(-p).toFixed(2)}</span>`;
             } else if (m.precio_unitario) {
                 const num = parseFloat(m.precio_unitario).toFixed(2);
                 precioCell = m.moneda ? `${num} <span style="font-size:10px;background: var(--bg-a38, #dbeafe);color: var(--fg-a8, #1d4ed8);border-radius:3px;padding:1px 5px;">${m.moneda}</span>` : num;
@@ -1864,7 +1874,8 @@ function revRecalcRow(id) {
     const dif     = real - teorico;
     const precio  = ins.ultimo_precio !== null && ins.ultimo_precio !== undefined
                     ? parseFloat(ins.ultimo_precio) : null;
-    const perdida = precio !== null ? Math.max(0, -dif) * precio : null;
+    // Positivo = perdida, negativo = EXCEDENTE (mismo signo que guarda la API).
+    const perdida = precio !== null ? -dif * precio : null;
     const sym     = _monedaSimbolo;
 
     const difEl  = document.getElementById(`rev-dif-${id}`);
@@ -1873,9 +1884,12 @@ function revRecalcRow(id) {
 
     const sign = dif > 0 ? "+" : "";
     difEl.innerHTML = `<span class="rev-dif ${dif < 0 ? 'neg' : dif > 0 ? 'pos' : ''}">${sign}${fmtNum(dif)}</span>`;
-    perdEl.innerHTML = perdida !== null && perdida > 0
-        ? `<span class="rev-perdida">${sym} ${perdida.toFixed(2)}</span>`
-        : `<span style="color: var(--tx-4, #9ca3af);">—</span>`;
+    perdEl.innerHTML =
+        (perdida === null || Math.abs(perdida) < 0.005)
+            ? `<span style="color: var(--tx-4, #9ca3af);">—</span>`
+        : perdida > 0
+            ? `<span class="rev-perdida">− ${sym} ${perdida.toFixed(2)}</span>`
+            : `<span class="rev-excedente">+ ${sym} ${(-perdida).toFixed(2)}</span>`;
 
     revActualizarTotal();
 }
@@ -2100,20 +2114,32 @@ function _calcDentroDePantalla() {
 function revActualizarTotal() {
     // ⚠ Recorre TODO lo contado, no lo que se ve. Con un filtro puesto el total
     //   mostraba solo la perdida de las filas visibles y bajaba solo al buscar.
+    // ⚠ BALANCE NETO, no solo lo perdido. Antes era Math.max(0, ...), asi que
+    //   un sobrante se descartaba: si se vendio un plato sin el queso y nadie lo
+    //   declaro, ese queso de mas no aparecia por ningun lado. Ahora suma.
+    //   Signo: positivo = perdida, negativo = excedente (igual que la API).
     let total = 0;
     _revDataFull.forEach(ins => {
         const real = _revDeclarado[ins.id];
         if (real === undefined || isNaN(real)) return;
         const teorico = parseFloat(ins.cantidad_actual) || 0;
         const precio  = ins.ultimo_precio !== null ? parseFloat(ins.ultimo_precio) : 0;
-        total += Math.max(0, teorico - real) * precio;
+        total += (teorico - real) * precio;
     });
 
     const sym    = _monedaSimbolo;
     const bar    = document.getElementById("rev-total-bar");
     const valEl  = document.getElementById("rev-total-val");
-    valEl.textContent = `${sym} ${total.toFixed(2)}`;
-    bar.classList.toggle("cero", total === 0);
+    const lblEl  = document.getElementById("rev-total-lbl");
+    const hayPerdida  = total > 0.005;
+    const hayExcedente = total < -0.005;
+    // La etiqueta acompana al signo: decir "Perdida total" sobre un numero en
+    // verde que en realidad es plata de mas se lee al reves de lo que pasa.
+    lblEl.textContent = hayPerdida   ? "\uD83D\uDCB8 P\u00e9rdida total del per\u00edodo"
+                      : hayExcedente ? "\uD83D\uDCC8 Excedente de stock"
+                                     : "\uD83D\uDCB8 P\u00e9rdida total del per\u00edodo";
+    valEl.textContent = `${sym} ${Math.abs(total).toFixed(2)}`;
+    bar.classList.toggle("cero", !hayPerdida);
 }
 
 async function confirmarRevision() {
@@ -2506,7 +2532,7 @@ async function verFacturasBien(id, nombre) {
                         <th style="text-align:right;">Stock real</th>
                         <th style="text-align:right;">Diferencia</th>
                         <th style="text-align:right;">Precio ref.</th>
-                        <th style="text-align:right;">Pérdida $</th>
+                        <th style="text-align:right;">Balance $</th>
                     </tr>
                 </thead>
                 <tbody id="rev-tbody">
@@ -2519,7 +2545,7 @@ async function verFacturasBien(id, nombre) {
         <div class="rev-modal-footer">
             <div class="rev-pie">
                 <div class="rev-total-bar cero" id="rev-total-bar">
-                    <span class="rev-total-lbl">💸 Pérdida total del período</span>
+                    <span class="rev-total-lbl" id="rev-total-lbl">💸 Pérdida total del período</span>
                     <span class="rev-total-val" id="rev-total-val">—</span>
                 </div>
                 <div class="modal-footer" style="border-top:none;">
