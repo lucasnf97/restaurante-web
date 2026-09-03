@@ -547,6 +547,18 @@ function fmtControl(iso) {
            `${d.toLocaleDateString("es-ES")} \u00b7 ${rel}</span>`;
 }
 
+// En la revision el ancho es escaso y lo que importa es CUANTO hace, no la
+// fecha exacta: "hace 18 d" ocupa la mitad y dice lo mismo. La fecha completa
+// queda en el title, a un hover de distancia.
+function fmtControlCorto(iso) {
+    if (!iso) return '<span class="ctrl-nunca">Nunca</span>';
+    const d = new Date(iso);
+    if (isNaN(d)) return '<span class="ctrl-nunca">Nunca</span>';
+    const dias = Math.floor((Date.now() - d.getTime()) / 86400000);
+    const txt = dias <= 0 ? "hoy" : dias === 1 ? "ayer" : `hace ${dias} d`;
+    return `<span class="ctrl-fecha" title="${d.toLocaleString("es-ES")}">${txt}</span>`;
+}
+
 function poblarFiltrosUbicacion() {
     ['filtro-ins-ubic', 'filtro-prod-ubic'].forEach(id => {
         const sel = document.getElementById(id);
@@ -1869,7 +1881,7 @@ async function abrirModalRevision() {
     document.getElementById("rev-filtro-nombre").value = "";
     document.getElementById("rev-filtro-ubicacion").value = "";
     _revDeclarado = {};   // conteo en limpio en cada revisión
-    document.getElementById("rev-tbody").innerHTML = `<tr><td colspan="7" class="empty">Cargando…</td></tr>`;
+    document.getElementById("rev-tbody").innerHTML = `<tr><td colspan="8" class="empty">Cargando…</td></tr>`;
     document.getElementById("rev-total-val").textContent = simboloMoneda() + " 0,00";
     document.getElementById("rev-total-bar").classList.add("cero");
     document.getElementById("modal-revision").classList.add("active");
@@ -1900,6 +1912,24 @@ function revAplicarFiltros() {
         if (qUb  && (i.ubicacion_nombre || "") !== qUb) return false;
         return true;
     });
+    // ⚠ El orden va al FINAL, sobre lo ya filtrado: elegir la Heladera 1 y
+    //   ordenar por "sin controlar hace mas tiempo" se combinan, no se pisan.
+    //   Es el recorrido real: hoy reviso esta heladera, y dentro de ella
+    //   empiezo por lo que hace mas que no se cuenta.
+    const orden = document.getElementById("rev-orden")?.value || "nombre";
+    if (orden !== "nombre") {
+        const t = i => i.ultimo_control ? new Date(i.ultimo_control).getTime() : null;
+        const porNombre = (a, b) => String(a.nombre || "").localeCompare(String(b.nombre || ""), "es");
+        _revData = _revData.slice().sort((a, b) => {
+            const ta = t(a), tb = t(b);
+            // Lo que NUNCA se conto es lo mas urgente: primero con "hace mas
+            // tiempo", ultimo con "hace menos".
+            if (ta === null && tb === null) return porNombre(a, b);
+            if (ta === null) return orden === "ctrl-asc" ? -1 : 1;
+            if (tb === null) return orden === "ctrl-asc" ? 1 : -1;
+            return orden === "ctrl-asc" ? ta - tb : tb - ta;
+        });
+    }
     revRenderTabla();
 }
 
@@ -1907,7 +1937,7 @@ function revRenderTabla() {
     const sym = _monedaSimbolo;
     const tbody = document.getElementById("rev-tbody");
     if (!_revData.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin insumos para mostrar</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="empty">Sin insumos para mostrar</td></tr>`;
         return;
     }
     tbody.innerHTML = _revData.map(ins => {
@@ -1920,6 +1950,7 @@ function revRenderTabla() {
         const val = (_revDeclarado[ins.id] !== undefined) ? _revDeclarado[ins.id] : teorico;
         return `<tr id="rev-row-${ins.id}">
             <td><strong>${esc(ins.nombre)}</strong></td>
+            <td>${fmtControlCorto(ins.ultimo_control)}</td>
             <td>${ins.unidad}</td>
             <td style="text-align:right;">${fmtNum(teorico)}</td>
             <td style="text-align:right;">
@@ -2602,6 +2633,11 @@ async function verFacturasBien(id, nombre) {
             <select id="rev-filtro-ubicacion" onchange="revAplicarFiltros()">
                 <option value="">Todas las ubicaciones</option>
             </select>
+            <select id="rev-orden" onchange="revAplicarFiltros()" title="Orden de la lista">
+                <option value="nombre">Alfabético</option>
+                <option value="ctrl-asc">Sin controlar hace más tiempo</option>
+                <option value="ctrl-desc">Controlado hace menos</option>
+            </select>
         </div>
 
         <!-- Lista scrolleable -->
@@ -2610,6 +2646,7 @@ async function verFacturasBien(id, nombre) {
                 <thead>
                     <tr>
                         <th>Insumo</th>
+                        <th class="th-ctrl-rev">Último control</th>
                         <th>Unidad</th>
                         <th style="text-align:right;">Stock teórico</th>
                         <th style="text-align:right;">Stock real</th>
