@@ -37,9 +37,12 @@
         .filtros input:focus, .filtros select:focus { border-color: var(--ac, #4f46e5); }
         /* Listado imprimible de stock */
         .print-table { width:100%; border-collapse:collapse; font-size:13px; }
-        .print-table th, .print-table td { border: 1px solid var(--bd, #e5e7eb); padding:6px 10px; text-align:left; }
+        /* Todo centrado, cabecera y celdas: es una planilla para recorrer el
+           deposito, y con las columnas centradas la vista baja derecho por cada
+           una en vez de ir saltando entre bordes. */
+        .print-table th, .print-table td { border: 1px solid var(--bd, #e5e7eb); padding:6px 10px; text-align:center; }
         .print-table th { background: var(--sup-3, #f3f4f6); font-weight:700; }
-        .print-table td.num, .print-table th.num { text-align:right; }
+        .print-table td.num, .print-table th.num { text-align:center; }
         /* Columna para anotar A MANO en el papel: ancho fijo y alto suficiente
            para que entre una linea escrita. Va vacia a proposito. */
         .print-table th.obs { width:26%; }
@@ -114,7 +117,11 @@
         .prov-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--ac-sf-2, #ede9fe); color: var(--fg-a18, #5b21b6); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
 
         /* ── Revisión de stock ── */
-        .rev-modal { max-width: 860px; display:flex; flex-direction:column; max-height:88vh; padding:0; overflow:hidden; }
+        /* Mas ancha para que los ocho titulos entren en UN renglon: con dos
+           lineas la cabecera come alto y la lista se acorta justo donde se
+           necesita ver mas filas. */
+        .rev-modal { max-width: 1080px; display:flex; flex-direction:column; max-height:88vh; padding:0; overflow:hidden; }
+        .rev-modal thead th { white-space: nowrap; }
         .rev-modal-header { padding:20px 24px 10px; flex-shrink:0; }
         .rev-modal-filters { padding:0 24px 10px; flex-shrink:0; display:flex; gap:8px; flex-wrap:wrap; }
         .rev-modal-filters input, .rev-modal-filters select { flex:1; min-width:160px; padding:6px 10px; border: 1.5px solid var(--bd, #e5e7eb); border-radius:7px; font-size:13px; outline:none; }
@@ -229,6 +236,8 @@
             <select id="filtro-ins-ubic" onchange="cargarInsumos()" style="min-width:160px;">
                 <option value="">Todas las ubicaciones</option>
             </select>
+            <button class="btn btn-secondary btn-sm" id="btn-limpiar-filtros" onclick="limpiarFiltrosInsumos()"
+                    title="Quitar todos los filtros y el orden">✕ Limpiar filtros</button>
             <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirStock()"
                     title="Imprimir el listado según el filtro aplicado">🖨 Imprimir listado</button>
         </div>
@@ -514,6 +523,28 @@ function poblarSelectUbicacion(selectId, selectedId) {
 // Los DOS selects de FILTRO por ubicación (no los del formulario). Llevan
 // "Todas las ubicaciones" y una opción para lo que no tiene ubicación asignada,
 // que es justo lo que hay que poder listar para ir a ubicarlo.
+// Deja la lista como al entrar: sin buscador, sin estado, sin proveedor, sin
+// ubicacion y sin orden. Con cuatro filtros encima es facil perder de vista cual
+// esta puesto y creer que "faltan insumos".
+function limpiarFiltrosInsumos() {
+    ["filtro-ins-nombre", "filtro-ins-estado", "filtro-ins-prov", "filtro-ins-ubic"]
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+    _ordenControl = null;
+    const f = document.getElementById("th-ctrl-flecha");
+    if (f) f.textContent = "";
+    cargarInsumos();
+}
+
+// El boton solo tiene sentido si hay algo puesto: si no, es un boton que no hace
+// nada. Se enciende y se apaga solo con cada recarga de la lista.
+function _refrescarBotonLimpiar() {
+    const hay = ["filtro-ins-nombre", "filtro-ins-estado", "filtro-ins-prov", "filtro-ins-ubic"]
+                    .some(id => (document.getElementById(id)?.value || "") !== "")
+                || _ordenControl !== null;
+    const b = document.getElementById("btn-limpiar-filtros");
+    if (b) { b.style.display = hay ? "" : "none"; }
+}
+
 function ordenarPorControl() {
     _ordenControl = _ordenControl === null ? "asc" : _ordenControl === "asc" ? "desc" : null;
     const f = document.getElementById("th-ctrl-flecha");
@@ -728,6 +759,7 @@ async function cargarInsumos() {
         // El orden va al final, sobre lo ya filtrado: filtrar y ordenar se
         // combinan (ubicacion + fecha, estado + fecha, etc.).
         data = _ordenarPorControl(data);
+        _refrescarBotonLimpiar();
         actualizarStats();
 
         const tbody = document.getElementById("tbody-insumos");
@@ -2635,8 +2667,8 @@ async function verFacturasBien(id, nombre) {
             </select>
             <select id="rev-orden" onchange="revAplicarFiltros()" title="Orden de la lista">
                 <option value="nombre">Alfabético</option>
-                <option value="ctrl-asc">Sin controlar hace más tiempo</option>
-                <option value="ctrl-desc">Controlado hace menos</option>
+                <option value="ctrl-asc">Fecha de control más antigua</option>
+                <option value="ctrl-desc">Fecha de control más reciente</option>
             </select>
         </div>
 
@@ -2790,7 +2822,7 @@ async function verFacturasBien(id, nombre) {
 
 <!-- Modal: imprimir listado de stock según filtro -->
 <div class="modal-overlay" id="modal-imprimir-stock">
-    <div class="modal" style="max-width:680px;">
+    <div class="modal" style="max-width:920px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <h3 id="imprimir-titulo" style="margin:0;font-size:17px;color: var(--tx, #1a1a2e);">Listado de stock</h3>
@@ -2805,8 +2837,8 @@ async function verFacturasBien(id, nombre) {
                         title="Orden dentro de cada grupo"
                         style="padding:5px 9px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:12.5px;background: var(--sup, #fff);color: var(--tx-2, #374151);">
                     <option value="nombre" selected>Alfabético</option>
-                    <option value="ctrl-asc">Control más antiguo primero</option>
-                    <option value="ctrl-desc">Control más reciente primero</option>
+                    <option value="ctrl-asc">Fecha de control más antigua</option>
+                    <option value="ctrl-desc">Fecha de control más reciente</option>
                 </select>
             </div>
             <button class="btn btn-secondary btn-sm no-print" onclick="cerrarModal('modal-imprimir-stock')">✕</button>
