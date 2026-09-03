@@ -82,6 +82,12 @@
         td { padding: 13px 16px; border-top: 1px solid var(--bd-4, #f0f0f0); font-size: 14px; color: var(--fg-a12, #333); }
         tr:hover td { background: var(--sup-2, #fafafa); }
         .empty { text-align: center; padding: 48px; color: var(--tx-5, #888); }
+        .th-orden { cursor: pointer; user-select: none; white-space: nowrap; }
+        .th-orden:hover { color: var(--tx-2, #374151); }
+        /* Lo que nunca se conto se marca: es lo que hay que ir a contar. */
+        .ctrl-nunca { color: var(--av-tx, #92400e); background: var(--av-sf, #fef3c7);
+                      border-radius: 5px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+        .ctrl-fecha { font-size: 12.5px; color: var(--tx-2, #374151); white-space: nowrap; }
         .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
         .badge-ok { background: var(--ok-sf, #dcfce7); color: var(--ok-tx-2, #16a34a); } .badge-warn { background: var(--av-sf, #fef9c3); color: var(--fg-a43, #ca8a04); } .badge-alert { background: var(--pel-sf, #fee2e2); color: var(--pel-tx-2, #dc2626); }
         .stock-bar { width: 100%; height: 8px; background: var(--sup-5, #e5e7eb); border-radius: 4px; overflow: hidden; }
@@ -228,8 +234,11 @@
         </div>
         <div class="tabla-wrapper">
             <table>
-                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Costo unit.</th><th>Estado</th><th></th><th></th></tr></thead>
-                <tbody id="tbody-insumos"><tr><td colspan="10" class="empty">Cargando...</td></tr></tbody>
+                <thead><tr><th>Nombre</th><th>Unidad</th><th>Stock actual</th><th>Ubicación</th><th>Marca</th><th>Proveedor</th><th>Costo unit.</th>
+                    <th class="th-orden" id="th-ctrl" onclick="ordenarPorControl()"
+                        title="Ordenar por la fecha del último control">Último control <span id="th-ctrl-flecha"></span></th>
+                    <th>Estado</th><th></th><th></th></tr></thead>
+                <tbody id="tbody-insumos"><tr><td colspan="11" class="empty">Cargando...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -477,6 +486,10 @@ let _insumos = [];
 let _editandoInsumoId = null;
 let _ultimasCompras = {};
 let _ubicaciones = [];        // [{ id, nombre }]
+// Orden de la tabla por fecha de control: null = el de siempre (por nombre),
+// "asc" = lo mas viejo primero (lo que hay que ir a contar), "desc" = lo recien
+// controlado. Se cicla con clic en la cabecera.
+let _ordenControl = null;
 let _revData = [];            // datos crudos de revision/preview (para filtros)
 
 // ── Ubicaciones ───────────────────────────────────────────────
@@ -501,6 +514,39 @@ function poblarSelectUbicacion(selectId, selectedId) {
 // Los DOS selects de FILTRO por ubicación (no los del formulario). Llevan
 // "Todas las ubicaciones" y una opción para lo que no tiene ubicación asignada,
 // que es justo lo que hay que poder listar para ir a ubicarlo.
+function ordenarPorControl() {
+    _ordenControl = _ordenControl === null ? "asc" : _ordenControl === "asc" ? "desc" : null;
+    const f = document.getElementById("th-ctrl-flecha");
+    if (f) f.textContent = _ordenControl === "asc" ? "\u2191" : _ordenControl === "desc" ? "\u2193" : "";
+    cargarInsumos();
+}
+
+// ⚠ Lo que NUNCA se conto va primero con "mas antiguo": es exactamente lo que
+//   se esta buscando. Con "mas reciente" va ultimo, por lo mismo.
+function _ordenarPorControl(data) {
+    if (!_ordenControl) return data;
+    const t = i => i.ultimo_control ? new Date(i.ultimo_control).getTime() : null;
+    return data.slice().sort((a, b) => {
+        const ta = t(a), tb = t(b);
+        if (ta === null && tb === null) return String(a.nombre).localeCompare(String(b.nombre), "es");
+        if (ta === null) return _ordenControl === "asc" ? -1 : 1;
+        if (tb === null) return _ordenControl === "asc" ? 1 : -1;
+        return _ordenControl === "asc" ? ta - tb : tb - ta;
+    });
+}
+
+// "hace 3 dias" dice mas que una fecha suelta cuando lo que importa es cuanto
+// hace que no se cuenta algo.
+function fmtControl(iso) {
+    if (!iso) return '<span class="ctrl-nunca">Nunca</span>';
+    const d = new Date(iso);
+    if (isNaN(d)) return '<span class="ctrl-nunca">Nunca</span>';
+    const dias = Math.floor((Date.now() - d.getTime()) / 86400000);
+    const rel = dias <= 0 ? "hoy" : dias === 1 ? "ayer" : `hace ${dias} d\u00edas`;
+    return `<span class="ctrl-fecha" title="${d.toLocaleString("es-ES")}">` +
+           `${d.toLocaleDateString("es-ES")} \u00b7 ${rel}</span>`;
+}
+
 function poblarFiltrosUbicacion() {
     ['filtro-ins-ubic', 'filtro-prod-ubic'].forEach(id => {
         const sel = document.getElementById(id);
@@ -667,10 +713,13 @@ async function cargarInsumos() {
         else if (estado === "ok")          data = data.filter(i => !i.en_advertencia);
         if (prov) data = data.filter(i => (_ultimasCompras[i.id]?.proveedor_nombre || "") === prov);
         if (ubic) data = data.filter(i => _pasaUbicacion(i, ubic));
+        // El orden va al final, sobre lo ya filtrado: filtrar y ordenar se
+        // combinan (ubicacion + fecha, estado + fecha, etc.).
+        data = _ordenarPorControl(data);
         actualizarStats();
 
         const tbody = document.getElementById("tbody-insumos");
-        if (!data.length) { tbody.innerHTML = `<tr><td colspan="10" class="empty">Sin insumos</td></tr>`; return; }
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="11" class="empty">Sin insumos</td></tr>`; return; }
         tbody.innerHTML = data.map(i => {
             const actual = parseFloat(i.cantidad_actual);
             const estand = parseFloat(i.cantidad_estandar) || 1;
@@ -703,6 +752,7 @@ async function cargarInsumos() {
                 <td style="font-size:12px;color: var(--tx-2, #374151);">${marca}</td>
                 <td>${provNombre}</td>
                 <td style="font-size:13px;">${costoCell}</td>
+                <td>${fmtControl(i.ultimo_control)}</td>
                 <td>${badge}</td>
                 <td>${btnHistorial}</td>
                 <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="eliminarInsumo(${i.id})" title="Eliminar insumo">✕</button></td>
@@ -734,21 +784,44 @@ function _estadoInsumo(i) {
          : { orden: 2, txt: 'OK' };
 }
 
-function _ordenarImpresion(data, orden) {
+// ⚠ ACUMULATIVO: primero agrupa, y DENTRO de cada grupo ordena. Antes era
+//   uno u otro, asi que no se podia pedir "por ubicacion y, dentro de cada
+//   ubicacion, lo que hace mas que no se cuenta", que es como se recorre un
+//   deposito de verdad.
+function _ordenarImpresion(data, grupo, orden) {
     const porNombre = (a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
-    const d = data.slice();
-    if (orden === 'ubicacion') {
-        // Sin ubicacion va al FINAL: es el resto, no una ubicación más.
-        return d.sort((a, b) => {
+    const t = i => i.ultimo_control ? new Date(i.ultimo_control).getTime() : null;
+    // Lo que NUNCA se conto va primero con "mas antiguo": es lo que se busca.
+    const porControl = (a, b) => {
+        const ta = t(a), tb = t(b);
+        if (ta === null && tb === null) return porNombre(a, b);
+        if (ta === null) return orden === 'ctrl-asc' ? -1 : 1;
+        if (tb === null) return orden === 'ctrl-asc' ? 1 : -1;
+        return orden === 'ctrl-asc' ? ta - tb : tb - ta;
+    };
+    const dentro = (orden === 'ctrl-asc' || orden === 'ctrl-desc') ? porControl : porNombre;
+
+    const porGrupo = grupo === 'ubicacion'
+        ? (a, b) => {
+            // Sin ubicacion va al FINAL: es el resto, no una ubicacion mas.
             const ua = a.ubicacion_nombre || '', ub = b.ubicacion_nombre || '';
             if (!ua !== !ub) return ua ? -1 : 1;
-            return ua.localeCompare(ub, 'es') || porNombre(a, b);
-        });
-    }
-    if (orden === 'estado') {
-        return d.sort((a, b) => (_estadoInsumo(a).orden - _estadoInsumo(b).orden) || porNombre(a, b));
-    }
-    return d.sort(porNombre);
+            return ua.localeCompare(ub, 'es');
+          }
+        : grupo === 'estado'
+        ? (a, b) => _estadoInsumo(a).orden - _estadoInsumo(b).orden
+        : () => 0;
+
+    return data.slice().sort((a, b) => porGrupo(a, b) || dentro(a, b));
+}
+
+// En el papel alcanza con la fecha: el "hace N dias" es util en pantalla, donde
+// se compara de un vistazo, pero en una hoja para recorrer el deposito ocupa
+// lugar sin agregar nada.
+function _fmtControlImpr(iso) {
+    if (!iso) return 'Nunca';
+    const d = new Date(iso);
+    return isNaN(d) ? 'Nunca' : d.toLocaleDateString('es-ES');
 }
 
 // Filas Producto / Stock actual / Falta (compartidas por insumos y producción).
@@ -760,21 +833,22 @@ function _ordenarImpresion(data, orden) {
 // de forma segun como filtraste no sirve para eso. Ubicacion y Estado van
 // siempre, y la ultima columna va VACIA a proposito, para anotar a mano.
 // Se saco "Falta para stock habitual" por pedido del dueno.
-function _filasStockImprimir(data, orden) {
-    return _ordenarImpresion(data, orden).map(i => {
+function _filasStockImprimir(data, grupo, orden) {
+    return _ordenarImpresion(data, grupo, orden).map(i => {
         const actual = parseFloat(i.cantidad_actual) || 0;
         const u = _escH(i.unidad || '');
         return `<tr>
             <td>${_escH(i.nombre)}</td>
             <td>${_escH(i.ubicacion_nombre || '—')}</td>
             <td>${_escH(_estadoInsumo(i).txt)}</td>
+            <td>${_escH(_fmtControlImpr(i.ultimo_control))}</td>
             <td class="num">${+actual.toFixed(3)} ${u}</td>
             <td class="obs"></td>
         </tr>`;
     }).join('');
 }
 function _theadStock() {
-    return `<tr><th>Producto</th><th>Ubicación</th><th>Estado</th>` +
+    return `<tr><th>Producto</th><th>Ubicación</th><th>Estado</th><th>Último control</th>` +
            `<th class="num">Stock actual</th><th class="obs">Observaciones</th></tr>`;
 }
 
@@ -784,16 +858,19 @@ let _impCtx = null;   // { titulo, data }
 
 function _mostrarImpresionOrdenable(titulo, data) {
     _impCtx = { titulo, data };
-    const sel = document.getElementById('imprimir-orden');
-    if (sel) { sel.style.display = ''; }
+    ['imprimir-grupo', 'imprimir-orden'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
     _repintarImpresion();
 }
 
 function _repintarImpresion() {
     if (!_impCtx) return;
-    const orden = document.getElementById('imprimir-orden')?.value || 'ubicacion';
+    const grupo = document.getElementById('imprimir-grupo')?.value ?? 'ubicacion';
+    const orden = document.getElementById('imprimir-orden')?.value || 'nombre';
     _mostrarImpresion(_impCtx.titulo, _theadStock(),
-                      _filasStockImprimir(_impCtx.data, orden), _impCtx.data.length);
+                      _filasStockImprimir(_impCtx.data, grupo, orden), _impCtx.data.length);
 }
 
 // Insumos de stock
@@ -877,8 +954,10 @@ async function abrirImprimirHistorial() {
     // El historial va por fecha y no tiene ubicación ni estado: se esconde el
     // desplegable en vez de ofrecer un orden que no haria nada.
     _impCtx = null;
-    const selOrd = document.getElementById('imprimir-orden');
-    if (selOrd) selOrd.style.display = 'none';
+    ['imprimir-grupo', 'imprimir-orden'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
     _mostrarImpresion(titulo, thead, filas, data.length);
 }
 
@@ -2162,13 +2241,17 @@ async function confirmarRevision() {
         return;
     }
 
+    // Todo lo que se conto, haya cambiado o no: contar algo y que de bien
+    // tambien es un control y tiene que sellar la fecha del insumo.
+    const controlados = Object.keys(_revDeclarado).map(Number).filter(n => !isNaN(n));
+
     const notas = document.getElementById("rev-notas").value.trim() || null;
     const btn   = document.getElementById("rev-btn-confirmar");
     btn.disabled = true;
     btn.textContent = "Guardando…";
 
     try {
-        const res = await api.post("/stock/revision", { notas, items });
+        const res = await api.post("/stock/revision", { notas, items, controlados });
         cerrarModal("modal-revision");
         // Refrescar stock para reflejar los ajustes
         await cargarInsumos();
@@ -2674,12 +2757,19 @@ async function verFacturasBien(id, nombre) {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <h3 id="imprimir-titulo" style="margin:0;font-size:17px;color: var(--tx, #1a1a2e);">Listado de stock</h3>
-                <select id="imprimir-orden" class="no-print" onchange="_repintarImpresion()"
-                        title="Orden de las filas del listado"
+                <select id="imprimir-grupo" class="no-print" onchange="_repintarImpresion()"
+                        title="Agrupar las filas"
                         style="padding:5px 9px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:12.5px;background: var(--sup, #fff);color: var(--tx-2, #374151);">
-                    <option value="ubicacion" selected>Por ubicación</option>
-                    <option value="nombre">Alfabético</option>
-                    <option value="estado">Por estado</option>
+                    <option value="ubicacion" selected>Agrupar por ubicación</option>
+                    <option value="estado">Agrupar por estado</option>
+                    <option value="">Sin agrupar</option>
+                </select>
+                <select id="imprimir-orden" class="no-print" onchange="_repintarImpresion()"
+                        title="Orden dentro de cada grupo"
+                        style="padding:5px 9px;border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:7px;font-size:12.5px;background: var(--sup, #fff);color: var(--tx-2, #374151);">
+                    <option value="nombre" selected>Alfabético</option>
+                    <option value="ctrl-asc">Control más antiguo primero</option>
+                    <option value="ctrl-desc">Control más reciente primero</option>
                 </select>
             </div>
             <button class="btn btn-secondary btn-sm no-print" onclick="cerrarModal('modal-imprimir-stock')">✕</button>
