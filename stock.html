@@ -134,9 +134,15 @@
         .rev-dif.neg { color: var(--pel-tx-2, #dc2626); }
         .rev-dif.pos { color: var(--ok-tx-2, #16a34a); }
         .rev-perdida { color: var(--pel-tx-2, #dc2626); font-weight: 600; }
-        .rev-total-bar { display: flex; align-items: center; justify-content: space-between;
+        /* La barra de perdida y los dos botones comparten renglon: la barra se
+           estira con lo que le dejen (flex:1) y asi el alto que antes ocupaban
+           dos filas se lo queda la lista, que arranca mas larga. */
+        .rev-pie { display: flex; align-items: center; gap: 12px; padding: 12px 24px; flex-wrap: wrap; }
+        .rev-pie .modal-footer { margin-top: 0; flex-shrink: 0; }
+        .rev-total-bar { flex: 1; min-width: 240px;
+                         display: flex; align-items: center; justify-content: space-between; gap: 12px;
                          background: var(--pel-sf-2, #fef2f2); border: 1.5px solid var(--pel-bd, #fecaca); border-radius: 10px;
-                         padding: 12px 18px; margin-top: 14px; }
+                         padding: 10px 16px; }
         .rev-total-bar.cero { background: var(--ok-sf-2, #f0fdf4); border-color: var(--ok-bd, #bbf7d0); }
         .rev-total-lbl { font-size: 13px; font-weight: 700; color: var(--fg-a28, #991b1b); }
         .rev-total-bar.cero .rev-total-lbl { color: var(--ok-tx-3, #166534); }
@@ -1883,6 +1889,8 @@ function revRecalcRow(id) {
 //   sólo entiende números, + - * / y paréntesis.
 let _calcExpr = "0";
 let _calcModoUni = false;
+// Los cuatro signos, tal como se muestran en el display.
+const _CALC_SIGNOS = "+\u2212\u00d7\u00f7";
 
 const _CALC_TECLAS = [
     ["C", "\u232b", "(", ")"],
@@ -1949,6 +1957,12 @@ function calcTecla(t) {
         _calcExpr = (r === null) ? "Error" : String(r);
     } else {
         if (_calcExpr === "0" || _calcExpr === "Error") _calcExpr = "";
+        // Dos signos seguidos no son una cuenta: 4x+6 no significa nada y daba
+        // "Error". El ultimo gana, que es lo que uno quiere al corregirse sin
+        // borrar: tecleando 5 + x + / + 5 queda 5+5 = 10.
+        if (_CALC_SIGNOS.indexOf(t) >= 0 && _CALC_SIGNOS.indexOf(_calcExpr.slice(-1)) >= 0) {
+            _calcExpr = _calcExpr.slice(0, -1);
+        }
         _calcExpr += t;
     }
     vis.textContent = _calcExpr || "0";
@@ -2455,9 +2469,9 @@ async function verFacturasBien(id, nombre) {
         <div class="rev-modal-header" style="position:relative;">
             <button type="button" id="rev-btn-calc" onclick="calcAbrir()"
                     title="Calculadora y conversor de unidades"
-                    style="position:absolute;top:0;right:0;padding:6px 11px;font-size:16px;line-height:1;
+                    style="position:absolute;top:14px;right:18px;padding:10px 15px;font-size:30px;line-height:1;
                            background:var(--sup-3,#f3f4f6);border:1.5px solid var(--bd-2,#e0e0e0);
-                           border-radius:8px;cursor:pointer;color:var(--tx,#1a1a2e);">🧮</button>
+                           border-radius:11px;cursor:pointer;color:var(--tx,#1a1a2e);">🧮</button>
             <h3 style="margin-bottom:4px;">🔍 Revisión de stock</h3>
             <p style="font-size:13px;color: var(--tx-7, #666);margin-bottom:10px;">
                 Ingresá el stock <strong>real</strong> de cada insumo. Solo se guardan los insumos con diferencia.
@@ -2499,15 +2513,17 @@ async function verFacturasBien(id, nombre) {
 
         <!-- Footer siempre visible -->
         <div class="rev-modal-footer">
-            <div class="rev-total-bar cero" id="rev-total-bar">
-                <span class="rev-total-lbl">💸 Pérdida total del período</span>
-                <span class="rev-total-val" id="rev-total-val">—</span>
-            </div>
-            <div class="modal-footer" style="border-top:none;">
-                <button class="btn btn-secondary" onclick="cerrarModal('modal-revision')">Cancelar</button>
-                <button class="btn btn-primary" id="rev-btn-confirmar"
-                        onclick="confirmarRevision()"
-                        style="background: var(--av, #f59e0b);border-color: var(--bd-a33, #f59e0b);">Guardar revisión</button>
+            <div class="rev-pie">
+                <div class="rev-total-bar cero" id="rev-total-bar">
+                    <span class="rev-total-lbl">💸 Pérdida total del período</span>
+                    <span class="rev-total-val" id="rev-total-val">—</span>
+                </div>
+                <div class="modal-footer" style="border-top:none;">
+                    <button class="btn btn-secondary" onclick="cerrarModal('modal-revision')">Cancelar</button>
+                    <button class="btn btn-primary" id="rev-btn-confirmar"
+                            onclick="confirmarRevision()"
+                            style="background: var(--av, #f59e0b);border-color: var(--bd-a33, #f59e0b);">Guardar revisión</button>
+                </div>
             </div>
         </div>
 
