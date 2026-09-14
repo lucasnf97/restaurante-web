@@ -20,6 +20,32 @@ const irASalarios = async (page) => {
 
 const resumen = (page) => page.evaluate(() => _data);
 
+/**
+ * Revela los sueldos. ⚠ Es sólo la cerradura de la PANTALLA: los números ya
+ * vinieron del servidor en `_data` (a un gerente se los manda igual). Con la
+ * pantalla bloqueada las filas se pintan con `•••••` y sin el campo del sueldo.
+ */
+const desbloquear = (page) => page.evaluate(() => { _unlocked = true; renderAll(); });
+
+/**
+ * Deja al primer empleado con una corrección del §23: 100 h registradas, −4 de
+ * corrección, cobra 96. Es la fila que el servidor habría mandado.
+ * ⚠ Se arma acá porque el período que está cargado casi nunca tiene una
+ *   corrección, y sin corrección la fórmula mala da el mismo número que la
+ *   buena: la prueba pasaría sin haber probado nada.
+ */
+const conCorreccion = (page) => page.evaluate(() => {
+  const u = _data.usuarios[0];
+  Object.assign(u, {
+    sueldo_hora: 15, horas_fichadas: 100, horas_correccion: -4, horas_netas: 96,
+    horas_declaradas: 10, cargos: 20, horas_asignadas: 90, ajuste_delta: 0,
+    salario_total: 15 * (96 + 10) - 20,          // 1570, como lo calcula el servidor
+  });
+  _data.total_salarios = _data.usuarios.reduce((s, x) => s + x.salario_total, 0);
+  renderAll();
+  return u.id;
+});
+
 test.describe("La fórmula del salario", () => {
   // La fórmula, tal como la escribe el servidor (salarios.py):
   //   pagadas = horas_netas + declaradas,  con horas_netas = fichadas + correcciones
@@ -80,14 +106,6 @@ test.describe("Guardar el sueldo", () => {
   //   nada, hacía saltar el salario en pantalla —y el que mira la cifra no
   //   tiene cómo saber que la buena era la anterior.
 
-  /**
-   * Revela los sueldos. ⚠ Es sólo la cerradura de la PANTALLA: los números ya
-   * vinieron del servidor en `_data` (a un gerente se los manda igual). Con la
-   * pantalla bloqueada las filas se pintan con `•••••` y sin el campo del
-   * sueldo, así que sin esto no hay nada que guardar.
-   */
-  const desbloquear = (page) => page.evaluate(() => { _unlocked = true; renderAll(); });
-
   /** Corre guardarSueldo con `api.patch` anulado: calcula, no persiste. */
   const guardarSinPersistir = (page, uid, sueldo) => page.evaluate(async ({ id, s }) => {
     const orig = api.patch;
@@ -128,23 +146,7 @@ test.describe("Guardar el sueldo", () => {
       await desbloquear(page);
       test.skip(!(await resumen(page)).usuarios.length, "el período no tiene empleados");
 
-      // ⚠ La fila se arma acá a propósito. La prueba de arriba sólo mira el
-      //   período que está cargado, y si ese período no tiene ninguna corrección
-      //   —lo normal— la fórmula mala da el mismo número que la buena y la
-      //   prueba pasa sin haber probado nada. Esta fila es la del empleado que
-      //   se olvidó de cerrar el turno: 100 h registradas, corrección de −4,
-      //   cobra 96. El servidor la habría mandado exactamente así.
-      const uid = await page.evaluate(() => {
-        const u = _data.usuarios[0];
-        Object.assign(u, {
-          sueldo_hora: 15, horas_fichadas: 100, horas_correccion: -4,
-          horas_netas: 96, horas_declaradas: 10, cargos: 20,
-          salario_total: 15 * (96 + 10) - 20,       // 1570, como lo calcula el servidor
-        });
-        _data.total_salarios = _data.usuarios.reduce((s, x) => s + x.salario_total, 0);
-        renderAll();
-        return u.id;
-      });
+      const uid = await conCorreccion(page);
 
       const r = await guardarSinPersistir(page, uid, 15);
       expect(r.salario, "se pagaron las 4 h que la corrección descuenta").toBeCloseTo(1570, 1);
@@ -163,6 +165,85 @@ test.describe("Guardar el sueldo", () => {
       const pagadas = u.horas_netas + (u.horas_declaradas || 0);
       expect(r.salario).toBeCloseTo(doble * pagadas - (u.cargos || 0), 1);
     });
+});
+
+test.describe("Ajuste de horas", () => {
+  // ⚠ `confirmarAjuste` sólo toca los datos en memoria: lo que se persiste se
+  //   manda después, con "Confirmar ajustes", y eso NO se llama acá. El resto de
+  //   la pantalla mira estos números, así que si quedan mal se decide con ellos.
+
+  /** Abre el modal de ajuste, escribe las horas y confirma. No sale a la red. */
+  const ajustar = (page, uid, horas) => page.evaluate(({ id, h }) => {
+    abrirAjusteHoras(id);
+    document.getElementById("aj-inp").value = String(h);
+    calcAjusteDesdeHoras();
+    const previa = document.getElementById("aj-sal-fin").textContent;
+    confirmarAjuste();
+    const u = _data.usuarios.find((x) => x.id === id);
+    return { previa, salario: u.salario_total, netas: u.horas_netas,
+             fichadas: u.horas_fichadas, dif: u.diferencia_horas };
+  }, { id: uid, h: horas });
+
+  test("sumar horas las paga sin volver a pagar lo que corrige la corrección",
+    async ({ page }) => {
+      await irASalarios(page);
+      await desbloquear(page);
+      test.skip(!(await resumen(page)).usuarios.length, "el período no tiene empleados");
+      const uid = await conCorreccion(page);   // 100 fichadas, −4 corrección, 96 netas
+
+      const r = await ajustar(page, uid, 5);
+
+      // Las fichadas suben a 105 y las netas TIENEN que seguirlas: 101. Si
+      // `horas_netas` queda en 96, el ajuste se pierde; si se ignora la
+      // corrección, se pagan 111 h en vez de 101.
+      expect(r.fichadas, "las fichadas no tomaron el ajuste").toBeCloseTo(105, 1);
+      expect(r.netas, "las netas quedaron con el valor viejo").toBeCloseTo(101, 1);
+      expect(r.salario, "salario = 15 × (101 + 10) − 20").toBeCloseTo(15 * 111 - 20, 1);
+
+      // Y la diferencia se mide contra lo TRABAJADO, igual que salarios.py.
+      expect(r.dif, "diferencia = netas − asignadas").toBeCloseTo(101 - 90, 1);
+    });
+
+  test("la vista previa anuncia el salario que después queda", async ({ page }) => {
+    await irASalarios(page);
+    await desbloquear(page);
+    test.skip(!(await resumen(page)).usuarios.length, "el período no tiene empleados");
+    const uid = await conCorreccion(page);
+
+    // ⚠ Que el "salario final" de la vista previa no sea el que termina
+    //   quedando es de lo peor que puede hacer esta pantalla: se aprueba un
+    //   ajuste mirando un número y se guarda otro.
+    const r = await ajustar(page, uid, 5);
+    const soloDigitos = (t) => parseFloat(String(t).replace(/[^\d.,-]/g, "").replace(",", "."));
+    expect(soloDigitos(r.previa)).toBeCloseTo(r.salario, 1);
+  });
+
+  test("editar un ajuste reemplaza el anterior, no lo acumula", async ({ page }) => {
+    await irASalarios(page);
+    await desbloquear(page);
+    test.skip(!(await resumen(page)).usuarios.length, "el período no tiene empleados");
+    const uid = await conCorreccion(page);
+
+    await ajustar(page, uid, 5);              // +5 h
+    const r = await page.evaluate(({ id }) => {
+      editarAjuste(id);                       // modo edición: el +5 ya está puesto
+      document.getElementById("aj-inp").value = "8";
+      calcAjusteDesdeHoras();
+      const previa = document.getElementById("aj-sal-fin").textContent;
+      confirmarAjuste();
+      const u = _data.usuarios.find((x) => x.id === id);
+      return { previa, salario: u.salario_total, netas: u.horas_netas };
+    }, { id: uid });
+
+    // 96 netas + 8 (no 96 + 5 + 8): editar cambia el ajuste, no agrega otro.
+    expect(r.netas, "el ajuste viejo se sumó en vez de reemplazarse").toBeCloseTo(104, 1);
+    expect(r.salario).toBeCloseTo(15 * (104 + 10) - 20, 1);
+
+    // Y la vista previa del modo edición también tiene que anunciar ese número:
+    // se armaba a mano y se comía las correcciones y los cargos.
+    const soloDigitos = (t) => parseFloat(String(t).replace(/[^\d.,-]/g, "").replace(",", "."));
+    expect(soloDigitos(r.previa), "la vista previa de edición miente").toBeCloseTo(r.salario, 1);
+  });
 });
 
 test.describe("El informe del mes y la nómina", () => {
