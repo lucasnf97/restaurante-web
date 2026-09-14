@@ -77,6 +77,21 @@ test.describe("La fórmula del salario", () => {
     }
   });
 
+  test("un empleado de baja sólo figura si cobró en el período", async ({ page }) => {
+    await irASalarios(page);
+    const d = await resumen(page);
+    const bajas = d.usuarios.filter((u) => u.activo === false);
+
+    // Hoy puede no haber ninguno; el día que lo haya, esto lo agarra. La regla
+    // (decisión del dueño, 2026-09-14): el que se dio de baja en mayo sale en
+    // mayo con su liquidación y en junio ya no.
+    for (const u of bajas) {
+      const movio = u.horas_netas !== 0 || (u.horas_declaradas || 0) !== 0 ||
+                    (u.cargos || 0) !== 0 || (u.ajuste_periodo || 0) !== 0;
+      expect(movio, `${u.username} está de baja y no cobró nada en el período`).toBe(true);
+    }
+  });
+
   test("el total del período es la suma de las filas", async ({ page }) => {
     await irASalarios(page);
     const d = await resumen(page);
@@ -286,8 +301,9 @@ test.describe("El informe del mes y la nómina", () => {
       }, { y: year, m: month });
 
       // El informe publica el BRUTO y los cargos por separado; la nómina los trae
-      // ya restados. Si esto falla y no fue un cambio de fórmula, mirar si hay
-      // empleados dados de BAJA con horas: el informe los cuenta y la nómina no.
+      // ya restados. Los empleados dados de BAJA entran en los dos desde
+      // 2026-09-14 (si cobraron en el período), así que ya no son excusa para
+      // que estos números difieran.
       expect(r.bruto - r.cargos, `costo laboral de ${mm}`).toBeCloseTo(r.nomina, 1);
       comparados.push(mm);
     }

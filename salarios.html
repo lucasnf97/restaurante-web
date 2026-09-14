@@ -156,6 +156,11 @@
         /* Notas en grilla */
         .nota-sal { font-size: 12px; color: var(--tx-3, #6b7280); font-style: italic; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .nota-sal[title] { cursor: help; }
+        /* Empleado dado de baja que igual cobra en el período */
+        .chip-baja { margin-left: 6px; padding: 1px 6px; border-radius: 9px; font-size: 10px;
+                     font-weight: 600; letter-spacing: .3px; cursor: help; vertical-align: middle;
+                     background: var(--av-sf, #fef3c7); color: var(--av-tx, #92400e);
+                     border: 1px solid var(--av, #f59e0b); }
         /* Lupa de fichajes */
         .btn-lupa { text-decoration: none; font-size: 13px; opacity: 0.5; padding: 0 3px; vertical-align: middle; transition: opacity .15s; }
         .btn-lupa:hover { opacity: 1; }
@@ -1097,10 +1102,15 @@ function buildRow(u) {
 
 function userCell(u, ini)    { return userCellHTML(u, ini); }
 function userCellHTML(u, ini) {
+    // Un empleado dado de baja sale igual mientras cobre en este período (su
+    // liquidación del último mes). Se marca, o su ficha parece un error.
+    const baja = (u.activo === false)
+        ? `<span class="chip-baja" title="Dado de baja. Aparece porque trabajó en este período.">Baja</span>`
+        : '';
     return `<div class="user-cell">
         <div class="avatar">${ini}</div>
         <div class="user-info">
-            <span class="user-name">${esc(u.nombre_display || u.username)}</span>
+            <span class="user-name">${esc(u.nombre_display || u.username)}${baja}</span>
             <span class="user-rol">${u.rol}</span>
         </div>
     </div>`;
