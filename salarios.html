@@ -1283,7 +1283,17 @@ async function guardarSueldo(uid) {
             const u = _data.usuarios.find(x => x.id === uid);
             if (u) {
                 u.sueldo_hora      = val;
-                u.salario_total    = +(val * (u.horas_fichadas + (u.horas_declaradas || 0)) - (u.cargos || 0)).toFixed(2);
+                // ⚠ Las horas que se PAGAN son las NETAS (fichadas + correcciones
+                //   del §23) más las declaradas por nómina — la misma cuenta que
+                //   hace salarios.py. Con `horas_fichadas` se le pagaban al
+                //   empleado las horas que la corrección justamente descuenta: el
+                //   que se olvidó de cerrar el turno y quedaron 12 h registradas
+                //   cobraba 12 en vez de 8, apenas alguien le tocaba el sueldo.
+                const pagadas = (u.horas_netas != null
+                                    ? u.horas_netas
+                                    : u.horas_fichadas + (u.horas_correccion || 0))
+                                + (u.horas_declaradas || 0);
+                u.salario_total    = +(val * pagadas - (u.cargos || 0)).toFixed(2);
                 u.diferencia_saldo = +(val * u.diferencia_horas).toFixed(2);
                 _data.total_salarios = +(_data.usuarios.reduce((s,x) => s + x.salario_total, 0)).toFixed(2);
                 renderAll();
