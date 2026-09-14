@@ -93,7 +93,47 @@ test.describe("Historial de cierres", () => {
     await page.fill("#filtro-cierre-id", "");
     await page.click("#filtro-cierre-id");
     await page.keyboard.type("99999999");
-    await expect(page.locator("#tabla-body")).toContainText(/no encontrado/i);
+    // 30 s: la API local paga un viaje a Railway por consulta y con la suite
+    // entera en marcha se pasa del margen por defecto. No es lentitud de la
+    // pantalla, es el banco de pruebas.
+    await expect(page.locator("#tabla-body"))
+      .toContainText(/no encontrado/i, { timeout: 30_000 });
+  });
+
+  test("gana la última búsqueda, no la que conteste última", async ({ page }) => {
+    await irACaja(page);
+    await esperarHistorial(page);
+
+    // ⚠ Con la búsqueda en vivo puede haber varias consultas en vuelo: quien
+    //   escribe "330" con pausas dispara una por el 3, otra por el 33 y otra por
+    //   el 330. Si la del 3 tarda más, llega después y pisa el resultado del
+    //   330: se vería un cierre que no es el pedido, con el campo diciendo otra
+    //   cosa. Acá se fuerza justo ese orden.
+    const resultado = await page.evaluate(async () => {
+      const orig = api.get;
+      api.get = async (ep) => {
+        if (/\/caja\/cierres\/1$/.test(ep)) {              // la vieja, LENTA
+          await new Promise((r) => setTimeout(r, 1200));
+          return { cierre: { id: 1, abierto_por: "VIEJA", ts_apertura: null,
+                             cerrado_por: "VIEJA", ts_cierre: null, total: 1 } };
+        }
+        if (/\/caja\/cierres\/2$/.test(ep)) {              // la nueva, rápida
+          return { cierre: { id: 2, abierto_por: "NUEVA", ts_apertura: null,
+                             cerrado_por: "NUEVA", ts_cierre: null, total: 2 } };
+        }
+        return orig(ep);
+      };
+      document.getElementById("filtro-cierre-id").value = "1";
+      const vieja = cargarCierres();                        // arranca y se cuelga
+      document.getElementById("filtro-cierre-id").value = "2";
+      await cargarCierres();                                // contesta enseguida
+      await vieja;                                          // llega tarde
+      api.get = orig;
+      return document.getElementById("tabla-body").innerText;
+    });
+
+    expect(resultado, "la respuesta vieja pisó a la nueva").toContain("NUEVA");
+    expect(resultado).not.toContain("VIEJA");
   });
 });
 

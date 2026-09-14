@@ -926,7 +926,17 @@ function cargarCierresDemorado() {
     _tCierreId = setTimeout(cargarCierres, 400);
 }
 
+// ⚠ GANA LA ÚLTIMA BÚSQUEDA, no la que conteste última. Con la búsqueda en vivo
+//   puede haber varias consultas en vuelo (quien escribe "330" con pausas larga
+//   una por el 3, otra por el 33 y otra por el 330), y si la del 3 tarda más
+//   llega después y pisa el resultado del 330: se ve un cierre que no es el que
+//   se pidió, con el campo diciendo otra cosa. Cada llamada toma un número y
+//   sólo pinta si sigue siendo la vigente.
+let _seqCierres = 0;
+
 async function cargarCierres() {
+    const _miSeq = ++_seqCierres;
+    const _vigente = () => _miSeq === _seqCierres;
     const desde     = document.getElementById("filtro-desde").value;
     const hasta     = document.getElementById("filtro-hasta").value;
     const cierreId  = document.getElementById("filtro-cierre-id").value.trim();
@@ -940,6 +950,7 @@ async function cargarCierres() {
         try {
             const tbody = document.getElementById("tabla-body");
             const data = await api.get(`/caja/cierres/${cierreId}`);
+            if (!_vigente()) return;
             if (!data || !data.cierre) {
                 tbody.innerHTML = `<tr><td colspan="7" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
                 return;
@@ -955,6 +966,7 @@ async function cargarCierres() {
                 <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
             </tr>`;
         } catch(e) {
+            if (!_vigente()) return;
             document.getElementById("tabla-body").innerHTML =
                 `<tr><td colspan="7" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
         }
@@ -962,6 +974,7 @@ async function cargarCierres() {
     }
     try {
         const cierres = await api.get(url);
+        if (!_vigente()) return;
         const tbody = document.getElementById("tabla-body");
         // Fila de la caja abierta actualmente (si la hay)
         let abiertaRow = "";
@@ -969,6 +982,12 @@ async function cargarCierres() {
             const ab = await api.get("/caja/abierta");
             if (ab && ab.abierta) abiertaRow = filaCajaAbierta(ab);
         } catch(e) {}
+        // ⚠ Segunda comprobación, y no sobra: entre la de arriba y esta línea hay
+        //   OTRO await (el de /caja/abierta), y en esa ventana una búsqueda más
+        //   nueva puede haber pintado ya su resultado. Comprobar sólo al volver
+        //   de la primera consulta deja que este render tardío lo tape: se veía
+        //   el listado completo con el campo diciendo otro número.
+        if (!_vigente()) return;
         if (!cierres.length && !abiertaRow) {
             tbody.innerHTML = `<tr><td colspan="7" class="empty">No hay cierres en el período seleccionado</td></tr>`;
             return;
