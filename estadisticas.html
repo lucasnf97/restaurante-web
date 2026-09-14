@@ -1667,6 +1667,12 @@ async function cargarDetalle(tipo) {
                          ⏳ Número ESTIMATIVO: hay fichajes del mes sin aprobar (revisalos en Fichajes).</div>` : '';
                 const emp = (sd && sd.usuarios ? sd.usuarios : []).filter(e =>
                     (e.salario_total||0) !== 0 || (e.horas_fichadas||0) > 0 || (e.horas_declaradas||0) > 0);
+                // ⚠ Las filas de arriba salen de la nómina del MES CALENDARIO; la tarjeta,
+                //   del informe, que además imputa a este mes los ajustes de un período que
+                //   cerró acá (decisión del dueño, 2026-09). Esas horas no están en ninguna
+                //   fila, así que sin esta línea el detalle no suma lo que dice la tarjeta.
+                const ajuPer = d0.salarios_ajuste_periodo || 0;
+                const ajuCar = d0.cargas_ajuste_periodo || 0;
                 const conCargas = emp.some(e => e.cargas_sociales != null);
                 if (!emp.length) {
                     body.innerHTML = aviso + `<div class="det-empty">Salarios del mes: <b>${fmt(totalSal)}</b>.<br>
@@ -1679,17 +1685,25 @@ async function cargarDetalle(tipo) {
                             <th class="num">Salario</th>${conCargas ? '<th class="num">Cargas soc.</th><th class="num">Costo total</th>' : ''}</tr></thead>
                         <tbody>
                             ${emp.map(e => `<tr>
-                                <td>${_escH(e.nombre_display || e.username)}</td>
-                                <td class="num">${((e.horas_fichadas||0) + (e.horas_declaradas||0)).toFixed(1)}</td>
+                                <td>${_escH(e.nombre_display || e.username)}${e.activo === false
+                                    ? ' <span style="font-size:10px;color: var(--av-tx, #92400e);background: var(--av-sf, #fef3c7);border-radius:8px;padding:1px 5px;" title="Dado de baja. Figura porque cobró en este mes.">Baja</span>'
+                                    : ''}</td>
+                                <td class="num">${(((e.horas_netas != null ? e.horas_netas : (e.horas_fichadas||0)) ) + (e.horas_declaradas||0)).toFixed(1)}</td>
                                 <td class="num">${fmt(e.sueldo_hora)}</td>
                                 <td class="num">${fmt(e.salario_total)}</td>
                                 ${conCargas ? `<td class="num">${fmt(e.cargas_sociales || 0)}${e.cargas_pct ? ` <span style=\"font-size:10px;color:#9ca3af;\">(${e.cargas_pct}%)</span>` : ''}</td>
                                 <td class="num">${fmt(e.salario_con_cargas != null ? e.salario_con_cargas : e.salario_total)}</td>` : ''}
                             </tr>`).join('')}
+                            ${ajuPer ? `<tr title="Horas de un período de nómina que CERRÓ en este mes. No están en los turnos del mes, por eso van en su propia línea.">
+                                <td colspan="2">↩️ Ajuste de nómina cerrada</td>
+                                <td class="num">—</td>
+                                <td class="num">${fmt(ajuPer)}</td>
+                                ${conCargas ? `<td class="num">${fmt(ajuCar)}</td>
+                                <td class="num">${fmt(ajuPer + ajuCar)}</td>` : ''}</tr>` : ''}
                             <tr class="det-total"><td colspan="3">TOTAL</td>
-                                <td class="num">${fmt(sd && sd.total_salarios != null ? sd.total_salarios : totalSal)}</td>
-                                ${conCargas ? `<td class="num">${fmt(sd && sd.total_cargas_sociales || 0)}</td>
-                                <td class="num">${fmt(sd && sd.total_con_cargas != null ? sd.total_con_cargas : totalSal)}</td>` : ''}</tr>
+                                <td class="num">${fmt((sd && sd.total_salarios != null ? sd.total_salarios : totalSal) + ajuPer)}</td>
+                                ${conCargas ? `<td class="num">${fmt((sd && sd.total_cargas_sociales || 0) + ajuCar)}</td>
+                                <td class="num">${fmt((sd && sd.total_con_cargas != null ? sd.total_con_cargas : totalSal) + ajuPer + ajuCar)}</td>` : ''}</tr>
                         </tbody>
                     </table>`;
                 break;
@@ -1744,27 +1758,18 @@ async function cargarDetalle(tipo) {
             }
 
             case 'insumos': {
+                // ⚠ `insumos-mes` dejó de devolver una línea por insumo: agrupa POR
+                //   FACTURA (proveedor / fecha / nº de líneas / monto). Esta rama se
+                //   quedó pidiendo r.insumo, r.cantidad y r.precio_unitario, así que
+                //   pintaba "undefined undefined" con subtotal 0 y un TOTAL que no
+                //   salía de ninguna fila. Hoy no la ve nadie —no hay tarjeta
+                //   'insumos', la materia prima entra por 'gastos'— pero era una
+                //   trampa para el que agregara la tarjeta. Es la misma versión que
+                //   ya tiene analisis-mes.html.
                 const data = await apiFetch(`/reportes/insumos-mes?year=${y}&month=${m}`);
                 if (!data.items.length) { body.innerHTML = '<div class="det-empty">Sin compras de stock registradas este mes.</div>'; break; }
-                body.innerHTML = `
-                    <table class="det-table">
-                        <thead><tr>
-                            <th>Insumo</th><th>Fecha</th>
-                            <th class="num">Cantidad</th><th class="num">Precio unit.</th><th class="num">Subtotal</th>
-                        </tr></thead>
-                        <tbody>
-                            ${data.items.map(r => `<tr>
-                                <td>${r.insumo}</td><td>${r.fecha}</td>
-                                <td class="num">${r.cantidad} ${r.unidad}</td>
-                                <td class="num">${fmt(r.precio_unitario)}</td>
-                                <td class="num">${fmt(r.subtotal)}</td>
-                            </tr>`).join('')}
-                            <tr class="det-total">
-                                <td colspan="4">TOTAL</td>
-                                <td class="num">${fmt(data.total)}</td>
-                            </tr>
-                        </tbody>
-                    </table>`;
+                body.innerHTML = _tablaFactProv(data.items,
+                    { nota: 'Agrupado por proveedor — solo la parte de insumos de cada factura.', total: data.total });
                 break;
             }
 

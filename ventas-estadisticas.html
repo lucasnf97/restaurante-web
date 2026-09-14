@@ -518,6 +518,20 @@ const RENT_CLASE_COLOR = { estrella:'#16a34a', caballo:'#ca8a04', puzzle:'#4f46e
 const RENT_CLASE_LBL   = { estrella:'⭐ Estrella', caballo:'🐴 Caballo', puzzle:'🧩 Puzzle', perro:'🐶 Perro' };
 const RENT_CLASE_BADGE = { estrella:'#dcfce7;color:#15803d', caballo:'#fef9c3;color:#a16207', puzzle:'#e0e7ff;color:#4338ca', perro:'#fee2e2;color:#b91c1c' };
 let _rentCharts = {};
+let _rentSeq = 0;   // token de generación: sólo la carga más nueva pinta
+
+/**
+ * Deja libre un canvas antes de montarle un gráfico nuevo.
+ * ⚠ Va por `Chart.getChart(canvas)` y no por la variable donde lo guardamos: con
+ *   dos cargas superpuestas, la segunda destruye ANTES de que la primera haya
+ *   creado el suyo, así que la variable está vacía y el canvas ocupado. Eso
+ *   reventaba con "Canvas is already in use" al cambiar el rango de fechas
+ *   mientras la carga anterior seguía en vuelo.
+ */
+function _rentLiberarCanvas(canvas) {
+    try { if (canvas && window.Chart && Chart.getChart) Chart.getChart(canvas)?.destroy(); }
+    catch(e) { /* si no se puede, el Chart nuevo dirá por qué */ }
+}
 
 // ── Ingeniería de menú: scatter con filtro por categoría ─────────
 function _rentCategoriasDe(prods) {
@@ -537,7 +551,7 @@ function renderRentMenu() {
     const canvas = document.getElementById('rent-menu-canvas');
     if (!canvas) return;
     const cat = document.getElementById('rent-menu-cat')?.value || '';
-    try { _rentCharts.menu?.destroy(); } catch(e){}
+    _rentLiberarCanvas(canvas);
     // Se incluyen SIEMPRE todos los productos para que la escala de los ejes NO cambie al
     // filtrar; los que no son de la categoría elegida se "apagan" (radio 0, sin hover ni hit).
     const grupos = { estrella:[], caballo:[], puzzle:[], perro:[] };
@@ -747,14 +761,19 @@ async function cargarRentProductos() {
     const desde = document.getElementById('rent-desde')?.value || getDesdeDefault();
     const hasta = document.getElementById('rent-hasta')?.value || getHastaDefault();
     const inc   = document.getElementById('rent-incluir-combos')?.checked ? 'true' : 'false';
-    try { _rentCharts.menu?.destroy();  } catch(e){}
-    try { _rentCharts.margen?.destroy(); } catch(e){}
+    // ⚠ Quien cambia el rango y enseguida lo vuelve a cambiar deja dos consultas
+    //   en vuelo. Sin esto, la que conteste última pinta —aunque sea la vieja— y
+    //   se lee la rentabilidad de un período con las fechas de otro.
+    const _miSeq = ++_rentSeq;
+    const _vigente = () => _miSeq === _rentSeq;
     let d;
     try { d = await api.get(`/ventas/rentabilidad?desde=${desde}&hasta=${hasta}&incluir_combos=${inc}`); }
     catch(e) {
+        if (!_vigente()) return;
         document.getElementById('rent-detalle').innerHTML = `<tr><td colspan="8" style="text-align:center;color: var(--pel-tx-2, #dc2626);padding:16px;">Error: ${esc(e.message)}</td></tr>`;
         return;
     }
+    if (!_vigente()) return;
     const r = d.resumen, prods = d.productos;
     document.getElementById('rent-kpis').innerHTML =
         rentKpi('Ingresos (neto)', `${simboloMoneda()} ${fmt(r.ingresos_neto)}<div style="font-size:11px;color: var(--tx-4, #9ca3af);font-weight:400;margin-top:1px;">${simboloMoneda()} ${fmt(r.ingresos_inc)} con imp.</div>`) +
@@ -768,7 +787,9 @@ async function cargarRentProductos() {
     renderRentMenu();
 
     const pm = prods.filter(p=>p.tiene_receta).slice().sort((a,b)=>b.margen_total-a.margen_total).slice(0,12);
-    _rentCharts.margen = new Chart(document.getElementById('rent-margen-canvas'), {
+    const _cvMargen = document.getElementById('rent-margen-canvas');
+    _rentLiberarCanvas(_cvMargen);
+    _rentCharts.margen = new Chart(_cvMargen, {
         type:'bar',
         data:{ labels:pm.map(p=>p.nombre), datasets:[{ data:pm.map(p=>p.margen_total), backgroundColor:pm.map(p=>p.margen_total<0?'#dc2626':'#16a34a') }] },
         options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
