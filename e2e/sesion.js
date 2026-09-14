@@ -37,7 +37,24 @@ function firmar(claims, secreto) {
 const ESQUEMA = process.env.E2E_SCHEMA || "r_0000";
 const USUARIO = process.env.E2E_USER || "Lucas";
 
-function token() {
+/**
+ * Claims por tipo de cuenta. ⚠ NO alcanza con cambiar el `rol` en localStorage:
+ * la API mira los CLAIMS DEL TOKEN, así que un token de gerente contra
+ * /restaurantes o /gerentes se lleva un 403 -bien devuelto- y parece un bug de
+ * la página cuando es de la prueba.
+ *   · gerente         → schema del inquilino;
+ *   · superadmin      → sin schema (no vive en ningún inquilino);
+ *   · gerente_cadena  → `gid`, el id en public.gerentes.
+ * Los ids se pueden cambiar por entorno: E2E_GID.
+ */
+const CLAIMS = {
+  gerente:        { sub: USUARIO, rol: "gerente", schema: ESQUEMA },
+  superadmin:     { sub: process.env.E2E_SUPERADMIN || "admin", rol: "superadmin" },
+  gerente_cadena: { sub: USUARIO, rol: "gerente_cadena",
+                    gid: Number(process.env.E2E_GID || 3) },
+};
+
+function token(rol = "gerente") {
   if (process.env.E2E_TOKEN) return process.env.E2E_TOKEN;
   const secreto = leerEnv("SECRET_KEY");
   if (!secreto) {
@@ -46,7 +63,9 @@ function token() {
       "  Poné E2E_TOKEN en el entorno, o dejá que se lea SECRET_KEY de\n" +
       `  ${path.join(RAIZ_API, ".env")}`);
   }
-  return firmar({ sub: USUARIO, rol: "gerente", schema: ESQUEMA }, secreto);
+  const claims = CLAIMS[rol];
+  if (!claims) throw new Error(`Rol desconocido en las pruebas: ${rol}`);
+  return firmar(claims, secreto);
 }
 
 const USUARIO_LS = {
@@ -63,15 +82,17 @@ const USUARIO_LS = {
  */
 const test = base.test.extend({
   tema: ["oscuro", { option: true }],
+  rol: ["gerente", { option: true }],
 
-  page: async ({ page, tema }, usar) => {
-    const tok = token();
+  page: async ({ page, tema, rol }, usar) => {
+    const tok = token(rol);
+    const usuario = { ...USUARIO_LS, rol };
     await page.addInitScript(({ t, u, tm }) => {
       localStorage.setItem("token", t);
       localStorage.setItem("user", JSON.stringify(u));
       localStorage.setItem(`tema::${u.username}`, tm);
       localStorage.setItem("tema_ultimo", tm);
-    }, { t: tok, u: USUARIO_LS, tm: tema });
+    }, { t: tok, u: usuario, tm: tema });
 
     const errores = [];
     page.on("pageerror", (e) => errores.push(String(e)));
@@ -86,4 +107,4 @@ const test = base.test.extend({
   },
 });
 
-module.exports = { test, expect: base.expect, ESQUEMA, USUARIO };
+module.exports = { test, expect: base.expect, token, ESQUEMA, USUARIO };
