@@ -165,6 +165,58 @@ test.describe("Guardar el sueldo", () => {
     });
 });
 
+test.describe("El informe del mes y la nómina", () => {
+  // ⚠ Son DOS consultas SQL distintas que calculan lo mismo, y nada las obliga a
+  //   coincidir. Ya se habían separado: el informe no miraba ni las correcciones
+  //   (§23) ni los ajustes guardados al confirmar un período, así que en un local
+  //   real el costo laboral de julio salía 3.289 cuando la nómina pagó 24.529.
+
+  test("el costo laboral del mes es el mismo por los dos caminos", async ({ page }) => {
+    await irASalarios(page);
+
+    // ⚠ La comparación sólo vale en meses donde NO cierra un período desalineado.
+    //   Un período que va del 30/4 al 30/5 se paga en mayo —así lo imputa el
+    //   informe desde la decisión del dueño (2026-09)— pero una consulta de
+    //   nómina por el mes calendario de mayo no lo ve, porque sus ajustes están
+    //   guardados contra ESE rango y no contra 1/5–31/5. Los dos números son
+    //   correctos y distintos; exigir que sean iguales sería pedir un imposible.
+    //   Ojo: no alcanza con mirar `dia_inicio_periodo`, porque los períodos ya
+    //   confirmados se guardaron con el corte que hubiera entonces.
+    const periodos = await page.evaluate(() =>
+      (_confirmados || []).map((p) => ({ i: p.periodo_inicio, f: p.periodo_fin })));
+
+    const hoy = new Date();
+    const comparados = [];
+    for (let atras = 1; atras <= 12; atras++) {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth() - atras, 1);
+      const [year, month] = [d.getFullYear(), d.getMonth() + 1];
+      const mm = `${year}-${String(month).padStart(2, "0")}`;
+      const ultimo = new Date(year, month, 0).getDate();
+      const desalineado = periodos.some((p) => p.f.startsWith(mm) &&
+        !(p.i === `${mm}-01` && p.f === `${mm}-${ultimo}`));
+      if (desalineado) continue;
+
+      const r = await page.evaluate(async ({ y, m }) => {
+        const [nom, inf] = await Promise.all([
+          api.get(`/salarios/resumen?year=${y}&month=${m}`),
+          api.get(`/reportes/facturacion-mes?year=${y}&month=${m}`),
+        ]);
+        return { nomina: nom.total_salarios, bruto: inf.salarios, cargos: inf.salarios_cargos };
+      }, { y: year, m: month });
+
+      // El informe publica el BRUTO y los cargos por separado; la nómina los trae
+      // ya restados. Si esto falla y no fue un cambio de fórmula, mirar si hay
+      // empleados dados de BAJA con horas: el informe los cuenta y la nómina no.
+      expect(r.bruto - r.cargos, `costo laboral de ${mm}`).toBeCloseTo(r.nomina, 1);
+      comparados.push(mm);
+    }
+
+    // Sin esto la prueba podría pasar sin haber comparado un solo mes.
+    test.skip(!comparados.length,
+      "los 12 meses anteriores cierran períodos desalineados: nada que comparar");
+  });
+});
+
 test.describe("Los períodos", () => {
   test("se encadenan sin huecos ni solapes, con cualquier día de corte",
     async ({ page }) => {
