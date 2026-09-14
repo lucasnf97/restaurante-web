@@ -149,7 +149,8 @@
         <label>Hasta:</label>
         <input type="date" id="filtro-hasta" onchange="cargarCierres()">
         <label>ID Caja:</label>
-        <input type="number" id="filtro-cierre-id" placeholder="—" style="width:90px;" onchange="cargarCierres()">
+        <input type="number" id="filtro-cierre-id" placeholder="—" style="width:90px;"
+               oninput="cargarCierresDemorado()" onchange="cargarCierres()">
         <label>ID Pedido:</label>
         <input type="number" id="filtro-pedido-id" placeholder="—" style="width:90px;">
         <button class="btn btn-secondary" onclick="buscarPorPedidoId()">Buscar</button>
@@ -910,6 +911,19 @@ async function cargarResumen() {
         document.getElementById("stat-pedidos").textContent = r.pedidos_cobrados;
         document.getElementById("stat-total").textContent = `${simboloMoneda()} ${r.total_hoy.toFixed(2)}`;
     } catch(e) {}
+}
+
+// ⚠ El campo sólo tenía `onchange`, que en un input NO salta hasta que se sale
+//   del campo. Quien escribía el número y se quedaba mirando la pantalla no veía
+//   pasar nada y seguía con los cierres de la búsqueda ANTERIOR a la vista, que
+//   se leen como si fueran la respuesta. Ahora busca mientras se escribe, como
+//   el resto de los buscadores del programa.
+//   Con demora, porque si no cada tecla dispara una consulta: escribir "330"
+//   pediría el cierre 3, el 33 y el 330.
+let _tCierreId = null;
+function cargarCierresDemorado() {
+    clearTimeout(_tCierreId);
+    _tCierreId = setTimeout(cargarCierres, 400);
 }
 
 async function cargarCierres() {
