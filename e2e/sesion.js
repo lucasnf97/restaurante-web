@@ -100,6 +100,18 @@ function token(rol = "gerente", esquema = ESQUEMA) {
  *   `admin` con `admin_override`, `empleado_cadena` y `gerente_cadena`, que son
  *   cuentas sintéticas sin fila propia.
  */
+/**
+ * Token de GERENTE DE CADENA para un `gid` y su usuario.
+ * ⚠ El backend exige que los DOS coincidan (`SELECT ... WHERE id = :g AND
+ *   username = :u`): cambiarle el `gid` a un token ajeno no sirve para saltar de
+ *   cadena. Por eso hay que pasar el usuario que de verdad corresponde a ese gid.
+ */
+function tokenCadena(gid, username) {
+  const secreto = leerEnv("SECRET_KEY");
+  if (!secreto) throw new Error("No hay SECRET_KEY para firmar la sesión de prueba.");
+  return firmar({ sub: username, rol: "gerente_cadena", gid: Number(gid) }, secreto);
+}
+
 function tokenDe(sub, esquema = ESQUEMA) {
   const secreto = leerEnv("SECRET_KEY");
   if (!secreto) throw new Error("No hay SECRET_KEY para firmar la sesión de prueba.");
@@ -147,4 +159,5 @@ const test = base.test.extend({
   },
 });
 
-module.exports = { test, expect: base.expect, token, tokenDe, ESQUEMA, ARENERO, USUARIO };
+module.exports = { test, expect: base.expect, token, tokenDe, tokenCadena,
+                   ESQUEMA, ARENERO, USUARIO };
