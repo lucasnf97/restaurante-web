@@ -179,6 +179,70 @@ test.describe("Clientes importados", () => {
   });
 });
 
+test.describe("La numeración de clientes no se desincroniza", () => {
+  test("crear clientes por un camino no rompe el otro", async ({ page }) => {
+    await ir(page, "importar-ventas.html");
+    // ⚠ Había DOS formas de crear un cliente y no se llevaban bien: reservas le
+    //   pone el id A MANO -rellena el hueco más bajo para que los números queden
+    //   compactos- y eso NO mueve el contador; la importación confía en el
+    //   contador. Cada alta que se pasaba del último id dejaba al contador un paso
+    //   más atrás, y la importación pedía un id que YA EXISTÍA: 500.
+    //   Medido el 2026-09-15, antes de arreglarlo: el contador iba 9 ids atrás en
+    //   0000A y 2 en 1100A (Breto). Ojo al leerlo: cada 500 consume un nextval, o
+    //   sea que el contador se acerca solo y la cuenta baja entre una lectura y otra.
+    const listar = async () => {
+      const r = await api(page, "GET", "/clientes/");
+      expect(r.ok, `no se pudo listar clientes: ${r.status}`).toBe(true);
+      const filas = Array.isArray(r.data) ? r.data : (r.data.clientes || []);
+      return filas.map((c) => Number(c.id)).filter(Number.isFinite);
+    };
+
+    const maxInicial = Math.max(0, ...(await listar()));
+    const base = Date.now();
+
+    // ⚠ Crear "unos cuantos" NO alcanza: si hay huecos libres por debajo del
+    //   máximo, el alta los rellena, el máximo no se mueve y no se ejercita el caso
+    //   que rompía -la prueba pasaría sin pasar por ahí-. Así que se crea hasta
+    //   PASARSE del máximo, y se comprueba que se llegó: si no, falla por inconclusa
+    //   en vez de dar un verde falso.
+    // ⚠ HASTA DÓNDE LLEGA ESTA PRUEBA, dicho sin vueltas: ahora los dos caminos
+    //   usan el MISMO asignador (el hueco más bajo), así que desde afuera ya no se
+    //   puede provocar el choque -ni siquiera revirtiendo uno solo de los dos
+    //   arreglos-. Lo que sí atrapa es que los dos caminos vuelvan a divergir a la
+    //   vez. La comprobación determinista del contador no es de caja negra y vive
+    //   aparte: `restaurante-api/verificar_secuencias.py`, que la mira en TODOS los
+    //   inquilinos y en la plantilla.
+    let superado = false;
+    for (let i = 0; i < 10 && !superado; i++) {
+      const r = await api(page, "POST", "/clientes/", {
+        nombre: marca(`por-reserva-${i}`),
+        telefono: "+45 " + String(base + i * 13).slice(-9),
+      });
+      expect(r.ok, `el alta por reserva ${i} falló: ${r.status}`).toBe(true);
+      if (Number(r.data.id) > maxInicial) superado = true;
+    }
+    expect(superado,
+      "no se logró pasar del último id: la prueba no estaría probando nada").toBe(true);
+
+    let id = null;
+    try {
+      // Y ahora el camino que confiaba en el contador. Si se hubiera quedado
+      // atrás, esto es un 500.
+      id = await importar(page, {
+        tipo: "clientes",
+        clientes: [{ nombre: marca("por-importacion"),
+                     telefono: "+45 " + String(base + 99).slice(-9) }],
+      });
+      expect(id, "importar clientes falló tras crear otros por reserva").toBeTruthy();
+    } finally {
+      const rev = await revertir(page, id);
+      expect(rev.ok, `la reversión falló: ${rev.status}`).toBe(true);
+    }
+    // Los creados por el primer camino no tienen endpoint de borrado: los levanta
+    // el barrido de la marca de agua, como el resto de lo que no se puede borrar.
+  });
+});
+
 test.describe("Qué se puede importar y quién", () => {
   test("el catálogo de destinos viene con sus permisos", async ({ page }) => {
     await ir(page, "importar-ventas.html");
