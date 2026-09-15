@@ -151,6 +151,12 @@ test.describe("Clientes importados", () => {
   test("se dan de alta de verdad y la reversión los quita", async ({ page }) => {
     await ir(page, "importar-ventas.html");
     const nombre = marca("cliente");
+    // ⚠ Teléfono Único por corrida. Los clientes se DEDUPLICAN POR CONTACTO: con
+    //   un teléfono ya usado por otra prueba, el alta FUSIONA con el existente en
+    //   vez de crear uno nuevo, y la prueba falla buscando un nombre que nunca se
+    //   escribió. Es comportamiento correcto del producto —dos fichas de la misma
+    //   persona parten su historial— y hay que respetarlo al probar.
+    const telefono = "+45 " + String(Date.now()).slice(-9);
     const cuantos = async () => {
       const r = await api(page, "GET", "/clientes");
       expect(r.ok, `no se pudo listar clientes: ${r.status}`).toBe(true);
@@ -162,7 +168,7 @@ test.describe("Clientes importados", () => {
     try {
       id = await importar(page, {
         tipo: "clientes",
-        clientes: [{ nombre, telefono: "+45 11 22 33 44", notas: "alta por prueba" }],
+        clientes: [{ nombre, telefono, notas: "alta por prueba" }],
       });
       expect(await cuantos(), "el cliente importado no se dio de alta").toBe(1);
     } finally {

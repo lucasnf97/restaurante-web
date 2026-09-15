@@ -45,7 +45,11 @@ const enDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return
  *   alta devuelve un `cancelar_url` con el token adentro, no un `token` suelto.
  */
 const solicitud = (extra = {}) => ({
-  nombre: marca("cliente"), telefono: "+45 11 22 33 44",
+  // ⚠ El teléfono es FIJO a propósito: los clientes se deduplican por contacto,
+  //   asi que todas las reservas de prueba caen en UN solo cliente en vez de
+  //   dejar uno por corrida. Tiene que ser distinto del que usan las otras
+  //   pruebas, o se pisan entre ellas.
+  nombre: marca("cliente"), telefono: "+45 90 00 00 01",
   fecha: enDias(3), hora_inicio: "20:00", comensales: 2, website: "", ...extra,
 });
 
@@ -149,6 +153,10 @@ test.describe("Reservar desde la calle", () => {
 });
 
 test.describe("Los topes online", () => {
+  // ⚠ @lento: son 4 reservas mas, y el presupuesto del freno es 8 por minuto.
+  //   Junto con las de arriba se pasa y hay que esperar la ventana. Las pruebas
+  //   BASICAS de esta pagina (validaciones, honeypot, fecha pasada) suman 5
+  //   reservas y si entran en el presupuesto: esas quedan en la corrida diaria.
   test.setTimeout(240_000);
 
   // ⚠ Se fijan y se restauran. Ver la nota de arriba.
@@ -164,7 +172,7 @@ test.describe("Los topes online", () => {
       .toBe(true);
   };
 
-  test("respeta el tope de personas, el horizonte y la anticipación",
+  test("respeta el tope de personas, el horizonte y la anticipación @lento",
     async ({ page }) => {
       await ir(page, "dashboard.html");
       const antes = await leerTopes(page);
@@ -221,9 +229,14 @@ test.describe("Los topes online", () => {
 });
 
 test.describe("El freno de costo", () => {
+  // ⚠ Marcada @lento: espera la ventana de 60 s dos veces. `npm test` la saltea
+  //   para que la corrida de todos los dias siga siendo de minutos y no de
+  //   cuartos de hora; entra en `npm run test:todo` y en `npm run test:lento`.
+  //   Una suite que tarda 11 minutos se deja de correr, y una prueba que no se
+  //   corre no protege nada.
   test.setTimeout(240_000);
 
-  test("a las 8 reservas por minuto corta", async ({ page }) => {
+  test("a las 8 reservas por minuto corta @lento", async ({ page }) => {
     await ir(page, "dashboard.html");
     // ⚠ No es anti-bot genérico: CADA reserva dispara un correo por Brevo, asi
     //   que sin tope alguien usa el formulario del local como relay de spam y le
