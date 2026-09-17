@@ -13,12 +13,25 @@
 //   pedido es el default — acá NO lo es, así que siempre firma uno propio).
 //
 // ⚠ 0000B no se puede regenerar: se captura el proveedor/config ANTES de tocar
-//   nada y se restaura EXACTO en el `finally`, y el link que esta prueba crea
-//   se revoca al terminar (y se confirma por la propia página, no por la API).
+//   nada, y:
+//   · Si el baseline tuviera un campo password con un secreto guardado, la
+//     prueba se SALTA (no corre): `PUT /datafono/config` conserva un password
+//     sólo si viaja el sentinela `__GUARDADO__`, y el sentinela se resuelve
+//     contra el config ACTUAL en ese momento (el de "simulado"), no contra el
+//     original — restaurar "exacto" sería, en ese caso, un acto de fe. Hoy el
+//     baseline de 0000B es `manual` (sin campos), así que esto no dispara.
+//   · La limpieza (revocar el token + restaurar la config) corre ENTERA y
+//     ANTES de afirmar nada: cada paso en su propio try/catch, para que un
+//     fallo en uno no le impida correr al otro ni deje el link de 48h vivo.
 const { test, expect, api, ir } = require("./_arenero");
 const { token } = require("../sesion");
 
 const CODIGO = "0000B";
+
+/** Comparación estable de dos configs (JSON con las claves ordenadas). */
+const canon = (o) => JSON.stringify(
+  Object.keys(o || {}).sort().reduce((acc, k) => { acc[k] = o[k]; return acc; }, {})
+);
 
 test.describe("TPV externo — página standalone del link de config", () => {
   test.setTimeout(120_000);
@@ -31,6 +44,19 @@ test.describe("TPV externo — página standalone del link de config", () => {
       const antes = await api(page, "GET", "/datafono/config");
       expect(antes.ok, `no se pudo leer la config actual de 0000B: ${antes.status}`).toBe(true);
 
+      // ⚠ Si el proveedor base tiene un secreto guardado, restaurar "exacto"
+      //   por PUT no es seguro (ver nota de arriba): mejor no correr que
+      //   arriesgarse a pisarlo con el enmascarado.
+      const catalogo = await api(page, "GET", "/datafono/proveedores");
+      expect(catalogo.ok, `no se pudo leer el catálogo de proveedores: ${catalogo.status}`).toBe(true);
+      const driverBase = (catalogo.data || []).find((d) => d.key === antes.data.proveedor);
+      const camposPassword = ((driverBase && driverBase.campos) || []).filter((c) => c.tipo === "password");
+      const baselineConSecreto = camposPassword.some((c) => !!(antes.data.config || {})[c.key]);
+      test.skip(baselineConSecreto,
+        `el proveedor base de 0000B ('${antes.data.proveedor}') tiene un secreto guardado ` +
+        `(${camposPassword.map((c) => c.key).join(", ")}); no se corre para no arriesgar pisarlo ` +
+        "con el enmascarado de PUT /datafono/config — ver task-12-fix-findings.md");
+
       // Segundo argumento != al esquema default: nunca toma el atajo de E2E_TOKEN.
       const saTok = token("superadmin", "__superadmin_sin_esquema__");
 
@@ -42,13 +68,17 @@ test.describe("TPV externo — página standalone del link de config", () => {
       const nombreEsperado = rest.nombre;
 
       const crea = await api(page, "POST", `/restaurantes/${rid}/tpv-token`, undefined, saTok);
-      expect(crea.ok, `no se pudo crear el link de config TPV: ${crea.status} ${JSON.stringify(crea.data)}`)
-        .toBe(true);
-      const url = crea.data.url;
-      const expiraEn = crea.data.expira_en;
-      expect(url, "el alta no devolvió una url con el token").toContain("?t=");
+      // ⚠ El try empieza YA, justo tras crear el token: si el propio create
+      //   reportó algo raro pero el token quedó insertado del lado del server,
+      //   la limpieza de abajo tiene que correr igual.
+      const url = crea.data && crea.data.url;
+      const expiraEn = crea.data && crea.data.expira_en;
 
       try {
+        expect(crea.ok, `no se pudo crear el link de config TPV: ${crea.status} ${JSON.stringify(crea.data)}`)
+          .toBe(true);
+        expect(url, "el alta no devolvió una url con el token").toContain("?t=");
+
         // ── La página standalone renderiza: nombre, selector, vencimiento ──
         await page.goto(url);
         await expect(page.locator("#card-invalido")).toBeHidden();
@@ -87,23 +117,46 @@ test.describe("TPV externo — página standalone del link de config", () => {
         await expect(page.locator("#card-invalido")).toBeVisible();
         await expect(page.locator("#card-form-wrap")).toBeHidden();
       } finally {
-        // Restaurar EXACTO el proveedor/config de 0000B.
-        await ir(page, "dashboard.html");
-        const restaurar = await api(page, "PUT", "/datafono/config",
-          { proveedor: antes.data.proveedor, config: antes.data.config });
-        expect(restaurar.ok, `no se pudo restaurar la config original: ${restaurar.status}`)
-          .toBe(true);
-        const post = await api(page, "GET", "/datafono/config");
-        expect(post.data && post.data.proveedor, "el proveedor no volvió a como estaba")
-          .toBe(antes.data.proveedor);
+        // ── Limpieza SIEMPRE completa, pase lo que pase arriba. Primero se
+        //    revoca el token y se restaura la config —cada paso en su propio
+        //    try/catch, para que uno no le impida correr al otro—, y RECIÉN
+        //    DESPUÉS se afirma que salió bien. Así, una aserción de restore
+        //    que lance a mitad de camino no deja el link de 48h sin revocar.
+        let revocado = !expiraEn;   // sin token creado, no hay nada que revocar
+        try {
+          if (expiraEn) {
+            await ir(page, "dashboard.html");
+            const lista = await api(page, "GET", `/restaurantes/${rid}/tpv-tokens`, undefined, saTok);
+            const fila = (lista.data || []).find((t) => t.expira_en === expiraEn && !t.revocado);
+            if (fila) {
+              const rev = await api(page, "DELETE", `/restaurantes/tpv-token/${fila.id}`, undefined, saTok);
+              revocado = !!rev.ok;
+            }
+          }
+        } catch (e) { /* se afirma abajo — no debe impedir el restore de la config */ }
 
-        // Revocar el link que esta prueba creó, y confirmarlo por la MISMA
-        // página (no por la API): es lo que de verdad le pasaría al integrador.
-        const lista = await api(page, "GET", `/restaurantes/${rid}/tpv-tokens`, undefined, saTok);
-        const fila = (lista.data || []).find((t) => t.expira_en === expiraEn && !t.revocado);
-        if (fila) {
-          const rev = await api(page, "DELETE", `/restaurantes/tpv-token/${fila.id}`, undefined, saTok);
-          expect(rev.ok, `no se pudo revocar el link: ${rev.status}`).toBe(true);
+        let restaurado = false;
+        let postRestore = null;
+        try {
+          await ir(page, "dashboard.html");
+          const put = await api(page, "PUT", "/datafono/config",
+            { proveedor: antes.data.proveedor, config: antes.data.config });
+          restaurado = !!put.ok;
+          postRestore = await api(page, "GET", "/datafono/config");
+        } catch (e) { /* se afirma abajo */ }
+
+        // Recién ahora, con la limpieza YA hecha entera, afirmar que salió bien.
+        expect(revocado, "no se pudo revocar el link creado (queda un link de 48h vivo)").toBe(true);
+        expect(restaurado, "no se pudo restaurar la config original de 0000B").toBe(true);
+        expect(postRestore && postRestore.ok, "no se pudo releer la config tras restaurar").toBe(true);
+        expect((postRestore && postRestore.data && postRestore.data.proveedor) || null,
+          "el proveedor no volvió a como estaba").toBe(antes.data.proveedor);
+        expect(canon(postRestore && postRestore.data && postRestore.data.config),
+          "el config no volvió a como estaba").toBe(canon(antes.data.config));
+
+        // Confirmación visual por la propia página (la limpieza de arriba ya
+        // corrió y ya se afirmó: esto es una comprobación extra, no cleanup).
+        if (url) {
           await page.goto(url);
           await expect(page.locator("#card-invalido")).toBeVisible();
         }
