@@ -1061,6 +1061,16 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
                 </div>
             </div>
             <div id="df-campos" style="margin-top:14px;max-width:420px;"></div>
+            <div class="cfg-field" id="df-compartido-wrap" style="margin-top:16px;max-width:520px;">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13.5px;color: var(--tx-2, #374151);">
+                    <input type="checkbox" id="df-compartido" style="width:18px;height:18px;flex-shrink:0;">
+                    <span><strong>Un solo datáfono para todo el local</strong> (compartido entre terminales)</span>
+                </label>
+                <div style="font-size:12px;color: var(--tx-4, #9ca3af);margin-top:5px;line-height:1.5;">
+                    Marcado: un único aparato para el restaurante — mientras un terminal cobra, los demás
+                    esperan su turno. Sin marcar (default): un datáfono por terminal — cada caja cobra en paralelo.
+                </div>
+            </div>
             <div style="display:flex;gap:10px;align-items:center;margin-top:16px;">
                 <button class="btn-primary" onclick="guardarDatafono()">Guardar</button>
                 <button class="btn-gear" id="df-probar" onclick="probarDatafono()" style="display:none;">🧪 Probar cobro de prueba</button>
@@ -1610,6 +1620,10 @@ async function cargarDatafono() {
         sel.innerHTML = _dfProveedores.map(p =>
             `<option value="${p.key}">${p.nombre}</option>`).join('');
         sel.value = (cfg && cfg.proveedor) || 'manual';
+        // Topología de hardware (decisión del gerente, no del integrador): un datáfono por
+        // terminal (default) vs uno compartido para todo el local. Viene de sistema_config.
+        const comp = document.getElementById('df-compartido');
+        if (comp) comp.checked = !!(cfg && cfg.compartido);
         _dfRenderCampos();
     } catch (e) {
         document.getElementById('df-estado').textContent = 'No se pudo cargar (¿API vieja?)';
@@ -1653,8 +1667,11 @@ async function guardarDatafono() {
         const el = document.getElementById(`df-c-${c.key}`);
         if (el) config[c.key] = el.value;
     });
+    // `compartido` va SEPARADO del driver (proveedor/config): el backend lo guarda en
+    // sistema_config y NO lo mezcla con guardar_config (que comparte el path del token).
+    const compartido = !!document.getElementById('df-compartido')?.checked;
     try {
-        await apiFetch('/datafono/config', { method: 'PUT', body: JSON.stringify({ proveedor: key, config }) });
+        await apiFetch('/datafono/config', { method: 'PUT', body: JSON.stringify({ proveedor: key, config, compartido }) });
         _dfConfig = config;
         document.getElementById('df-estado').textContent = '✓ Guardado';
         setTimeout(() => { document.getElementById('df-estado').textContent = ''; }, 2500);
