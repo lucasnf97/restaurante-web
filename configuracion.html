@@ -1635,6 +1635,10 @@ function _dfRenderCampos() {
     const p = _dfProveedores.find(x => x.key === key);
     const cont = document.getElementById('df-campos');
     document.getElementById('df-probar').style.display = (p && p.integrado) ? '' : 'none';
+    // "Un solo datáfono compartido" solo aplica a proveedores integrados (el manual
+    // se tipea a mano, no hay concurrencia de aparato que serializar).
+    const compWrap = document.getElementById('df-compartido-wrap');
+    if (compWrap) compWrap.style.display = (p && p.integrado) ? '' : 'none';
     document.getElementById('df-estado').textContent = '';
     if (!p || !(p.campos || []).length) {
         cont.innerHTML = p && !p.integrado
