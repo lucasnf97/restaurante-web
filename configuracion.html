@@ -1074,8 +1074,10 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
             <div style="display:flex;gap:10px;align-items:center;margin-top:16px;">
                 <button class="btn-primary" onclick="guardarDatafono()">Guardar</button>
                 <button class="btn-gear" id="df-probar" onclick="probarDatafono()" style="display:none;">🧪 Probar cobro de prueba</button>
+                <button class="btn-gear" id="df-abrir-terminal" onclick="abrirTpvVirtual()" style="display:none;">📱 Abrir TPV virtual</button>
                 <span id="df-estado" style="font-size:13px;color: var(--tx-3, #6b7280);"></span>
             </div>
+            <div id="df-terminal-out" style="display:none;margin-top:16px;max-width:520px;"></div>
         </div>
     </div>
 
@@ -1639,6 +1641,11 @@ function _dfRenderCampos() {
     // se tipea a mano, no hay concurrencia de aparato que serializar).
     const compWrap = document.getElementById('df-compartido-wrap');
     if (compWrap) compWrap.style.display = (p && p.integrado) ? '' : 'none';
+    // "Abrir TPV virtual" solo para el proveedor de prueba interactivo (simulado_interactivo).
+    const abrirBtn = document.getElementById('df-abrir-terminal');
+    if (abrirBtn) abrirBtn.style.display = (key === 'simulado_interactivo') ? '' : 'none';
+    const termOut = document.getElementById('df-terminal-out');
+    if (termOut) { termOut.style.display = 'none'; termOut.innerHTML = ''; }
     document.getElementById('df-estado').textContent = '';
     if (!p || !(p.campos || []).length) {
         cont.innerHTML = p && !p.integrado
@@ -1661,6 +1668,67 @@ function _dfRenderCampos() {
         return `<div class="cfg-field" style="margin-bottom:10px;">
             <label class="cfg-label">${c.label}${c.requerido ? ' *' : ''}</label>${input}${ayuda}</div>`;
     }).join('');
+}
+
+// ── TPV virtual de pruebas: link + QR para abrir la terminal en un celu/tablet ──
+// ⚠ El link lleva un TOKEN → el QR se genera EN EL NAVEGADOR (nunca se manda el link a
+// un servicio externo de QR, que filtraría el token). La librería se carga de cdnjs y
+// renderiza local; si falla (offline/bloqueada) se muestra igual el link copiable.
+let _qrLibCargando = null;
+function _cargarQrLib() {
+    if (window.QRCode) return Promise.resolve(true);
+    if (_qrLibCargando) return _qrLibCargando;
+    _qrLibCargando = new Promise((resolve) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        s.onload = () => resolve(true);
+        s.onerror = () => resolve(false);
+        document.head.appendChild(s);
+    });
+    return _qrLibCargando;
+}
+function _copiarTerminalUrl() {
+    const inp = document.getElementById('df-terminal-url');
+    if (!inp) return;
+    inp.select();
+    try { navigator.clipboard.writeText(inp.value); } catch (e) { try { document.execCommand('copy'); } catch (_) {} }
+    const est = document.getElementById('df-estado');
+    if (est) { est.textContent = '✓ Link copiado'; setTimeout(() => { est.textContent = ''; }, 2000); }
+}
+async function abrirTpvVirtual() {
+    const out = document.getElementById('df-terminal-out');
+    out.style.display = '';
+    out.innerHTML = '<div style="font-size:13px;color: var(--tx-3, #6b7280);">Generando link…</div>';
+    let r;
+    try {
+        r = await apiFetch('/datafono/terminal-link', { method: 'POST', body: JSON.stringify({}) });
+    } catch (e) {
+        out.innerHTML = '<div style="font-size:13px;color:#dc2626;">No se pudo generar el link: '
+            + ((e && e.message) || e) + '</div>';
+        return;
+    }
+    const url = (r && r.url) || '';
+    out.innerHTML =
+        '<div style="border:1px solid var(--bd, #e5e7eb);border-radius:12px;padding:16px;background: var(--sup, #fff);">'
+      +   '<div style="font-size:13px;font-weight:700;color: var(--tx-2, #374151);margin-bottom:6px;">📱 TPV virtual de pruebas</div>'
+      +   '<div style="font-size:12.5px;color: var(--tx-3, #6b7280);margin-bottom:12px;line-height:1.5;">'
+      +     'Escaneá el QR con un celu/tablet (o abrí el link ahí): ese aparato queda de datáfono de pruebas. '
+      +     'Cuando cobres con tarjeta, el importe aparece ahí con Aceptar / Rechazar.</div>'
+      +   '<div id="df-terminal-qr" style="display:flex;justify-content:center;margin-bottom:12px;"></div>'
+      +   '<div style="display:flex;gap:8px;align-items:center;">'
+      +     '<input id="df-terminal-url" readonly style="flex:1;min-width:0;font-size:12px;padding:8px;border:1px solid var(--bd, #e5e7eb);border-radius:8px;background: var(--sup-2, #f9fafb);color: var(--tx-2, #374151);">'
+      +     '<button class="btn-gear" onclick="_copiarTerminalUrl()">Copiar</button>'
+      +   '</div>'
+      + '</div>';
+    document.getElementById('df-terminal-url').value = url;   // por value, nunca innerHTML
+    const qrBox = document.getElementById('df-terminal-qr');
+    const ok = await _cargarQrLib();
+    if (ok && window.QRCode && url) {
+        try { new QRCode(qrBox, { text: url, width: 200, height: 200 }); }
+        catch (e) { qrBox.innerHTML = '<div style="font-size:12px;color: var(--tx-4, #9ca3af);">(No se pudo dibujar el QR; usá el link de abajo.)</div>'; }
+    } else {
+        qrBox.innerHTML = '<div style="font-size:12px;color: var(--tx-4, #9ca3af);">(Sin conexión para el QR; copiá el link de abajo.)</div>';
+    }
 }
 
 async function guardarDatafono() {
