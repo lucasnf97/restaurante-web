@@ -237,9 +237,11 @@
     async function entrar(id, btn) {
         if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
         try {
-            const resp = await api.post(`/cadena/entrar/${id}`, {});
-            setToken(resp.access_token);
-            setUser(resp);
+            // Único punto de verdad (js/api.js): usa SIEMPRE ger_token para el POST y
+            // deja token/user apuntando al restaurante elegido. Antes esto duplicaba
+            // el POST /cadena/entrar inline (y guardaba access_token/token_type
+            // adentro de "user" por pasarle la respuesta entera a setUser).
+            await entrarRestauranteGer(id);
             window.location.href = 'dashboard.html';
         } catch (e) {
             alert('No se pudo entrar al restaurante: ' + (e.message || e));
