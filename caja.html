@@ -186,6 +186,7 @@
                         <th style="text-align:right;">Impuesto</th>
                         <th style="text-align:right;">Total sin imp.</th>
                         <th style="text-align:right;">Total</th>
+                        <th>Método</th>
                         <th>Inicio</th><th>Cierre</th><th>Tiempo</th><th></th>
                     </tr>
                 </thead>
@@ -203,7 +204,9 @@
 <div class="modal-overlay" id="modal-ticket">
     <div class="modal" style="max-width:460px;">
         <h3 id="ticket-titulo">Ticket</h3>
-        <iframe id="ticket-frame" style="width:100%;height:min(60vh,520px);border: 1px solid var(--bd, #e5e7eb);border-radius:8px;background: var(--sup, #fff);margin-top:12px;"></iframe>
+        <!-- El ticket es SIEMPRE blanco (fondo hardcodeado + color-scheme:light), sin importar
+             el modo del sistema: es un comprobante, no una superficie de la app. -->
+        <iframe id="ticket-frame" style="width:100%;height:min(60vh,520px);border: 1px solid var(--bd, #e5e7eb);border-radius:8px;background:#fff;color-scheme:light;margin-top:12px;"></iframe>
         <div class="modal-footer">
             <button class="btn btn-primary" onclick="imprimirTicketCaja()">🖨 Reimprimir</button>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-ticket')">Cerrar</button>
@@ -1037,7 +1040,23 @@ function filaCajaAbierta(ab) {
 }
 
 // ── Fila del desglose de caja (compartida entre caja abierta y cierre) ──
-const NCOLS_DETALLE = 11;
+const NCOLS_DETALLE = 12;
+const MET_LABEL = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', mixto: 'Mixto',
+                    ticket: 'Ticket personal', nomina: 'Nómina' };
+const MET_GUION = '<span style="color: var(--tx-4, #9ca3af);">—</span>';
+// Método de pago de una venta. Si tuvo VARIOS pagos (mixto), muestra el desglose
+// UNITARIO: cada pago con su método y su monto (Tarjeta 5 · Tarjeta 5 · Efectivo 5).
+function fmtMetodoCaja(d) {
+    const s = simboloMoneda();
+    const pagos = Array.isArray(d.pagos) ? d.pagos : [];
+    if (pagos.length > 1) {
+        return pagos.map(p =>
+            `${MET_LABEL[p.metodo] || p.metodo || '—'} <span class="det-sub">${s} ${(parseFloat(p.monto) || 0).toFixed(2)}</span>`
+        ).join('<br>');
+    }
+    const m = pagos.length === 1 ? pagos[0].metodo : d.metodo_pago;
+    return m ? (MET_LABEL[m] || m) : MET_GUION;
+}
 function fmtHora(ts) {
     if (!ts) return '—';
     return new Date(ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
@@ -1069,6 +1088,7 @@ function filaDetalleCaja(d) {
             <td style="text-align:right;color: var(--tx-4, #9ca3af);">—</td>
             <td style="text-align:right;color: var(--tx-4, #9ca3af);">—</td>
             <td style="text-align:right;">${totalStr}</td>
+            <td>${d.metodo_pago ? (MET_LABEL[d.metodo_pago] || d.metodo_pago) : MET_GUION}</td>
             <td style="color: var(--tx-4, #9ca3af);">—</td>
             <td>${fmtHora(d.ts_cobro)}</td>
             <td style="color: var(--tx-4, #9ca3af);">—</td>
@@ -1100,6 +1120,7 @@ function filaDetalleCaja(d) {
         <td style="text-align:right;">${imp}</td>
         <td style="text-align:right;">${sinImp}</td>
         <td style="text-align:right;">${totalStr}</td>
+        <td style="font-size:12px;">${fmtMetodoCaja(d)}</td>
         <td title="${d.abierto_en || ''}">${fmtHora(d.abierto_en)}</td>
         <td title="${d.ts_cobro || ''}">${fmtHora(d.ts_cobro)}</td>
         <td>${esTakeAway ? '—' : fmtDuracion(d.abierto_en, d.ts_cobro)}</td>
