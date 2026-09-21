@@ -522,6 +522,63 @@
         }
     `;
 
+    // ── CSS del switcher de restaurante (gerente de cadena) ──────
+    // .navbar-brand vive con "pointer-events:none" (arriba, para no robarle clics al
+    // resto de la barra en los gerentes locales normales). Acá SOLO se lo devolvemos
+    // cuando tiene la clase .ger-switcher (initGerSwitcher la agrega si esGerenteCadena());
+    // dos clases > una clase en especificidad, así que gana sin necesitar !important.
+    style.textContent += `
+        .navbar-brand.ger-switcher {
+            pointer-events: auto;
+            cursor: pointer;
+            padding: 3px 10px;
+            border-radius: 7px;
+            transition: background .15s;
+        }
+        .navbar-brand.ger-switcher:hover,
+        .navbar-brand.ger-switcher:focus-visible {
+            background: rgba(255,255,255,.10);
+            outline: none;
+        }
+        .navbar-brand.ger-switcher::after {
+            content: " \\25BE";
+            opacity: .75;
+            font-size: 12px;
+            margin-left: 4px;
+        }
+        #ger-switcher-menu {
+            position: fixed;
+            z-index: 400;
+            min-width: 210px;
+            max-width: min(90vw, 280px);
+            max-height: 70vh;
+            overflow-y: auto;
+            background: var(--bd-a5, #1a1a2e);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(0,0,0,.35);
+            padding: 6px;
+        }
+        .ger-switcher-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            color: var(--nav-tx, #a5b4fc);
+            font-size: 13.5px;
+            font-weight: 600;
+            font-family: inherit;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .ger-switcher-item:hover { background: rgba(99,102,241,.18); color: var(--tx-inv, #fff); }
+        .ger-switcher-item.activo { color: var(--tx-inv, #fff); background: rgba(79,70,229,.35); cursor: default; }
+        .ger-switcher-sep { height: 1px; background: rgba(255,255,255,.12); margin: 6px 4px; }
+        .ger-switcher-vacio { padding: 10px 12px; color: var(--nav-tx, #a5b4fc); font-size: 12.5px; opacity: .8; }
+    `;
+
     // ── HAMBURGER + HOME en el navbar ───────────────────────────
     function injectHamburger() {
         const navbar = document.querySelector("nav.navbar");
@@ -658,6 +715,113 @@
             localStorage.setItem("navbar_marca", JSON.stringify(marca));
             aplicarMarca(marca);
         } catch { /* sin sesión / sin esquema (superadmin, cadena) → default */ }
+    }
+
+    // ── SWITCHER DE RESTAURANTE (gerente de cadena) ───────────────
+    // Molde: el mismo patrón que el modo empleado (línea ~443, entrarRestaurante/
+    // volverACuenta) pero para el gerente de cadena (entrarRestauranteGer/volverACuentaGer
+    // de api.js). SOLO se activa si esGerenteCadena() (ger_token en localStorage); un
+    // gerente local normal no toca nada de esto y ve la marca estática de siempre.
+    // No tocamos brand.innerHTML (eso es exclusivo de aplicarMarca, que puede re-correr
+    // async y lo pisaría): el menú es un elemento aparte, posicionado por JS contra el
+    // rectángulo del brand.
+    let _gerMenuEl = null;
+    let _gerRestsCache = null;
+
+    function _gerCerrarMenu() {
+        if (_gerMenuEl) { _gerMenuEl.remove(); _gerMenuEl = null; }
+        document.removeEventListener("click", _gerClickAfuera, true);
+        document.removeEventListener("keydown", _gerEscape);
+    }
+    function _gerClickAfuera(e) {
+        if (_gerMenuEl && !_gerMenuEl.contains(e.target) && !e.target.closest(".navbar-brand")) _gerCerrarMenu();
+    }
+    function _gerEscape(e) {
+        if (e.key === "Escape") _gerCerrarMenu();
+    }
+
+    function _gerPosicionarMenu(brand, menu) {
+        const r = brand.getBoundingClientRect();
+        const anchoEstimado = Math.min(280, window.innerWidth * 0.9);
+        menu.style.top = (r.bottom + 6) + "px";
+        let left = r.left + r.width / 2 - anchoEstimado / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - anchoEstimado - 8));
+        menu.style.left = left + "px";
+    }
+
+    async function _gerElegirRestaurante(id, esActivo) {
+        if (esActivo) { _gerCerrarMenu(); return; }
+        _gerCerrarMenu();
+        try {
+            await entrarRestauranteGer(id);
+            window.location.href = "dashboard.html";
+        } catch (e) {
+            alert("No se pudo entrar al restaurante: " + (e.message || e));
+        }
+    }
+
+    function _gerIrPanelGeneral() {
+        _gerCerrarMenu();
+        volverACuentaGer();
+        window.location.href = "cadena.html";
+    }
+
+    async function _gerAbrirMenu(brand) {
+        if (_gerMenuEl) { _gerCerrarMenu(); return; }
+        const menu = document.createElement("div");
+        menu.id = "ger-switcher-menu";
+        menu.innerHTML = `<div class="ger-switcher-vacio">Cargando…</div>`;
+        document.body.appendChild(menu);
+        _gerMenuEl = menu;
+        _gerPosicionarMenu(brand, menu);
+        // Cerrar afuera / Escape (mismo patrón que closeSidebar más abajo). El listener de
+        // click se agrega en el próximo tick para no capturar el mismo click que abrió el menú.
+        setTimeout(() => {
+            document.addEventListener("click", _gerClickAfuera, true);
+            document.addEventListener("keydown", _gerEscape);
+        }, 0);
+
+        let rests = _gerRestsCache;
+        if (!rests) {
+            try {
+                rests = await apiFetch("/cadena/restaurantes", { token: getGerToken() });
+                _gerRestsCache = rests;
+            } catch (e) { rests = []; }
+        }
+        if (!_gerMenuEl) return;   // se cerró mientras cargaba
+        // Activo (best-effort): solo si ya entró a un restaurante (enCuentaGer() false);
+        // en la cuenta de cadena pura no hay restaurante activo que marcar.
+        const activo = (typeof enCuentaGer === "function" && !enCuentaGer())
+            ? (getUser() || {}).codigo : null;
+        const itemsHtml = (rests || []).map(r => {
+            const esActivo = activo != null && r.codigo === activo;
+            return `<button type="button" class="ger-switcher-item${esActivo ? " activo" : ""}" data-rid="${r.id}" data-activo="${esActivo ? "1" : ""}">${esActivo ? "✓ " : ""}${_escS(r.nombre)}</button>`;
+        }).join("");
+        _gerMenuEl.innerHTML =
+            (itemsHtml || `<div class="ger-switcher-vacio">Sin restaurantes asignados.</div>`) +
+            `<div class="ger-switcher-sep"></div>` +
+            `<button type="button" class="ger-switcher-item" id="ger-switcher-panel">🏢 Panel general</button>`;
+        _gerMenuEl.querySelectorAll(".ger-switcher-item[data-rid]").forEach(btn => {
+            btn.addEventListener("click", () => _gerElegirRestaurante(Number(btn.dataset.rid), btn.dataset.activo === "1"));
+        });
+        const panelBtn = _gerMenuEl.querySelector("#ger-switcher-panel");
+        if (panelBtn) panelBtn.addEventListener("click", _gerIrPanelGeneral);
+        _gerPosicionarMenu(brand, _gerMenuEl);
+    }
+
+    function initGerSwitcher() {
+        if (typeof esGerenteCadena !== "function" || !esGerenteCadena()) return;
+        const brand = document.querySelector(".navbar-brand");
+        if (!brand) return;
+        brand.classList.add("ger-switcher");
+        brand.setAttribute("role", "button");
+        brand.setAttribute("tabindex", "0");
+        brand.setAttribute("aria-haspopup", "true");
+        brand.setAttribute("aria-label", "Cambiar de restaurante");
+        brand.addEventListener("click", () => _gerAbrirMenu(brand));
+        brand.addEventListener("keydown", e => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); _gerAbrirMenu(brand); }
+        });
     }
 
     // ── PUBLICACIONES PRIORITARIAS (overlay bloqueante) ──────────
@@ -883,6 +1047,7 @@
         _injectTema();          // tema.js monta su propio botón en el pie del panel
         injectHamburger();
         initMarca();
+        initGerSwitcher();
         _initLegal();
         _initPrioritarias();
         _injectNotificaciones();
