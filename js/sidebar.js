@@ -726,9 +726,11 @@
     // async y lo pisaría): el menú es un elemento aparte, posicionado por JS contra el
     // rectángulo del brand.
     let _gerMenuEl = null;
+    let _gerListenersTimer = null;
     let _gerRestsCache = null;
 
     function _gerCerrarMenu() {
+        if (_gerListenersTimer) { clearTimeout(_gerListenersTimer); _gerListenersTimer = null; }
         if (_gerMenuEl) { _gerMenuEl.remove(); _gerMenuEl = null; }
         document.removeEventListener("click", _gerClickAfuera, true);
         document.removeEventListener("keydown", _gerEscape);
@@ -776,7 +778,8 @@
         _gerPosicionarMenu(brand, menu);
         // Cerrar afuera / Escape (mismo patrón que closeSidebar más abajo). El listener de
         // click se agrega en el próximo tick para no capturar el mismo click que abrió el menú.
-        setTimeout(() => {
+        _gerListenersTimer = setTimeout(() => {
+            _gerListenersTimer = null;
             document.addEventListener("click", _gerClickAfuera, true);
             document.addEventListener("keydown", _gerEscape);
         }, 0);
