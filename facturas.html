@@ -167,6 +167,10 @@
 
     <!-- CARGAR FACTURA -->
     <div id="vista-cargar">
+        <!-- Barra de destino (solo en modo cadena): a QUÉ restaurante va el lote que se
+             está cargando. Se pinta del color del local y queda pegada arriba, porque acá
+             se está metiendo plata y stock en la base de un restaurante concreto. -->
+        <div id="cadena-barra" style="display:none;"></div>
         <div style="background: var(--sup, white);border-radius:12px;padding:28px;box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06));">
             <h3 style="margin-bottom:8px;font-size:16px;color: var(--tx, #1a1a2e);">Procesar factura con IA</h3>
             <p style="font-size:13px;color: var(--tx-5, #888);margin-bottom:20px;">Subí una factura. Claude analizará automáticamente los ítems, cantidades y precios.</p>
@@ -436,7 +440,7 @@
             <div id="conf-totales" style="margin-right:auto;display:flex;gap:16px;align-items:center;font-size:13px;color: var(--tx-2, #374151);"></div>
             <button class="btn btn-secondary" onclick="cerrarModal('modal-confirmacion')">Cancelar</button>
             <button class="btn btn-secondary" id="btn-guardar-borrador" onclick="guardarBorrador()" title="Guardar el avance para continuar después">💾 Guardar borrador</button>
-            <button class="btn btn-primary" onclick="confirmarFactura()">✓ Confirmar y registrar</button>
+            <button class="btn btn-primary" id="btn-confirmar-registrar" onclick="confirmarFactura()">✓ Confirmar y registrar</button>
         </div>
     </div>
 </div>
@@ -560,14 +564,24 @@
 </script>
 <script>
 requireAuth();
-requirePermiso('acceso_facturacion', 'ver_facturas', 'gestion_stock');
+// ⚠ MODO CADENA: el gate por permisos NO aplica acá, porque no hay un inquilino contra el
+// cual evaluarlos — el token activo es el de la cadena, que no resuelve ningún esquema y
+// por lo tanto no trae permisos. Quien entra es gerente de cadena, y `/cadena/entrar` le
+// emite en CADA uno de sus locales un token rol=gerente, que es donde el backend exige
+// gestion_stock de verdad al registrar. Sin esta excepción la pantalla lo expulsaba al
+// entrar (redirigía a dashboard) y la carga en cadena no se podía usar.
+const _esCargaCadena = new URLSearchParams(location.search).get('cadena') === '1'
+    && typeof esGerenteCadena === 'function' && esGerenteCadena();
+if (!_esCargaCadena) requirePermiso('acceso_facturacion', 'ver_facturas', 'gestion_stock');
 // Las facturas van DE LA MANO del stock (decisión del dueño, 2026-07-16): quien puede
 // gestionar stock tiene que poder ver las facturas cargadas y cargar nuevas. Y así es como
 // gatea el BACKEND todo el módulo (registrar/borradores/eliminar exigen gestion_stock, no
 // acceso_facturacion). Antes esta línea miraba sólo acceso_facturacion, así que a un
 // encargado de stock la UI le ocultaba botones que el servidor sí le permitía usar.
 // Solo-vista = el que puede MIRAR facturas pero no toca stock ni facturación.
-const _facturasSoloVista = !hasPermiso('acceso_facturacion') && !hasPermiso('gestion_stock');
+// En modo cadena nunca es solo-vista: los permisos reales viven en cada local.
+const _facturasSoloVista = !_esCargaCadena
+    && !hasPermiso('acceso_facturacion') && !hasPermiso('gestion_stock');
 if (_facturasSoloVista) document.body.classList.add('solo-vista');
 
 let _insumos     = [];
@@ -612,18 +626,31 @@ async function agregarArchivos(files) {
     const inp = document.getElementById('file-input-main');
     if (inp) inp.value = '';
     if (!lista.length) return;
+    // Modo cadena: sin destino no se carga nada. Es lo primero que se decide, porque de
+    // acá en adelante todo (análisis, matching y registro) va contra ESE restaurante.
+    if (_modoCadena && !_destinoActual) {
+        alert('Primero elegí a qué restaurante se cargan estas facturas (arriba de todo).');
+        document.getElementById('cadena-sel-destino')?.focus();
+        return;
+    }
+    const destLote = _modoCadena ? _destinoActual : null;
     // El histórico se carga al abrir su pestaña; en la carga inicial está vacío. Lo traemos
     // ahora para poder detectar duplicados aunque no se haya abierto esa pestaña.
-    if (!_historialFacturas.length) {
+    // En modo cadena ya vino con el destino (es POR restaurante: el mismo archivo en dos
+    // locales son dos facturas distintas, no un duplicado).
+    if (!_modoCadena && !_historialFacturas.length) {
         try { _historialFacturas = await api.get("/stock/facturas/historial"); } catch(e) {}
     }
+    // El duplicado se juzga DENTRO del mismo restaurante destino.
+    const mismoDest = a => !_modoCadena || ((a.destino && a.destino.id) === (destLote && destLote.id));
+    const histDest  = _modoCadena ? (_histPorDestino[destLote.id] || []) : (_historialFacturas || []);
     for (const f of lista) {
         const nombreLc = f.name.toLowerCase();
-        // Mismo archivo exacto ya en la cola → ignorar en silencio
-        if (_archivosFactura.find(a => a.file && a.file.name === f.name && a.file.size === f.size)) continue;
+        // Mismo archivo exacto ya en la cola (del mismo destino) → ignorar en silencio
+        if (_archivosFactura.find(a => mismoDest(a) && a.file && a.file.name === f.name && a.file.size === f.size)) continue;
         // Alarma de duplicado por NOMBRE: en el histórico (registrada), en un borrador o ya en la lista
-        const dupHist = (_historialFacturas || []).find(h => (h.archivo_nombre || '').toLowerCase() === nombreLc);
-        const dupCola = _archivosFactura.find(a => ((a.file ? a.file.name : (a.archivo_nombre || '')).toLowerCase() === nombreLc));
+        const dupHist = histDest.find(h => (h.archivo_nombre || '').toLowerCase() === nombreLc);
+        const dupCola = _archivosFactura.find(a => mismoDest(a) && ((a.file ? a.file.name : (a.archivo_nombre || '')).toLowerCase() === nombreLc));
         if (dupHist || dupCola) {
             let donde;
             if (dupHist) {
@@ -633,9 +660,14 @@ async function agregarArchivos(files) {
             } else {
                 donde = dupCola.estado === 'borrador' ? 'ya tiene un borrador en proceso' : 'ya está en la lista para procesar';
             }
-            if (!confirm(`⚠️ Ya hay una factura con el archivo "${f.name}": ${donde}.\n\nPodrías estar duplicándola. ¿Cargarla igual?`)) continue;
+            const enLocal = _modoCadena ? ` en ${destLote.nombre}` : '';
+            if (!confirm(`⚠️ Ya hay una factura con el archivo "${f.name}"${enLocal}: ${donde}.\n\nPodrías estar duplicándola. ¿Cargarla igual?`)) continue;
         }
-        _archivosFactura.push({ id: _nextFileId++, file: f, estado: 'pendiente', datos: null, error: null });
+        // ⚠ El destino queda ESTAMPADO en la factura. No se reasigna después: el análisis
+        // de la IA trae los IDs de insumo de ESTE local (procesar_factura le inyecta su
+        // catálogo), así que moverla a otro restaurante daría un matching equivocado.
+        _archivosFactura.push({ id: _nextFileId++, file: f, estado: 'pendiente', datos: null, error: null,
+                                destino: destLote });
     }
     renderArchivos();
 }
@@ -694,7 +726,14 @@ function renderArchivos() {
             <button class="btn btn-secondary btn-sm" onclick="unirArchivos()">🧷 Unir los ${nPend} pendientes en UNA factura</button>
             <span style="font-size:12px;color: var(--tx-3, #6b7280);">Se combinan en un solo PDF (una hoja por archivo, en el orden de la lista) y se analiza todo junto.</span>
         </div>` : '';
-    cont.innerHTML = barraUnir + _archivosFactura.map((a) => {
+    // Mandar TODAS las pendientes a analizar de una. Es lo que hace práctico cargar las
+    // facturas de varios locales: se sueltan todas y se revisan después, de a una.
+    const barraTodas = nPend >= 2 ? `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+            <button class="btn btn-primary btn-sm" onclick="procesarTodas()">🤖 Procesar las ${nPend} pendientes</button>
+            <span style="font-size:12px;color: var(--tx-3, #6b7280);">Se analizan en paralelo (de a 3). Después las revisás de a una.</span>
+        </div>` : '';
+    const tarjeta = (a) => {
         const nombre = a.file ? a.file.name : (a.archivo_nombre || 'Factura');
         const icon = nombre.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️';
         let acciones = '';
@@ -717,16 +756,61 @@ function renderArchivos() {
                         <button class="btn btn-secondary btn-sm" onclick="quitarArchivo(${a.id})">✕</button>`;
         }
         const claseCard = a.estado === 'confirmado' ? 'confirmado' : a.estado === 'procesado' ? 'procesado' : a.estado === 'borrador' ? 'procesado' : a.estado === 'error' ? 'error' : '';
-        return `<div class="fcard ${claseCard}">
+        // Chip del restaurante destino: la tarjeta SIEMPRE dice adónde va esa factura.
+        const chip = a.destino ? `<span style="display:inline-block;background:${a.destino.color};color:#fff;
+            border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;margin-left:8px;
+            vertical-align:middle;">${esc(a.destino.nombre)}</span>` : '';
+        return `<div class="fcard ${claseCard}" ${a.destino ? `style="border-left:5px solid ${a.destino.color};"` : ''}>
             <div class="fcard-icon">${icon}</div>
             <div class="fcard-info">
-                <div class="fcard-name">${nombre}</div>
+                <div class="fcard-name">${nombre}${chip}</div>
                 <div class="fcard-status">${statusTexto[a.estado] || ''}</div>
                 ${_resumenFcard(a)}
             </div>
             <div class="fcard-actions">${acciones}</div>
         </div>`;
-    }).join("");
+    };
+    // En modo cadena la cola se AGRUPA por restaurante: cada tanda bajo su encabezado de
+    // color. Es lo que reemplaza al "dividir la pantalla" sin perder el ancho del formulario
+    // ni invitar a soltar una factura en la columna equivocada.
+    let cuerpo;
+    if (_modoCadena) {
+        const grupos = new Map();
+        for (const a of _archivosFactura) {
+            const k = a.destino ? a.destino.id : 0;
+            if (!grupos.has(k)) grupos.set(k, { dest: a.destino, items: [] });
+            grupos.get(k).items.push(a);
+        }
+        cuerpo = [...grupos.values()].map(g => {
+            const d = g.dest;
+            const n = g.items.length;
+            const cab = d ? `<div style="margin:16px 0 6px;font-size:13px;font-weight:700;color:${d.color};
+                display:flex;align-items:center;gap:8px;">
+                <span style="width:10px;height:10px;border-radius:50%;background:${d.color};display:inline-block;"></span>
+                ${esc(d.nombre)}
+                <span style="font-weight:400;color: var(--tx-3, #6b7280);">· ${n} factura${n !== 1 ? 's' : ''}</span></div>` : '';
+            return cab + g.items.map(tarjeta).join("");
+        }).join("");
+    } else {
+        cuerpo = _archivosFactura.map(tarjeta).join("");
+    }
+    cont.innerHTML = barraTodas + barraUnir + cuerpo;
+}
+
+// Analiza todas las pendientes con concurrencia acotada. ⚠ De a 3 y no todas juntas:
+// cada una es una llamada a Gemini con la factura adentro; 20 de golpe es tirarle una
+// ráfaga al proveedor y al rate limit, y si falla el lote no se sabe cuál quedó a medias.
+async function procesarTodas() {
+    const pend = _archivosFactura.filter(a => a.estado === 'pendiente' && a.file).map(a => a.id);
+    const LIMITE = 3;
+    let i = 0;
+    const worker = async () => {
+        while (i < pend.length) {
+            const id = pend[i++];
+            try { await procesarArchivo(id); } catch (e) { /* el estado del archivo ya queda en 'error' */ }
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(LIMITE, pend.length) }, worker));
 }
 
 function quitarArchivo(id) { _archivosFactura = _archivosFactura.filter(a => a.id !== id); renderArchivos(); }
@@ -857,7 +941,10 @@ async function procesarArchivo(id) {
     try {
         const formData = new FormData();
         formData.append("file", entrada.file);
-        const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
+        // El token decide a QUÉ restaurante pertenece el análisis: procesar_factura le
+        // inyecta al prompt los insumos y servicios de ese local para machear las líneas.
+        // En modo normal es el token de siempre.
+        const token = apiDest(entrada.destino).token();
         const resp = await fetch(`${API_URL}/stock/procesar-factura`, {
             method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: formData
         });
@@ -871,14 +958,40 @@ async function procesarArchivo(id) {
     renderArchivos();
 }
 
-function abrirRevision(id) {
+async function abrirRevision(id) {
     _archivoActivo = id;
     _manualFile    = null;
     const entrada = getEntrada(id);
+    // ⚠ El destino de ESTA factura manda de acá hasta el registro: fija el token que van a
+    // usar todas las llamadas del formulario y los catálogos con los que se machea.
+    _destRev = _modoCadena ? (entrada.destino || null) : null;
+    if (_destRev) {
+        try { await cargarCatalogosDestino(_destRev); }
+        catch (e) { alert('No se pudieron cargar los datos de ' + _destRev.nombre + ': ' + (e.message || e)); return; }
+    }
     document.getElementById("modal-conf-titulo").textContent     = "✅ Confirmar datos de la factura";
     document.getElementById("conf-archivo-manual").style.display = "none";
     abrirModalConfirmacion(entrada.datos);
     _renderViewer(entrada.file);
+    pintarBandaDestino();
+}
+
+// Banda de color arriba del formulario de revisión: acá se confirma plata y stock, así que
+// el local tiene que estar a la vista sin buscarlo.
+function pintarBandaDestino() {
+    const modal = document.getElementById('modal-conf-titulo')?.closest('.modal') || document.body;
+    let banda = document.getElementById('conf-banda-destino');
+    if (!_destRev) { if (banda) banda.remove(); return; }
+    if (!banda) {
+        banda = document.createElement('div');
+        banda.id = 'conf-banda-destino';
+        document.getElementById('modal-conf-titulo').insertAdjacentElement('afterend', banda);
+    }
+    banda.style.cssText = `background:${_destRev.color};color:#fff;border-radius:8px;padding:10px 14px;
+        margin:10px 0 4px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;`;
+    banda.innerHTML = `🧾 Se va a registrar en <span style="text-decoration:underline;">${esc(_destRev.nombre)}</span>`;
+    const btn = document.getElementById('btn-confirmar-registrar');
+    if (btn) btn.textContent = `✓ Confirmar y registrar en ${_destRev.nombre}`;
 }
 
 // ── Archivo adjunto en modo manual ───────────────────────────
@@ -908,13 +1021,28 @@ function quitarArchivoManual() {
     _renderViewer(null);
 }
 
-function cargarManual() {
+async function cargarManual() {
+    // La factura manual también compromete plata y stock: en modo cadena necesita destino
+    // igual que las que pasan por la IA. Usa el del lote elegido arriba.
+    if (_modoCadena) {
+        if (!_destinoActual) {
+            alert('Primero elegí a qué restaurante se carga esta factura (arriba de todo).');
+            document.getElementById('cadena-sel-destino')?.focus();
+            return;
+        }
+        _destRev = _destinoActual;
+        try { await cargarCatalogosDestino(_destRev); }
+        catch (e) { alert('No se pudieron cargar los datos de ' + _destRev.nombre + ': ' + (e.message || e)); return; }
+    } else {
+        _destRev = null;
+    }
     _archivoActivo = null;
     _manualFile    = null;
     document.getElementById("modal-conf-titulo").textContent = "✏️ Nueva factura manual";
     document.getElementById("conf-archivo-manual").style.display = "";
     quitarArchivoManual();
     abrirModalConfirmacion({ items: [{ tipo: "insumo", descripcion_factura: "" }] });
+    pintarBandaDestino();
 }
 
 // ── Combobox de insumo / bien de uso: se escribe y se filtra ──────────────
@@ -1862,7 +1990,7 @@ async function _buscarFacturaPorNumero(numero, proveedorId, proveedorNombre, exc
     if (proveedorId) p.set('proveedor_id', proveedorId);
     else if (proveedorNombre) p.set('proveedor_nombre', proveedorNombre);
     if (excluirId) p.set('excluir_id', excluirId);
-    try { const r = await api.get(`/stock/facturas/por-numero?${p.toString()}`); return (r && r.id) ? r : null; }
+    try { const r = await apiFac().get(`/stock/facturas/por-numero?${p.toString()}`); return (r && r.id) ? r : null; }
     catch(e) { return null; }
 }
 // Aviso inline (al salir del campo Nº) si el número ya está cargado, con link a previsualizar.
@@ -2027,7 +2155,7 @@ async function confirmarFactura() {
             try {
                 const fd    = new FormData();
                 fd.append("file", fileASubir);
-                const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
+                const token = apiFac().token();   // destino de esta factura (en modo normal, el de siempre)
                 const up    = await fetch(`${API_URL}/stock/facturas/upload`, {
                     method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd
                 });
@@ -2071,7 +2199,7 @@ async function confirmarFactura() {
                     }),
                 ];
                 const monedaSim = document.getElementById('conf-moneda-badge')?.textContent?.trim() || moneda || '';
-                const pdfResp = await api.post('/stock/facturas/generar-pdf-manual', {
+                const pdfResp = await apiFac().post('/stock/facturas/generar-pdf-manual', {
                     proveedor_nombre: provNombre,
                     moneda,
                     moneda_simbolo: monedaSim,
@@ -2088,7 +2216,7 @@ async function confirmarFactura() {
 
         // Edición: borrar la factura vieja (revierte stock + datos) antes de re-crear.
         if (editId) {
-            try { await api.delete(`/stock/facturas/${editId}`); }
+            try { await apiFac().delete(`/stock/facturas/${editId}`); }
             catch(e) { alert("No se pudo actualizar (al revertir la factura anterior): " + (e.message || e)); return; }
         }
 
@@ -2106,7 +2234,7 @@ async function confirmarFactura() {
         // Registrar factura
         // Total de la factura = lo efectivamente pagado (con impuesto): líneas + servicios.
         const totalDetectado = [...itemsInsumo.map(i => (i.precioPagado || 0)), ...itemsBien.map(b => (b.precioPagado || 0)), ...itemsServicio.map(s => (s.montoBruto || s.monto))].reduce((a, b) => a + b, 0);
-        const facturaReg = await api.post("/stock/facturas/registrar", {
+        const facturaReg = await apiFac().post("/stock/facturas/registrar", {
             proveedor_id: proveedorId, proveedor_nombre: provNombre,
             archivo_nombre: archivoNom,
             archivo_url: facturaUrl, moneda: monedaGuardar, total_detectado: totalDetectado || null,
@@ -2166,7 +2294,7 @@ async function confirmarFactura() {
         _editArchivoUrl = null; _editArchivoNombre = null;
         if (borradorId) {
             // Veníamos de un borrador: borrarlo del servidor y sacarlo de la lista.
-            try { await api.delete(`/stock/facturas/borradores/${borradorId}`); } catch(e) {}
+            try { await apiFac().delete(`/stock/facturas/borradores/${borradorId}`); } catch(e) {}
             _archivosFactura = _archivosFactura.filter(a => a.borrador_id !== borradorId);
             _archivoActivo = null;
         } else if (_archivoActivo !== null) {
@@ -2247,13 +2375,13 @@ async function guardarBorrador() {
     try {
         if (!archivo_url && fileLocal) {
             const fd = new FormData(); fd.append("file", fileLocal);
-            const token = typeof getToken === 'function' ? getToken() : localStorage.getItem("token");
+            const token = apiFac().token();   // destino de esta factura (en modo normal, el de siempre)
             const up = await fetch(`${API_URL}/stock/facturas/upload`, { method:"POST", headers:{ "Authorization":`Bearer ${token}` }, body: fd });
             if (up.ok) { archivo_url = (await up.json()).url; archivo_nombre = archivo_nombre || fileLocal.name; }
         }
         const body = { datos_json: JSON.stringify(datos), archivo_url, archivo_nombre };
-        if (_borradorActivo) await api.patch(`/stock/facturas/borradores/${_borradorActivo}`, body);
-        else await api.post('/stock/facturas/borradores', body);
+        if (_borradorActivo) await apiFac().patch(`/stock/facturas/borradores/${_borradorActivo}`, body);
+        else await apiFac().post('/stock/facturas/borradores', body);
         // Sacar la línea original (la factura "lista para confirmar") para no duplicarla:
         // queda solo la entrada de borrador que agrega cargarBorradores().
         if (_archivoActivo !== null) _archivosFactura = _archivosFactura.filter(a => a.id !== _archivoActivo);
@@ -3065,16 +3193,154 @@ document.getElementById('conf-moneda-codigo')?.addEventListener('input', functio
     actualizarBannerConversion(this.value.trim().toUpperCase());
 });
 
-// Carga inicial
-Promise.all([
-    api.get("/stock/insumos").then(d => _insumos = d),
-    api.get("/stock/bienes-uso").then(d => _bienesFactura = d).catch(() => _bienesFactura = []),
-    api.get("/stock/servicios").then(d => _servicios = d),
-    api.get("/stock/proveedores").then(d => _proveedores = d)
-]).catch(console.error);
+// ── MODO CADENA — cargar facturas de VARIOS restaurantes ─────────────────────
+// El gerente de cadena entra con ?cadena=1. La clave del diseño: el backend resuelve el
+// inquilino del token Bearer (el header X-Restaurant-Code es sólo el respaldo del exe sin
+// sesión), así que CADA factura viaja con el token de SU local. El destino no es un "modo
+// actual" que pueda quedar desincronizado: es un dato de la factura, y por eso lo que
+// muestra la tarjeta y adónde se registra no pueden diferir.
+// ⚠ `apiDest(null)` se comporta EXACTAMENTE como `api` → en modo normal (un restaurante)
+// esta pantalla funciona igual que siempre.
+let _modoCadena   = false;
+let _destinos     = [];     // [{id, nombre, codigo, color, token}]
+let _destinoActual = null;  // destino del LOTE que se está soltando
+let _destRev      = null;   // destino de la factura que se está revisando/registrando
+const _catPorDestino  = {}; // catálogos por local (insumos/servicios/bienes/proveedores)
+const _histPorDestino = {}; // historial por local (detección de duplicados)
+const _COLORES_DEST = ['#4f46e5', '#0d9488', '#b45309', '#be123c', '#7c3aed', '#0369a1', '#15803d', '#a21caf'];
+
+function apiDest(dest) {
+    const o = dest && dest.token ? { token: dest.token } : undefined;
+    return {
+        get:    (ep)       => api.get(ep, o),
+        post:   (ep, body) => api.post(ep, body, o),
+        patch:  (ep, body) => api.patch(ep, body, o),
+        delete: (ep)       => api.delete(ep, o),
+        // Para los fetch crudos (multipart): el token que corresponde al destino.
+        token:  ()         => (dest && dest.token) || getToken(),
+    };
+}
+// Cliente de la factura EN CURSO (revisión/registro). En modo normal devuelve el de siempre.
+function apiFac() { return apiDest(_modoCadena ? _destRev : null); }
+
+async function initModoCadena() {
+    const p = new URLSearchParams(location.search);
+    if (p.get('cadena') !== '1') return false;
+    if (typeof esGerenteCadena !== 'function' || !esGerenteCadena()) return false;
+    _modoCadena = true;
+    // ⚠ Las otras pestañas (Historial, Servicios, Proveedores) son de UN restaurante, y acá
+    // no hay uno solo: el token activo es el de cadena, que no resuelve ningún esquema.
+    // Se ocultan en vez de dejarlas fallar. Esta pantalla, en modo cadena, sólo carga.
+    ['historial', 'servicios', 'proveedores'].forEach(t => {
+        const b = document.getElementById('tab-' + t);
+        if (b) b.style.display = 'none';
+    });
+    setTab('cargar');
+    try {
+        const rs = await api.get('/cadena/restaurantes', { token: getGerToken() });
+        _destinos = (rs || []).map((r, i) => ({
+            id: r.id, nombre: r.nombre, codigo: r.codigo,
+            color: _COLORES_DEST[i % _COLORES_DEST.length], token: null,
+        }));
+    } catch (e) { _destinos = []; }
+    renderBarraDestino();
+    // Con un solo local, elegirlo es un paso vacío: se selecciona solo. La barra lo
+    // sigue mostrando igual de grande — el punto nunca fue hacer clic, sino ver adónde va.
+    if (_destinos.length === 1) await elegirDestino(_destinos[0].id);
+    return true;
+}
+
+function renderBarraDestino() {
+    const cont = document.getElementById('cadena-barra');
+    if (!cont || !_modoCadena) return;
+    cont.style.display = '';
+    const d = _destinoActual;
+    const opciones = _destinos.map(x =>
+        `<option value="${x.id}" ${d && d.id === x.id ? 'selected' : ''}>${esc(x.nombre)}</option>`).join('');
+    const col = d ? d.color : 'var(--tx-4, #9ca3af)';
+    cont.innerHTML = `
+      <div style="position:sticky;top:0;z-index:50;border-left:6px solid ${col};background: var(--sup, #fff);
+                  border:1px solid var(--bd-2, #e5e7eb);border-left-width:6px;border-radius:10px;
+                  padding:12px 16px;margin-bottom:14px;box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,.06));
+                  display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:13px;color: var(--tx-3, #6b7280);">Cargando facturas en</span>
+        <select id="cadena-sel-destino" onchange="elegirDestino(this.value)"
+                style="padding:8px 12px;border:2px solid ${col};border-radius:8px;font-size:15px;
+                       font-weight:700;color:${col};background: var(--sup, #fff);min-width:220px;">
+            <option value="">— Elegí el restaurante —</option>${opciones}
+        </select>
+        ${d ? `<span style="font-size:12px;color: var(--tx-3, #6b7280);">Las facturas que sueltes ahora se registran en
+               <b style="color:${col}">${esc(d.nombre)}</b>. Para otro local, cambialo acá y seguí cargando.</span>`
+            : `<span style="font-size:13px;color: var(--pel-tx-2, #dc2626);font-weight:600;">
+               Elegí un restaurante antes de cargar facturas.</span>`}
+      </div>`;
+}
+
+// Elegir destino: consigue su token (una vez), sus catálogos y su historial. El token se
+// pide con el de cadena y NO pisa el token activo de la pestaña.
+async function elegirDestino(idRaw) {
+    const id = parseInt(idRaw, 10);
+    _destinoActual = _destinos.find(x => x.id === id) || null;
+    renderBarraDestino();
+    if (!_destinoActual) return;
+    try {
+        if (!_destinoActual.token) _destinoActual.token = await obtenerTokenRestauranteGer(_destinoActual.id);
+        await cargarCatalogosDestino(_destinoActual);
+    } catch (e) {
+        alert('No se pudo entrar a ese restaurante: ' + (e.message || e));
+        _destinoActual = null;
+        renderBarraDestino();
+    }
+}
+
+// Catálogos e historial del local (se cachean). Son POR RESTAURANTE: el matching de
+// insumos y el dedup de proveedores no se pueden mezclar entre locales.
+async function cargarCatalogosDestino(dest) {
+    if (!dest) return;
+    if (!_catPorDestino[dest.id]) {
+        const c = apiDest(dest);
+        const [ins, bie, ser, pro] = await Promise.all([
+            c.get('/stock/insumos'),
+            c.get('/stock/bienes-uso').catch(() => []),
+            c.get('/stock/servicios').catch(() => []),
+            c.get('/stock/proveedores'),
+        ]);
+        _catPorDestino[dest.id] = { insumos: ins || [], bienes: bie || [], servicios: ser || [], proveedores: pro || [] };
+    }
+    if (!_histPorDestino[dest.id]) {
+        try { _histPorDestino[dest.id] = await apiDest(dest).get('/stock/facturas/historial'); }
+        catch (e) { _histPorDestino[dest.id] = []; }
+    }
+    aplicarCatalogosDestino(dest);
+}
+
+// Pone los catálogos del local en las variables que usa el formulario de revisión.
+function aplicarCatalogosDestino(dest) {
+    const c = dest && _catPorDestino[dest.id];
+    if (!c) return;
+    _insumos        = c.insumos;
+    _bienesFactura  = c.bienes;
+    _servicios      = c.servicios;
+    _proveedores    = c.proveedores;
+    _historialFacturas = _histPorDestino[dest.id] || [];
+}
+
+// Carga inicial. En modo cadena los catálogos NO son globales: se cargan por restaurante
+// al elegir el destino (mezclarlos haría que el matching de insumos apunte al local equivocado).
+initModoCadena().then(esCadena => {
+    if (esCadena) return;
+    Promise.all([
+        api.get("/stock/insumos").then(d => _insumos = d),
+        api.get("/stock/bienes-uso").then(d => _bienesFactura = d).catch(() => _bienesFactura = []),
+        api.get("/stock/servicios").then(d => _servicios = d),
+        api.get("/stock/proveedores").then(d => _proveedores = d)
+    ]).catch(console.error);
+});
 
 // Borradores en curso → aparecen en la lista de "Procesar con IA" para continuarlos
-if (!_facturasSoloVista) cargarBorradores();
+// ⚠ En modo cadena no se listan borradores al entrar: son POR restaurante y el token
+// activo es el de cadena. Los de cada local se ven entrando a ese local como siempre.
+if (!_facturasSoloVista && !_modoCadena) cargarBorradores();
 
 // Solo-vista (ver_facturas): la pestaña de carga está oculta → arrancar en Historial
 if (_facturasSoloVista) setTab('historial');

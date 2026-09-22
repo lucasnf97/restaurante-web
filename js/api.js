@@ -342,6 +342,18 @@ function volverACuentaGer() {
     if (t) setToken(t);
     if (u) setUser(u);
 }
+// Token de un restaurante SIN tocar el token activo de la pestaña. Lo usa la carga de
+// facturas en cadena: cada factura viaja con el token de SU local, así la pantalla nunca
+// sale del contexto de cadena.
+// ⚠ Por qué no alcanza `entrarRestauranteGer`: ese PISA el token global, y entonces todo
+// lo demás de la página (el contador de mensajes del sidebar, por ejemplo) pasaría a leer
+// los datos del local en vez de los de la cadena — y peor, cambiaría a mitad de una carga.
+async function obtenerTokenRestauranteGer(restId) {
+    const resp = await apiFetch("/cadena/entrar/" + restId, {
+        method: "POST", body: JSON.stringify({}), token: getGerToken()
+    });
+    return resp.access_token;
+}
 async function entrarRestauranteGer(restId) {
     // Usa SIEMPRE el token de cadena para emitir el del restaurante.
     const resp = await apiFetch("/cadena/entrar/" + restId, {
@@ -506,14 +518,20 @@ async function apiFetch(endpoint, options = {}) {
 }
 
 // ── MÉTODOS SHORTHAND ─────────────────────────────────────────
+// `opts` es OPCIONAL y se mezcla en las opciones de apiFetch. Lo usa sobre todo
+// `{ token }`: el backend resuelve el inquilino del Bearer (database.py: el header
+// X-Restaurant-Code es sólo el respaldo del exe sin sesión), así que pasar otro token
+// manda ESE pedido a OTRO restaurante sin tocar el token global de la pestaña. Es lo
+// que permite cargar facturas a varios locales desde la pantalla de cadena.
+// ⚠ Sin `opts` se comporta EXACTAMENTE como antes (todas las llamadas existentes).
 const api = {
-    get: (endpoint) => apiFetch(endpoint),
+    get: (endpoint, opts) => apiFetch(endpoint, { ...(opts || {}) }),
     // Igual que get pero sin la barra de carga global (para refrescos en segundo plano).
-    getSilent: (endpoint) => apiFetch(endpoint, { silent: true }),
-    post: (endpoint, body) => apiFetch(endpoint, { method: "POST", body: JSON.stringify(body) }),
-    put: (endpoint, body) => apiFetch(endpoint, { method: "PUT", body: JSON.stringify(body) }),
-    patch: (endpoint, body) => apiFetch(endpoint, { method: "PATCH", body: JSON.stringify(body) }),
-    delete: (endpoint) => apiFetch(endpoint, { method: "DELETE" }),
+    getSilent: (endpoint, opts) => apiFetch(endpoint, { silent: true, ...(opts || {}) }),
+    post: (endpoint, body, opts) => apiFetch(endpoint, { method: "POST", body: JSON.stringify(body), ...(opts || {}) }),
+    put: (endpoint, body, opts) => apiFetch(endpoint, { method: "PUT", body: JSON.stringify(body), ...(opts || {}) }),
+    patch: (endpoint, body, opts) => apiFetch(endpoint, { method: "PATCH", body: JSON.stringify(body), ...(opts || {}) }),
+    delete: (endpoint, opts) => apiFetch(endpoint, { method: "DELETE", ...(opts || {}) }),
 };
 
 // ── LOGIN ─────────────────────────────────────────────────────
