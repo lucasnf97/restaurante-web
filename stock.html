@@ -172,6 +172,7 @@
         body.solo-vista [onclick*="abrirModalRegistrarProduccion"]     { display: none !important; }
         body.solo-vista [onclick*="editarInsumo"]                      { display: none !important; }
         body.solo-vista [onclick*="eliminarInsumo"]                    { display: none !important; }
+        body.solo-vista [onclick*="reactivarInsumo"]                   { display: none !important; }
         /* Botón de revisión: oculto por defecto, visible solo con permiso explícito */
         .btn-revision                                                   { display: none !important; }
         body.puede-revision .btn-revision                              { display: inline-flex !important; }
@@ -238,6 +239,10 @@
             </select>
             <button class="btn btn-secondary btn-sm" id="btn-limpiar-filtros" onclick="limpiarFiltrosInsumos()"
                     title="Quitar todos los filtros y el orden">✕ Limpiar filtros</button>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none;"
+                   title="Ver los insumos archivados (dados de baja) para reactivarlos">
+                <input type="checkbox" id="filtro-ins-archivados" onchange="cargarInsumos()"> 🗄 Ver archivados
+            </label>
             <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirStock()"
                     title="Imprimir el listado según el filtro aplicado">🖨 Imprimir listado</button>
         </div>
@@ -746,9 +751,10 @@ async function cargarInsumos() {
     const estado = document.getElementById("filtro-ins-estado").value;
     const prov   = document.getElementById("filtro-ins-prov")?.value || "";
     const ubic   = document.getElementById("filtro-ins-ubic")?.value || "";
+    const verArch = document.getElementById("filtro-ins-archivados")?.checked || false;
     window.UI && UI.skeleton(document.getElementById("tbody-insumos"), 6, 10);
     try {
-        _insumos = await api.get("/stock/insumos");
+        _insumos = await api.get(verArch ? "/stock/insumos?archivados=1" : "/stock/insumos");
         let data = _insumos;
         if (nombre) data = data.filter(i => coincide(i.nombre, nombre));
         if (estado === "agotado")          data = data.filter(i => i.agotado);
@@ -763,7 +769,7 @@ async function cargarInsumos() {
         actualizarStats();
 
         const tbody = document.getElementById("tbody-insumos");
-        if (!data.length) { tbody.innerHTML = `<tr><td colspan="11" class="empty">Sin insumos</td></tr>`; return; }
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="11" class="empty">${verArch ? 'No hay insumos archivados' : 'Sin insumos'}</td></tr>`; return; }
         tbody.innerHTML = data.map(i => {
             const actual = parseFloat(i.cantidad_actual);
             const estand = parseFloat(i.cantidad_estandar) || 1;
@@ -799,7 +805,9 @@ async function cargarInsumos() {
                 <td>${fmtControl(i.ultimo_control)}</td>
                 <td>${badge}</td>
                 <td>${btnHistorial}</td>
-                <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="eliminarInsumo(${i.id})" title="Eliminar insumo">✕</button></td>
+                <td style="text-align:right;">${verArch
+                    ? `<button class="btn btn-secondary btn-sm" onclick="reactivarInsumo(${i.id})" title="Reactivar insumo (vuelve a la lista)">↩ Reactivar</button>`
+                    : `<button class="btn btn-danger btn-sm" onclick="eliminarInsumo(${i.id})" title="Archivar insumo (se puede reactivar)">✕</button>`}</td>
             </tr>`;
         }).join("");
     } catch(e) { console.error(e); }
@@ -1150,8 +1158,24 @@ async function guardarInsumo() {
 
 async function eliminarInsumo(id) {
     const ins = _insumos.find(i => i.id === id);
-    if (!confirm(`¿Eliminar "${ins.nombre}"?`)) return;
+    if (!ins) return;
+    let msg = `¿Archivar "${ins.nombre}"?\n\nNo se borra: sale de la lista pero conserva todo su historial y lo podés reactivar cuando quieras (marcá "Ver archivados").`;
+    const r = ins.en_recetas || 0, p = ins.en_produccion || 0;
+    if (r || p) {
+        const partes = [];
+        if (r) partes.push(`${r} receta${r !== 1 ? 's' : ''}`);
+        if (p) partes.push(`${p} de producción`);
+        msg += `\n\n⚠ Sigue usado en ${partes.join(' y ')}: se archiva igual, pero seguirá ahí (no se borra de esas recetas).`;
+    }
+    if (!confirm(msg)) return;
     try { await api.delete(`/stock/insumos/${id}`); await cargarInsumos(); }
+    catch(e) { alert("Error: " + e.message); }
+}
+
+async function reactivarInsumo(id) {
+    const ins = _insumos.find(i => i.id === id);
+    if (!ins) return;
+    try { await api.post(`/stock/insumos/${id}/reactivar`, {}); await cargarInsumos(); }
     catch(e) { alert("Error: " + e.message); }
 }
 
