@@ -173,6 +173,10 @@
         body.solo-vista [onclick*="editarInsumo"]                      { display: none !important; }
         body.solo-vista [onclick*="eliminarInsumo"]                    { display: none !important; }
         body.solo-vista [onclick*="reactivarInsumo"]                   { display: none !important; }
+        /* `eliminarInsumo`/`reactivarInsumo` ya cubren los de producción por substring;
+           los bienes de uso tienen su propio nombre y faltaban. */
+        body.solo-vista [onclick*="eliminarBien"]                      { display: none !important; }
+        body.solo-vista [onclick*="reactivarBien"]                     { display: none !important; }
         /* Botón de revisión: oculto por defecto, visible solo con permiso explícito */
         .btn-revision                                                   { display: none !important; }
         body.puede-revision .btn-revision                              { display: inline-flex !important; }
@@ -279,6 +283,10 @@
             <select id="filtro-prod-ubic" onchange="cargarInsumosProduccion()" style="min-width:160px;">
                 <option value="">Todas las ubicaciones</option>
             </select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none;"
+                   title="Ver los insumos de producción archivados para reactivarlos">
+                <input type="checkbox" id="filtro-prod-archivados" onchange="cargarInsumosProduccion()"> 🗄 Ver archivados
+            </label>
             <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="abrirImprimirProduccion()"
                     title="Imprimir el listado según el filtro aplicado">🖨 Imprimir listado</button>
         </div>
@@ -305,6 +313,10 @@
                 <option value="advertencia">En advertencia</option>
                 <option value="ok">OK</option>
             </select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none;"
+                   title="Ver los bienes de uso archivados para reactivarlos">
+                <input type="checkbox" id="filtro-bien-archivados" onchange="cargarBienesUso()"> 🗄 Ver archivados
+            </label>
             <span class="hint" style="color: var(--tx-4, #9ca3af);font-size:12px;align-self:center;">Materiales, herramientas y utensilios del local (vasos, platos, cubiertos, etc.).</span>
         </div>
         <div class="tabla-wrapper">
@@ -1288,9 +1300,10 @@ async function cargarInsumosProduccion() {
     const estado = document.getElementById("filtro-prod-estado").value;
     const prov   = document.getElementById("filtro-prod-prov")?.value || "";
     const ubic   = document.getElementById("filtro-prod-ubic")?.value || "";
+    const verArchP = document.getElementById("filtro-prod-archivados")?.checked || false;
     window.UI && UI.skeleton(document.getElementById("tbody-produccion"), 6, 9);
     try {
-        let data = await api.get("/stock/insumos-produccion");
+        let data = await api.get(verArchP ? "/stock/insumos-produccion?archivados=1" : "/stock/insumos-produccion");
         _insumosProduccion = data;
         // Costos de producción (columna "Costo prod." + desglose de receta sin impuesto)
         let _cmap = {};
@@ -1345,7 +1358,9 @@ async function cargarInsumosProduccion() {
                 <td style="font-size:13px;">${costoCell}</td>
                 <td>${badge}</td>
                 <td>${btnHistorial}</td>
-                <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarInsumoProduccion(${i.id})" title="Eliminar insumo">✕</button></td>
+                <td style="text-align:right;">${verArchP
+                    ? `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();reactivarInsumoProduccion(${i.id})" title="Reactivar (vuelve a la lista)">↩ Reactivar</button>`
+                    : `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarInsumoProduccion(${i.id})" title="Archivar insumo (se puede reactivar)">✕</button>`}</td>
             </tr>
             <tr class="cos-det" id="cos-det-${i.id}" style="display:none;">
                 <td colspan="9" style="padding:0;background: var(--sup-2, #f9fafb);">
@@ -1717,8 +1732,22 @@ async function guardarInsumoProduccion() {
 
 async function eliminarInsumoProduccion(id) {
     const ip = _insumosProduccion.find(i => i.id === id);
-    if (!confirm(`¿Eliminar "${ip?.nombre}"? Se eliminará también su receta.`)) return;
+    if (!ip) return;
+    let msg = `¿Archivar "${ip.nombre}"?\n\nNo se borra: sale de la lista pero conserva su receta y su historial de producción, y lo podés reactivar cuando quieras (marcá "Ver archivados").`;
+    const p = ip.producciones || 0, r = ip.en_recetas || 0;
+    if (p || r) {
+        const partes = [];
+        if (p) partes.push(`${p} ${p !== 1 ? 'producciones registradas' : 'producción registrada'}`);
+        if (r) partes.push(`${r} receta${r !== 1 ? 's' : ''} que lo usa${r !== 1 ? 'n' : ''}`);
+        msg += `\n\nTiene ${partes.join(' y ')}: se conservan tal cual.`;
+    }
+    if (!confirm(msg)) return;
     try { await api.delete(`/stock/insumos-produccion/${id}`); await cargarInsumosProduccion(); }
+    catch(e) { alert("Error: " + (e.message || e)); }
+}
+
+async function reactivarInsumoProduccion(id) {
+    try { await api.post(`/stock/insumos-produccion/${id}/reactivar`, {}); await cargarInsumosProduccion(); }
     catch(e) { alert("Error: " + (e.message || e)); }
 }
 
@@ -2394,7 +2423,8 @@ function _eB(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;
 async function cargarBienesUso() {
     const tbody = document.getElementById("tbody-bienes");
     window.UI && UI.skeleton(tbody, 6, 10);
-    try { _bienes = await api.get("/stock/bienes-uso"); renderBienesUso(); }
+    const verArchB = document.getElementById("filtro-bien-archivados")?.checked || false;
+    try { _bienes = await api.get(verArchB ? "/stock/bienes-uso?archivados=1" : "/stock/bienes-uso"); renderBienesUso(); }
     catch(e) { tbody.innerHTML = `<tr><td colspan="10" class="empty">Error: ${e.message}</td></tr>`; }
 }
 function renderBienesUso() {
@@ -2431,7 +2461,9 @@ function renderBienesUso() {
             <td style="font-size:13px;">${costo}</td>
             <td>${badge}</td>
             <td><button class="btn btn-secondary btn-sm" onclick="verFacturasBien(${b.id},'${_eB(b.nombre).replace(/'/g,"\\'")}')">📋 Facturas</button></td>
-            <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="eliminarBien(${b.id})" title="Eliminar">✕</button></td>
+            <td style="text-align:right;">${(document.getElementById("filtro-bien-archivados")?.checked)
+                ? `<button class="btn btn-secondary btn-sm" onclick="reactivarBien(${b.id})" title="Reactivar (vuelve a la lista)">↩ Reactivar</button>`
+                : `<button class="btn btn-danger btn-sm" onclick="eliminarBien(${b.id})" title="Archivar (se puede reactivar)">✕</button>`}</td>
         </tr>`;
     }).join("");
 }
@@ -2479,8 +2511,15 @@ async function guardarBien() {
 }
 async function eliminarBien(id) {
     const b = _bienes.find(x => x.id === id);
-    if (!confirm(`¿Eliminar "${b?.nombre}"? Se borrarán también sus movimientos.`)) return;
+    if (!b) return;
+    // Antes el borrado se llevaba puesto TODO el historial de movimientos del bien.
+    if (!confirm(`¿Archivar "${b.nombre}"?\n\nNo se borra: sale de la lista pero conserva su historial de movimientos (compras, pérdidas), y lo podés reactivar cuando quieras (marcá "Ver archivados").`)) return;
     try { await api.delete(`/stock/bienes-uso/${id}`); await cargarBienesUso(); }
+    catch(e) { alert("Error: " + (e.message || e)); }
+}
+
+async function reactivarBien(id) {
+    try { await api.post(`/stock/bienes-uso/${id}/reactivar`, {}); await cargarBienesUso(); }
     catch(e) { alert("Error: " + (e.message || e)); }
 }
 // Pérdida
