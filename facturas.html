@@ -260,6 +260,10 @@
     <div id="vista-proveedores" style="display:none">
         <div class="acciones-bar">
             <button class="btn btn-primary btn-sm" onclick="abrirModalProveedor()">+ Nuevo proveedor</button>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none;margin-left:12px;"
+                   title="Ver los proveedores archivados (dados de baja) para reactivarlos">
+                <input type="checkbox" id="filtro-prov-archivados" onchange="cargarProveedores()"> 🗄 Ver archivados
+            </label>
         </div>
         <div class="tabla-wrapper">
             <table>
@@ -2710,10 +2714,11 @@ async function eliminarServicio(id) {
 // ── PROVEEDORES ───────────────────────────────────────────────
 async function cargarProveedores() {
     try {
-        _proveedores = await api.get("/stock/proveedores");
+        const verArch = document.getElementById("filtro-prov-archivados")?.checked || false;
+        _proveedores = await api.get(verArch ? "/stock/proveedores?archivados=1" : "/stock/proveedores");
         const tbody = document.getElementById("tbody-proveedores");
         if (!tbody) return;
-        if (!_proveedores.length) { tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin proveedores</td></tr>`; return; }
+        if (!_proveedores.length) { tbody.innerHTML = `<tr><td colspan="5" class="empty">${verArch ? 'No hay proveedores archivados' : 'Sin proveedores'}</td></tr>`; return; }
         tbody.innerHTML = _proveedores.map(p => `<tr>
             <td><strong>${esc(p.nombre)}</strong></td>
             <td>${p.cuit || '—'}</td>
@@ -2721,7 +2726,9 @@ async function cargarProveedores() {
             <td>${p.email || '—'}</td>
             <td><div style="display:flex;gap:6px;">
                 <button class="btn btn-secondary btn-sm" onclick="editarProveedor(${p.id})">Editar</button>
-                <button class="btn btn-danger btn-sm" onclick="eliminarProveedor(${p.id})">✕</button>
+                ${verArch
+                    ? `<button class="btn btn-secondary btn-sm" onclick="reactivarProveedor(${p.id})" title="Reactivar proveedor">↩ Reactivar</button>`
+                    : `<button class="btn btn-danger btn-sm" onclick="eliminarProveedor(${p.id})" title="Archivar proveedor (se puede reactivar)">✕</button>`}
             </div></td>
         </tr>`).join("");
     } catch(e) {
@@ -2770,8 +2777,24 @@ async function guardarProveedor() {
 
 async function eliminarProveedor(id) {
     const p = _proveedores.find(p => p.id === id);
-    if (!confirm(`¿Eliminar "${p.nombre}"?`)) return;
+    if (!p) return;
+    let msg = `¿Archivar "${p.nombre}"?\n\nNo se borra: sale de la lista pero conserva su historial y lo podés reactivar cuando quieras (marcá "Ver archivados").`;
+    const c = p.compras || 0, f = p.facturas || 0;
+    if (c || f) {
+        const partes = [];
+        if (c) partes.push(`${c} compra${c !== 1 ? 's' : ''}`);
+        if (f) partes.push(`${f} factura${f !== 1 ? 's' : ''}`);
+        msg += `\n\nTiene ${partes.join(' y ')} a su nombre: se conservan tal cual.`;
+    }
+    if (!confirm(msg)) return;
     try { await api.delete(`/stock/proveedores/${id}`); await cargarProveedores(); }
+    catch(e) { alert("Error: " + e.message); }
+}
+
+async function reactivarProveedor(id) {
+    const p = _proveedores.find(p => p.id === id);
+    if (!p) return;
+    try { await api.post(`/stock/proveedores/${id}/reactivar`, {}); await cargarProveedores(); }
     catch(e) { alert("Error: " + e.message); }
 }
 
