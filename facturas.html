@@ -101,6 +101,16 @@
         .dropzone-text { font-size: 16px; font-weight: 600; color: var(--fg-a17, #4c1d95); margin-bottom: 6px; }
         .dropzone-sub { font-size: 13px; color: var(--tx-ac-2, #7c3aed); margin-bottom: 20px; }
         .dropzone-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        /* Modo cadena SIN restaurante elegido: la zona de carga se desenfoca y queda un
+           cartel en el centro. Se ve inerte a propósito — acá se mete plata y stock en la
+           base de un local concreto, y arrastrar un archivo antes de decir a cuál no debería
+           ni parecer posible. El velo NO se desenfoca (va fuera del filtro del contenido). */
+        .dropzone.dz-bloqueado { cursor: not-allowed; position: relative; }
+        .dropzone.dz-bloqueado > *:not(.dz-velo) { filter: blur(3px); opacity: .5; pointer-events: none; user-select: none; }
+        .dz-velo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+                   justify-content: center; gap: 6px; border-radius: 14px; text-align: center; padding: 16px; }
+        .dz-velo-titulo { font-size: 18px; font-weight: 800; color: var(--fg-a17, #4c1d95); }
+        .dz-velo-sub { font-size: 13px; color: var(--tx-ac-2, #7c3aed); }
         .archivos-cargados { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
         .fcard { background: var(--sup, white); border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
         .fcard.procesado { border-color: var(--bd-a14, #86efac); }
@@ -3274,6 +3284,25 @@ function renderBarraDestino() {
             : `<span style="font-size:13px;color: var(--pel-tx-2, #dc2626);font-weight:600;">
                Elegí un restaurante antes de cargar facturas.</span>`}
       </div>`;
+    pintarBloqueoDropzone();
+}
+
+// Zona de carga desenfocada mientras no haya restaurante elegido. Se llama desde
+// renderBarraDestino, así que sigue al estado del selector sin que nadie se acuerde.
+function pintarBloqueoDropzone() {
+    const dz = document.getElementById("dropzone");
+    if (!dz) return;
+    const bloquear = _modoCadena && !_destinoActual;
+    dz.classList.toggle("dz-bloqueado", bloquear);
+    let velo = dz.querySelector(".dz-velo");
+    if (!bloquear) { if (velo) velo.remove(); return; }
+    if (!velo) {
+        velo = document.createElement("div");
+        velo.className = "dz-velo";
+        velo.innerHTML = `<div class="dz-velo-titulo">🏢 Seleccionar restaurante</div>
+            <div class="dz-velo-sub">Elegí arriba a qué local se cargan estas facturas.</div>`;
+        dz.appendChild(velo);
+    }
 }
 
 // Elegir destino: consigue su token (una vez), sus catálogos y su historial. El token se

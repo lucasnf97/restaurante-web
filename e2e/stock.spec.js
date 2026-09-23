@@ -336,3 +336,61 @@ test.describe("Revisión de stock", () => {
     expect(fuera.y).toBeGreaterThanOrEqual(0);
   });
 });
+
+test.describe("Control de stock sin diferencias", () => {
+  // Reportado por el socio: "cuando hago un control de stock y el esperado coincide con
+  // el real no me toma el ingreso". Confirmar que TODO coincide es un control válido —
+  // no ajusta nada ni mueve plata, pero deja constancia y sella la fecha de último
+  // control de cada insumo contado, que es para lo que se hace el conteo.
+  //
+  // ⚠ SOLO LECTURA: se intercepta `api.post` y no se guarda ninguna revisión de verdad.
+  const correrConfirmacion = (page, declarado, datos) => page.evaluate(async ({ d, f }) => {
+    // @ts-ignore  (globales de la página)
+    _revDataFull = f; _revDeclarado = d;
+    const notas = document.getElementById("rev-notas");
+    if (notas) notas.value = "";
+    let capturado = null;
+    // @ts-ignore
+    const origPost = api.post, origI = window.cargarInsumos, origP = window.cargarInsumosProduccion;
+    // @ts-ignore
+    api.post = async (ep, body) => { capturado = { ep, body }; return { mensaje: "ok" }; };
+    // @ts-ignore  (no recargar listas por red al terminar)
+    window.cargarInsumos = async () => {}; window.cargarInsumosProduccion = async () => {};
+    try { await confirmarRevision(); } catch (e) { /* el resultado se juzga por lo enviado */ }
+    finally {
+      // @ts-ignore
+      api.post = origPost; window.cargarInsumos = origI; window.cargarInsumosProduccion = origP;
+    }
+    return capturado;
+  }, { d: declarado, f: datos });
+
+  test("todo coincide: se guarda igual, sin ajustar nada", async ({ page }) => {
+    await page.goto("/stock.html");
+    const enviado = await correrConfirmacion(page, { 4242: 7 },
+      [{ id: 4242, nombre: "Insumo de prueba", unidad: "kg", cantidad_actual: 7 }]);
+
+    expect(enviado, "no llamó al endpoint: siguió bloqueando el control sin diferencias")
+      .not.toBeNull();
+    expect(enviado.ep).toContain("/stock/revision");
+    expect(enviado.body.items, "no debe ajustar ningún stock").toEqual([]);
+    expect(enviado.body.controlados, "tiene que sellar el insumo contado").toEqual([4242]);
+  });
+
+  test("una diferencia real sí viaja como ajuste", async ({ page }) => {
+    await page.goto("/stock.html");
+    const enviado = await correrConfirmacion(page, { 4242: 5 },
+      [{ id: 4242, nombre: "Insumo de prueba", unidad: "kg", cantidad_actual: 7 }]);
+
+    expect(enviado).not.toBeNull();
+    expect(enviado.body.items).toEqual([{ insumo_id: 4242, stock_real: 5 }]);
+    expect(enviado.body.controlados).toEqual([4242]);
+  });
+
+  test("sin contar nada no se guarda", async ({ page }) => {
+    // Lo único que de verdad no tiene sentido: un control donde no se contó ningún insumo.
+    await page.goto("/stock.html");
+    const enviado = await correrConfirmacion(page, {},
+      [{ id: 4242, nombre: "Insumo de prueba", unidad: "kg", cantidad_actual: 7 }]);
+    expect(enviado, "un control vacío no debería guardarse").toBeNull();
+  });
+});

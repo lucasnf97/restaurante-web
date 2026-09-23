@@ -2352,14 +2352,19 @@ async function confirmarRevision() {
         }
     });
 
-    if (!items.length) {
-        alert("No hay diferencias entre stock teórico y real. No se guardará ningún ajuste.");
-        return;
-    }
-
     // Todo lo que se conto, haya cambiado o no: contar algo y que de bien
     // tambien es un control y tiene que sellar la fecha del insumo.
     const controlados = Object.keys(_revDeclarado).map(Number).filter(n => !isNaN(n));
+
+    // ⚠ Antes se cortaba acá cuando NO habia diferencias ("no se guardará ningún ajuste"),
+    //   y eso estaba mal: confirmar que el stock coincide con lo esperado ES un control
+    //   válido. No ajusta nada ni mueve plata, pero deja constancia y sella la fecha de
+    //   último control de cada insumo contado — que es justo para lo que se hace el conteo.
+    //   Lo único que no tiene sentido es guardar un control donde no se contó NADA.
+    if (!controlados.length) {
+        alert("No cargaste ningún conteo. Ingresá el stock real de al menos un insumo.");
+        return;
+    }
 
     const notas = document.getElementById("rev-notas").value.trim() || null;
     const btn   = document.getElementById("rev-btn-confirmar");
@@ -2713,7 +2718,7 @@ async function verFacturasBien(id, nombre) {
                            border-radius:11px;cursor:pointer;color:var(--tx,#1a1a2e);">🧮</button>
             <h3 style="margin-bottom:4px;">🔍 Revisión de stock</h3>
             <p style="font-size:13px;color: var(--tx-7, #666);margin-bottom:10px;">
-                Ingresá el stock <strong>real</strong> de cada insumo. Solo se guardan los insumos con diferencia.
+                Ingresá el stock <strong>real</strong> de cada insumo. Solo se ajustan los que tengan diferencia, pero <strong>todo lo que cuentes queda controlado</strong> (se actualiza su fecha de último control), aunque coincida.
             </p>
             <div class="form-group" style="margin-bottom:0;">
                 <label>Notas (opcional)</label>

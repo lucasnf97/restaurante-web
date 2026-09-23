@@ -41,6 +41,31 @@ test.describe("Facturas en modo cadena", () => {
     expect(encoladas, "encoló una factura sin haber elegido restaurante").toBe(0);
   });
 
+  test("sin restaurante, la zona de carga se ve desenfocada y lo dice", async ({ page }) => {
+    await abrir(page);
+    // Que se vea inerte no es cosmético: arrastrar una factura antes de decir a qué local
+    // no debería ni parecer posible, porque de ahí sale plata y stock en una base concreta.
+    const dz = page.locator("#dropzone");
+    await expect(dz).toHaveClass(/dz-bloqueado/);
+    await expect(dz.locator(".dz-velo")).toContainText("Seleccionar restaurante");
+    // El contenido se desenfoca, pero el cartel NO (va fuera del filtro).
+    const blur = await page.evaluate(() =>
+      getComputedStyle(document.querySelector("#dropzone .dropzone-text")).filter);
+    expect(blur, "el contenido de la zona debería estar desenfocado").toContain("blur");
+  });
+
+  test("al elegir restaurante se destraba la zona de carga", async ({ page }) => {
+    await abrir(page);
+    await page.evaluate(() => {
+      // Se simula la elección sin pedirle un token al backend: lo que se prueba acá es que
+      // la zona sigue al estado del selector, no el alta de sesión en el local.
+      _destinoActual = { id: 1, nombre: "Local de prueba", codigo: "0000A", color: "#4f46e5", token: null };
+      renderBarraDestino();
+    });
+    await expect(page.locator("#dropzone")).not.toHaveClass(/dz-bloqueado/);
+    await expect(page.locator("#dropzone .dz-velo")).toHaveCount(0);
+  });
+
   test("el selector ofrece los restaurantes de la cadena", async ({ page }) => {
     await abrir(page);
     // Más de 1 = el vacío ("— Elegí el restaurante —") + los locales reales.
