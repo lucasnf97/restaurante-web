@@ -407,7 +407,7 @@ function requireRol(...roles) {
     const user = getUser();
     if (!user || !roles.includes(user.rol)) {
         alert("No tenés permiso para acceder a esta sección.");
-        window.location.href = "dashboard.html";
+        window.location.href = _destinoSinAcceso();
     }
 }
 
@@ -415,13 +415,24 @@ function requireRol(...roles) {
  * Exige que el usuario tenga al menos uno de los permisos indicados.
  * Admin y gerente siempre pasan. Si no cumple, redirige al dashboard.
  */
+// A dónde mandar a alguien que no puede estar en esta pantalla. ⚠ `dashboard.html` es una
+// pantalla de INQUILINO: a un gerente de cadena que no entró a ningún local le carga vacía
+// y parece colgada. Para él el destino correcto es su pantalla de cadena. (El rebote a un
+// dashboard en blanco fue un bug real.)
+function _destinoSinAcceso() {
+    try {
+        if (esGerenteCadena() && enCuentaGer()) return "cadena.html";
+    } catch (e) { /* ante la duda, el de siempre */ }
+    return "dashboard.html";
+}
+
 function requirePermiso(...perms) {
     const user = getUser();
     if (!user) { window.location.href = "index.html"; return; }
     if (user.rol === "admin" || user.rol === "gerente") return;
     if (perms.some(p => user[p])) return;
     alert("No tenés permiso para acceder a esta sección.");
-    window.location.href = "dashboard.html";
+    window.location.href = _destinoSinAcceso();
 }
 
 /**

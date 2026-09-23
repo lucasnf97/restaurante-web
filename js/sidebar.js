@@ -1,3 +1,25 @@
+// ── GUARDA: un gerente de cadena SIN local no va a una pantalla de inquilino ──────
+// Su token activo es el de la CADENA y no resuelve ningún esquema, así que la pantalla
+// carga vacía y parece colgada, esperando algo que nunca va a llegar. Pasó de verdad: un
+// rebote de permisos lo dejó en dashboard.html en blanco. Su pantalla es la de cadena.
+//
+// ⚠ Vive acá A PROPÓSITO: `sidebar.js` lo cargan las pantallas de INQUILINO y NO lo cargan
+//   cadena.html / cadena-personal.html / restaurantes.html, que son las de la cadena. Así
+//   la guarda cubre todas las de inquilino sin poder disparar en las suyas.
+// ⚠ Se lee localStorage DIRECTO, no las funciones de api.js: sidebar.js se carga ANTES que
+//   api.js en todas las páginas, así que `esGerenteCadena` todavía no existe.
+// ⚠ Excepción: las pantallas que funcionan EN modo cadena a propósito (?cadena=1), como la
+//   carga de facturas de varios locales.
+(function () {
+    try {
+        const ger = localStorage.getItem("ger_token");
+        // Sin ger_token no es gerente de cadena; si el token activo es OTRO, ya entró a un local.
+        if (!ger || localStorage.getItem("token") !== ger) return;
+        if (new URLSearchParams(location.search).get("cadena") === "1") return;
+        location.replace("cadena.html");   // replace: no deja la pantalla vacía en el historial
+    } catch (e) { /* si localStorage falla, mejor cargar la página que bloquearla */ }
+})();
+
 (function () {
     // ── PÁGINAS DEL SISTEMA ─────────────────────────────────────
     // perm: string o array de strings — basta con tener UNO para ver el ítem.

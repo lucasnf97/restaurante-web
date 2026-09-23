@@ -62,6 +62,40 @@ test.describe("Facturas en modo cadena", () => {
 
 });
 
+test.describe("Un gerente de cadena nunca queda en una pantalla de inquilino", () => {
+  test.use({ rol: "gerente_cadena" });
+
+  // Sesión de cadena SIN haber entrado a ningún local: el token activo es el de la
+  // cadena. Es el estado en el que el dashboard cargaba vacío y parecía colgado.
+  const sesionCadenaSuelta = (page) => page.addInitScript((t) => {
+    localStorage.setItem("ger_token", t);
+    localStorage.setItem("token", t);
+  }, tokenCadena(MAQUETAS.gid, MAQUETAS.user));
+
+  test("abrir el dashboard lo devuelve a la pantalla de cadena", async ({ page }) => {
+    // Su token no resuelve ningún esquema, así que el dashboard no tiene datos que
+    // mostrar: quedaba en blanco esperando algo que no iba a llegar. Y peor, era el
+    // destino al que lo mandaba el rebote por permisos.
+    await sesionCadenaSuelta(page);
+    await page.goto("/dashboard.html");
+    await expect(page).toHaveURL(/cadena\.html(\?.*)?$/);
+  });
+
+  test("y lo mismo desde cualquier otra pantalla de un local", async ({ page }) => {
+    await sesionCadenaSuelta(page);
+    await page.goto("/stock.html");
+    await expect(page).toHaveURL(/cadena\.html(\?.*)?$/);
+  });
+
+  test("pero la carga de facturas en cadena SÍ se queda", async ({ page }) => {
+    // La excepción que hace útil la guarda: ?cadena=1 está pensada para este contexto.
+    await sesionCadenaSuelta(page);
+    await page.goto("/facturas.html?cadena=1");
+    await expect(page).toHaveURL(/facturas\.html\?cadena=1$/);
+    await expect(page.locator("#cadena-barra")).toBeVisible();
+  });
+});
+
 test.describe("La pantalla de siempre no cambia", () => {
   // La contracara, y la que más importa: el modo cadena es ADITIVO. Un gerente
   // normal (de UN restaurante) no ve ninguna barra de destino y sigue teniendo
