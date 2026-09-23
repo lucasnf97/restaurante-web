@@ -1826,6 +1826,10 @@ function mxTipo(t) {
     // esos números son del año.
     document.getElementById('mes-only').style.display = (t === 'mes') ? '' : 'none';
     actualizarLblMes();
+    // ⚠ Navegando por años cambia `anioActual`, así que al volver a Mes el detalle
+    //   de abajo puede estar mostrando OTRO período que el que dice la etiqueta. Se
+    //   recarga: dos números distintos en la misma pantalla es peor que esperar.
+    if (t === 'mes') cargarFacturacion();
     cargarMetricas();
     cargarEvolucion();
 }
@@ -1882,6 +1886,13 @@ function renderMetricas() {
         // preferible a mostrar un total que nadie puede reconciliar con el detalle.
         if (d.actual.descuadre)
             av.push('Descuadre de ' + fmt(d.actual.descuadre) + ' entre el total y su desglose.');
+    }
+    // Sólo importa cuando hay comparaciones en pantalla: sin ellas no hay nada
+    // que se pueda leer mal.
+    if (d && d.vs_anterior && d.periodo.duraciones_distintas) {
+        av.push('Ojo al comparar importes: ' + d.periodo.label + ' tiene ' +
+                d.periodo.dias + ' días y ' + d.periodo.label_anterior + ' tiene ' +
+                d.periodo.dias_anterior + '. Los porcentajes no se ven afectados.');
     }
     document.getElementById('mx-aviso').textContent = av.join(' ');
     renderCostesChart();

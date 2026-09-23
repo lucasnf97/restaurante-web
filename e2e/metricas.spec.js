@@ -44,6 +44,21 @@ const comoCadena = (page, ep) => page.evaluate(async ({ e, t }) => {
   return { ok: r.ok, status: r.status, data: await r.json().catch(() => null) };
 }, { e: ep, t: tokenCadena(Number(process.env.E2E_GID || 3), process.env.E2E_USER || "Lucas") });
 
+/**
+ * Espera a que el tablero de cadena esté POBLADO.
+ * ⚠ No alcanza con esperar a que haya un `<tr>` en el tbody: el marcador inicial
+ *   "Cargando…" ya es un `<tr>` visible, así que esa espera pasa al instante y la
+ *   prueba sigue con la pantalla vacía. Se espera al selector de restaurantes, que
+ *   sólo se llena cuando los datos llegaron.
+ */
+async function esperarTableroCadena(page) {
+  await expect.poll(
+    () => page.locator("#mxc-rest option").count(),
+    { timeout: 30000, message: "el selector de restaurantes nunca se pobló" },
+  ).toBeGreaterThan(1);
+  await expect(page.locator("#mxc-tfoot")).toContainText(/./, { timeout: 30000 });
+}
+
 async function abrirEnMesConDatos(page) {
   await page.goto("/analisis-mes.html");
   const atras = clicsAtras();
@@ -236,8 +251,7 @@ test.describe("Consolidado de cadena", () => {
 
   test("la tabla comparativa se ordena y cierra con el Total cadena", async ({ page }) => {
     await page.goto("/cadena.html?cadena=1");
-    // La primera tanda pinta los números; la tabla ya está ahí.
-    await expect(page.locator("#mxc-tbody tr").first()).toBeVisible({ timeout: 30000 });
+    await esperarTableroCadena(page);
     await expect(page.locator("#mxc-tfoot")).toContainText("Total cadena");
 
     // Ordenar por Ventas: la primera fila tiene que ser la de más ventas.
@@ -257,10 +271,7 @@ test.describe("Consolidado de cadena", () => {
 
   test("el selector de restaurante cambia el ámbito sin volver a pedir datos", async ({ page }) => {
     await page.goto("/cadena.html?cadena=1");
-    await expect(page.locator("#mxc-tbody tr").first()).toBeVisible({ timeout: 30000 });
-
-    const opciones = await page.locator("#mxc-rest option").count();
-    test.skip(opciones < 2, "el gerente de prueba no tiene restaurantes");
+    await esperarTableroCadena(page);
 
     // Cambiar de ámbito NO dispara una llamada nueva: los datos de todos los
     // locales vinieron en la misma respuesta.
@@ -278,7 +289,7 @@ test.describe("Consolidado de cadena", () => {
     expect(r.ok).toBe(true);
     expect(r.data.moneda).toBeTruthy();
 
-    await expect(page.locator("#mxc-tfoot")).toContainText(/./, { timeout: 30000 });
+    await esperarTableroCadena(page);
     if (r.data.moneda.mezcladas) {
       // Sumar coronas con euros da un importe que no existe, y su % tampoco vale.
       await expect(page.locator("#mxc-tfoot")).toContainText("monedas distintas");
