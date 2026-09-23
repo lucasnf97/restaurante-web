@@ -23,47 +23,54 @@ test.describe("Facturas en modo cadena", () => {
     await expect(page.locator("#cadena-barra")).toBeVisible();
   };
 
-  test("sin restaurante elegido no deja cargar ni una factura", async ({ page }) => {
+  test("sin restaurante, arrastrar una factura pregunta a cuál (y no la encola todavía)", async ({ page }) => {
     await abrir(page);
-    await expect(page.locator("#cadena-barra")).toContainText(/Elegí un restaurante/i);
     await expect(page.locator("#cadena-sel-destino")).toHaveValue("");
 
-    // ⚠ LA prueba: soltar un archivo sin destino no encola NADA. Si esto se
-    //   rompiera, la factura quedaría en la cola sin dueño y el primer destino
-    //   que se eligiera después se la llevaría puesta.
     const encoladas = await page.evaluate(async () => {
       const f = new File([new Uint8Array([1, 2, 3])], "prueba-sin-destino.pdf", { type: "application/pdf" });
-      // @ts-ignore  (funciones globales de la página)
+      // @ts-ignore  (globales de la página)
       await agregarArchivos([f]);
       // @ts-ignore
       return _archivosFactura.length;
     });
+    // Nada se encola sin destino: una factura sin local no debe poder existir en la cola.
     expect(encoladas, "encoló una factura sin haber elegido restaurante").toBe(0);
+    // Y en vez de rebotar con un aviso, PREGUNTA.
+    await expect(page.locator("#modal-elegir-destino")).toHaveClass(/active/);
+    await expect(page.locator("#ed-lista button")).not.toHaveCount(0);
   });
 
-  test("sin restaurante, la zona de carga se ve desenfocada y lo dice", async ({ page }) => {
+  test("al elegir el restaurante se retoma: no hay que arrastrar de nuevo", async ({ page }) => {
+    // ⚠ LA prueba de esta función. Rebotar al usuario le haría repetir el arrastre, que es
+    //   trabajo perdido por una pregunta que el sistema podía hacer en el momento.
     await abrir(page);
-    // Que se vea inerte no es cosmético: arrastrar una factura antes de decir a qué local
-    // no debería ni parecer posible, porque de ahí sale plata y stock en una base concreta.
-    const dz = page.locator("#dropzone");
-    await expect(dz).toHaveClass(/dz-bloqueado/);
-    await expect(dz.locator(".dz-velo")).toContainText("Seleccionar restaurante");
-    // El contenido se desenfoca, pero el cartel NO (va fuera del filtro).
-    const blur = await page.evaluate(() =>
-      getComputedStyle(document.querySelector("#dropzone .dropzone-text")).filter);
-    expect(blur, "el contenido de la zona debería estar desenfocado").toContain("blur");
-  });
-
-  test("al elegir restaurante se destraba la zona de carga", async ({ page }) => {
-    await abrir(page);
-    await page.evaluate(() => {
-      // Se simula la elección sin pedirle un token al backend: lo que se prueba acá es que
-      // la zona sigue al estado del selector, no el alta de sesión en el local.
-      _destinoActual = { id: 1, nombre: "Local de prueba", codigo: "0000A", color: "#4f46e5", token: null };
-      renderBarraDestino();
+    await page.evaluate(async () => {
+      const f = new File([new Uint8Array([1, 2, 3])], "retomada.pdf", { type: "application/pdf" });
+      // @ts-ignore
+      await agregarArchivos([f]);
     });
-    await expect(page.locator("#dropzone")).not.toHaveClass(/dz-bloqueado/);
-    await expect(page.locator("#dropzone .dz-velo")).toHaveCount(0);
+    await expect(page.locator("#modal-elegir-destino")).toHaveClass(/active/);
+    await page.locator("#ed-lista button").first().click();
+
+    // El archivo que ya se había soltado se encola solo, con su local estampado.
+    // ⚠ `_archivosFactura` se declara con `let` en un script clásico: eso crea un binding
+    //   léxico global, NO una propiedad de `window`. Hay que nombrarlo pelado.
+    await expect.poll(() => page.evaluate(() => _archivosFactura.length),
+      { message: "la factura arrastrada se perdió al elegir el restaurante" }).toBe(1);
+    const enc = await page.evaluate(() => ({
+      nombre: _archivosFactura[0].file?.name || null,
+      destino: _archivosFactura[0].destino?.nombre || null,
+    }));
+    expect(enc.nombre).toBe("retomada.pdf");
+    expect(enc.destino, "la factura retomada tiene que quedar con su restaurante").toBeTruthy();
+  });
+
+  test("tocar 'Seleccionar archivo' sin destino también pregunta", async ({ page }) => {
+    await abrir(page);
+    // @ts-ignore
+    await page.evaluate(() => abrirSelectorArchivo("file-input"));
+    await expect(page.locator("#modal-elegir-destino")).toHaveClass(/active/);
   });
 
   test("el selector ofrece los restaurantes de la cadena", async ({ page }) => {

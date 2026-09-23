@@ -101,16 +101,6 @@
         .dropzone-text { font-size: 16px; font-weight: 600; color: var(--fg-a17, #4c1d95); margin-bottom: 6px; }
         .dropzone-sub { font-size: 13px; color: var(--tx-ac-2, #7c3aed); margin-bottom: 20px; }
         .dropzone-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-        /* Modo cadena SIN restaurante elegido: la zona de carga se desenfoca y queda un
-           cartel en el centro. Se ve inerte a propósito — acá se mete plata y stock en la
-           base de un local concreto, y arrastrar un archivo antes de decir a cuál no debería
-           ni parecer posible. El velo NO se desenfoca (va fuera del filtro del contenido). */
-        .dropzone.dz-bloqueado { cursor: not-allowed; position: relative; }
-        .dropzone.dz-bloqueado > *:not(.dz-velo) { filter: blur(3px); opacity: .5; pointer-events: none; user-select: none; }
-        .dz-velo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
-                   justify-content: center; gap: 6px; border-radius: 14px; text-align: center; padding: 16px; }
-        .dz-velo-titulo { font-size: 18px; font-weight: 800; color: var(--fg-a17, #4c1d95); }
-        .dz-velo-sub { font-size: 13px; color: var(--tx-ac-2, #7c3aed); }
         .archivos-cargados { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
         .fcard { background: var(--sup, white); border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
         .fcard.procesado { border-color: var(--bd-a14, #86efac); }
@@ -175,7 +165,24 @@
         <button class="tab" id="tab-proveedores" onclick="setTab('proveedores')">🏢 Proveedores</button>
     </div>
 
-    <!-- CARGAR FACTURA -->
+    <!-- Elegir restaurante destino (modo cadena). Aparece cuando se intenta cargar una
+     factura sin haber elegido a qué local va. ⚠ Al elegir se RETOMA lo que se estaba
+     haciendo: el archivo que ya arrastraste no se pierde y, si tocaste "Seleccionar
+     archivo" o "Cámara", se abre solo — no hay que volver a empezar. -->
+<div class="modal-overlay" id="modal-elegir-destino">
+    <div class="modal" style="max-width:440px;">
+        <h3>🏢 ¿A qué restaurante?</h3>
+        <p style="font-size:13px;color: var(--tx-5, #888);margin:8px 0 16px;">
+            Elegí el local al que se cargan estas facturas. Se registran ahí: su stock y sus gastos.
+        </p>
+        <div id="ed-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cancelarElegirDestino()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- CARGAR FACTURA -->
     <div id="vista-cargar">
         <!-- Barra de destino (solo en modo cadena): a QUÉ restaurante va el lote que se
              está cargando. Se pinta del color del local y queda pegada arriba, porque acá
@@ -185,7 +192,7 @@
             <h3 style="margin-bottom:8px;font-size:16px;color: var(--tx, #1a1a2e);">Procesar factura con IA</h3>
             <p style="font-size:13px;color: var(--tx-5, #888);margin-bottom:20px;">Subí una factura. Claude analizará automáticamente los ítems, cantidades y precios.</p>
             <div style="display:flex;gap:10px;margin-bottom:18px;">
-            <button class="btn btn-primary" onclick="document.getElementById('file-input-main').click()">🤖 Procesar con IA</button>
+            <button class="btn btn-primary" onclick="abrirSelectorArchivo('file-input-main')">🤖 Procesar con IA</button>
             <input type="file" id="file-input-main" accept="image/*,.pdf" multiple style="display:none" onchange="agregarArchivos(this.files)">
             <button class="btn btn-secondary" onclick="cargarManual()">✏️ Ingresar manualmente</button>
         </div>
@@ -198,7 +205,7 @@
                 <div class="dropzone-text">Arrastrá la factura aquí</div>
                 <div class="dropzone-sub">PDF, JPG, PNG</div>
                 <div class="dropzone-btns" onclick="event.stopPropagation()">
-                    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('file-input').click()">📁 Seleccionar archivo</button>
+                    <button class="btn btn-secondary btn-sm" onclick="abrirSelectorArchivo('file-input')">📁 Seleccionar archivo</button>
                     <button class="btn btn-secondary btn-sm" id="btn-camara" onclick="abrirCamara()">📷 Cámara</button>
                 </div>
                 <input type="file" id="file-input" accept="image/*,.pdf" multiple style="display:none" onchange="agregarArchivos(this.files)">
@@ -639,8 +646,9 @@ async function agregarArchivos(files) {
     // Modo cadena: sin destino no se carga nada. Es lo primero que se decide, porque de
     // acá en adelante todo (análisis, matching y registro) va contra ESE restaurante.
     if (_modoCadena && !_destinoActual) {
-        alert('Primero elegí a qué restaurante se cargan estas facturas (arriba de todo).');
-        document.getElementById('cadena-sel-destino')?.focus();
+        // ⚠ No se pierde lo que ya trajo: `lista` es una copia propia del FileList (que es
+        //   vivo y se vacía al soltar), así que se puede reencolar tal cual al elegir.
+        pedirDestinoYSeguir(() => agregarArchivos(lista));
         return;
     }
     const destLote = _modoCadena ? _destinoActual : null;
@@ -891,6 +899,7 @@ async function unirArchivos() {
 
 // ── CÁMARA ────────────────────────────────────────────────────
 async function abrirCamara() {
+    if (_modoCadena && !_destinoActual) { pedirDestinoYSeguir(() => abrirCamara()); return; }
     try {
         _cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         document.getElementById("camara-video").srcObject = _cameraStream;
@@ -3284,25 +3293,51 @@ function renderBarraDestino() {
             : `<span style="font-size:13px;color: var(--pel-tx-2, #dc2626);font-weight:600;">
                Elegí un restaurante antes de cargar facturas.</span>`}
       </div>`;
-    pintarBloqueoDropzone();
 }
 
-// Zona de carga desenfocada mientras no haya restaurante elegido. Se llama desde
-// renderBarraDestino, así que sigue al estado del selector sin que nadie se acuerde.
-function pintarBloqueoDropzone() {
-    const dz = document.getElementById("dropzone");
-    if (!dz) return;
-    const bloquear = _modoCadena && !_destinoActual;
-    dz.classList.toggle("dz-bloqueado", bloquear);
-    let velo = dz.querySelector(".dz-velo");
-    if (!bloquear) { if (velo) velo.remove(); return; }
-    if (!velo) {
-        velo = document.createElement("div");
-        velo.className = "dz-velo";
-        velo.innerHTML = `<div class="dz-velo-titulo">🏢 Seleccionar restaurante</div>
-            <div class="dz-velo-sub">Elegí arriba a qué local se cargan estas facturas.</div>`;
-        dz.appendChild(velo);
+// ── Pedir el destino SIN perder lo que se estaba haciendo ────────────────────
+// Si se intenta cargar una factura sin haber elegido local, en vez de rebotar con un
+// aviso se pregunta y se RETOMA la acción: el archivo ya arrastrado se encola igual y el
+// selector de archivos/cámara se abre solo. Rebotar obligaría a volver a arrastrar, que
+// es trabajo perdido por una pregunta que el sistema podía hacer en el momento.
+let _accionTrasDestino = null;
+
+function pedirDestinoYSeguir(accion) {
+    _accionTrasDestino = accion || null;
+    const cont = document.getElementById("ed-lista");
+    if (cont) {
+        cont.innerHTML = _destinos.length
+            ? _destinos.map(d => `<button class="btn btn-secondary"
+                  style="text-align:left;border-left:6px solid ${d.color};font-weight:700;"
+                  onclick="elegirDestinoYSeguir(${d.id})">${esc(d.nombre)}</button>`).join("")
+            : `<div style="color: var(--tx-5, #888);font-size:13px;">No hay restaurantes disponibles.</div>`;
     }
+    document.getElementById("modal-elegir-destino")?.classList.add("active");
+}
+
+async function elegirDestinoYSeguir(id) {
+    cerrarModal("modal-elegir-destino");
+    await elegirDestino(String(id));
+    const acc = _accionTrasDestino;
+    _accionTrasDestino = null;
+    // Si entrar al local falló, `elegirDestino` ya avisó y dejó el destino en null: no se
+    // retoma nada (encolar sin destino es justo lo que hay que evitar).
+    if (acc && _destinoActual) await acc();
+}
+
+function cancelarElegirDestino() {
+    _accionTrasDestino = null;
+    cerrarModal("modal-elegir-destino");
+}
+
+// Abre el selector de archivos / la cámara. En modo cadena sin destino, primero pregunta
+// y después lo abre solo — no hay que volver a tocar el botón.
+function abrirSelectorArchivo(inputId) {
+    if (_modoCadena && !_destinoActual) {
+        pedirDestinoYSeguir(() => document.getElementById(inputId)?.click());
+        return;
+    }
+    document.getElementById(inputId)?.click();
 }
 
 // Elegir destino: consigue su token (una vez), sus catálogos y su historial. El token se
