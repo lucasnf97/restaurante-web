@@ -394,16 +394,53 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
         <a href="estadisticas.html" class="btn-back">← Volver a Estadísticas</a>
     </div>
 
-    <!-- ═══════ SECCIÓN 1: FACTURACIÓN MENSUAL ═══════ -->
-    <div class="section-header">
-        <span class="section-title">Facturación del mes</span>
+    <!-- ═══════ SELECTOR DE PERÍODO (manda en toda la página) ═══════ -->
+    <div class="mx-sel">
+        <div class="mx-tabs">
+            <button id="mx-tab-mes" class="on" onclick="mxTipo('mes')">Mes</button>
+            <button id="mx-tab-anio" onclick="mxTipo('anio')">Año</button>
+        </div>
+        <div class="mx-nav">
+            <button onclick="mxMover(-1)" title="Período anterior">‹</button>
+            <span id="lbl-mes">—</span>
+            <button onclick="mxMover(1)" title="Período siguiente">›</button>
+        </div>
     </div>
 
-    <!-- Navegador de mes -->
-    <div class="mes-nav">
-        <button onclick="cambiarMes(-1)">‹</button>
-        <span id="lbl-mes">—</span>
-        <button onclick="cambiarMes(1)">›</button>
+    <!-- ═══════ MÉTRICAS DEL PERÍODO ═══════ -->
+    <div class="section-header">
+        <span class="section-title">Métricas del período</span>
+    </div>
+    <div id="mx-grid"><div class="mx-vacio">Cargando…</div></div>
+    <p class="mx-aviso" id="mx-aviso"></p>
+
+    <div class="mx-charts">
+        <div class="mx-chart-card hoja">
+            <div class="mx-chart-title">Evolución de ventas</div>
+            <div style="height:230px;position:relative;"><canvas id="mx-cv-evolucion"></canvas></div>
+        </div>
+        <div class="mx-chart-card hoja">
+            <div class="mx-chart-title">Distribución de costes</div>
+            <div style="height:230px;position:relative;"><canvas id="mx-cv-costes"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ═══════ PREVISIÓN DE LA PRÓXIMA SEMANA ═══════ -->
+    <div class="section-header" style="margin-top:22px;">
+        <span class="section-title">Previsión de la próxima semana</span>
+        <span id="mx-prev-rango" style="font-size:12px;color:var(--tx-9,#888);font-weight:600;"></span>
+    </div>
+    <p class="mx-aviso" id="mx-prev-cab"></p>
+    <div id="mx-prev"><div class="mx-vacio">Cargando…</div></div>
+    <p class="mx-aviso" style="margin-top:10px;">
+        Esto orienta, no decide: no cambia horarios, compras ni inventario. Las
+        decisiones las toma quien está a cargo.
+    </p>
+
+    <!-- ═══════ SECCIÓN 1: FACTURACIÓN MENSUAL (detalle por factura) ═══════ -->
+    <div id="mes-only">
+    <div class="section-header" style="margin-top:22px;">
+        <span class="section-title">Facturación del mes — detalle</span>
     </div>
 
     <!-- Cards -->
@@ -460,6 +497,8 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 
         <div id="prog-wrap"><p class="prog-no-data">Cargando…</p></div>
     </div>
+
+    </div><!-- /#mes-only -->
 
     <!-- ═══════ BARRA DE PROGRESO DEL DÍA ═══════ -->
     <div class="progress-section">
@@ -585,6 +624,8 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
+<script src="js/metricas.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
 // ── Umbrales (localStorage) ─────────────────────────────────────
 const UMBRAL_KEY = claveRest("est_umbrales_v1");   // por restaurante
@@ -638,7 +679,9 @@ function cambiarMes(dir) {
     cargarFacturacion();
 }
 function actualizarLblMes() {
-    document.getElementById("lbl-mes").textContent = `${MESES[mesActual-1]} ${anioActual}`;
+    // El mismo navegador sirve para mes y para año: lo decide el selector de arriba.
+    document.getElementById("lbl-mes").textContent =
+        (_mxTipo === 'anio') ? `Año ${anioActual}` : `${MESES[mesActual-1]} ${anioActual}`;
 }
 
 // ── Meta mensual (barra de progreso) ────────────────────────────
@@ -1760,6 +1803,219 @@ function renderOneDayBar({ valor, label, formatVal, formatFill, markers }) {
 }
 
 // ── Init ────────────────────────────────────────────────────────
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MÉTRICAS DEL PERÍODO  —  /metricas/restaurante
+   ────────────────────────────────────────────────────────────────────────────
+   Ni un solo importe se calcula acá: el backend agrega sobre los mismos cálculos
+   que ya alimentan "Facturación del mes", y js/metricas.js decide cómo se leen.
+   Esta pantalla sólo pide, pinta y navega.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+let _mxTipo  = 'mes';      // 'mes' | 'anio'
+let _mxDatos = null;
+let _mxCarga = 0;          // nº de carga en curso: descarta respuestas que llegan tarde
+
+function mxTipo(t) {
+    if (t === _mxTipo) return;
+    _mxTipo = t;
+    document.getElementById('mx-tab-mes').classList.toggle('on',  t === 'mes');
+    document.getElementById('mx-tab-anio').classList.toggle('on', t === 'anio');
+    // El detalle por factura y la meta mensual son MENSUALES: con el año elegido no
+    // tienen nada que mostrar, y dejarlos con el último mes cargado haría creer que
+    // esos números son del año.
+    document.getElementById('mes-only').style.display = (t === 'mes') ? '' : 'none';
+    actualizarLblMes();
+    cargarMetricas();
+    cargarEvolucion();
+}
+
+function mxMover(dir) {
+    if (_mxTipo === 'anio') {
+        anioActual += dir;
+        actualizarLblMes();
+    } else {
+        cambiarMes(dir);        // el camino de siempre: mueve el mes y recarga el detalle
+    }
+    cargarMetricas();
+    cargarEvolucion();
+}
+
+/**
+ * Se pide en DOS pasos a propósito: primero los KPIs del período (una consulta) y
+ * después las comparaciones (tres). Así la pantalla muestra los números enseguida
+ * en vez de quedarse en blanco esperando lo más lento, que además es lo secundario.
+ */
+async function cargarMetricas() {
+    const mio = ++_mxCarga;
+    const cont = document.getElementById('mx-grid');
+    const qs = `periodo=${_mxTipo}&year=${anioActual}&month=${mesActual}`;
+    try {
+        const base = await api.get(`/metricas/restaurante?${qs}`);
+        if (mio !== _mxCarga) return;           // llegó tarde: ya hay otro período
+        _mxDatos = base;
+        renderMetricas();
+
+        const full = await api.get(`/metricas/restaurante?${qs}&comparar=1`);
+        if (mio !== _mxCarga) return;
+        _mxDatos = full;
+        renderMetricas();
+    } catch (e) {
+        if (mio !== _mxCarga) return;
+        cont.innerHTML = '<div class="mx-vacio" style="color:var(--pel-tx-2,#dc2626)">' +
+            'No se pudieron cargar las métricas: ' + esc(e.message) + '</div>';
+    }
+}
+
+function renderMetricas() {
+    const d = _mxDatos;
+    Metricas.inyectarEstilos();
+    document.getElementById('mx-grid').innerHTML = Metricas.grilla(d);
+
+    const av = [];
+    if (d && d.actual) {
+        if (d.actual.salarios_aprobado === false)
+            av.push('El coste de personal es estimado: hay fichajes del período sin aprobar.');
+        if (d.actual.horas_trabajadas == null)
+            av.push('Las horas trabajadas no se muestran: hace falta permiso de revisión de salarios.');
+        // Si alguna vez el desglose dejara de cuadrar con el resultado, se dice: es
+        // preferible a mostrar un total que nadie puede reconciliar con el detalle.
+        if (d.actual.descuadre)
+            av.push('Descuadre de ' + fmt(d.actual.descuadre) + ' entre el total y su desglose.');
+    }
+    document.getElementById('mx-aviso').textContent = av.join(' ');
+    renderCostesChart();
+}
+
+/** Torta de a dónde se va cada euro facturado en el período. */
+function renderCostesChart() {
+    const a = _mxDatos && _mxDatos.actual;
+    if (!a || !a.hay_datos || !window.Chart) return;
+    const partes = [
+        ['Personal',        a.coste_personal],
+        ['Insumos',         a.coste_insumos],
+        ['Gastos fijos',    a.gastos_fijos],
+        ['Extraordinarios', a.gastos_extraordinarios],
+        ['Devoluciones',    a.refunds],
+        [a.resultado >= 0 ? 'Resultado' : 'Pérdida', Math.abs(a.resultado)],
+    ].filter(x => x[1] > 0);
+    const colores = partes.map((x, i) =>
+        x[0] === 'Resultado' ? '#1baf7a'
+        : (x[0] === 'Pérdida' ? '#e34948' : Metricas.PALETA[i % Metricas.PALETA.length]));
+
+    Metricas.grafico('mx-cv-costes', {
+        type: 'doughnut',
+        data: {
+            labels: partes.map(x => x[0]),
+            datasets: [{
+                data: partes.map(x => x[1]), backgroundColor: colores,
+                borderColor: Metricas.tcol('--hoja', '#fff'), borderWidth: 2,
+            }],
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '55%',
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 11, font: { size: 11 },
+                          color: Metricas.tcol('--hoja-tx', '#333') } },
+                tooltip: { callbacks: { label: c => {
+                    const tot = c.dataset.data.reduce((s, v) => s + v, 0);
+                    const pc = tot ? (c.parsed / tot * 100).toFixed(1) : '0';
+                    return ' ' + c.label + ': ' + fmt(c.parsed) + ' (' + pc + ' %)';
+                } } },
+            },
+        },
+    });
+}
+
+/** Evolución de ventas: los 12 meses del año del período elegido. */
+async function cargarEvolucion() {
+    const mio = _mxCarga;
+    try {
+        const d = await api.get(`/reportes/facturacion-anual?year=${anioActual}`);
+        if (mio !== _mxCarga || !window.Chart) return;
+        const destacado = (_mxTipo === 'mes') ? mesActual : null;
+        Metricas.grafico('mx-cv-evolucion', {
+            type: 'bar',
+            data: {
+                labels: d.meses.map(m => MESES[m.mes - 1].slice(0, 3)),
+                datasets: [{
+                    label: 'Ventas (sin impuesto)',
+                    data: d.meses.map(m => m.facturacion),
+                    // El mes que se está mirando se destaca; los demás quedan de apoyo.
+                    backgroundColor: d.meses.map(m =>
+                        (destacado && m.mes === destacado) ? '#2a78d6' : 'rgba(42,120,214,.35)'),
+                    borderRadius: 4,
+                }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: c => ' ' + fmt(c.parsed.y) } },
+                },
+                scales: {
+                    x: { grid: { display: false },
+                         ticks: { color: Metricas.tcol('--hoja-tx', '#333'), font: { size: 11 } } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(128,128,128,.15)' },
+                         ticks: { color: Metricas.tcol('--hoja-tx', '#333'), font: { size: 11 },
+                                  callback: v => fmtDinero(v, 0) } },
+                },
+            },
+        });
+    } catch (e) { /* el gráfico es complementario: si falla, la página sigue */ }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PREVISIÓN DE LA PRÓXIMA SEMANA  —  /metricas/prevision
+   No depende del período elegido: siempre mira la semana que viene.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+async function cargarPrevision() {
+    const cont = document.getElementById('mx-prev');
+    try {
+        renderPrevision(await api.get('/metricas/prevision'));
+    } catch (e) {
+        cont.innerHTML = '<div class="mx-vacio" style="color:var(--pel-tx-2,#dc2626)">' +
+            'No se pudo cargar la previsión: ' + esc(e.message) + '</div>';
+    }
+}
+
+function renderPrevision(p) {
+    Metricas.inyectarEstilos();
+    const fFecha = iso => { const t = iso.split('-'); return (+t[2]) + '/' + (+t[1]); };
+    document.getElementById('mx-prev-rango').textContent =
+        fFecha(p.semana.desde) + ' al ' + fFecha(p.semana.hasta);
+
+    const cab = [];
+    if (p.hay_datos) {
+        cab.push('Previsión de la semana: ' + fmt(p.total.prevision) +
+                 ' (confianza ' + Metricas.CONFIANZA_TXT[p.total.confianza].toLowerCase() + ').');
+        if (p.total.cambio_pct != null)
+            cab.push(Metricas.FLECHA[p.total.tendencia] + ' ' +
+                     (p.total.cambio_pct > 0 ? '+' : '') + Metricas.num(p.total.cambio_pct, 1) +
+                     ' % respecto de las últimas semanas.');
+        if (p.factor_anual)
+            cab.push('El local factura un ' + Metricas.num(Math.abs(p.factor_anual.pct), 1) +
+                     ' % ' + (p.factor_anual.pct >= 0 ? 'más' : 'menos') +
+                     ' por día de servicio que hace un año.');
+    } else {
+        cab.push('No hay datos suficientes para prever esta semana.');
+    }
+    document.getElementById('mx-prev-cab').textContent = cab.join(' ');
+
+    document.getElementById('mx-prev').innerHTML = '<div class="mx-prev">' + p.dias.map(d =>
+        '<div class="mx-dia' + (d.cerrado ? ' cerrado' : '') + '">' +
+            '<div class="mx-dia-nom"><span>' + esc(d.nombre) + '</span>' +
+                '<span title="' + esc(d.tendencia) + '">' + Metricas.FLECHA[d.tendencia] + '</span></div>' +
+            '<div class="mx-dia-val">' + (d.prevision == null ? 'Sin datos' : fmt(d.prevision)) + '</div>' +
+            '<div class="mx-dia-sub">' +
+                (d.base_reciente != null ? 'media reciente ' + fmt(d.base_reciente) : '&nbsp;') + '</div>' +
+            '<span class="mx-conf ' + esc(d.confianza) + '">Confianza ' +
+                esc(Metricas.CONFIANZA_TXT[d.confianza].toLowerCase()) + '</span>' +
+            '<div class="mx-dia-exp">' + esc(Metricas.explicarDia(d, p)) + '</div>' +
+        '</div>').join('') + '</div>';
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     requireAuth();
     cargarUmbralesUI();
@@ -1772,6 +2028,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await _cargarMetas();   // objetivos (mensual + diario) desde el servidor
     cargarFacturacion();
+    cargarMetricas();
+    cargarEvolucion();
+    cargarPrevision();
     cargarCostos();
     cargarDia();
 

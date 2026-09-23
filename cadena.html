@@ -84,6 +84,51 @@
         </div>
         <p style="font-size:12px;color: var(--tx-8, #94a3b8);margin-top:8px;">Facturación NETA (con descuentos), por día de negocio, incluyendo ventas importadas — igual que el resumen de cada local. El número grande es con impuesto; abajo en gris, sin impuesto. Montos en la moneda de cada restaurante.</p>
 
+        <div class="sec-title">Métricas de la cadena</div>
+        <div class="mx-sel">
+            <div class="mx-tabs">
+                <button id="mxc-tab-mes" class="on" onclick="mxcTipo('mes')">Mes</button>
+                <button id="mxc-tab-anio" onclick="mxcTipo('anio')">Año</button>
+            </div>
+            <div class="mx-nav">
+                <button onclick="mxcMover(-1)" title="Período anterior">‹</button>
+                <span id="mxc-lbl">—</span>
+                <button onclick="mxcMover(1)" title="Período siguiente">›</button>
+            </div>
+            <select id="mxc-rest" onchange="mxcRender()"
+                    style="padding:7px 10px;border:1.5px solid var(--bd-2,#e0e0e0);border-radius:8px;
+                           background:var(--sup,#fff);color:var(--tx,#222);font-size:13px;font-weight:600;">
+                <option value="">Todos los restaurantes</option>
+            </select>
+        </div>
+
+        <div id="mxc-kpis"><div class="mx-vacio">Cargando…</div></div>
+        <p class="mx-aviso" id="mxc-aviso"></p>
+
+        <div class="mx-charts">
+            <div class="mx-chart-card hoja">
+                <div class="mx-chart-title">Comparación entre restaurantes</div>
+                <div style="height:250px;position:relative;"><canvas id="mxc-cv-rests"></canvas></div>
+            </div>
+            <div class="mx-chart-card hoja">
+                <div class="mx-chart-title">Distribución de costes</div>
+                <div style="height:250px;position:relative;"><canvas id="mxc-cv-costes"></canvas></div>
+            </div>
+        </div>
+
+        <div class="tabla-wrapper" style="margin-top:14px;">
+            <table class="mx-tabla" id="mxc-tabla">
+                <thead><tr id="mxc-thead"></tr></thead>
+                <tbody id="mxc-tbody"><tr><td class="empty">Cargando…</td></tr></tbody>
+                <tfoot id="mxc-tfoot"></tfoot>
+            </table>
+        </div>
+        <p style="font-size:12px;color: var(--tx-8, #94a3b8);margin-top:8px;">
+            Los porcentajes de la fila <b>Total cadena</b> se calculan sobre los totales
+            sumados, no promediando los de cada local: así cada restaurante pesa lo que
+            factura. Se puede ordenar por cualquier columna.
+        </p>
+
         <div class="sec-title">Herramientas</div>
         <div class="cards">
             <div class="rcard">
@@ -176,6 +221,8 @@
     </div>
 
     <script src="js/api.js"></script>
+    <script src="js/metricas.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script>
     requireAuth();
     const _user = getUser() || {};
@@ -194,6 +241,7 @@
         } catch (e) { _restaurantes = []; }
         renderCards();
         cargarFacturacion();
+        mxcInit();
     }
 
     function renderCards() {
@@ -237,6 +285,257 @@
             mes_n: a.mes_n + (d.mes_neto || 0), anio_n: a.anio_n + (d.anio_neto || 0)
         }), { dia: 0, semana: 0, mes: 0, anio: 0, dia_n: 0, semana_n: 0, mes_n: 0, anio_n: 0 });
         foot.innerHTML = `<tr><td>Total cadena</td><td>${_cell(tot.dia, tot.dia_n)}</td><td>${_cell(tot.semana, tot.semana_n)}</td><td>${_cell(tot.mes, tot.mes_n)}</td><td>${_cell(tot.anio, tot.anio_n)}</td></tr>`;
+    }
+
+    /* ════════════════════════════════════════════════════════════════════════
+       MÉTRICAS DE LA CADENA  —  /metricas/cadena
+       ────────────────────────────────────────────────────────────────────────
+       Una sola llamada trae los KPIs de cada local Y el consolidado. El selector
+       de restaurante sólo elige qué bloque alimenta las tarjetas: no vuelve a
+       pedir nada.
+       ════════════════════════════════════════════════════════════════════════ */
+
+    const MXC_MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                       "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+    // Columnas de la comparativa. `pct` marca las que además llevan su % de ventas.
+    const MXC_COLS = [
+        { k: "restaurante",      lbl: "Restaurante",    txt: true },
+        { k: "ventas",                                  lbl: "Ventas" },
+        { k: "coste_personal",   pct: "pct_personal",   lbl: "Personal" },
+        { k: "coste_insumos",    pct: "pct_insumos",    lbl: "Insumos" },
+        { k: "gastos_fijos",     pct: "pct_fijos",      lbl: "Gastos fijos" },
+        { k: "gastos_totales",   pct: "pct_gastos_totales", lbl: "Gastos totales" },
+        { k: "resultado",        pct: "pct_resultado",  lbl: "Resultado" },
+        { k: "horas_trabajadas",                        lbl: "Horas", horas: true },
+    ];
+
+    let _mxcTipo  = "mes";
+    let _mxcYear  = new Date().getFullYear();
+    let _mxcMonth = new Date().getMonth() + 1;
+    let _mxcDatos = null;
+    let _mxcCarga = 0;
+    let _mxcOrden = { col: "ventas", asc: false };
+
+    function mxcInit() {
+        const sel = document.getElementById("mxc-rest");
+        sel.innerHTML = '<option value="">Todos los restaurantes</option>' +
+            _restaurantes.map(r =>
+                `<option value="${r.id}">${Metricas.esc(r.nombre || r.codigo)}</option>`).join("");
+        mxcLbl();
+        mxcCargar();
+    }
+
+    function mxcLbl() {
+        document.getElementById("mxc-lbl").textContent =
+            (_mxcTipo === "anio") ? `Año ${_mxcYear}` : `${MXC_MESES[_mxcMonth - 1]} ${_mxcYear}`;
+    }
+
+    function mxcTipo(t) {
+        if (t === _mxcTipo) return;
+        _mxcTipo = t;
+        document.getElementById("mxc-tab-mes").classList.toggle("on",  t === "mes");
+        document.getElementById("mxc-tab-anio").classList.toggle("on", t === "anio");
+        mxcLbl(); mxcCargar();
+    }
+
+    function mxcMover(dir) {
+        if (_mxcTipo === "anio") { _mxcYear += dir; }
+        else {
+            _mxcMonth += dir;
+            if (_mxcMonth < 1)  { _mxcMonth = 12; _mxcYear--; }
+            if (_mxcMonth > 12) { _mxcMonth = 1;  _mxcYear++; }
+        }
+        mxcLbl(); mxcCargar();
+    }
+
+    /** Dos pasos: primero los números, después las comparaciones (que cuestan
+     *  el triple y son lo secundario). */
+    async function mxcCargar() {
+        const mio = ++_mxcCarga;
+        const qs = `periodo=${_mxcTipo}&year=${_mxcYear}&month=${_mxcMonth}`;
+        try {
+            const base = await api.get(`/metricas/cadena?${qs}`);
+            if (mio !== _mxcCarga) return;
+            _mxcDatos = base; mxcRender();
+
+            const full = await api.get(`/metricas/cadena?${qs}&comparar=1`);
+            if (mio !== _mxcCarga) return;
+            _mxcDatos = full; mxcRender();
+        } catch (e) {
+            if (mio !== _mxcCarga) return;
+            document.getElementById("mxc-kpis").innerHTML =
+                `<div class="mx-vacio" style="color:var(--pel-tx-2,#dc2626)">` +
+                `No se pudieron cargar las métricas: ${Metricas.esc(e.message)}</div>`;
+        }
+    }
+
+    /** El símbolo a usar para un ámbito. `null` = no hay uno solo: se muestra sin
+     *  símbolo, porque un importe con el signo equivocado es peor que sin signo. */
+    function mxcSimbolo(fila) {
+        if (fila) return fila.simbolo || null;
+        const m = _mxcDatos && _mxcDatos.moneda;
+        return (m && !m.mezcladas) ? m.simbolo : null;
+    }
+
+    function mxcRender() {
+        const d = _mxcDatos;
+        if (!d) return;
+        Metricas.inyectarEstilos();
+
+        const selId = document.getElementById("mxc-rest").value;
+        const fila = selId ? (d.restaurantes || []).find(x => String(x.restaurante_id) === selId) : null;
+        const ambito = fila
+            ? { periodo: d.periodo, actual: fila.actual,
+                vs_anterior: fila.vs_anterior, vs_anio_pasado: fila.vs_anio_pasado }
+            : { periodo: d.periodo, actual: d.total,
+                vs_anterior: d.vs_anterior, vs_anio_pasado: d.vs_anio_pasado };
+
+        // ⚠ Con monedas distintas, el consolidado NO se muestra. Sumar coronas con
+        //   euros da un importe que no existe, y su "% sobre ventas" tampoco vale:
+        //   es un promedio ponderado con pesos equivocados. Cada local, por separado,
+        //   sigue siendo correcto — y por eso el selector sigue sirviendo.
+        const mezcla = !!(d.moneda && d.moneda.mezcladas);
+        const avisos = [];
+        if (!fila && mezcla) {
+            document.getElementById("mxc-kpis").innerHTML =
+                `<div class="mx-vacio">No se puede consolidar la cadena: sus locales usan ` +
+                `monedas distintas (${Metricas.esc((d.moneda.codigos || []).join(", "))}). ` +
+                `Elegí un restaurante para ver sus métricas.</div>`;
+        } else {
+            document.getElementById("mxc-kpis").innerHTML =
+                Metricas.grilla(ambito, mxcSimbolo(fila));
+            if (ambito.actual && ambito.actual.salarios_aprobado === false)
+                avisos.push("El coste de personal es estimado: hay fichajes sin aprobar.");
+        }
+        const conError = (d.restaurantes || []).filter(x => x.error);
+        if (conError.length)
+            avisos.push(`No se pudieron leer ${conError.length} restaurante(s): ` +
+                        conError.map(x => x.codigo).join(", ") + ".");
+        document.getElementById("mxc-aviso").textContent = avisos.join(" ");
+
+        mxcTabla();
+        mxcGraficos(ambito, fila, mezcla);
+    }
+
+    function mxcOrdenar(col) {
+        if (_mxcOrden.col === col) _mxcOrden.asc = !_mxcOrden.asc;
+        else _mxcOrden = { col, asc: false };
+        mxcTabla();
+    }
+
+    function mxcTabla() {
+        const d = _mxcDatos;
+        if (!d) return;          // se puede llegar desde mxcOrdenar antes del primer render
+        document.getElementById("mxc-thead").innerHTML = MXC_COLS.map(c => {
+            const on = _mxcOrden.col === c.k;
+            return `<th class="${on ? "orden" + (_mxcOrden.asc ? " asc" : "") : ""}" ` +
+                   `onclick="mxcOrdenar('${c.k}')">${Metricas.esc(c.lbl)}</th>`;
+        }).join("");
+
+        const filas = (d.restaurantes || []).slice().sort((a, b) => {
+            if (_mxcOrden.col === "restaurante")
+                return (a.restaurante || "").localeCompare(b.restaurante || "") * (_mxcOrden.asc ? 1 : -1);
+            const va = (a.actual && a.actual[_mxcOrden.col]);
+            const vb = (b.actual && b.actual[_mxcOrden.col]);
+            // Las filas sin dato caen siempre al final, ordene como ordene.
+            if (va == null && vb == null) return 0;
+            if (va == null) return 1;
+            if (vb == null) return -1;
+            return (va - vb) * (_mxcOrden.asc ? 1 : -1);
+        });
+
+        const celda = (c, bloque, simbolo) => {
+            if (!bloque) return "<td>—</td>";
+            const v = bloque[c.k];
+            const txt = c.horas ? Metricas.horas(v) : Metricas.dinero(v, 2, simbolo);
+            const sub = c.pct ? `<span class="sub">${Metricas.pct(bloque[c.pct])}</span>` : "";
+            return `<td>${Metricas.esc(txt)}${sub}</td>`;
+        };
+
+        document.getElementById("mxc-tbody").innerHTML = filas.length ? filas.map(f => {
+            if (f.error) {
+                return `<tr class="err"><td>${Metricas.esc(f.restaurante || f.codigo)}</td>` +
+                       `<td colspan="${MXC_COLS.length - 1}">No se pudo leer este restaurante</td></tr>`;
+            }
+            const sim = mxcSimbolo(f);
+            return "<tr>" + MXC_COLS.map(c => c.txt
+                ? `<td>${Metricas.esc(f.restaurante || f.codigo || "—")}</td>`
+                : celda(c, f.actual, sim)).join("") + "</tr>";
+        }).join("") : `<tr><td colspan="${MXC_COLS.length}" class="empty">Sin datos.</td></tr>`;
+
+        const mezcla = !!(d.moneda && d.moneda.mezcladas);
+        document.getElementById("mxc-tfoot").innerHTML = mezcla
+            ? `<tr><td>Total cadena</td><td colspan="${MXC_COLS.length - 1}">` +
+              `No se consolida: monedas distintas (${Metricas.esc((d.moneda.codigos || []).join(", "))})</td></tr>`
+            : "<tr>" + MXC_COLS.map(c => c.txt
+                ? "<td>Total cadena</td>"
+                : celda(c, d.total, mxcSimbolo(null))).join("") + "</tr>";
+    }
+
+    function mxcGraficos(ambito, fila, mezcla) {
+        if (!window.Chart) return;
+        const d = _mxcDatos;
+
+        // Comparación entre restaurantes: ventas contra gastos totales, uno al lado
+        // del otro. Con monedas mezcladas no se grafica: barras de magnitudes en
+        // unidades distintas se comparan visualmente y eso sí engaña.
+        const conDatos = (d.restaurantes || []).filter(x => x.actual && x.actual.hay_datos);
+        if (!mezcla && conDatos.length) {
+            Metricas.grafico("mxc-cv-rests", {
+                type: "bar",
+                data: {
+                    labels: conDatos.map(x => x.restaurante || x.codigo),
+                    datasets: [
+                        { label: "Ventas", data: conDatos.map(x => x.actual.ventas),
+                          backgroundColor: Metricas.PALETA[0], borderRadius: 4 },
+                        { label: "Gastos totales", data: conDatos.map(x => x.actual.gastos_totales),
+                          backgroundColor: Metricas.PALETA[5], borderRadius: 4 },
+                    ],
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { boxWidth: 11, font: { size: 11 },
+                                         color: Metricas.tcol("--hoja-tx", "#333") } } },
+                    scales: {
+                        x: { grid: { display: false },
+                             ticks: { color: Metricas.tcol("--hoja-tx", "#333"), font: { size: 10 } } },
+                        y: { beginAtZero: true, grid: { color: "rgba(128,128,128,.15)" },
+                             ticks: { color: Metricas.tcol("--hoja-tx", "#333"), font: { size: 10 } } },
+                    },
+                },
+            });
+        }
+
+        const a = ambito.actual;
+        if (!a || !a.hay_datos || (!fila && mezcla)) return;
+        const partes = [
+            ["Personal", a.coste_personal], ["Insumos", a.coste_insumos],
+            ["Gastos fijos", a.gastos_fijos], ["Extraordinarios", a.gastos_extraordinarios],
+            ["Devoluciones", a.refunds],
+            [a.resultado >= 0 ? "Resultado" : "Pérdida", Math.abs(a.resultado)],
+        ].filter(x => x[1] > 0);
+        Metricas.grafico("mxc-cv-costes", {
+            type: "doughnut",
+            data: { labels: partes.map(x => x[0]), datasets: [{
+                data: partes.map(x => x[1]),
+                backgroundColor: partes.map((x, i) => x[0] === "Resultado" ? "#1baf7a"
+                    : (x[0] === "Pérdida" ? "#e34948" : Metricas.PALETA[i % Metricas.PALETA.length])),
+                borderColor: Metricas.tcol("--hoja", "#fff"), borderWidth: 2 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: "55%",
+                plugins: {
+                    legend: { position: "right", labels: { boxWidth: 11, font: { size: 11 },
+                              color: Metricas.tcol("--hoja-tx", "#333") } },
+                    tooltip: { callbacks: { label: c => {
+                        const tot = c.dataset.data.reduce((s, v) => s + v, 0);
+                        const pc = tot ? (c.parsed / tot * 100).toFixed(1) : "0";
+                        return " " + c.label + ": " + Metricas.dinero(c.parsed, 2, mxcSimbolo(fila)) +
+                               " (" + pc + " %)";
+                    } } },
+                },
+            },
+        });
     }
 
     async function entrar(id, btn) {
