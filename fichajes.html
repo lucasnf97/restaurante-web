@@ -160,6 +160,11 @@
         .info-row:last-child { border-bottom: none; }
         .info-label { color: var(--tx-5, #888); flex-shrink: 0; }
         .info-val { font-weight: 600; color: var(--tx, #1a1a2e); text-align: right; }
+        .sub-met { font-size: 12px; margin-left: 6px; cursor: help; opacity: .75; }
+        .sub-met-flojo { opacity: 1; }
+        .sub-forzado { font-size: 11px; font-weight: 700; color: var(--av-tx, #92400e);
+                       background: var(--av-sf, #fef3c7); border-radius: 999px;
+                       padding: 1px 8px; margin-left: 6px; cursor: help; }
         .notas-box { background: var(--pel-sf-2, #fffbeb); border: 1.5px solid var(--av-bd, #fde68a); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
         .notas-box-label { font-size: 11px; font-weight: 700; color: var(--av-tx, #92400e); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
         .notas-box-text { font-size: 13px; color: var(--tx-2, #374151); line-height: 1.5; }
@@ -913,6 +918,21 @@ function renderDayGroup(dg, usuarioId) {
         : "";
 
     // Sub-filas (fichajes individuales del día)
+    // Chip del método de fichaje. `credencial` va en ámbar porque es el único que NO
+    // prueba presencia; el resto son informativos.
+    const _MET = {
+        nfc:        ["📱", "tag NFC", ""],
+        wifi:       ["📶", "WiFi del local", ""],
+        gps:        ["📍", "ubicación", ""],
+        terminal:   ["🖥️", "terminal", ""],
+        credencial: ["🔑", "contraseña — no prueba presencia", " sub-met-flojo"],
+    };
+    function metodoFichajeChip(m) {
+        const d = _MET[m];
+        if (!d) return "";      // fichajes viejos, sin método registrado
+        return `<span class="sub-met${d[2]}" title="Fichado con ${d[1]}">${d[0]}</span>`;
+    }
+
     const subRows = dg.fichajes.map(f => {
         const entrada   = formatHoraTs(f.ts_entrada);
         const salidaTxt = f.ts_salida
@@ -936,10 +956,20 @@ function renderDayGroup(dg, usuarioId) {
         // dentro del modal de revisión y no se encontraban: el turno se ve acá, y acá es
         // donde tiene que verse que fue corregido.
         const corrTxt = renderCorreccionesSub(f.correcciones);
+        // Con QUÉ se fichó. No todos los métodos prueban lo mismo: el tag prueba que el
+        // teléfono estuvo en el local; la contraseña sólo prueba quién es, así que ésa se
+        // marca aparte. El encargado tiene que poder distinguirlos de un vistazo.
+        const metTxt = metodoFichajeChip(f.metodo_entrada);
+        // Forzado = se fichó fuera del horario asignado, explicando por qué. El motivo se
+        // muestra al pasar el mouse: es la mitad del valor de haberlo pedido.
+        const forzTxt = f.entrada_forzada
+            ? `<span class="sub-forzado" title="${esc(f.entrada_motivo || 'Sin motivo')}">⏰ forzado</span>`
+            : "";
         return `<div class="sub-fichaje-row" id="sub-fich-${f.id}">
             <span class="sub-arrow">↳</span>
             <span class="sub-times">${entrada} → ${salidaTxt}</span>
             <span class="sub-dur">${durTxt}</span>
+            ${metTxt}${forzTxt}
             ${editBtn}${notaBtn}
             <span class="sub-nota-area" id="nota-sub-${f.id}">${notaTxt}</span>
         </div>${corrTxt}`;
