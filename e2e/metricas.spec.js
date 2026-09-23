@@ -283,20 +283,59 @@ test.describe("Consolidado de cadena", () => {
     expect(llamadas).toBe(0);
   });
 
-  test("con monedas distintas NO se inventa un total consolidado", async ({ page }) => {
+  test("el consolidado declara en qué moneda está y de dónde salió", async ({ page }) => {
     await page.goto("/cadena.html?cadena=1");
     const r = await comoCadena(page, "/metricas/cadena?periodo=mes");
     expect(r.ok).toBe(true);
-    expect(r.data.moneda).toBeTruthy();
+    const mon = r.data.moneda;
+    expect(mon).toBeTruthy();
+
+    // La base tiene que ser una de las monedas realmente en uso: nunca una
+    // inventada ni una que no aparezca en ningún local.
+    const codigos = mon.disponibles.map((m) => m.codigo);
+    expect(codigos).toContain(mon.base);
+    expect(mon.mezcladas).toBe(codigos.length > 1);
 
     await esperarTableroCadena(page);
-    if (r.data.moneda.mezcladas) {
-      // Sumar coronas con euros da un importe que no existe, y su % tampoco vale.
-      await expect(page.locator("#mxc-tfoot")).toContainText("monedas distintas");
-      await expect(page.locator("#mxc-kpis")).toContainText("No se puede consolidar");
+    await expect(page.locator("#mxc-tfoot")).toContainText("Total cadena");
+
+    // El desplegable de moneda sólo existe si hay más de una en juego.
+    const sel = page.locator("#mxc-moneda");
+    if (mon.mezcladas) {
+      await expect(sel).toBeVisible();
+      await expect(sel.locator("option")).toHaveCount(codigos.length);
     } else {
-      await expect(page.locator("#mxc-tfoot")).toContainText("Total cadena");
+      await expect(sel).toBeHidden();
     }
+  });
+
+  test("los locales sin tasa quedan fuera del total y se avisa", async ({ page }) => {
+    await page.goto("/cadena.html?cadena=1");
+    const r = await comoCadena(page, "/metricas/cadena?periodo=mes");
+    expect(r.ok).toBe(true);
+    const mon = r.data.moneda;
+
+    // Invariante que vale siempre: lo que entra al total es EXACTAMENTE lo que se
+    // pudo convertir. Nada se suma "como venga".
+    const sumables = (r.data.restaurantes || []).filter((x) => x.actual_convertido);
+    const suma = sumables.reduce((a, x) => a + x.actual_convertido.ventas, 0);
+    expect(r.data.total.ventas).toBeCloseTo(Math.round(suma * 100) / 100, 1);
+
+    const fuera = (r.data.restaurantes || [])
+      .filter((x) => x.actual && !x.actual_convertido);
+    expect(mon.sin_convertir.length > 0).toBe(fuera.length > 0);
+    if (fuera.length) {
+      await esperarTableroCadena(page);
+      await expect(page.locator("#mxc-aviso")).toContainText("FUERA del total");
+    }
+  });
+
+  test("pedir una moneda ajena a la cadena se rechaza", async ({ page }) => {
+    await page.goto("/cadena.html?cadena=1");
+    // Nunca se convierte a una moneda que nadie usa: sin tasa, el resultado
+    // sería inventado.
+    const r = await comoCadena(page, "/metricas/cadena?periodo=mes&moneda=JPY");
+    expect(r.status).toBe(400);
   });
 
   test("un local que falla no deja a la cadena sin tablero", async ({ page }) => {
