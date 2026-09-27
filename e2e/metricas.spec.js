@@ -38,6 +38,9 @@ function clicsAtras() {
  */
 const pedir = (page, ep) => page.evaluate((e) => api.get(e), ep);
 
+/** ¿Ese KPI viaja en el bloque recortado a mismos días? */
+const c_tiene = (bloque, k) => bloque[k] !== undefined && bloque[k] !== null;
+
 /** Llama a la API como GERENTE DE CADENA (gid 3 = las maquetas). */
 const comoCadena = (page, ep) => page.evaluate(async ({ e, t }) => {
   const r = await fetch(window._API_URL + e, { headers: { Authorization: "Bearer " + t } });
@@ -109,9 +112,31 @@ test.describe("Métricas del período", () => {
     const personal = page.locator('.mx-card[data-kpi="coste_personal"]');
     // Las comparaciones llegan en la segunda tanda.
     await expect(personal.locator(".mx-card-cmps")).toBeVisible({ timeout: 20000 });
-    await expect(personal.locator(".mx-cmp-lbl", { hasText: "en puntos" })).toBeVisible();
-    await expect(personal.locator(".mx-cmp", { hasText: "en puntos" }).locator(".mx-cmp-val"))
-      .toContainText("pp");
+    // Cada comparación trae DOS lecturas: "en dinero" y "sobre ventas". La
+    // segunda es la del ratio y va en PUNTOS.
+    await expect(personal.locator(".mx-cmp", { hasText: "en dinero" }).first()).toBeVisible();
+    const puntos = personal.locator(".mx-cmp", { hasText: "sobre ventas" });
+    await expect(puntos.first()).toBeVisible();
+
+    // ⚠ Y cada comparación muestra EL VALOR del período de referencia. Sin él,
+    //   "Agosto 2026 −2.792 €" se lee como "en agosto gasté 2.792 menos", que es
+    //   lo contrario de lo que dice. Al dueño le pasó leyendo la pantalla.
+    const refs = personal.locator(".mx-ref");
+    expect(await refs.count(), "falta el valor del período contra el que se compara")
+      .toBeGreaterThanOrEqual(1);
+    await expect(refs.first().locator(".mx-ref-val")).not.toBeEmpty();
+
+    // ⚠ Al menos UNA tiene que traer el número, no todas: un comparador sin datos
+    //   —la maqueta de 0000B arranca en agosto 2025, así que mayo 2025 no existe—
+    //   dice "sin datos" con razón, y exigirle un valor probaría lo contrario de
+    //   lo que hay que probar.
+    const textos = await puntos.locator(".mx-cmp-val").allTextContents();
+    expect(textos.some((t) => t.includes("pp")),
+      `ninguna comparación mostró puntos: ${JSON.stringify(textos)}`).toBe(true);
+    // Y el de-a-dónde al lado, que es lo que hace entendible "pp" sin saber qué es
+    // un punto porcentual.
+    const conPp = textos.find((t) => t.includes("pp"));
+    expect(conPp, `los puntos no muestran el tramo de ratios: ${conPp}`).toMatch(/→/);
 
     // Y el número es exactamente la resta de los dos ratios.
     const qs = `periodo=mes&year=${MES_CON_DATOS.year}&month=${MES_CON_DATOS.month}&comparar=1`;
@@ -120,6 +145,55 @@ test.describe("Métricas del período", () => {
       .toBeCloseTo(d.actual.pct_personal - d.anterior.pct_personal, 2);
     // La comparación interanual mira el mismo mes del año anterior.
     expect(d.periodo.label_anio_pasado).toContain(String(MES_CON_DATOS.year - 1));
+  });
+
+  test("un período EN CURSO se compara contra los mismos días transcurridos",
+    async ({ page }) => {
+      await page.goto("/analisis-mes.html");
+      const hoy = new Date();
+      const d = await pedir(page,
+        `/metricas/restaurante?periodo=mes&year=${hoy.getFullYear()}` +
+        `&month=${hoy.getMonth() + 1}&comparar=1`);
+
+      expect(d.periodo.en_curso, "el mes en curso no se detecta como tal").toBe(true);
+      expect(d.periodo.dias_transcurridos).toBeGreaterThan(0);
+      expect(d.periodo.dias_transcurridos).toBeLessThanOrEqual(d.periodo.dias);
+
+      // ⚠ ES EL PUNTO: un mes a medias contra meses CERRADOS hunde todos los
+      //   porcentajes porque faltan DÍAS, no ventas. Medido en la cadena de
+      //   prueba, la pantalla decía −46,6 % cuando a mismos días era +3,4 %
+      //   contra el año pasado: el negocio crecía y se leía un derrumbe.
+      const c = d.comparable;
+      expect(c, "no se calculó la comparación a mismos días").toBeTruthy();
+      expect(c.dias).toBe(d.periodo.dias_transcurridos);
+
+      // Los tres tramos tienen que durar lo mismo, o no se está comparando nada.
+      expect(c.anterior.dias).toBe(c.actual.dias);
+      expect(c.anio_pasado.dias).toBe(c.actual.dias);
+
+      // Y el tramo actual ES el período hasta hoy: mismo dinero que la tarjeta.
+      expect(c.actual.ventas).toBeCloseTo(d.actual.ventas, 0);
+    });
+
+  test("los costes de factura NO se parten por días, y se dice", async ({ page }) => {
+    await page.goto("/analisis-mes.html");
+    const hoy = new Date();
+    const d = await pedir(page,
+      `/metricas/restaurante?periodo=mes&year=${hoy.getFullYear()}` +
+      `&month=${hoy.getMonth() + 1}&comparar=1`);
+    test.skip(!d.comparable, "el período no está en curso");
+
+    // Sólo se recorta lo que tiene dato DIARIO. Insumos y gastos fijos se imputan
+    // por período de factura —el alquiler entero cae el día 1— y partirlos
+    // inventaría un criterio contable que no existe en el resto del sistema.
+    for (const k of ["ventas", "coste_personal", "horas_trabajadas"]) {
+      expect(c_tiene(d.comparable.actual, k), `${k} debería recortarse por días`).toBe(true);
+    }
+    for (const k of ["coste_insumos", "gastos_fijos"]) {
+      expect(c_tiene(d.comparable.actual, k), `${k} no se puede partir por días`).toBe(false);
+    }
+    // Y la pantalla lo explica en vez de dejar al lector adivinando.
+    await expect(page.locator("#mx-aviso")).toContainText("va por el día", { timeout: 20000 });
   });
 
   test("un período sin datos lo dice, en vez de inventar ceros", async ({ page }) => {

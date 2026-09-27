@@ -414,6 +414,10 @@
             Metricas.grilla(ambito, mxcSimbolo(fila));
 
         const avisos = [];
+        // Lo primero: si el período va por la mitad, decirlo. Sin eso las
+        // comparaciones contra meses cerrados se leen como un derrumbe.
+        const avisoPer = Metricas.avisoPeriodo(ambito);
+        if (avisoPer) avisos.push(avisoPer);
         if (ambito.actual && ambito.actual.salarios_aprobado === false)
             avisos.push("El coste de personal es estimado: hay fichajes sin aprobar.");
         if (!fila && mon.mezcladas) {

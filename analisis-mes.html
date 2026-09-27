@@ -1887,9 +1887,12 @@ function renderMetricas() {
         if (d.actual.descuadre)
             av.push('Descuadre de ' + fmt(d.actual.descuadre) + ' entre el total y su desglose.');
     }
-    // Sólo importa cuando hay comparaciones en pantalla: sin ellas no hay nada
-    // que se pueda leer mal.
-    if (d && d.vs_anterior && d.periodo.duraciones_distintas) {
+    // El período EN CURSO es lo primero que hay que aclarar: sin eso, un mes a
+    // medias contra meses cerrados se lee como un derrumbe.
+    const avisoPer = Metricas.avisoPeriodo(d);
+    if (avisoPer) av.push(avisoPer);
+    // Y si no está en curso pero los meses duran distinto, también se dice.
+    else if (d && d.vs_anterior && d.periodo.duraciones_distintas) {
         av.push('Ojo al comparar importes: ' + d.periodo.label + ' tiene ' +
                 d.periodo.dias + ' días y ' + d.periodo.label_anterior + ' tiene ' +
                 d.periodo.dias_anterior + '. Los porcentajes no se ven afectados.');

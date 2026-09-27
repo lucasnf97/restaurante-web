@@ -62,18 +62,22 @@
     // color: en un gasto, subir es malo; en las ventas, bueno; en las horas, ni una
     // cosa ni la otra — más horas pueden ser más trabajo o menos eficiencia, y el
     // tablero no tiene cómo saberlo, así que no opina.
+    // `recortable` = tiene dato DIARIO, así que con el mes a medias se puede comparar
+    // contra los mismos días transcurridos. Los costes de factura NO lo son: se
+    // imputan por período de factura (el alquiler entero cae el día 1) y partir el
+    // mes por días inventaría un criterio contable que no existe.
     var KPIS = [
-        { key: "ventas", pct: null, label: "Ventas", icon: "💰", sentido: "mas_mejor" },
-        { key: "coste_personal", pct: "pct_personal", label: "Coste de personal", icon: "👥", sentido: "menos_mejor" },
+        { key: "ventas", pct: null, label: "Ventas", icon: "💰", sentido: "mas_mejor", recortable: true },
+        { key: "coste_personal", pct: "pct_personal", label: "Coste de personal", icon: "👥", sentido: "menos_mejor", recortable: true },
         { key: "coste_insumos", pct: "pct_insumos", label: "Coste de insumos", icon: "📦", sentido: "menos_mejor" },
         { key: "gastos_fijos", pct: "pct_fijos", label: "Gastos fijos", icon: "🧾", sentido: "menos_mejor" },
         { key: "gastos_totales", pct: "pct_gastos_totales", label: "Gastos totales", icon: "📉", sentido: "menos_mejor" },
         { key: "resultado", pct: "pct_resultado", label: "Resultado", icon: "⚖️", sentido: "mas_mejor" },
-        { key: "horas_trabajadas", pct: null, label: "Horas trabajadas", icon: "⏱️", sentido: "neutro", formato: "horas" },
+        { key: "horas_trabajadas", pct: null, label: "Horas trabajadas", icon: "⏱️", sentido: "neutro", formato: "horas", recortable: true },
         // ⚠ TRABAJADAS y PAGADAS no son lo mismo: se paga el horario asignado, no el
         //   fichaje. Verlas juntas ES el control — bastantes más trabajadas que
         //   pagadas significa que hubo horas que nadie cargó en el cuadrante.
-        { key: "horas_pagadas", pct: null, label: "Horas pagadas", icon: "💶", sentido: "neutro", formato: "horas" },
+        { key: "horas_pagadas", pct: null, label: "Horas pagadas", icon: "💶", sentido: "neutro", formato: "horas", recortable: true },
     ];
 
     function valorTxt(kpi, bloque, simbolo) {
@@ -129,6 +133,47 @@
             '<span class="mx-cmp-lbl">' + esc(etiqueta) + '</span>' +
             '<span class="mx-cmp-val">' + flechaDelta(variacion.delta) + " " +
             esc(variacion.texto) + "</span></div>";
+    }
+
+    /**
+     * UNA comparación completa: contra qué período, cuánto valía ahí, y las dos
+     * lecturas del cambio (dinero y peso sobre ventas).
+     *
+     * ⚠ El VALOR del período de referencia no es decoración: sin él, "Agosto 2026
+     *   −2.792,40 €" se lee como "en agosto gasté 2.792 menos", que es lo
+     *   contrario de lo que dice. Viendo los dos números, la dirección se entiende
+     *   sola y no hace falta ninguna convención.
+     */
+    function comparacion(kpi, etiqueta, ref, variacion, ppVal, pctActual, simbolo) {
+        var val = ref ? valorTxt(kpi, ref, simbolo) : "—";
+        var html = '<div class="mx-ref"><span class="mx-ref-per">' + esc(etiqueta) +
+            '</span><span class="mx-ref-val">' + esc(val) + "</span></div>";
+
+        var vi = varImporte(variacion, kpi.formato, simbolo);
+        html += vi
+            ? '<div class="mx-cmp ' + claseDelta(vi.delta, kpi.sentido) + '">' +
+              '<span class="mx-cmp-lbl">en dinero</span><span class="mx-cmp-val">' +
+              flechaDelta(vi.delta) + " " + esc(vi.texto) + "</span></div>"
+            : '<div class="mx-cmp mx-igual"><span class="mx-cmp-lbl">en dinero</span>' +
+              '<span class="mx-cmp-val">sin datos</span></div>';
+
+        if (kpi.pct) {
+            var vp = varRatio(ppVal);
+            // El "29,4 % → 37,4 %" al lado es lo que hace que "pp" se entienda sin
+            // que nadie tenga que saber qué es un punto porcentual.
+            var desde = ref ? ref[kpi.pct] : null;
+            var tramo = (desde != null && pctActual != null)
+                ? '<span class="mx-cmp-hint">' + esc(pct(desde)) + " → " +
+                  esc(pct(pctActual)) + "</span>"
+                : "";
+            html += vp
+                ? '<div class="mx-cmp ' + claseDelta(vp.delta, kpi.sentido) + '">' +
+                  '<span class="mx-cmp-lbl">sobre ventas</span><span class="mx-cmp-val">' +
+                  flechaDelta(vp.delta) + " " + esc(vp.texto) + tramo + "</span></div>"
+                : '<div class="mx-cmp mx-igual"><span class="mx-cmp-lbl">sobre ventas</span>' +
+                  '<span class="mx-cmp-val">sin datos</span></div>';
+        }
+        return html;
     }
 
     // ── Previsión ─────────────────────────────────────────────────────────────
@@ -208,7 +253,11 @@
         "  width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--tx-7,#666);line-height:1;}",
         ".mx-nav button:disabled{opacity:.4;cursor:default;}",
         ".mx-nav span{min-width:150px;text-align:center;font-weight:700;font-size:15px;color:var(--tx,#222);}",
-        ".mx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}",
+        // Tres columnas fijas, no `auto-fill`: con cuatro, cada comparacion parte
+        // en dos renglones y la tarjeta se vuelve ilegible. Pedido del dueno.
+        ".mx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}",
+        "@media (max-width:1100px){.mx-grid{grid-template-columns:repeat(2,1fr);}}",
+        "@media (max-width:700px){.mx-grid{grid-template-columns:1fr;}}",
         ".mx-card{background:var(--sup,#fff);border:1px solid var(--bd-2,#e8e8e8);border-radius:12px;",
         "  padding:14px 16px;box-shadow:0 1px 3px var(--sh-1,rgba(0,0,0,.06));display:flex;flex-direction:column;gap:2px;}",
         ".mx-card-top{display:flex;align-items:center;gap:7px;}",
@@ -222,6 +271,13 @@
         "  flex-direction:column;gap:3px;}",
         ".mx-cmp{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;font-variant-numeric:tabular-nums;}",
         ".mx-cmp-lbl{color:var(--tx-9,#888);}",
+        // La cabecera de cada comparacion: el periodo Y SU VALOR. Es lo que hace
+        // que la direccion (mas o menos que) no haya que deducirla.
+        ".mx-ref{display:flex;justify-content:space-between;gap:8px;margin-top:8px;",
+        "  padding-top:6px;border-top:1px dashed var(--bd-2,#e8e8e8);font-size:11.5px;}",
+        ".mx-ref-per{font-weight:700;color:var(--tx-7,#666);}",
+        ".mx-ref-val{color:var(--tx-9,#888);font-variant-numeric:tabular-nums;}",
+        ".mx-cmp-hint{font-weight:600;color:var(--tx-9,#888);margin-left:5px;}",
         ".mx-cmp-val{font-weight:700;}",
         ".mx-bien .mx-cmp-val{color:var(--ok-tx,#15803d);}",
         ".mx-mal .mx-cmp-val{color:var(--pel-tx-2,#dc2626);}",
@@ -286,25 +342,56 @@
         var p = kpi.pct ? a[kpi.pct] : null;
         var neg = (kpi.key === "resultado" && v != null && v < 0);
 
+        var per = datos.periodo || {};
         var cmps = "";
         if (datos.vs_anterior || datos.vs_anio_pasado) {
-            var lineas = [];
-            var usarPct = !!kpi.pct;
-            // En un ratio la comparación se expresa en puntos; en un importe, en % y
-            // en valor. Se muestran las dos cosas cuando el KPI tiene ratio.
-            if (datos.vs_anterior) {
-                lineas.push(lineaComparacion(datos.periodo.label_anterior,
-                    varImporte(datos.vs_anterior[kpi.key], kpi.formato, simbolo), kpi.sentido));
-                if (usarPct) {
-                    lineas.push(lineaComparacion("· en puntos",
-                        varRatio(datos.vs_anterior[kpi.pct]), kpi.sentido));
+            // ⚠ Con el período EN CURSO, comparar contra meses CERRADOS hunde todos
+            //   los porcentajes: faltan días, no ventas. Medido en la cadena de
+            //   prueba, la pantalla decía −46,6 % cuando a mismos días era +8,3 %
+            //   contra el año pasado: el negocio crecía y se leía un derrumbe.
+            var recorte = (per.en_curso && kpi.recortable && datos.comparable)
+                ? datos.comparable : null;
+
+            if (per.en_curso && !kpi.recortable) {
+                // Los costes de factura no se pueden partir por días: el alquiler
+                // entero cae el día 1. Mejor no comparar que comparar mal.
+                cmps = '<div class="mx-card-cmps"><div class="mx-cmp mx-igual">' +
+                    '<span class="mx-cmp-lbl">va por el día ' +
+                    esc(per.dias_transcurridos) + ' de ' + esc(per.dias) + '</span>' +
+                    '<span class="mx-cmp-val">se compara al cerrar</span></div></div>';
+            } else {
+                var fuente = recorte || datos;
+                // Con el recorte, el pp del ratio viaja en su propia clave (sólo
+                // existe para el coste de personal, que es el único con dato diario).
+                var ppCrudo = function (cual) {
+                    if (!kpi.pct) return null;
+                    if (!recorte) return fuente[cual] ? fuente[cual][kpi.pct] : null;
+                    // Con el recorte, el pp del ratio viaja en su propia clave (sólo
+                    // existe para el coste de personal, el único con dato diario).
+                    return cual === "vs_anterior"
+                        ? recorte.pp_anterior : recorte.pp_anio_pasado;
+                };
+                var suf = recorte ? " (1–" + per.dias_transcurridos + ")" : "";
+                var lineas = [];
+
+                var pctAct = kpi.pct ? (recorte ? recorte.actual[kpi.pct] : a[kpi.pct]) : null;
+
+                // ⚠ EL AÑO PASADO VA PRIMERO. En un restaurante la temporada manda:
+                //   agosto siempre gana a septiembre, así que contra el mes anterior
+                //   casi todo "empeora". Contra el mismo mes del año pasado se ve si
+                //   el negocio de verdad crece. Decisión del dueño (2026-09-27).
+                if (fuente.vs_anio_pasado && !per.comparadores_iguales) {
+                    lineas.push(comparacion(kpi, per.label_anio_pasado + suf,
+                        fuente.anio_pasado, fuente.vs_anio_pasado[kpi.key],
+                        ppCrudo("vs_anio_pasado"), pctAct, simbolo));
                 }
+                if (fuente.vs_anterior) {
+                    lineas.push(comparacion(kpi, per.label_anterior + suf,
+                        fuente.anterior, fuente.vs_anterior[kpi.key],
+                        ppCrudo("vs_anterior"), pctAct, simbolo));
+                }
+                cmps = '<div class="mx-card-cmps">' + lineas.join("") + "</div>";
             }
-            if (datos.vs_anio_pasado && !datos.periodo.comparadores_iguales) {
-                lineas.push(lineaComparacion(datos.periodo.label_anio_pasado,
-                    varImporte(datos.vs_anio_pasado[kpi.key], kpi.formato, simbolo), kpi.sentido));
-            }
-            cmps = '<div class="mx-card-cmps">' + lineas.join("") + "</div>";
         }
 
         return '<div class="mx-card" data-kpi="' + esc(kpi.key) + '">' +
@@ -314,6 +401,25 @@
             esc(valorTxt(kpi, a, simbolo)) + "</div>" +
             (kpi.pct ? '<span class="mx-card-pct">' + esc(pct(p)) + " de ventas</span>" : "") +
             cmps + "</div>";
+    }
+
+    /**
+     * La frase que explica QUÉ se está comparando. Sin esto, un mes a medias se lee
+     * como un derrumbe y nadie tiene forma de saber que sólo faltan días.
+     */
+    function avisoPeriodo(datos) {
+        var per = (datos && datos.periodo) || {};
+        if (!per.en_curso) return "";
+        var partes = [per.label + " va por el día " + per.dias_transcurridos +
+                      " de " + per.dias + "."];
+        if (datos.comparable) {
+            partes.push("Ventas, personal y horas se comparan contra los mismos " +
+                        per.dias_transcurridos + " días de " + per.label_anterior +
+                        " y de " + per.label_anio_pasado + ".");
+        }
+        partes.push("Insumos y gastos fijos se imputan por período de factura, " +
+                    "así que su comparación se completa al cerrar el mes.");
+        return partes.join(" ");
     }
 
     /** @param simbolo  la moneda del ámbito. Sin pasarlo, la del local actual. */
@@ -354,7 +460,7 @@
         claseDelta: claseDelta, flechaDelta: flechaDelta,
         lineaComparacion: lineaComparacion,
         valorTxt: valorTxt,
-        tarjeta: tarjeta, grilla: grilla,
+        tarjeta: tarjeta, grilla: grilla, avisoPeriodo: avisoPeriodo,
         explicarDia: explicarDia,
         FLECHA: FLECHA, CONFIANZA_TXT: CONFIANZA_TXT,
         inyectarEstilos: inyectarEstilos,
