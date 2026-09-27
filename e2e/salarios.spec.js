@@ -28,18 +28,22 @@ const resumen = (page) => page.evaluate(() => _data);
 const desbloquear = (page) => page.evaluate(() => { _unlocked = true; renderAll(); });
 
 /**
- * Deja al primer empleado con una corrección del §23: 100 h registradas, −4 de
- * corrección, cobra 96. Es la fila que el servidor habría mandado.
- * ⚠ Se arma acá porque el período que está cargado casi nunca tiene una
- *   corrección, y sin corrección la fórmula mala da el mismo número que la
- *   buena: la prueba pasaría sin haber probado nada.
+ * El primer empleado con TODO en juego a la vez: 100 h fichadas contra 90
+ * asignadas (fichó de más), una corrección del §23 de −4, y 10 h declaradas.
+ *
+ * ⚠ Los números están elegidos para que la fórmula VIEJA y la NUEVA den
+ *   resultados distintos. Con la vieja (se pagaba lo fichado) cobraría
+ *   15 × (96 + 10) − 20 = 1570; con la nueva (se paga el horario)
+ *   15 × (90 + 10) − 20 = 980. Con números que coincidieran, estas pruebas
+ *   pasarían sin haber probado nada y una reversión silenciosa no se vería.
  */
 const conCorreccion = (page) => page.evaluate(() => {
   const u = _data.usuarios[0];
   Object.assign(u, {
     sueldo_hora: 15, horas_fichadas: 100, horas_correccion: -4, horas_netas: 96,
     horas_declaradas: 10, cargos: 20, horas_asignadas: 90, ajuste_delta: 0,
-    salario_total: 15 * (96 + 10) - 20,          // 1570, como lo calcula el servidor
+    ajuste_periodo: 0,
+    salario_total: 15 * (90 + 10) - 20,          // 980, como lo calcula el servidor
   });
   _data.total_salarios = _data.usuarios.reduce((s, x) => s + x.salario_total, 0);
   renderAll();
@@ -47,24 +51,69 @@ const conCorreccion = (page) => page.evaluate(() => {
 });
 
 test.describe("La fórmula del salario", () => {
-  // La fórmula, tal como la escribe el servidor (salarios.py):
-  //   pagadas = horas_netas + declaradas,  con horas_netas = fichadas + correcciones
-  //   salario = sueldo × pagadas − cargos
+  // ⚠ SE PAGA EL HORARIO, NO EL FICHAJE (decisión del dueño, 2026-09-24).
+  //   El cuadrante se asigna en horas enteras o medias: quien tiene 8 h
+  //   asignadas y ficha 5 minutos antes y 5 después cobra 8 h, no 8 h 10.
+  //
+  //   La fórmula, tal como la escribe el servidor (salarios.py):
+  //     pagadas = horas_asignadas + declaradas + ajuste_periodo
+  //     salario = sueldo × pagadas − cargos
+  //
+  //   El fichaje queda como CONTROL: `horas_netas` (fichadas + correcciones) se
+  //   sigue calculando y mostrando, pero no es la base del salario. Una
+  //   diferencia grande significa horas trabajadas que nadie cargó en el
+  //   cuadrante, y el gerente las añade para que se paguen.
 
-  test("el salario de cada empleado es sueldo × (netas + declaradas) − cargos",
+  test("el salario es sueldo × (asignadas + declaradas + ajuste) − cargos",
     async ({ page }) => {
       await irASalarios(page);
       const d = await resumen(page);
       test.skip(!d.usuarios.length, "el período no tiene empleados");
 
       for (const u of d.usuarios) {
-        const pagadas = u.horas_netas + (u.horas_declaradas || 0);
+        const pagadas = (u.horas_asignadas || 0) + (u.horas_declaradas || 0)
+                      + (u.ajuste_periodo || 0);
         const esperado = u.sueldo_hora * pagadas - (u.cargos || 0);
         // Margen de un decimal: el servidor redondea las horas a 2 decimales
         // para mostrarlas, pero calcula el salario con el valor sin redondear.
         expect(u.salario_total, `salario de ${u.username}`).toBeCloseTo(esperado, 1);
+        // Y lo dice explícitamente, para que la pantalla no tenga que deducirlo
+        // sumando columnas.
+        if (u.horas_pagadas != null) {
+          expect(u.horas_pagadas, `horas pagadas de ${u.username}`).toBeCloseTo(pagadas, 1);
+        }
       }
     });
+
+  test("fichar de más NO se paga", async ({ page }) => {
+    await irASalarios(page);
+    const d = await resumen(page);
+    // Es EL punto de la regla: el que se queda diez minutos extra los trabajó
+    // —y se ven en la diferencia— pero no los cobra.
+    const deMas = d.usuarios.filter((u) => u.horas_netas > (u.horas_asignadas || 0) + 0.01);
+    test.skip(!deMas.length, "nadie fichó por encima de su horario en este período");
+    for (const u of deMas) {
+      const tope = u.sueldo_hora * ((u.horas_asignadas || 0) + (u.horas_declaradas || 0)
+                                   + (u.ajuste_periodo || 0)) - (u.cargos || 0);
+      expect(u.salario_total, `${u.username} cobró horas que no tenía asignadas`)
+        .toBeLessThanOrEqual(tope + 0.05);
+    }
+  });
+
+  test("quien no tiene horario asignado no cobra por fichar", async ({ page }) => {
+    await irASalarios(page);
+    const d = await resumen(page);
+    // Consecuencia buscada: el cuadrante es la ÚNICA fuente de lo que se paga.
+    // Es también lo que hace que un turno olvidado abierto —en las maquetas había
+    // uno de 700 h— no infle la nómina sin que nadie tenga que corregirlo.
+    const sinNada = d.usuarios.filter(
+      (u) => (u.horas_asignadas || 0) <= 0 && (u.horas_declaradas || 0) <= 0
+             && (u.ajuste_periodo || 0) <= 0);
+    for (const u of sinNada) {
+      expect(u.salario_total, `${u.username} cobró sin horario asignado`)
+        .toBeCloseTo(-(u.cargos || 0), 1);
+    }
+  });
 
   test("las horas netas son las fichadas más las correcciones", async ({ page }) => {
     await irASalarios(page);
@@ -175,17 +224,20 @@ test.describe("Guardar el sueldo", () => {
       `con ${d.usuarios.length} empleados`).toBeLessThanOrEqual(margen);
   });
 
-  test("con una corrección de horas, guardar el mismo sueldo tampoco lo mueve",
-    async ({ page }) => {
-      await irASalarios(page);
-      await desbloquear(page);
-      test.skip(!(await resumen(page)).usuarios.length, "el período no tiene empleados");
+  test("una corrección del §23 no cambia lo que se cobra", async ({ page }) => {
+    await irASalarios(page);
+    await desbloquear(page);
+    test.skip(!(await resumen(page)).usuarios.length, "el período no tiene empleados");
 
-      const uid = await conCorreccion(page);
+    const uid = await conCorreccion(page);
 
-      const r = await guardarSinPersistir(page, uid, 15);
-      expect(r.salario, "se pagaron las 4 h que la corrección descuenta").toBeCloseTo(1570, 1);
-    });
+    // La corrección ajusta el REGISTRO de lo trabajado —sigue siendo obligatoria
+    // por el registro de personal sueco y danés— pero el salario sale del
+    // horario, así que ni ella ni las 10 h fichadas de más lo mueven.
+    const r = await guardarSinPersistir(page, uid, 15);
+    expect(r.salario, "el salario siguió al fichaje en vez de al horario")
+      .toBeCloseTo(15 * (90 + 10) - 20, 1);
+  });
 
   test("al duplicar el sueldo, el salario sigue la fórmula del servidor",
     async ({ page }) => {
@@ -197,7 +249,8 @@ test.describe("Guardar el sueldo", () => {
 
       const doble = (u.sueldo_hora || 10) * 2;
       const r = await guardarSinPersistir(page, u.id, doble);
-      const pagadas = u.horas_netas + (u.horas_declaradas || 0);
+      const pagadas = (u.horas_asignadas || 0) + (u.horas_declaradas || 0)
+                    + (u.ajuste_periodo || 0);
       expect(r.salario).toBeCloseTo(doble * pagadas - (u.cargos || 0), 1);
     });
 });
@@ -216,7 +269,8 @@ test.describe("Ajuste de horas", () => {
     confirmarAjuste();
     const u = _data.usuarios.find((x) => x.id === id);
     return { previa, salario: u.salario_total, netas: u.horas_netas,
-             fichadas: u.horas_fichadas, dif: u.diferencia_horas };
+             fichadas: u.horas_fichadas, dif: u.diferencia_horas,
+             ajuste: u.ajuste_periodo };
   }, { id: uid, h: horas });
 
   test("sumar horas las paga sin volver a pagar lo que corrige la corrección",
@@ -228,15 +282,19 @@ test.describe("Ajuste de horas", () => {
 
       const r = await ajustar(page, uid, 5);
 
-      // Las fichadas suben a 105 y las netas TIENEN que seguirlas: 101. Si
-      // `horas_netas` queda en 96, el ajuste se pierde; si se ignora la
-      // corrección, se pagan 111 h en vez de 101.
-      expect(r.fichadas, "las fichadas no tomaron el ajuste").toBeCloseTo(105, 1);
-      expect(r.netas, "las netas quedaron con el valor viejo").toBeCloseTo(101, 1);
-      expect(r.salario, "salario = 15 × (101 + 10) − 20").toBeCloseTo(15 * 111 - 20, 1);
+      // ⚠ El ajuste suma a lo que se PAGA (`ajuste_periodo`), NO a lo fichado.
+      //   Antes movía `horas_fichadas` porque el pago salía de ahí; hacerlo ahora
+      //   falsearía el registro de lo trabajado y encima no cambiaría un céntimo,
+      //   porque el salario ya no mira el fichaje.
+      expect(r.ajuste, "el ajuste no llegó a las horas pagadas").toBeCloseTo(5, 1);
+      expect(r.fichadas, "el ajuste falseó las horas fichadas").toBeCloseTo(100, 1);
+      expect(r.netas, "el ajuste falseó lo trabajado").toBeCloseTo(96, 1);
+      expect(r.salario, "salario = 15 × (90 + 10 + 5) − 20").toBeCloseTo(15 * 105 - 20, 1);
 
-      // Y la diferencia se mide contra lo TRABAJADO, igual que salarios.py.
-      expect(r.dif, "diferencia = netas − asignadas").toBeCloseTo(101 - 90, 1);
+      // La diferencia mide TRABAJADO contra ASIGNADO, y un ajuste de PAGO no la
+      // mueve: no cambia lo que se fichó ni lo que se asignó. Para cerrarla hay
+      // que corregir el cuadrante.
+      expect(r.dif, "diferencia = netas − asignadas").toBeCloseTo(96 - 90, 1);
     });
 
   test("la vista previa anuncia el salario que después queda", async ({ page }) => {
@@ -267,12 +325,15 @@ test.describe("Ajuste de horas", () => {
       const previa = document.getElementById("aj-sal-fin").textContent;
       confirmarAjuste();
       const u = _data.usuarios.find((x) => x.id === id);
-      return { previa, salario: u.salario_total, netas: u.horas_netas };
+      return { previa, salario: u.salario_total, netas: u.horas_netas,
+               ajuste: u.ajuste_periodo };
     }, { id: uid });
 
-    // 96 netas + 8 (no 96 + 5 + 8): editar cambia el ajuste, no agrega otro.
-    expect(r.netas, "el ajuste viejo se sumó en vez de reemplazarse").toBeCloseTo(104, 1);
-    expect(r.salario).toBeCloseTo(15 * (104 + 10) - 20, 1);
+    // El ajuste queda en 8, no en 13: editar lo REEMPLAZA, no agrega otro.
+    expect(r.ajuste, "el ajuste viejo se sumó en vez de reemplazarse").toBeCloseTo(8, 1);
+    // Y lo trabajado no se toca: el ajuste es pago, no fichaje.
+    expect(r.netas, "editar el ajuste falseó lo trabajado").toBeCloseTo(96, 1);
+    expect(r.salario, "salario = 15 × (90 + 10 + 8) − 20").toBeCloseTo(15 * 108 - 20, 1);
 
     // Y la vista previa del modo edición también tiene que anunciar ese número:
     // se armaba a mano y se comía las correcciones y los cargos.

@@ -423,11 +423,28 @@ function fmtH(n) { return parseFloat(n).toFixed(1) + ' h'; }
 //   siempre lo mismo que salarios.py.
 
 /** Horas que se PAGAN: netas (fichadas + correcciones) + declaradas por nómina. */
+/**
+ * LO QUE SE PAGA — tiene que dar exactamente lo mismo que `salarios.py`.
+ *
+ * ⚠ SE PAGA EL HORARIO, NO EL FICHAJE (decisión del dueño, 2026-09-24). El
+ *   cuadrante se asigna en horas enteras o medias: quien tiene 8 h asignadas y
+ *   ficha 5 minutos antes y 5 después cobra 8 h, no 8 h 10. El fichaje sirve para
+ *   ver la DIFERENCIA contra el horario — y una diferencia grande significa que
+ *   hubo horas trabajadas que nadie cargó en el cuadrante, que se pagan cuando el
+ *   gerente las añade, no solas.
+ *
+ * Los tres sumandos, y por qué:
+ *   · `horas_asignadas` — las franjas del cuadrante PUBLICADO (un borrador no
+ *     paga) más el `ajuste_horas` de los fichajes revisados. El servidor ya las
+ *     manda sumadas.
+ *   · `horas_declaradas` — nómina importada de quien no ficha en el sistema; es
+ *     su única base de salario.
+ *   · `ajuste_periodo` — el ajuste guardado del período (modal *Ajuste de horas*).
+ */
 function horasPagadas(u) {
-    const netas = (u.horas_netas != null)
-        ? u.horas_netas
-        : u.horas_fichadas + (u.horas_correccion || 0);
-    return netas + (u.horas_declaradas || 0);
+    return (u.horas_asignadas || 0)
+         + (u.horas_declaradas || 0)
+         + (u.ajuste_periodo || 0);
 }
 
 /** Salario del empleado con el sueldo que se le pase (por defecto, el suyo). */
@@ -437,9 +454,11 @@ function salarioDe(u, sueldo) {
 }
 
 /**
- * Deja `horas_netas` al día después de mover las fichadas en vivo. Sin esto, un
- * ajuste de horas cambiaría `horas_fichadas` y `horas_netas` quedaría con el
- * valor viejo, que es justo el que lee `horasPagadas`.
+ * Deja `horas_netas` (lo realmente TRABAJADO = fichadas + correcciones) al día
+ * después de mover las fichadas en vivo.
+ * ⚠ Desde 2026-09-24 esto ya NO toca el salario —se paga por horario— pero sí la
+ *   columna de DIFERENCIA, que es la que le dice al gerente si hay horas
+ *   trabajadas sin cargar en el cuadrante.
  */
 function sincronizarNetas(u) {
     u.horas_netas = +((u.horas_fichadas + (u.horas_correccion || 0)).toFixed(4));
@@ -1465,9 +1484,12 @@ function _actualizarPreviewAjuste(u, horas) {
         // ⚠ Antes se armaba a mano y se comía dos cosas: las correcciones y los
         //   cargos. El "salario final" quedaba por encima del real y encima no
         //   era comparable con el "actual" de al lado, que sí resta los cargos.
+        // ⚠ El ajuste vive en `ajuste_periodo`, no en las fichadas: desde que se
+        //   paga por horario, mover las fichadas no movería el salario y la vista
+        //   previa anunciaría un número que después no ocurre.
         const oldDelta = u.ajuste_delta || 0;
-        const sinDelta = Object.assign({}, u, { horas_fichadas: u.horas_fichadas - oldDelta });
-        sincronizarNetas(sinDelta);
+        const sinDelta = Object.assign({}, u,
+            { ajuste_periodo: (u.ajuste_periodo || 0) - oldDelta });
         difSaldo = +(u.sueldo_hora * horas).toFixed(2);
         salFinal = +(salarioDe(sinDelta) + difSaldo).toFixed(2);
     } else {
@@ -1500,17 +1522,21 @@ function confirmarAjuste() {
     const ajuste   = parseFloat(document.getElementById('aj-inp').value) || 0;
     const nota     = document.getElementById('aj-nota').value.trim();
     const username = u.username;
+    // ⚠ El ajuste suma a lo que se PAGA (`ajuste_periodo`), no a lo fichado. Antes
+    //   movía `horas_fichadas` porque el pago salía de ahí; ahora eso sólo
+    //   falsearía el registro de lo trabajado y no cambiaría un céntimo.
     if (_ajusteModo === 'edit') {
         const oldDelta     = u.ajuste_delta || 0;
-        u.horas_fichadas   = +((u.horas_fichadas - oldDelta + ajuste).toFixed(4));
+        u.ajuste_periodo   = +(((u.ajuste_periodo || 0) - oldDelta + ajuste).toFixed(4));
         u.ajuste_delta     = +ajuste.toFixed(4);
     } else {
-        u.horas_fichadas   = +((u.horas_fichadas + ajuste).toFixed(4));
+        u.ajuste_periodo   = +(((u.ajuste_periodo || 0) + ajuste).toFixed(4));
         u.ajuste_delta     = +((u.ajuste_delta || 0) + ajuste).toFixed(4);
     }
-    sincronizarNetas(u);        // ⚠ recién se movieron las fichadas
     u.salario_total    = salarioDe(u);
-    // La diferencia se mide contra lo TRABAJADO (netas), igual que salarios.py.
+    // La diferencia mide TRABAJADO contra ASIGNADO, igual que salarios.py. Un
+    // ajuste de pago NO la mueve: no cambia lo que se fichó ni lo que se asignó.
+    // Si lo que se quiere es cerrar la diferencia, se corrige el cuadrante.
     u.diferencia_horas = +((u.horas_netas - u.horas_asignadas).toFixed(4));
     u.diferencia_saldo = +(u.sueldo_hora * u.diferencia_horas).toFixed(2);
     u.nota_ajuste      = nota || null;

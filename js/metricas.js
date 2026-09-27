@@ -70,6 +70,10 @@
         { key: "gastos_totales", pct: "pct_gastos_totales", label: "Gastos totales", icon: "📉", sentido: "menos_mejor" },
         { key: "resultado", pct: "pct_resultado", label: "Resultado", icon: "⚖️", sentido: "mas_mejor" },
         { key: "horas_trabajadas", pct: null, label: "Horas trabajadas", icon: "⏱️", sentido: "neutro", formato: "horas" },
+        // ⚠ TRABAJADAS y PAGADAS no son lo mismo: se paga el horario asignado, no el
+        //   fichaje. Verlas juntas ES el control — bastantes más trabajadas que
+        //   pagadas significa que hubo horas que nadie cargó en el cuadrante.
+        { key: "horas_pagadas", pct: null, label: "Horas pagadas", icon: "💶", sentido: "neutro", formato: "horas" },
     ];
 
     function valorTxt(kpi, bloque, simbolo) {
