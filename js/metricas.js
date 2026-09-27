@@ -101,9 +101,9 @@
     /**
      * ⚠ AQUÍ VIVÍA `varRatio`, que formateaba la variación de un ratio como "+8,0 pp".
      *   Se retiró el 2026-09-27: el dueño rechazó los "pp" dos veces por ser jerga
-     *   contable. Un ratio se muestra ahora con SUS DOS VALORES y una flecha
-     *   —"29,4 % → 37,4 %"— en `comparacion()`, que dice lo mismo sin pedirle al
-     *   lector que sepa qué es un punto porcentual.
+     *   contable. Un ratio se muestra ahora con el valor DEL PERÍODO DE REFERENCIA y
+     *   una flecha —"▲ 29,4 %"— en `comparacion()`: el porcentaje de hoy ya está en
+     *   el chip de la tarjeta, así que repetirlo no agregaba nada.
      *
      * ⚠ Lo que NO cambió, y no hay que perder: un ratio jamás se expresa como un
      *   PORCENTAJE de sí mismo. Del 30 % al 33 % no es "+3 %" (eso serían 30,9 %):
@@ -160,19 +160,20 @@
         if (kpi.pct) {
             // ⚠ NADA DE "pp". El dueño lo rechazó dos veces (2026-09-27): es jerga
             //   contable y obliga a saber qué es un punto porcentual antes de poder
-            //   leer la tarjeta. Se muestran LOS DOS PORCENTAJES con una flecha
-            //   —"29,4 % → 37,4 %"— que es el mismo dato sin ninguna unidad nueva:
-            //   el lector ya entiende "37,4 % de ventas" del chip de arriba.
-            //   La magnitud del cambio sigue viajando en `delta`, pero sólo para
-            //   pintar el color y la flecha, no como número suelto.
+            //   leer la tarjeta.
+            // ⚠ Y NADA DE TRAMO "29,4 % → 37,4 %" tampoco (2026-09-27): el segundo
+            //   número es el porcentaje de HOY, que ya está en el chip
+            //   `.mx-card-pct` ("37,4 % de ventas") dos renglones más arriba. Se
+            //   muestra SÓLO el del período de referencia —"▲ 29,4 %"— igual que la
+            //   línea de arriba muestra sólo el importe de referencia. La flecha y
+            //   el color siguen saliendo de `delta`, que no se pinta como número.
             var desde = ref ? ref[kpi.pct] : null;
             var delta = (ppVal != null) ? ppVal
                 : ((desde != null && pctActual != null) ? pctActual - desde : null);
             html += (desde != null && pctActual != null)
                 ? '<div class="mx-cmp ' + claseDelta(delta, kpi.sentido) + '">' +
                   '<span class="mx-cmp-lbl">sobre ventas</span><span class="mx-cmp-val">' +
-                  flechaDelta(delta) + " " + esc(pct(desde)) + " → " +
-                  esc(pct(pctActual)) + "</span></div>"
+                  flechaDelta(delta) + " " + esc(pct(desde)) + "</span></div>"
                 : '<div class="mx-cmp mx-igual"><span class="mx-cmp-lbl">sobre ventas</span>' +
                   '<span class="mx-cmp-val">sin datos</span></div>';
         }

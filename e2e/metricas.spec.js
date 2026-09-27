@@ -38,6 +38,55 @@ function clicsAtras() {
  */
 const pedir = (page, ep) => page.evaluate((e) => api.get(e), ep);
 
+/** Un porcentaje como lo pinta la pantalla: "24,1 %". */
+const fmtPct = (v) => v.toFixed(1).replace(".", ",") + " %";
+
+/**
+ * Los ratios que la tarjeta PUEDE mostrar como referencia, y el de hoy.
+ * ⚠ Con el período EN CURSO la referencia sale del RECORTE a mismos días
+ *   (`comparable`), no del período cerrado. Se miran los dos orígenes en vez de
+ *   replicar acá la decisión del renderer: si la prueba la copia, deja de probarla.
+ */
+function ratiosDe(datos, clave) {
+  const refs = [];
+  for (const f of [datos, datos.comparable].filter(Boolean)) {
+    for (const k of ["anterior", "anio_pasado"]) {
+      if (f[k] && f[k][clave] != null) refs.push(fmtPct(f[k][clave]));
+    }
+  }
+  const act = datos.comparable ? datos.comparable.actual : datos.actual;
+  return { refs, hoy: act && act[clave] != null ? fmtPct(act[clave]) : null };
+}
+
+/**
+ * LA REGLA DEL RATIO, que el dueño pidió dos veces (2026-09-27): UN SOLO
+ * porcentaje, y que sea el del período de REFERENCIA.
+ *
+ * ⚠ Primero se retiraron los "pp" por jerga contable, y se pasó a un tramo
+ *   "29,4 % → 37,4 %". Después se retiró el tramo también: el segundo número es el
+ *   de HOY, que ya está en el chip `.mx-card-pct` de la misma tarjeta.
+ * ⚠ Las dos mitades hacen falta. "Un solo porcentaje" se cumple igual dejando el
+ *   de hoy, que duplicaría el chip y no diría nada nuevo — por eso también se
+ *   verifica que el pintado sea uno de los de referencia y NO el de hoy.
+ */
+function assertRatioDeReferencia(textos, datos, clave) {
+  const { refs, hoy } = ratiosDe(datos, clave);
+  const pintados = textos.filter((t) => t.includes("%"));
+  expect(pintados.length, `ninguna comparación mostró el ratio: ${JSON.stringify(textos)}`)
+    .toBeGreaterThan(0);
+  for (const t of pintados) {
+    expect(t, `el ratio trae DOS porcentajes; el de hoy ya está en el chip: ${t}`)
+      .not.toMatch(/%[\s\S]*%/);
+    expect(t, `el ratio no tiene la forma "▲ 29,4 %": ${t}`)
+      .toMatch(/^[▲▼→]\s*[\d.,]+\s*%$/);
+    expect(refs.some((r) => t.includes(r)),
+      `"${t}" no es ninguno de los ratios de referencia ${JSON.stringify(refs)}`).toBe(true);
+    if (hoy && !refs.includes(hoy)) {
+      expect(t, `se pinta el ratio de HOY (${hoy}), que ya está en el chip`)
+        .not.toContain(hoy);
+    }
+  }
+}
 /** ¿Ese KPI viaja en el bloque recortado a mismos días? */
 const c_tiene = (bloque, k) => bloque[k] !== undefined && bloque[k] !== null;
 
@@ -107,7 +156,7 @@ test.describe("Métricas del período", () => {
     expect(d.actual.descuadre).toBe(0);
   });
 
-  test("la variación de un RATIO va en puntos, no en porcentaje", async ({ page }) => {
+  test("el ratio se muestra con el % del período de referencia, no en puntos", async ({ page }) => {
     await abrirEnMesConDatos(page);
     const personal = page.locator('.mx-card[data-kpi="coste_personal"]');
     // Las comparaciones llegan en la segunda tanda.
@@ -131,15 +180,8 @@ test.describe("Métricas del período", () => {
     //   dice "sin datos" con razón, y exigirle un valor probaría lo contrario de
     //   lo que hay que probar.
     const textos = await puntos.locator(".mx-cmp-val").allTextContents();
-    const conDato = textos.find((t) => t.includes("→"));
-    expect(conDato, `ninguna comparación mostró el ratio: ${JSON.stringify(textos)}`)
-      .toBeTruthy();
 
-    // El ratio se muestra con SUS DOS VALORES y una flecha: "29,4 % → 37,4 %".
-    expect(conDato, `el tramo no trae los dos porcentajes: ${conDato}`)
-      .toMatch(/%.*→.*%/);
-
-    // ⚠ Y NUNCA "pp": el dueño lo rechazó dos veces por ser jerga contable
+    // ⚠ NUNCA "pp": el dueño lo rechazó dos veces por ser jerga contable
     //   (2026-09-27). Si alguien lo reintroduce, esto lo caza.
     for (const t of textos) {
       expect(t, `volvió el "pp": ${t}`).not.toMatch(/\bpp\b/);
@@ -150,6 +192,8 @@ test.describe("Métricas del período", () => {
     const d = await pedir(page, `/metricas/restaurante?${qs}`);
     expect(d.vs_anterior.pct_personal)
       .toBeCloseTo(d.actual.pct_personal - d.anterior.pct_personal, 2);
+
+    assertRatioDeReferencia(textos, d, "pct_personal");
     // La comparación interanual mira el mismo mes del año anterior.
     expect(d.periodo.label_anio_pasado).toContain(String(MES_CON_DATOS.year - 1));
   });
@@ -437,12 +481,18 @@ test.describe("Consolidado de cadena", () => {
         `los importes de referencia salieron vacíos: ${JSON.stringify(valores)}`).toBe(true);
 
       // Y el ratio tiene que poder calcularse: sin el bloque de referencia decía
-      // "sin datos" aunque los dos porcentajes existieran.
+      // "sin datos" aunque el porcentaje existiera.
+      // ⚠ El consolidado viaja con los nombres `total_*`, así que se traduce a los
+      //   de la pantalla de restaurante antes de medirlo con la misma regla.
       if (r.data.total_anterior.pct_personal != null) {
         const sobre = await personal.locator(".mx-cmp", { hasText: "sobre ventas" })
           .locator(".mx-cmp-val").allTextContents();
-        expect(sobre.some((t) => t.includes("→")),
-          `el ratio no se pudo calcular: ${JSON.stringify(sobre)}`).toBe(true);
+        assertRatioDeReferencia(sobre, {
+          actual: r.data.total,
+          anterior: r.data.total_anterior,
+          anio_pasado: r.data.total_anio_pasado,
+          comparable: r.data.comparable,
+        }, "pct_personal");
       }
     });
 
