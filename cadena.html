@@ -401,11 +401,21 @@
 
         const selId = document.getElementById("mxc-rest").value;
         const fila = selId ? (d.restaurantes || []).find(x => String(x.restaurante_id) === selId) : null;
+        // ⚠ `anterior` y `anio_pasado` NO son opcionales: son los importes que la
+        //   tarjeta muestra al lado de cada comparación, y sin ellos se pintaba un
+        //   guión y un "sin datos" que parecían falta de datos cuando el dato
+        //   estaba. En la CADENA el consolidado viaja como `total_anterior` /
+        //   `total_anio_pasado`, no con los nombres de la pantalla de restaurante.
+        //   ⚠ `comparable` (el recorte a mismos días) es del TOTAL: no se le pasa a
+        //   un local suelto o mostraría los números de toda la cadena en su tarjeta.
         const ambito = fila
             ? { periodo: d.periodo, actual: fila.actual,
+                anterior: fila.anterior, anio_pasado: fila.anio_pasado,
                 vs_anterior: fila.vs_anterior, vs_anio_pasado: fila.vs_anio_pasado }
             : { periodo: d.periodo, actual: d.total,
-                vs_anterior: d.vs_anterior, vs_anio_pasado: d.vs_anio_pasado };
+                anterior: d.total_anterior, anio_pasado: d.total_anio_pasado,
+                vs_anterior: d.vs_anterior, vs_anio_pasado: d.vs_anio_pasado,
+                comparable: d.comparable };
 
         const mon = d.moneda || {};
         mxcSelectorMoneda(mon);

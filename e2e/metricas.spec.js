@@ -390,6 +390,62 @@ test.describe("Consolidado de cadena", () => {
     }
   });
 
+  test("cada comparación muestra el IMPORTE del período con el que compara",
+    async ({ page }) => {
+      // ⚠ POR QUÉ ESTA PRUEBA NO ESPERA A QUE LA PANTALLA SE PINTE SOLA.
+      //   El segundo paso de la cadena (el de comparaciones) son ~425 consultas:
+      //   tres locales × tres períodos, cada uno con su balance, su nómina y su
+      //   tramo recortado. EN PRODUCCIÓN tarda 932 ms porque la API y la base
+      //   están co-locadas; desde un portátil son ~50 s, porque cada consulta
+      //   paga ~112 ms de ida y vuelta.
+      //   Y `apiFetch` aborta CUALQUIER request a los 20 s y reintenta 3 veces
+      //   (js/api.js `_API_TIMEOUT_MS`). O sea que contra una base remota la
+      //   segunda llamada NO PUEDE terminar nunca: agota los tres intentos y
+      //   `mxcCargar` cae en su `catch`. Esperar a `.mx-card-cmps` acá es esperar
+      //   algo que el entorno de desarrollo no puede dar, por más timeout que se
+      //   le ponga — medido el 2026-09-27, con tres pares REQUEST→ERR_ABORTED a
+      //   20 s exactos.
+      //   Así que la prueba trae el payload REAL por `fetch` crudo (que no pasa
+      //   por ese abort) y hace rendir la pantalla con él. Se sigue probando el
+      //   código de cadena.html —el mapeo del ámbito, que es lo que se arregló—
+      //   con datos de verdad; lo único que se reemplaza es el transporte.
+      test.setTimeout(180000);
+      await page.goto("/cadena.html?cadena=1");
+      await esperarTableroCadena(page);
+
+      const r = await comoCadena(page, "/metricas/cadena?periodo=mes&comparar=1");
+      expect(r.ok, `la cadena con comparaciones falló: ${r.status}`).toBe(true);
+      test.skip(!r.data.total_anterior, "no hay período anterior con el que comparar");
+
+      // ⚠ `_mxcDatos` y `mxcRender` van por su NOMBRE PELADO: cadena.html los
+      //   declara en el tope de un script clásico y eso crea globales LÉXICOS
+      //   que NO se cuelgan de `window`.
+      await page.evaluate((d) => { _mxcDatos = d; mxcRender(); }, r.data);
+
+      const personal = page.locator('.mx-card[data-kpi="coste_personal"]');
+      await expect(personal.locator(".mx-card-cmps")).toBeVisible();
+
+      // ⚠ ESTO ESTUVO ROTO EN CADENA Y NO EN RESTAURANTE (2026-09-27): el
+      //   consolidado viaja como `total_anterior`, no como `anterior`, así que la
+      //   tarjeta no recibía el importe de referencia y pintaba un guión con un
+      //   "sin datos" al lado — que parecen falta de datos cuando el dato está.
+      //   La prueba miraba sólo analisis-mes.html, donde funcionaba.
+      const valores = await personal.locator(".mx-ref-val").allTextContents();
+      expect(valores.length, "no se muestra ningún importe de referencia")
+        .toBeGreaterThan(0);
+      expect(valores.some((v) => /\d/.test(v)),
+        `los importes de referencia salieron vacíos: ${JSON.stringify(valores)}`).toBe(true);
+
+      // Y el ratio tiene que poder calcularse: sin el bloque de referencia decía
+      // "sin datos" aunque los dos porcentajes existieran.
+      if (r.data.total_anterior.pct_personal != null) {
+        const sobre = await personal.locator(".mx-cmp", { hasText: "sobre ventas" })
+          .locator(".mx-cmp-val").allTextContents();
+        expect(sobre.some((t) => t.includes("→")),
+          `el ratio no se pudo calcular: ${JSON.stringify(sobre)}`).toBe(true);
+      }
+    });
+
   test("los locales sin tasa quedan fuera del total y se avisa", async ({ page }) => {
     await page.goto("/cadena.html?cadena=1");
     const r = await comoCadena(page, "/metricas/cadena?periodo=mes");
