@@ -99,16 +99,16 @@
     }
 
     /**
-     * Variación de un RATIO, en PUNTOS porcentuales.
-     * ⚠ Un coste que pasa del 30 % al 33 % no subió "un 3 %": subió 3 PUNTOS, que en
-     *   términos relativos es un 10 %. Por eso lleva la unidad "pp" escrita y nunca
-     *   el signo de porcentaje.
+     * ⚠ AQUÍ VIVÍA `varRatio`, que formateaba la variación de un ratio como "+8,0 pp".
+     *   Se retiró el 2026-09-27: el dueño rechazó los "pp" dos veces por ser jerga
+     *   contable. Un ratio se muestra ahora con SUS DOS VALORES y una flecha
+     *   —"29,4 % → 37,4 %"— en `comparacion()`, que dice lo mismo sin pedirle al
+     *   lector que sepa qué es un punto porcentual.
+     *
+     * ⚠ Lo que NO cambió, y no hay que perder: un ratio jamás se expresa como un
+     *   PORCENTAJE de sí mismo. Del 30 % al 33 % no es "+3 %" (eso serían 30,9 %):
+     *   por eso se muestran los dos extremos y nunca un porcentaje de variación.
      */
-    function varRatio(v) {
-        if (v == null) return null;
-        var signo = v > 0 ? "+" : (v < 0 ? "−" : "");
-        return { texto: signo + num(Math.abs(v), 1) + " pp", delta: v };
-    }
 
     /** Verde / rojo / neutro según lo que ese KPI quiera que pase. */
     function claseDelta(delta, sentido) {
@@ -158,18 +158,21 @@
               '<span class="mx-cmp-val">sin datos</span></div>';
 
         if (kpi.pct) {
-            var vp = varRatio(ppVal);
-            // El "29,4 % → 37,4 %" al lado es lo que hace que "pp" se entienda sin
-            // que nadie tenga que saber qué es un punto porcentual.
+            // ⚠ NADA DE "pp". El dueño lo rechazó dos veces (2026-09-27): es jerga
+            //   contable y obliga a saber qué es un punto porcentual antes de poder
+            //   leer la tarjeta. Se muestran LOS DOS PORCENTAJES con una flecha
+            //   —"29,4 % → 37,4 %"— que es el mismo dato sin ninguna unidad nueva:
+            //   el lector ya entiende "37,4 % de ventas" del chip de arriba.
+            //   La magnitud del cambio sigue viajando en `delta`, pero sólo para
+            //   pintar el color y la flecha, no como número suelto.
             var desde = ref ? ref[kpi.pct] : null;
-            var tramo = (desde != null && pctActual != null)
-                ? '<span class="mx-cmp-hint">' + esc(pct(desde)) + " → " +
-                  esc(pct(pctActual)) + "</span>"
-                : "";
-            html += vp
-                ? '<div class="mx-cmp ' + claseDelta(vp.delta, kpi.sentido) + '">' +
+            var delta = (ppVal != null) ? ppVal
+                : ((desde != null && pctActual != null) ? pctActual - desde : null);
+            html += (desde != null && pctActual != null)
+                ? '<div class="mx-cmp ' + claseDelta(delta, kpi.sentido) + '">' +
                   '<span class="mx-cmp-lbl">sobre ventas</span><span class="mx-cmp-val">' +
-                  flechaDelta(vp.delta) + " " + esc(vp.texto) + tramo + "</span></div>"
+                  flechaDelta(delta) + " " + esc(pct(desde)) + " → " +
+                  esc(pct(pctActual)) + "</span></div>"
                 : '<div class="mx-cmp mx-igual"><span class="mx-cmp-lbl">sobre ventas</span>' +
                   '<span class="mx-cmp-val">sin datos</span></div>';
         }
@@ -456,7 +459,7 @@
         KPIS: KPIS, PALETA: PALETA, GRIS: GRIS,
         tcol: tcol, grafico: grafico,
         esc: esc, dinero: dinero, num: num, pct: pct, horas: horas,
-        varImporte: varImporte, varRatio: varRatio,
+        varImporte: varImporte,
         claseDelta: claseDelta, flechaDelta: flechaDelta,
         lineaComparacion: lineaComparacion,
         valorTxt: valorTxt,

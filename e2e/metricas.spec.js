@@ -126,17 +126,24 @@ test.describe("Métricas del período", () => {
       .toBeGreaterThanOrEqual(1);
     await expect(refs.first().locator(".mx-ref-val")).not.toBeEmpty();
 
-    // ⚠ Al menos UNA tiene que traer el número, no todas: un comparador sin datos
+    // ⚠ Al menos UNA tiene que traer el dato, no todas: un comparador sin datos
     //   —la maqueta de 0000B arranca en agosto 2025, así que mayo 2025 no existe—
     //   dice "sin datos" con razón, y exigirle un valor probaría lo contrario de
     //   lo que hay que probar.
     const textos = await puntos.locator(".mx-cmp-val").allTextContents();
-    expect(textos.some((t) => t.includes("pp")),
-      `ninguna comparación mostró puntos: ${JSON.stringify(textos)}`).toBe(true);
-    // Y el de-a-dónde al lado, que es lo que hace entendible "pp" sin saber qué es
-    // un punto porcentual.
-    const conPp = textos.find((t) => t.includes("pp"));
-    expect(conPp, `los puntos no muestran el tramo de ratios: ${conPp}`).toMatch(/→/);
+    const conDato = textos.find((t) => t.includes("→"));
+    expect(conDato, `ninguna comparación mostró el ratio: ${JSON.stringify(textos)}`)
+      .toBeTruthy();
+
+    // El ratio se muestra con SUS DOS VALORES y una flecha: "29,4 % → 37,4 %".
+    expect(conDato, `el tramo no trae los dos porcentajes: ${conDato}`)
+      .toMatch(/%.*→.*%/);
+
+    // ⚠ Y NUNCA "pp": el dueño lo rechazó dos veces por ser jerga contable
+    //   (2026-09-27). Si alguien lo reintroduce, esto lo caza.
+    for (const t of textos) {
+      expect(t, `volvió el "pp": ${t}`).not.toMatch(/\bpp\b/);
+    }
 
     // Y el número es exactamente la resta de los dos ratios.
     const qs = `periodo=mes&year=${MES_CON_DATOS.year}&month=${MES_CON_DATOS.month}&comparar=1`;
