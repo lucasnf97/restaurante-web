@@ -455,6 +455,15 @@ function hasAlgunPermiso(...perms) {
 
 // ── FETCH BASE ────────────────────────────────────────────────
 // Timeout por request (ms). Generoso para tolerar el cold-start de Railway.
+//
+// ⚠ ESTO ES UN TECHO DURO, no un aviso: pasados los ms el request se ABORTA, y si el
+//   metodo es idempotente se reintenta hasta 3 veces. Un endpoint que tarde mas que esto
+//   NO PUEDE TERMINAR NUNCA desde el navegador: agota los intentos y quien llamo se come
+//   el catch. Y como el catch suele repintar la pantalla entera, el sintoma no se parece
+//   a un timeout — se parece a "la pantalla dejo de funcionar".
+//   Medido el 2026-09-27 con /metricas/cadena?comparar=1 (~425 consultas): 932 ms en
+//   produccion pero ~50 s contra una base remota, con tres pares REQUEST -> ERR_ABORTED
+//   separados 20 s exactos.
 const _API_TIMEOUT_MS = 20000;
 // Métodos idempotentes: se pueden reintentar ante un fallo de red / 502-503-504 sin
 // riesgo de duplicar la operación. POST/PATCH NO se reintentan (un POST que el server
@@ -476,6 +485,14 @@ async function apiFetch(endpoint, options = {}) {
     const reintentable = _RETRY_METHODS.has(method);
     const maxIntentos  = reintentable ? 3 : 1;
 
+    // `opts.timeout` (ms) sube el techo SOLO para este request. Existe para los pocos
+    // endpoints que son legitimamente lentos porque agregan muchos inquilinos (el paso de
+    // comparaciones de /metricas/cadena), sin tocar el default que comparten 34 pantallas:
+    // subirlo global significaria que CUALQUIER pantalla colgada se queda colgada mas tiempo.
+    // Se valida > 0 para que un `timeout: 0` o basura no deje el request sin corte.
+    const toutPedido = Number(options.timeout);
+    const timeoutMs  = toutPedido > 0 ? toutPedido : _API_TIMEOUT_MS;
+
     // options.silent → no muestra la barra de carga global (para polling de fondo).
     if (window.UI && !options.silent) window.UI._reqStart();
     try {
@@ -483,7 +500,7 @@ async function apiFetch(endpoint, options = {}) {
         for (let intento = 0; intento < maxIntentos; intento++) {
             // AbortController: corta un request que se cuelga (no deja la barra eterna).
             const ctrl  = new AbortController();
-            const timer = setTimeout(() => ctrl.abort(), _API_TIMEOUT_MS);
+            const timer = setTimeout(() => ctrl.abort(), timeoutMs);
             let res;
             try {
                 res = await fetch(`${API_URL}${endpoint}`, { ...options, headers, signal: ctrl.signal });

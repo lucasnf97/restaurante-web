@@ -1860,7 +1860,10 @@ async function cargarMetricas() {
         _mxDatos = base;
         renderMetricas();
 
-        const full = await api.get(`/metricas/restaurante?${qs}&comparar=1`);
+        // ⚠ Mismo motivo que en cadena.html, pero un solo local: tres periodos en vez de
+        //   N x 3, asi que alcanza con bastante menos. Igual se sube del default porque si
+        //   cruza los 20 s se pierden las tarjetas, no solo las comparaciones.
+        const full = await api.get(`/metricas/restaurante?${qs}&comparar=1`, { timeout: 60000 });
         if (mio !== _mxCarga) return;
         _mxDatos = full;
         renderMetricas();

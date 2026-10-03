@@ -375,7 +375,12 @@
             if (mio !== _mxcCarga) return;
             _mxcDatos = base; mxcRender();
 
-            const full = await api.get(`/metricas/cadena?${qs}&comparar=1`);
+            // ⚠ Timeout propio: este paso son ~425 consultas (N locales x 3 periodos, cada
+            //   uno con balance, nomina y tramo recortado). En produccion son 932 ms, pero el
+            //   coste crece con el TAMANO DE LA CADENA, y el techo por defecto de `apiFetch`
+            //   son 20 s. Al cruzarlo no se pierden las comparaciones: se pierde el panel
+            //   ENTERO, porque el catch de abajo lo reemplaza por el mensaje de error.
+            const full = await api.get(`/metricas/cadena?${qs}&comparar=1`, { timeout: 120000 });
             if (mio !== _mxcCarga) return;
             _mxcDatos = full; mxcRender();
         } catch (e) {
