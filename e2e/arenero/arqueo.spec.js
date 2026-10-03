@@ -43,8 +43,16 @@ test.describe("Arqueo de caja", () => {
       const esperadoApertura = prev.data.origen === "sin_referencia"
         ? null : c(prev.data.esperado);
 
-      // ── 1) Abrir contando 10 MENOS de lo que debería haber ──────────────────
-      const contadoApertura = esperadoApertura === null ? 500 : c(esperadoApertura - 10);
+      // ── 1) Abrir con un descuadre deliberado ────────────────────────────────
+      // ⚠ El signo NO es fijo, y eso es a propósito. Cada corrida deja el cajón 65
+      //   más bajo (−10 al abrir, −70+20 de movimientos, −5 al cerrar): con un −10
+      //   fijo, a las ~8 corridas el importe llegaría a cero y la API rechazaría un
+      //   contado negativo. La prueba se rompería sola, meses después, y por su
+      //   propio uso. Así que cuando el cajón baja de 200 se RECARGA con un sobrante,
+      //   y de paso se ejercita el otro signo del descuadre.
+      const descuadre = (esperadoApertura === null || esperadoApertura < 200) ? 200 : -10;
+      const contadoApertura = esperadoApertura === null
+        ? 500 : c(esperadoApertura + descuadre);
       const ab = await api(page, "POST", "/caja/abrir", {
         efectivo_contado: contadoApertura,
         notas: marca("arqueo apertura"),
@@ -55,7 +63,7 @@ test.describe("Arqueo de caja", () => {
         if (esperadoApertura !== null) {
           // El descuadre de apertura se detecta y se registra...
           expect(c(ab.data.apertura_esperado)).toBe(esperadoApertura);
-          expect(c(ab.data.apertura_diferencia)).toBe(-10);
+          expect(c(ab.data.apertura_diferencia)).toBe(descuadre);
         }
         // ...pero el fondo del turno parte de lo CONTADO, no de lo que debería haber.
         // Ésta es la regla que hace que el turno no herede el faltante de la noche.
@@ -113,7 +121,7 @@ test.describe("Arqueo de caja", () => {
         const fila = hist.data[0];
         expect(fila.arqueado).toBe(true);
         expect(c(fila.diferencia)).toBe(-5);
-        if (esperadoApertura !== null) expect(c(fila.apertura_diferencia)).toBe(-10);
+        if (esperadoApertura !== null) expect(c(fila.apertura_diferencia)).toBe(descuadre);
 
         // Y los movimientos quedaron atados a ESE cierre (si no, se contarían otra
         // vez en el turno siguiente).
