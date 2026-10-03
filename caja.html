@@ -1410,25 +1410,51 @@ async function verItems(pedidoId, mesaNumero) {
 }
 
 async function abrirCaja() {
-    // Se propone el saldo de la apertura anterior: es lo normal, y así abrir sigue
-    // siendo un solo Enter. Cancelar aborta; dejarlo vacío conserva el anterior.
-    let sugerido = 0;
-    try { sugerido = (await api.get("/caja/arqueo")).fondo_inicial || 0; } catch (e) {}
-    const txt = prompt(
-        "Saldo inicial de caja (el efectivo con el que arranca el cajón).\n" +
-        "Dejalo vacío para conservar el de la apertura anterior.",
-        Number(sugerido).toFixed(2));
-    if (txt === null) return;                      // canceló: no se abre nada
-    const limpio = txt.trim();
-    let fondo = null;
-    if (limpio !== "") {
-        fondo = parseFloat(limpio.replace(",", "."));
-        if (isNaN(fondo) || fondo < 0) { alert("Saldo inicial inválido."); return; }
+    // ⚠ ABRIR LA CAJA ES UN ARQUEO (decisión del dueño, 2026-10-03): se muestra lo que
+    //   debería haber en el cajón y la persona lo cuenta y lo confirma. El conteo es
+    //   OBLIGATORIO acá — sin él, un faltante aparecido entre turnos se le carga al
+    //   turno siguiente, que no tuvo nada que ver.
+    let prev = null;
+    try { prev = await api.get("/caja/apertura"); } catch (e) {
+        alert("No se pudo consultar el estado del cajón: " + e.message); return;
     }
+    const origen = {
+        contado: "es lo que se CONTÓ al cerrar el último turno",
+        estimado: "es lo que el sistema calculó al cerrar (ese turno no se arqueó)",
+        sin_referencia: "no hay cierre previo con el que comparar",
+    }[prev.origen] || "";
+
+    const txt = prompt(
+        "ABRIR CAJA — contá el efectivo del cajón.\n\n" +
+        (prev.origen === "sin_referencia"
+            ? "No hay un cierre anterior con el que comparar.\n\n"
+            : `En el cajón debería haber ${arqMoneda(prev.esperado)}\n(${origen}).\n\n`) +
+        "¿Cuánto contaste?");
+    if (txt === null) return;                      // canceló: no se abre nada
+    const limpio = (txt || "").trim();
+    if (limpio === "") { alert("Hay que contar el efectivo para abrir la caja."); return; }
+    const contado = parseFloat(limpio.replace(",", "."));
+    if (isNaN(contado) || contado < 0) { alert("Importe contado inválido."); return; }
+
+    let notas = null;
+    if (prev.origen !== "sin_referencia" && Math.abs(contado - prev.esperado) >= 0.005) {
+        // Una diferencia AL ABRIR es dinero que se movió con la caja cerrada: es lo que
+        // más conviene explicar, y en el momento, no al día siguiente.
+        notas = prompt(
+            `No coincide: ${arqMoneda(contado - prev.esperado)} respecto de lo esperado.\n` +
+            "¿A qué se debe? (opcional, pero queda registrado)") || null;
+    }
+
     const btn = document.getElementById("btn-abrir");
     window.UI && UI.busy(btn, true, "Abriendo…");
     try {
-        await api.post("/caja/abrir", fondo === null ? {} : { fondo_inicial: fondo });
+        const r = await api.post("/caja/abrir", { efectivo_contado: contado, notas });
+        if (r.apertura_diferencia !== null && r.apertura_diferencia !== undefined &&
+            Math.abs(r.apertura_diferencia) >= 0.005) {
+            alert(`Caja abierta con ${arqMoneda(contado)}.\n\n` +
+                  `Descuadre de apertura: ${arqMoneda(r.apertura_diferencia)}.\n` +
+                  "Queda registrado en el cierre de este turno.");
+        }
     } catch(err) { alert("Error: " + err.message); }
     // busy(off) primero y luego cargarEstado, que fija el disabled correcto de los botones.
     finally { window.UI && UI.busy(btn, false); await cargarEstado(); }
@@ -1444,14 +1470,15 @@ async function cerrarCaja() {
         "Cerrar caja.\n\n" +
         (esperado === null ? "" :
          `Según el sistema, en el cajón debería haber ${arqMoneda(esperado)}.\n\n`) +
-        "¿Cuánto efectivo contaste? (dejalo vacío para cerrar SIN arquear)");
+        "¿Cuánto efectivo contaste?");
     if (txt === null) return;                      // canceló: no se cierra nada
-    const limpio = txt.trim();
-    let contado = null;
-    if (limpio !== "") {
-        contado = parseFloat(limpio.replace(",", "."));
-        if (isNaN(contado) || contado < 0) { alert("Importe contado inválido."); return; }
-    }
+    // ⚠ El conteo es OBLIGATORIO al cerrar, igual que al abrir. La API lo acepta vacío a
+    //   propósito (para no romper un exe sin actualizar), pero desde acá no se deja: un
+    //   cierre sin arquear es justo lo que este módulo viene a eliminar.
+    const limpio = (txt || "").trim();
+    if (limpio === "") { alert("Hay que contar el efectivo para cerrar la caja."); return; }
+    const contado = parseFloat(limpio.replace(",", "."));
+    if (isNaN(contado) || contado < 0) { alert("Importe contado inválido."); return; }
     let notas = null;
     if (contado !== null && esperado !== null && Math.abs(contado - esperado) >= 0.005) {
         // Una diferencia sin explicación es una diferencia que nadie va a investigar.
