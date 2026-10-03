@@ -111,6 +111,50 @@ async function esperarTableroCadena(page) {
   await expect(page.locator("#mxc-tfoot")).toContainText(/./, { timeout: 30000 });
 }
 
+/**
+ * Abre la pantalla de CADENA en un período que tenga datos.
+ *
+ * ⚠ POR QUÉ EXISTE (2026-10-03): la pantalla abre en el MES ACTUAL, y el día que el
+ *   mes cambia ese mes todavía no tiene ventas. Las pruebas de cadena pasaron meses en
+ *   verde y el 1 de octubre empezaron a fallar las dos que miran importes — no por un
+ *   cambio de código, sino por el calendario. Me costó medio diagnóstico descartar que
+ *   fuera mío, así que esto deja de depender de "hoy".
+ *
+ *   Las pruebas de RESTAURANTE ya lo resolvían (`abrirEnMesConDatos` + `MES_CON_DATOS`);
+ *   las de cadena no tenían equivalente.
+ *
+ * ⚠ Retrocede como mucho `maxAtras` meses y DEVUELVE si encontró datos, en vez de
+ *   seguir a ciegas: una prueba que corre sobre una tabla de ceros no falla, pero
+ *   tampoco prueba nada, que es peor.
+ */
+async function abrirCadenaEnPeriodoConDatos(page, maxAtras = 3) {
+  await page.goto("/cadena.html?cadena=1");
+  await esperarTableroCadena(page);
+  // ⚠ `_mxcDatos` va por su NOMBRE PELADO: es un global LÉXICO de cadena.html.
+  const hayDatos = async () => page.evaluate(() => {
+    const d = typeof _mxcDatos !== "undefined" ? _mxcDatos : null;
+    return !!(d && d.total && Number(d.total.ventas) > 0);
+  });
+  // Qué período tiene cargado AHORA. Es lo que permite esperar a que el clic surta
+  // efecto de verdad.
+  const periodoCargado = async () => page.evaluate(() => {
+    const d = typeof _mxcDatos !== "undefined" ? _mxcDatos : null;
+    return d && d.periodo ? `${d.periodo.year}-${d.periodo.month}` : null;
+  });
+
+  for (let i = 0; i < maxAtras; i++) {
+    if (await hayDatos()) return true;
+    const antes = await periodoCargado();
+    await page.locator('.mx-nav button[title="Período anterior"]').click();
+    // ⚠ Esperar al PERÍODO NUEVO, no a un booleano: `hayDatos` siempre devuelve algo,
+    //   así que un `.toBeDefined()` se cumple al instante y se comprobaba el período
+    //   viejo. La cadena tarda ~11 s en cargar; sin esta espera el ayudante devolvía
+    //   "no hay datos" sin haber mirado nunca el mes al que acababa de ir.
+    await expect.poll(periodoCargado, { timeout: 90000, intervals: [1000] }).not.toBe(antes);
+  }
+  return await hayDatos();
+}
+
 async function abrirEnMesConDatos(page) {
   await page.goto("/analisis-mes.html");
   const atras = clicsAtras();
@@ -375,8 +419,11 @@ test.describe("Consolidado de cadena", () => {
   });
 
   test("la tabla comparativa se ordena y cierra con el Total cadena", async ({ page }) => {
-    await page.goto("/cadena.html?cadena=1");
-    await esperarTableroCadena(page);
+    // ⚠ En un mes sin ventas la tabla es toda "€ 0,00" y ordenar no cambia nada: el
+    //   assert de abajo falla aunque el ordenamiento funcione perfecto. Hay que pararse
+    //   en un período CON datos (ver abrirCadenaEnPeriodoConDatos).
+    const hay = await abrirCadenaEnPeriodoConDatos(page);
+    test.skip(!hay, "la cadena de pruebas no tiene ventas en los últimos meses");
     await expect(page.locator("#mxc-tfoot")).toContainText("Total cadena");
 
     // Ordenar por Ventas: la primera fila tiene que ser la de más ventas.
@@ -453,11 +500,20 @@ test.describe("Consolidado de cadena", () => {
       //   por ese abort) y hace rendir la pantalla con él. Se sigue probando el
       //   código de cadena.html —el mapeo del ámbito, que es lo que se arregló—
       //   con datos de verdad; lo único que se reemplaza es el transporte.
-      test.setTimeout(180000);
-      await page.goto("/cadena.html?cadena=1");
-      await esperarTableroCadena(page);
+      test.setTimeout(240000);
+      // ⚠ Y se para en un período CON datos: en un mes sin ventas no hay comparaciones
+      //   que pintar, así que `.mx-card-cmps` no existe y la prueba fallaba por el
+      //   calendario, no por el código (pasó el 2026-10-03, ver el ayudante).
+      const hay = await abrirCadenaEnPeriodoConDatos(page);
+      test.skip(!hay, "la cadena de pruebas no tiene ventas en los últimos meses");
 
-      const r = await comoCadena(page, "/metricas/cadena?periodo=mes&comparar=1");
+      // El payload se pide para EL MISMO período en el que quedó la pantalla, no para
+      // el de hoy: si se piden distintos, se renderiza un mes contra el rótulo de otro.
+      const per = await page.evaluate(() => ({
+        year: _mxcDatos.periodo.year, month: _mxcDatos.periodo.month,
+      }));
+      const r = await comoCadena(page,
+        `/metricas/cadena?periodo=mes&year=${per.year}&month=${per.month}&comparar=1`);
       expect(r.ok, `la cadena con comparaciones falló: ${r.status}`).toBe(true);
       test.skip(!r.data.total_anterior, "no hay período anterior con el que comparar");
 
