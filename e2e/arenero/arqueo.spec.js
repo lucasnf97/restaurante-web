@@ -102,8 +102,21 @@ test.describe("Arqueo de caja", () => {
         // Si una aserción falla a mitad, la caja no puede quedar abierta: dejaría el
         // arenero trabado para las demás pruebas.
         const esperadoCierre = c(contadoApertura - 70 + 20);
-        const contadoCierre = c(esperadoCierre - 5);        // faltan 5 en el turno
+
+        // ⚠ El cierre es "retirar el excedente para dejar la caja en el saldo inicial".
+        //   Se retira 10 MENOS de lo sugerido (el caso "dejo un ticket por la
+        //   diferencia") y se declara que quedó 5 menos de lo que debería: así se
+        //   separan las dos cosas que el modelo tiene que distinguir — plata GUARDADA
+        //   (que no es un faltante) y plata que FALTA de verdad.
+        const arq2 = await api(page, "GET", "/caja/arqueo");
+        const sugerido = c(arq2.data.retiro_sugerido);
+        const retirado = c(Math.max(sugerido - 10, 0));
+        const debeQuedar = c(esperadoCierre - retirado);
+        const contadoCierre = c(debeQuedar - 5);            // faltan 5 de verdad
+
         const ci = await api(page, "POST", "/caja/cerrar", {
+          retirado,
+          retiro_notas: marca("retiro parcial, ticket en caja"),
           efectivo_contado: contadoCierre,
           notas: marca("arqueo cierre"),
         });
@@ -111,9 +124,14 @@ test.describe("Arqueo de caja", () => {
 
         const a = ci.data.arqueo || {};
         expect(c(a.efectivo_esperado)).toBe(esperadoCierre);
+        expect(c(a.retirado_cierre)).toBe(retirado);
         expect(c(a.efectivo_contado)).toBe(contadoCierre);
-        expect(c(a.diferencia), "la diferencia del turno tiene que ser -5, no el " +
-          "descuadre de apertura").toBe(-5);
+        // ⚠ LA REGLA QUE MÁS FÁCIL SE ROMPE: la diferencia se mide contra lo que
+        //   DEBERÍA QUEDAR DESPUÉS del retiro, no contra lo que había antes. Si
+        //   alguien compara contra `efectivo_esperado` a secas, el dinero que se acaba
+        //   de guardar aparece como un faltante enorme.
+        expect(c(a.diferencia), "la diferencia tiene que ser -5 (lo que falta de " +
+          "verdad), no incluir el dinero retirado").toBe(-5);
 
         // El cierre guarda LOS DOS arqueos, que es lo que lo hace auditable.
         const hist = await api(page, "GET", "/caja/arqueos");
@@ -122,6 +140,17 @@ test.describe("Arqueo de caja", () => {
         expect(fila.arqueado).toBe(true);
         expect(c(fila.diferencia)).toBe(-5);
         if (esperadoApertura !== null) expect(c(fila.apertura_diferencia)).toBe(descuadre);
+        // Las notas son el entregable del módulo: sin ellas el histórico no sirve
+        // para auditar nada, y son lo que lee quien abre al día siguiente.
+        expect(fila.retiro_notas, "falta la nota del retiro en el histórico").toBeTruthy();
+        expect(fila.arqueo_notas, "falta la nota del descuadre en el histórico").toBeTruthy();
+        expect(c(fila.retirado_cierre)).toBe(retirado);
+
+        // Y quien abra mañana recibe ese recado.
+        const manana = await api(page, "GET", "/caja/apertura");
+        expect(manana.ok).toBe(true);
+        expect(manana.data.ultimo_cierre.arqueo_notas,
+          "quien abre tiene que recibir la explicación del cierre").toBeTruthy();
 
         // Y los movimientos quedaron atados a ESE cierre (si no, se contarían otra
         // vez en el turno siguiente).
@@ -135,10 +164,14 @@ test.describe("Arqueo de caja", () => {
       }
     });
 
-  test("la pantalla no deja abrir ni cerrar sin contar el efectivo", async ({ page }) => {
-    // Esto es lo que de verdad se puede romper al retocar la pantalla: que el conteo
-    // deje de ser obligatorio y los cierres vuelvan a salir "sin arquear" sin que
-    // nadie se entere. No escribe nada: cancela los dos diálogos.
+  test("la pantalla muestra el dinero antes de pedir nada", async ({ page }) => {
+    // Esto es lo que de verdad se puede romper al retocar la pantalla: que deje de
+    // mostrarse el dinero ANTES de pedir la acción, y la persona tenga que decidir a
+    // ciegas. No escribe nada: cancela los diálogos.
+    //
+    // ⚠ Abrir y cerrar preguntan cosas DISTINTAS desde el rediseño: abrir pide contar,
+    //   cerrar pide retirar. Por eso se comprueba cada uno con lo suyo — un assert
+    //   común a los dos no probaría ninguno bien.
     await page.goto("/caja.html");
 
     const vistos = [];
@@ -159,12 +192,22 @@ test.describe("Arqueo de caja", () => {
     await expect.poll(() => vistos.length, { timeout: 30000 }).toBeGreaterThan(0);
 
     const p = vistos.find((v) => v.tipo === "prompt");
-    expect(p, "tiene que pedir el recuento con un prompt").toBeTruthy();
-    expect(p.texto).toMatch(/cont/i);
-    // Y muestra el dinero teórico ANTES de pedirlo: quien cuenta necesita saber si
-    // tiene que volver a contar.
-    expect(p.texto, `el diálogo no muestra lo que debería haber: ${p.texto}`)
-      .toMatch(/deber[íi]a haber|No hay un cierre anterior/i);
+    expect(p, "tiene que preguntar con un prompt").toBeTruthy();
+
+    if (abierta) {
+      // CERRAR: dice cuánto hay, cuál es el objetivo y cuánto retirar.
+      expect(p.texto, `el cierre no dice cuánto hay: ${p.texto}`)
+        .toMatch(/en el caj[óo]n hay/i);
+      expect(p.texto, `el cierre no menciona el saldo inicial: ${p.texto}`)
+        .toMatch(/saldo inicial/i);
+      expect(p.texto, `el cierre no pregunta cuánto se retira: ${p.texto}`)
+        .toMatch(/retir/i);
+    } else {
+      // ABRIR: pide contar y muestra antes lo que debería haber.
+      expect(p.texto).toMatch(/cont/i);
+      expect(p.texto, `el diálogo no muestra lo que debería haber: ${p.texto}`)
+        .toMatch(/deber[íi]a haber|No hay un cierre anterior/i);
+    }
 
     // Cancelar no cambió nada.
     const despues = await page.evaluate(async () => {

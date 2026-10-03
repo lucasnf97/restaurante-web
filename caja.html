@@ -204,15 +204,17 @@
 
         <div class="arq-grid" id="arq-turno"></div>
 
-        <!-- Saldo inicial: es configuración del local, no un dato del turno. -->
+        <!-- Saldo inicial: es el OBJETIVO con el que tiene que quedar la caja cada
+             noche. Configuración del local, no un dato del turno. -->
         <div class="arq-bloque">
             <h4>Saldo inicial de caja</h4>
-            <p class="arq-ayuda">El efectivo con el que arranca el cajón. Se conserva de
-               un turno al siguiente; sólo se aplica al <strong>abrir</strong> la caja.</p>
+            <p class="arq-ayuda">El importe con el que tiene que quedar el cajón
+               <strong>todas las noches</strong>. Al cerrar, el sistema calcula cuánto
+               hay que retirar para dejarlo exactamente en este número.</p>
             <div class="arq-fila">
-                <input type="number" id="arq-fondo" step="0.01" min="0" placeholder="0.00">
-                <button class="btn btn-secondary" onclick="arqGuardarFondo()"
-                        id="arq-btn-fondo">Guardar saldo inicial</button>
+                <input type="number" id="arq-saldo" step="0.01" min="0" placeholder="0.00">
+                <button class="btn btn-secondary" onclick="arqGuardarSaldo()"
+                        id="arq-btn-saldo">Guardar saldo inicial</button>
             </div>
         </div>
 
@@ -252,16 +254,16 @@
                     <thead>
                         <tr>
                             <th>Fecha</th><th>Caja</th>
-                            <th style="text-align:right;">Saldo inicial</th>
-                            <th style="text-align:right;">Retiros</th>
-                            <th style="text-align:right;">Ingresos</th>
-                            <th style="text-align:right;">Esperado</th>
-                            <th style="text-align:right;">Contado</th>
+                            <th style="text-align:right;">Objetivo</th>
+                            <th style="text-align:right;">Había</th>
+                            <th style="text-align:right;">Retirado</th>
+                            <th style="text-align:right;">Quedó</th>
                             <th style="text-align:right;">Diferencia</th>
-                            <th>Arqueó</th>
+                            <th>Notas</th>
+                            <th>Cerró</th>
                         </tr>
                     </thead>
-                    <tbody id="arq-historial"><tr><td colspan="9" class="empty">Cargando…</td></tr></tbody>
+                    <tbody id="arq-historial"><tr><td colspan="8" class="empty">Cargando…</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -1424,11 +1426,31 @@ async function abrirCaja() {
         sin_referencia: "no hay cierre previo con el que comparar",
     }[prev.origen] || "";
 
+    // ⚠ EL MENSAJE DE QUIEN CERRÓ VA PRIMERO, antes de pedir nada. Si anoche faltaba
+    //   plata porque alguien sacó efectivo para una urgencia y dejó el ticket, quien
+    //   abre tiene que enterarse ANTES de contar: si no, encuentra un faltante sin
+    //   explicación y lo primero que piensa es lo peor.
+    const u = prev.ultimo_cierre || {};
+    let aviso = "";
+    if (u.retiro_notas) aviso += `Nota del retiro: ${u.retiro_notas}\n`;
+    if (u.arqueo_notas) aviso += `Por qué no cuadró: ${u.arqueo_notas}\n`;
+    if (u.diferencia != null && Math.abs(u.diferencia) >= 0.005) {
+        aviso += `Anoche cerró con una diferencia de ${arqMoneda(u.diferencia)}.\n`;
+    }
+    if (aviso) {
+        aviso = `── Dejó dicho ${u.cerrado_por || "quien cerró"} ──\n` + aviso;
+    }
+
+    const objetivo = prev.saldo_objetivo;
     const txt = prompt(
         "ABRIR CAJA — contá el efectivo del cajón.\n\n" +
+        (aviso ? aviso + "\n" : "") +
         (prev.origen === "sin_referencia"
             ? "No hay un cierre anterior con el que comparar.\n\n"
-            : `En el cajón debería haber ${arqMoneda(prev.esperado)}\n(${origen}).\n\n`) +
+            : `En el cajón debería haber ${arqMoneda(prev.esperado)}\n(${origen}).\n` +
+              (objetivo != null && Math.abs(prev.esperado - objetivo) >= 0.005
+                  ? `El saldo inicial configurado es ${arqMoneda(objetivo)}.\n` : "") +
+              "\n") +
         "¿Cuánto contaste?");
     if (txt === null) return;                      // canceló: no se abre nada
     const limpio = (txt || "").trim();
@@ -1464,38 +1486,70 @@ async function cerrarCaja() {
     // ⚠ Se muestra lo que DEBERÍA haber ANTES de pedir el conteo, porque el cajero lo
     //   necesita para saber si recontar. No es "decirle la respuesta": el arqueo sirve
     //   para detectar y explicar la diferencia, no para examinar al cajero.
-    let esperado = null;
-    try { esperado = (await api.get("/caja/arqueo")).efectivo_esperado; } catch (e) {}
-    const txt = prompt(
-        "Cerrar caja.\n\n" +
-        (esperado === null ? "" :
-         `Según el sistema, en el cajón debería haber ${arqMoneda(esperado)}.\n\n`) +
-        "¿Cuánto efectivo contaste?");
-    if (txt === null) return;                      // canceló: no se cierra nada
-    // ⚠ El conteo es OBLIGATORIO al cerrar, igual que al abrir. La API lo acepta vacío a
-    //   propósito (para no romper un exe sin actualizar), pero desde acá no se deja: un
-    //   cierre sin arquear es justo lo que este módulo viene a eliminar.
-    const limpio = (txt || "").trim();
-    if (limpio === "") { alert("Hay que contar el efectivo para cerrar la caja."); return; }
-    const contado = parseFloat(limpio.replace(",", "."));
-    if (isNaN(contado) || contado < 0) { alert("Importe contado inválido."); return; }
-    let notas = null;
-    if (contado !== null && esperado !== null && Math.abs(contado - esperado) >= 0.005) {
-        // Una diferencia sin explicación es una diferencia que nadie va a investigar.
-        notas = prompt(`La diferencia es ${arqMoneda(contado - esperado)}.\n` +
-                       "¿Alguna nota? (opcional)") || null;
+    // ⚠ EL CIERRE NO ES "CONTÁ EL CAJÓN": es "sacá el excedente y confirmá que quedó
+    //   el saldo inicial". Es el flujo que pidió el dueño y es el que de verdad hace
+    //   la gente — lo que se guarda es el DINERO RETIRADO y, si no cuadra, el porqué.
+    let a = null;
+    try { a = await api.get("/caja/arqueo"); } catch (e) {
+        alert("No se pudo calcular el cierre: " + e.message); return;
     }
+    const hay = a.efectivo_esperado, objetivo = a.saldo_objetivo, sug = a.retiro_sugerido;
+
+    const txtRet = prompt(
+        "CERRAR CAJA\n\n" +
+        `En el cajón hay ${arqMoneda(hay)}.\n` +
+        `El saldo inicial configurado es ${arqMoneda(objetivo)}.\n\n` +
+        (sug > 0
+            ? `Retirá ${arqMoneda(sug)} para dejar la caja en ${arqMoneda(objetivo)}.\n\n`
+            : "No hace falta retirar nada.\n\n") +
+        "¿Cuánto retirás?", Number(sug).toFixed(2));
+    if (txtRet === null) return;                   // canceló: no se cierra nada
+    const retirado = parseFloat((txtRet || "0").trim().replace(",", ".") || "0");
+    if (isNaN(retirado) || retirado < 0) { alert("Importe de retiro inválido."); return; }
+
+    // Si retira algo distinto de lo propuesto, hay que explicarlo: ese es el caso de
+    // "tenía que sacar 1000, saqué 500 y dejé un ticket por el resto".
+    let retiroNotas = null;
+    if (Math.abs(retirado - sug) >= 0.005) {
+        retiroNotas = prompt(
+            `Vas a retirar ${arqMoneda(retirado)} en vez de ${arqMoneda(sug)}.\n\n` +
+            "¿Por qué? (queda en el histórico; p. ej. «dejo ticket de compra por la diferencia»)") || null;
+    }
+
+    // Y ahora la confirmación: ¿quedó lo que tenía que quedar?
+    const deberiaQuedar = Math.round((hay - retirado) * 100) / 100;
+    const ok = confirm(
+        `Tras retirar ${arqMoneda(retirado)}, en el cajón deberían quedar ` +
+        `${arqMoneda(deberiaQuedar)}.\n\n¿Es así?\n\n` +
+        "Aceptar = sí, quedó esa cantidad.\n" +
+        "Cancelar = no, hay otra cantidad (te la voy a pedir).");
+    let contado = deberiaQuedar, notas = null;
+    if (!ok) {
+        const txtReal = prompt("¿Cuánto quedó realmente en el cajón?");
+        if (txtReal === null) return;              // canceló: no se cierra nada
+        contado = parseFloat((txtReal || "").trim().replace(",", "."));
+        if (isNaN(contado) || contado < 0) { alert("Importe inválido."); return; }
+        // ⚠ Acá la nota NO es opcional: es lo único que va a leer quien abra mañana.
+        //   Sin ella se encuentra un faltante sin explicación y piensa lo peor.
+        notas = (prompt(
+            `Faltan ${arqMoneda(deberiaQuedar - contado)} respecto de lo previsto.\n\n` +
+            "Explicá qué pasó (obligatorio — lo lee quien abra mañana):") || "").trim();
+        if (!notas) { alert("Hay que explicar la diferencia para poder cerrar."); return; }
+    }
+
     const btn = document.getElementById("btn-cerrar");
     window.UI && UI.busy(btn, true, "Cerrando…");
     try {
-        const res = await api.post("/caja/cerrar",
-            contado === null ? {} : { efectivo_contado: contado, notas });
-        const a = res.arqueo || {};
-        alert(`Caja cerrada. Total del turno: ${simboloMoneda()} ${res.total.toFixed(2)}` +
-              (a.efectivo_contado === null || a.efectivo_contado === undefined ? "\n\n(Cerrada SIN arquear)"
-               : `\n\nEsperado: ${arqMoneda(a.efectivo_esperado)}` +
-                 `\nContado: ${arqMoneda(a.efectivo_contado)}` +
-                 `\nDiferencia: ${arqMoneda(a.diferencia)}`));
+        const res = await api.post("/caja/cerrar", {
+            retirado, retiro_notas: retiroNotas, efectivo_contado: contado, notas });
+        const r = res.arqueo || {};
+        const dif = r.diferencia;
+        alert(`Caja cerrada. Total del turno: ${simboloMoneda()} ${res.total.toFixed(2)}\n\n` +
+              `Retirado: ${arqMoneda(r.retirado_cierre)}\n` +
+              `Quedó en caja: ${arqMoneda(r.efectivo_contado)}\n` +
+              (dif == null || Math.abs(dif) < 0.005
+                  ? "La caja queda cuadrada para mañana."
+                  : `Diferencia: ${arqMoneda(dif)} (queda registrada con tu explicación).`));
     } catch(err) { alert("Error: " + err.message); }
     finally {
         window.UI && UI.busy(btn, false);
@@ -1538,16 +1592,18 @@ async function arqCargarTurno() {
             : "La caja está cerrada. El saldo inicial se aplicará en la próxima apertura.";
         // El input sólo se repisa si el usuario no está escribiendo, para no borrarle
         // lo que acaba de tipear cuando la tabla se recarga sola tras un movimiento.
-        const inp = document.getElementById("arq-fondo");
-        if (document.activeElement !== inp) inp.value = Number(a.fondo_inicial || 0).toFixed(2);
+        const inp = document.getElementById("arq-saldo");
+        if (document.activeElement !== inp) inp.value = Number(a.saldo_objetivo || 0).toFixed(2);
 
         cont.innerHTML = [
-            ["Saldo inicial", a.fondo_inicial, false],
+            ["Arrancó con", a.fondo_inicial, false],
             ["Cobrado en efectivo", a.cobrado_efectivo, false],
             ["Devuelto en efectivo", a.devuelto_efectivo ? -a.devuelto_efectivo : 0, false],
             ["Ingresos", a.ingresos, false],
             ["Retiros", a.retiros ? -a.retiros : 0, false],
-            ["Debería haber", a.efectivo_esperado, true],
+            ["Hay ahora", a.efectivo_esperado, true],
+            ["Saldo objetivo", a.saldo_objetivo, false],
+            ["Hay que retirar", a.retiro_sugerido, true],
         ].map(([k, v, destacada]) =>
             `<div class="arq-celda${destacada ? " destacada" : ""}">` +
             `<div class="k">${esc(k)}</div><div class="v">${esc(arqMoneda(v))}</div></div>`
@@ -1567,26 +1623,19 @@ async function arqCargarTurno() {
     }
 }
 
-async function arqGuardarFondo() {
-    const v = parseFloat(document.getElementById("arq-fondo").value);
+async function arqGuardarSaldo() {
+    const v = parseFloat(document.getElementById("arq-saldo").value);
     if (isNaN(v) || v < 0) { alert("Poné un saldo inicial válido (0 o más)."); return; }
-    // ⚠ El saldo se aplica al ABRIR la caja: no existe un endpoint que lo cambie en
-    //   mitad del turno a propósito. Mover el fondo con el turno en curso cambiaría el
-    //   esperado de ventas que ya ocurrieron, y el arqueo dejaría de ser auditable.
-    const est = await api.get("/caja/estado");
-    if (est && est.abierta) {
-        alert("La caja está abierta. El saldo inicial se aplica al abrirla:\n" +
-              "cerrá el turno y volvé a abrirlo con este importe.");
-        return;
-    }
-    const btn = document.getElementById("arq-btn-fondo");
+    const btn = document.getElementById("arq-btn-saldo");
     window.UI && UI.busy(btn, true, "Guardando…");
     try {
-        // Abrir con el fondo es lo que lo deja asentado; como la caja está cerrada,
-        // se guarda abriendo y el usuario sigue con su turno normal.
-        await api.post("/caja/abrir", { fondo_inicial: v });
-        alert("Saldo inicial guardado y caja abierta con ese importe.");
-        await Promise.all([arqCargarTurno(), cargarEstado()]);
+        // Es configuración pura: se puede cambiar con la caja abierta o cerrada. El
+        // objetivo sólo se usa AL CERRAR, para calcular cuánto hay que retirar.
+        await api.put("/caja/saldo-inicial", { saldo_inicial: v });
+        await arqCargarTurno();
+        alert(`Saldo inicial guardado: ${arqMoneda(v)}.\n` +
+              "Al cerrar, el sistema va a pedir que se retire el excedente para dejar " +
+              "la caja en ese importe.");
     } catch (err) { alert("Error: " + err.message); }
     finally { window.UI && UI.busy(btn, false); }
 }
@@ -1623,16 +1672,26 @@ async function arqCargarHistorial() {
     if (h) qs.push("hasta=" + encodeURIComponent(h));
     try {
         const filas = await api.get("/caja/arqueos" + (qs.length ? "?" + qs.join("&") : ""));
-        tb.innerHTML = filas.length ? filas.map(f => `<tr>
+        tb.innerHTML = filas.length ? filas.map(f => {
+            // ⚠ Las dos notas se muestran ETIQUETADAS y por separado. Una explica el
+            //   RETIRO ("saqué 500 y dejé ticket") y la otra el DESCUADRE ("faltan 300
+            //   porque alguien compró insumos"): juntarlas obliga a quien audita a
+            //   adivinar cuál es cuál, y son dos hechos distintos.
+            const notas = [
+                f.retiro_notas ? `<div><strong>Retiro:</strong> ${esc(f.retiro_notas)}</div>` : "",
+                f.arqueo_notas ? `<div><strong>Descuadre:</strong> ${esc(f.arqueo_notas)}</div>` : "",
+            ].join("") || "—";
+            return `<tr>
             <td>${esc(formatFecha(f.fecha))}</td>
             <td>#${f.id}</td>
-            <td class="arq-num">${esc(arqMoneda(f.fondo_inicial))}</td>
-            <td class="arq-num">${esc(f.retiros ? arqMoneda(f.retiros) : "—")}</td>
-            <td class="arq-num">${esc(f.ingresos ? arqMoneda(f.ingresos) : "—")}</td>
+            <td class="arq-num">${esc(arqMoneda(f.saldo_objetivo))}</td>
             <td class="arq-num">${esc(arqMoneda(f.efectivo_esperado))}</td>
+            <td class="arq-num">${esc(f.retirado_cierre ? arqMoneda(f.retirado_cierre) : "—")}</td>
             <td class="arq-num">${esc(arqMoneda(f.efectivo_contado))}</td>
             <td class="arq-num">${arqDiferencia(f.diferencia)}</td>
-            <td>${esc(f.arqueo_por || "—")}</td></tr>`).join("")
+            <td style="font-size:12px;max-width:320px;">${notas}</td>
+            <td>${esc(f.cerrado_por || f.arqueo_por || "—")}</td></tr>`;
+        }).join("")
             : `<tr><td colspan="9" class="empty">Sin cierres en ese rango</td></tr>`;
     } catch (err) {
         tb.innerHTML = `<tr><td colspan="9" class="empty">No se pudo cargar: ${esc(err.message)}</td></tr>`;
