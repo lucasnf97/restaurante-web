@@ -102,6 +102,25 @@
         /* Resultados de la búsqueda de clientes */
         .rev-cli-row { border: 1px solid var(--bd-5, #e2e8f0); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: all .15s; }
         .rev-cli-row:hover { border-color: var(--ac, #4f46e5); background: var(--ac-sf, #f5f3ff); }
+        /* ── Arqueo de caja ───────────────────────────────────────────────── */
+        .arq-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .arq-celda { border: 1px solid var(--bd-5, #e2e8f0); border-radius: 10px; padding: 12px 14px; background: var(--sup-2, #fafafa); }
+        .arq-celda .k { font-size: 11px; font-weight: 700; color: var(--tx-9, #64748b); text-transform: uppercase; letter-spacing: .4px; }
+        .arq-celda .v { font-size: 20px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+        /* El esperado es el número que el cajero compara contra lo que contó: se destaca. */
+        .arq-celda.destacada { border-color: var(--ac, #4f46e5); background: var(--ac-sf, #f5f3ff); }
+        .arq-bloque { border-top: 1px solid var(--bd-5, #e2e8f0); padding-top: 16px; margin-top: 18px; }
+        .arq-bloque h4 { margin: 0 0 8px; font-size: 14px; }
+        .arq-ayuda { font-size: 12px; color: var(--tx-5, #888); margin: 0 0 10px; }
+        .arq-fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .arq-fila input, .arq-fila select { padding: 8px 12px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 8px; font-size: 14px; outline: none; background: var(--sup, #fff); color: inherit; }
+        .arq-fila input:focus, .arq-fila select:focus { border-color: var(--ac, #4f46e5); }
+        .arq-num { text-align: right; font-variant-numeric: tabular-nums; }
+        /* Un faltante y un sobrante NO son lo mismo: el color los separa de un vistazo. */
+        .arq-falta { color: var(--pel-tx-2, #dc2626); font-weight: 700; }
+        .arq-sobra { color: var(--av-tx, #b45309); font-weight: 700; }
+        .arq-cuadra { color: var(--ok-tx, #15803d); font-weight: 700; }
+        .arq-sin { color: var(--tx-9, #64748b); font-style: italic; }
     </style>
 </head>
 <body>
@@ -116,6 +135,7 @@
 <div class="content">
     <div class="page-header">
         <h2>💰 Caja e historial</h2>
+        <button class="btn btn-secondary" onclick="arqAbrir()">🧮 Arqueo</button>
         <button class="btn btn-secondary" onclick="abrirRevision()">🔍 Revisión</button>
     </div>
 
@@ -169,6 +189,86 @@
                 <tr><td colspan="7" class="empty">Cargando...</td></tr>
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Modal ARQUEO DE CAJA -->
+<!-- ⚠ El esperado NO es el total del turno (ese incluye tarjeta): es
+     fondo + cobros en efectivo − devoluciones en efectivo + ingresos − retiros.
+     Por eso se muestra el desglose entero: una diferencia sin el desglose no se
+     puede auditar, y acaba ignorándose. -->
+<div class="modal-overlay" id="modal-arqueo">
+    <div class="modal" style="max-width:900px;">
+        <h3>🧮 Arqueo de caja</h3>
+        <p class="modal-sub" id="arq-sub">Cargando…</p>
+
+        <div class="arq-grid" id="arq-turno"></div>
+
+        <!-- Saldo inicial: es configuración del local, no un dato del turno. -->
+        <div class="arq-bloque">
+            <h4>Saldo inicial de caja</h4>
+            <p class="arq-ayuda">El efectivo con el que arranca el cajón. Se conserva de
+               un turno al siguiente; sólo se aplica al <strong>abrir</strong> la caja.</p>
+            <div class="arq-fila">
+                <input type="number" id="arq-fondo" step="0.01" min="0" placeholder="0.00">
+                <button class="btn btn-secondary" onclick="arqGuardarFondo()"
+                        id="arq-btn-fondo">Guardar saldo inicial</button>
+            </div>
+        </div>
+
+        <!-- Movimientos: sin esto un retiro legítimo se lee como faltante. -->
+        <div class="arq-bloque">
+            <h4>Movimientos de efectivo del turno</h4>
+            <div class="arq-fila">
+                <select id="arq-mov-tipo">
+                    <option value="retiro">Retiro (sale del cajón)</option>
+                    <option value="ingreso">Ingreso (entra al cajón)</option>
+                </select>
+                <input type="number" id="arq-mov-monto" step="0.01" min="0.01" placeholder="Monto">
+                <input type="text" id="arq-mov-motivo" placeholder="Motivo (obligatorio)" style="flex:1;">
+                <button class="btn btn-secondary" onclick="arqAgregarMov()"
+                        id="arq-btn-mov">Registrar</button>
+            </div>
+            <div class="tabla-wrapper" style="margin-top:10px;">
+                <table>
+                    <thead><tr><th>Hora</th><th>Tipo</th><th style="text-align:right;">Monto</th>
+                               <th>Motivo</th><th>Quién</th></tr></thead>
+                    <tbody id="arq-movs"><tr><td colspan="5" class="empty">—</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="arq-bloque">
+            <h4>Historial de arqueos</h4>
+            <div class="filtros">
+                <label>Desde:</label>
+                <input type="date" id="arq-desde" onchange="arqCargarHistorial()">
+                <label>Hasta:</label>
+                <input type="date" id="arq-hasta" onchange="arqCargarHistorial()">
+                <button class="btn btn-secondary" onclick="arqLimpiarFiltro()">Limpiar</button>
+            </div>
+            <div class="tabla-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th><th>Caja</th>
+                            <th style="text-align:right;">Saldo inicial</th>
+                            <th style="text-align:right;">Retiros</th>
+                            <th style="text-align:right;">Ingresos</th>
+                            <th style="text-align:right;">Esperado</th>
+                            <th style="text-align:right;">Contado</th>
+                            <th style="text-align:right;">Diferencia</th>
+                            <th>Arqueó</th>
+                        </tr>
+                    </thead>
+                    <tbody id="arq-historial"><tr><td colspan="9" class="empty">Cargando…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-arqueo')">Cerrar</button>
+        </div>
     </div>
 </div>
 
@@ -1310,27 +1410,205 @@ async function verItems(pedidoId, mesaNumero) {
 }
 
 async function abrirCaja() {
-    if (!confirm("¿Abrir la caja?")) return;
+    // Se propone el saldo de la apertura anterior: es lo normal, y así abrir sigue
+    // siendo un solo Enter. Cancelar aborta; dejarlo vacío conserva el anterior.
+    let sugerido = 0;
+    try { sugerido = (await api.get("/caja/arqueo")).fondo_inicial || 0; } catch (e) {}
+    const txt = prompt(
+        "Saldo inicial de caja (el efectivo con el que arranca el cajón).\n" +
+        "Dejalo vacío para conservar el de la apertura anterior.",
+        Number(sugerido).toFixed(2));
+    if (txt === null) return;                      // canceló: no se abre nada
+    const limpio = txt.trim();
+    let fondo = null;
+    if (limpio !== "") {
+        fondo = parseFloat(limpio.replace(",", "."));
+        if (isNaN(fondo) || fondo < 0) { alert("Saldo inicial inválido."); return; }
+    }
     const btn = document.getElementById("btn-abrir");
     window.UI && UI.busy(btn, true, "Abriendo…");
     try {
-        await api.post("/caja/abrir", {});
+        await api.post("/caja/abrir", fondo === null ? {} : { fondo_inicial: fondo });
     } catch(err) { alert("Error: " + err.message); }
     // busy(off) primero y luego cargarEstado, que fija el disabled correcto de los botones.
     finally { window.UI && UI.busy(btn, false); await cargarEstado(); }
 }
 
 async function cerrarCaja() {
-    if (!confirm("¿Cerrar la caja? Se generará el registro del turno.")) return;
+    // ⚠ Se muestra lo que DEBERÍA haber ANTES de pedir el conteo, porque el cajero lo
+    //   necesita para saber si recontar. No es "decirle la respuesta": el arqueo sirve
+    //   para detectar y explicar la diferencia, no para examinar al cajero.
+    let esperado = null;
+    try { esperado = (await api.get("/caja/arqueo")).efectivo_esperado; } catch (e) {}
+    const txt = prompt(
+        "Cerrar caja.\n\n" +
+        (esperado === null ? "" :
+         `Según el sistema, en el cajón debería haber ${arqMoneda(esperado)}.\n\n`) +
+        "¿Cuánto efectivo contaste? (dejalo vacío para cerrar SIN arquear)");
+    if (txt === null) return;                      // canceló: no se cierra nada
+    const limpio = txt.trim();
+    let contado = null;
+    if (limpio !== "") {
+        contado = parseFloat(limpio.replace(",", "."));
+        if (isNaN(contado) || contado < 0) { alert("Importe contado inválido."); return; }
+    }
+    let notas = null;
+    if (contado !== null && esperado !== null && Math.abs(contado - esperado) >= 0.005) {
+        // Una diferencia sin explicación es una diferencia que nadie va a investigar.
+        notas = prompt(`La diferencia es ${arqMoneda(contado - esperado)}.\n` +
+                       "¿Alguna nota? (opcional)") || null;
+    }
     const btn = document.getElementById("btn-cerrar");
     window.UI && UI.busy(btn, true, "Cerrando…");
     try {
-        const res = await api.post("/caja/cerrar", {});
-        alert(`Caja cerrada. Total del turno: ${simboloMoneda()} ${res.total.toFixed(2)}`);
+        const res = await api.post("/caja/cerrar",
+            contado === null ? {} : { efectivo_contado: contado, notas });
+        const a = res.arqueo || {};
+        alert(`Caja cerrada. Total del turno: ${simboloMoneda()} ${res.total.toFixed(2)}` +
+              (a.efectivo_contado === null || a.efectivo_contado === undefined ? "\n\n(Cerrada SIN arquear)"
+               : `\n\nEsperado: ${arqMoneda(a.efectivo_esperado)}` +
+                 `\nContado: ${arqMoneda(a.efectivo_contado)}` +
+                 `\nDiferencia: ${arqMoneda(a.diferencia)}`));
     } catch(err) { alert("Error: " + err.message); }
     finally {
         window.UI && UI.busy(btn, false);
         await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
+    }
+}
+
+// ── ARQUEO DE CAJA ──────────────────────────────────────────────────────────
+// ⚠ Todos los nombres de acá van prefijados `arq`: un `const`/`let` de nivel superior
+//   en un inline NO puede repetir un global de api.js/sidebar.js, o la página entera
+//   muere en el parse (sin error visible, simplemente no funciona nada).
+
+/** Importe con el símbolo del local. `—` si no hay dato, que NO es lo mismo que 0. */
+function arqMoneda(v) {
+    if (v === null || v === undefined) return "—";
+    return `${simboloMoneda()} ${Number(v).toFixed(2)}`;
+}
+
+/** La diferencia, con su signo y su color. Un faltante y un sobrante se leen distinto. */
+function arqDiferencia(d) {
+    if (d === null || d === undefined) return '<span class="arq-sin">sin arquear</span>';
+    const n = Number(d);
+    if (Math.abs(n) < 0.005) return `<span class="arq-cuadra">cuadra</span>`;
+    const cls = n < 0 ? "arq-falta" : "arq-sobra";
+    const sig = n < 0 ? "falta " : "sobra ";
+    return `<span class="${cls}">${sig}${arqMoneda(Math.abs(n))}</span>`;
+}
+
+async function arqAbrir() {
+    document.getElementById("modal-arqueo").classList.add("active");
+    await Promise.all([arqCargarTurno(), arqCargarHistorial()]);
+}
+
+async function arqCargarTurno() {
+    const cont = document.getElementById("arq-turno");
+    try {
+        const a = await api.get("/caja/arqueo");
+        document.getElementById("arq-sub").textContent = a.abierta
+            ? `Turno abierto por ${a.abierta_por || "—"} · ${formatTs(a.ts_apertura)}`
+            : "La caja está cerrada. El saldo inicial se aplicará en la próxima apertura.";
+        // El input sólo se repisa si el usuario no está escribiendo, para no borrarle
+        // lo que acaba de tipear cuando la tabla se recarga sola tras un movimiento.
+        const inp = document.getElementById("arq-fondo");
+        if (document.activeElement !== inp) inp.value = Number(a.fondo_inicial || 0).toFixed(2);
+
+        cont.innerHTML = [
+            ["Saldo inicial", a.fondo_inicial, false],
+            ["Cobrado en efectivo", a.cobrado_efectivo, false],
+            ["Devuelto en efectivo", a.devuelto_efectivo ? -a.devuelto_efectivo : 0, false],
+            ["Ingresos", a.ingresos, false],
+            ["Retiros", a.retiros ? -a.retiros : 0, false],
+            ["Debería haber", a.efectivo_esperado, true],
+        ].map(([k, v, destacada]) =>
+            `<div class="arq-celda${destacada ? " destacada" : ""}">` +
+            `<div class="k">${esc(k)}</div><div class="v">${esc(arqMoneda(v))}</div></div>`
+        ).join("");
+
+        const tb = document.getElementById("arq-movs");
+        const movs = a.movimientos || [];
+        tb.innerHTML = movs.length ? movs.map(m => `<tr>
+            <td>${esc(formatTs(m.ts))}</td>
+            <td>${m.tipo === "retiro" ? "Retiro" : "Ingreso"}</td>
+            <td class="arq-num">${esc(arqMoneda(m.monto))}</td>
+            <td>${esc(m.motivo || "")}</td>
+            <td>${esc(m.usuario || "")}</td></tr>`).join("")
+            : `<tr><td colspan="5" class="empty">Sin movimientos en este turno</td></tr>`;
+    } catch (err) {
+        cont.innerHTML = `<p class="empty">No se pudo cargar el arqueo: ${esc(err.message)}</p>`;
+    }
+}
+
+async function arqGuardarFondo() {
+    const v = parseFloat(document.getElementById("arq-fondo").value);
+    if (isNaN(v) || v < 0) { alert("Poné un saldo inicial válido (0 o más)."); return; }
+    // ⚠ El saldo se aplica al ABRIR la caja: no existe un endpoint que lo cambie en
+    //   mitad del turno a propósito. Mover el fondo con el turno en curso cambiaría el
+    //   esperado de ventas que ya ocurrieron, y el arqueo dejaría de ser auditable.
+    const est = await api.get("/caja/estado");
+    if (est && est.abierta) {
+        alert("La caja está abierta. El saldo inicial se aplica al abrirla:\n" +
+              "cerrá el turno y volvé a abrirlo con este importe.");
+        return;
+    }
+    const btn = document.getElementById("arq-btn-fondo");
+    window.UI && UI.busy(btn, true, "Guardando…");
+    try {
+        // Abrir con el fondo es lo que lo deja asentado; como la caja está cerrada,
+        // se guarda abriendo y el usuario sigue con su turno normal.
+        await api.post("/caja/abrir", { fondo_inicial: v });
+        alert("Saldo inicial guardado y caja abierta con ese importe.");
+        await Promise.all([arqCargarTurno(), cargarEstado()]);
+    } catch (err) { alert("Error: " + err.message); }
+    finally { window.UI && UI.busy(btn, false); }
+}
+
+async function arqAgregarMov() {
+    const tipo = document.getElementById("arq-mov-tipo").value;
+    const monto = parseFloat(document.getElementById("arq-mov-monto").value);
+    const motivo = (document.getElementById("arq-mov-motivo").value || "").trim();
+    if (isNaN(monto) || monto <= 0) { alert("Poné un monto mayor que cero."); return; }
+    if (!motivo) { alert("El motivo es obligatorio: un retiro sin motivo es indistinguible de un faltante."); return; }
+    const btn = document.getElementById("arq-btn-mov");
+    window.UI && UI.busy(btn, true, "Registrando…");
+    try {
+        await api.post("/caja/movimientos", { tipo, monto, motivo });
+        document.getElementById("arq-mov-monto").value = "";
+        document.getElementById("arq-mov-motivo").value = "";
+        await arqCargarTurno();
+    } catch (err) { alert("Error: " + err.message); }
+    finally { window.UI && UI.busy(btn, false); }
+}
+
+function arqLimpiarFiltro() {
+    document.getElementById("arq-desde").value = "";
+    document.getElementById("arq-hasta").value = "";
+    arqCargarHistorial();
+}
+
+async function arqCargarHistorial() {
+    const tb = document.getElementById("arq-historial");
+    const d = document.getElementById("arq-desde").value;
+    const h = document.getElementById("arq-hasta").value;
+    const qs = [];
+    if (d) qs.push("desde=" + encodeURIComponent(d));
+    if (h) qs.push("hasta=" + encodeURIComponent(h));
+    try {
+        const filas = await api.get("/caja/arqueos" + (qs.length ? "?" + qs.join("&") : ""));
+        tb.innerHTML = filas.length ? filas.map(f => `<tr>
+            <td>${esc(formatFecha(f.fecha))}</td>
+            <td>#${f.id}</td>
+            <td class="arq-num">${esc(arqMoneda(f.fondo_inicial))}</td>
+            <td class="arq-num">${esc(f.retiros ? arqMoneda(f.retiros) : "—")}</td>
+            <td class="arq-num">${esc(f.ingresos ? arqMoneda(f.ingresos) : "—")}</td>
+            <td class="arq-num">${esc(arqMoneda(f.efectivo_esperado))}</td>
+            <td class="arq-num">${esc(arqMoneda(f.efectivo_contado))}</td>
+            <td class="arq-num">${arqDiferencia(f.diferencia)}</td>
+            <td>${esc(f.arqueo_por || "—")}</td></tr>`).join("")
+            : `<tr><td colspan="9" class="empty">Sin cierres en ese rango</td></tr>`;
+    } catch (err) {
+        tb.innerHTML = `<tr><td colspan="9" class="empty">No se pudo cargar: ${esc(err.message)}</td></tr>`;
     }
 }
 
