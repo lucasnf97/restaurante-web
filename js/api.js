@@ -1083,6 +1083,17 @@ async function abrirDocumento(url) {
         (document.body || document.documentElement).appendChild(s);
     })();
 
+    // ── Barras de desplazamiento con el logo de Chief Point ───
+    // Mismo esquema que tema.js: sidebar.js también lo inyecta y la guarda del id
+    // hace inocua la doble inyección. Las páginas públicas lo cargan con <script>.
+    (function () {
+        if (document.getElementById("scroll-chief-script")) return;
+        const s = document.createElement("script");
+        s.id = "scroll-chief-script";
+        s.src = "js/scroll-chief.js";
+        (document.body || document.documentElement).appendChild(s);
+    })();
+
     // ── Keep-warm ─────────────────────────────────────────────
     // Mientras la página está abierta y hay sesión, ping liviano a la raíz (sin DB)
     // cada ~3.5 min para que Railway no "duerma" el server y la próxima acción no

@@ -1067,9 +1067,19 @@
         document.body.appendChild(s);
     }
 
+    // Barras de desplazamiento con el logo (ver js/scroll-chief.js). Misma guarda.
+    function _injectScrollChief() {
+        if (document.getElementById("scroll-chief-script")) return;
+        const s = document.createElement("script");
+        s.id = "scroll-chief-script";
+        s.src = "js/scroll-chief.js";
+        document.body.appendChild(s);
+    }
+
     // ── INIT ─────────────────────────────────────────────────────
     function _initSidebar() {
         _injectTema();          // tema.js monta su propio botón en el pie del panel
+        _injectScrollChief();
         injectHamburger();
         initMarca();
         initGerSwitcher();
