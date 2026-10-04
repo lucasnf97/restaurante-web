@@ -108,9 +108,13 @@
         var tot = this.v ? el.scrollHeight : el.scrollWidth;
         var pos = this.v ? el.scrollTop : el.scrollLeft;
         var max = Math.max(1, tot - cli), recorrido = Math.max(1, largo - T);
-        return { b: b, largo: largo, max: max, recorrido: recorrido,
-                 centro: T / 2 + Math.min(1, Math.max(0, pos / max)) * recorrido,
-                 pil: Math.max(T, Math.min(largo, largo * cli / Math.max(1, tot))) };
+        var prog = Math.min(1, Math.max(0, pos / max));
+        var pil = Math.max(T, Math.min(largo, largo * cli / Math.max(1, tot)));
+        // El punto Chief es PROGRESIVO sobre todo el riel (arriba del todo al principio,
+        // abajo del todo al final) y la píldora avanza con la misma proporción: el punto
+        // siempre cae dentro de ella. Igual que en el exe (_BarrasChief._centro).
+        return { b: b, largo: largo, max: max, recorrido: recorrido, pil: pil,
+                 centro: T / 2 + prog * recorrido, inicioPil: prog * (largo - pil) };
     };
     Barra.prototype.ir = function (centro, m) {
         var pos = (centro - T / 2) / m.recorrido * m.max;
@@ -176,12 +180,10 @@
         var rs = this.riel.style, ps = this.pil.style, mov = false;
         if (this.v) {
             rs.left = (T / 2 - 1.5) + "px"; rs.width = "3px"; rs.top = (T / 2) + "px"; rs.height = Math.max(0, m.largo - T) + "px";
-            var pt = Math.min(Math.max(0, m.centro - m.pil / 2), m.largo - m.pil);
-            ps.left = "2px"; ps.width = (T - 4) + "px"; ps.top = pt + "px"; ps.height = m.pil + "px";
+            ps.left = "2px"; ps.width = (T - 4) + "px"; ps.top = m.inicioPil + "px"; ps.height = m.pil + "px";
         } else {
             rs.top = (T / 2 - 1.5) + "px"; rs.height = "3px"; rs.left = (T / 2) + "px"; rs.width = Math.max(0, m.largo - T) + "px";
-            var pl = Math.min(Math.max(0, m.centro - m.pil / 2), m.largo - m.pil);
-            ps.top = "2px"; ps.height = (T - 4) + "px"; ps.left = pl + "px"; ps.width = m.pil + "px";
+            ps.top = "2px"; ps.height = (T - 4) + "px"; ps.left = m.inicioPil + "px"; ps.width = m.pil + "px";
         }
         for (var k in RES) {
             var a = this.r[k];
