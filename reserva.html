@@ -680,7 +680,8 @@ const ICO = {
     ig:   '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="currentColor"/>',
     fb:   '<path d="M14 8h3V4h-3a4 4 0 0 0-4 4v3H7v4h3v6h4v-6h3l1-4h-4V8"/>',
     web:  '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
-    otro: '<path d="M8 12h8M12 8v8"/><circle cx="12" cy="12" r="9"/>',
+    tt:   '<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.5 2.6 2.4 4.4 5 4.6"/>',
+    otro: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     cal:  '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>',
     calmas:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18M12 13v5M9.5 15.5h5"/>',
 };
@@ -699,10 +700,13 @@ function pintarLocal(){
     if(p.direccion) chips.push(chip('pin', p.direccion, urlMapa(), 'target="_blank" rel="noopener"'));
     if(c.telefono) chips.push(chip('tel', c.telefono, 'tel:' + String(c.telefono).replace(/[^\d+]/g,'')));
     if(c.email) chips.push(chip('mail', c.email, 'mailto:' + c.email));
-    if(p.instagram) chips.push(chip('ig', '@' + p.instagram, 'https://instagram.com/' + encodeURIComponent(p.instagram), 'target="_blank" rel="noopener"'));
-    if(p.facebook) chips.push(chip('fb', 'Facebook', p.facebook, 'target="_blank" rel="noopener"'));
-    if(p.web) chips.push(chip('web', String(p.web).replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,''), p.web, 'target="_blank" rel="noopener"'));
-    if(c.redes) chips.push(chip('otro', c.redes, null));
+    // Redes: el texto lo elige el local y el enlace lleva a donde él dijo. Sólo http(s)
+    // (el server ya lo filtra; acá se repite por si acaso, porque va a un href público).
+    const ICO_RED = { instagram:'ig', facebook:'fb', tiktok:'tt', web:'web', otra:'otro' };
+    for(const r of (p.redes || [])){
+        const url = /^https?:\/\//i.test(r.url || '') ? r.url : null;
+        chips.push(chip(ICO_RED[r.tipo] || 'otro', r.texto, url, 'target="_blank" rel="noopener"'));
+    }
     $('local-chips').innerHTML = chips.join('');
     if(p.descripcion){ $('local-desc').textContent = p.descripcion; mostrar('local-desc', true); }
     mostrar('local', !!(chips.length || p.descripcion));
@@ -897,6 +901,7 @@ async function enviarReserva(accion){
             notas: $('d-notas').value.trim() || null,
             website: $('d-website').value || null,
             accion: accion || null,
+            idioma: LANG,   // el email de confirmación sale en este idioma
         })});
         clearTimeout(reloj);
         mostrarConfirmacion(r, $('d-nombre').value.trim());

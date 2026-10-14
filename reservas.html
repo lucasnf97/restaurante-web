@@ -83,6 +83,18 @@
         .ol-banner.sin-velo::before { display: none; }
         .ol-banner img { position: relative; width: 40px; height: 40px; border-radius: 10px;
             object-fit: cover; background: #fff; }
+        .ol-redes { display: flex; flex-direction: column; gap: 8px; }
+        .ol-red { border: 1px solid var(--bd, #e5e7eb); border-radius: 8px; padding: 8px; display: grid;
+            grid-template-columns: 120px 1fr 1fr 34px; grid-template-areas: "tipo texto url x";
+            gap: 6px; align-items: center; }
+        .ol-red select { grid-area: tipo; } .ol-red .r-texto { grid-area: texto; }
+        .ol-red .r-url { grid-area: url; } .ol-red .quitar { grid-area: x; }
+        .ol-red select, .ol-red input { margin: 0; min-width: 0; }
+        .ol-red .quitar { width: 34px; height: 34px; border: none; border-radius: 6px; background: transparent;
+            color: var(--tx-9, #64748b); cursor: pointer; font-size: 16px; }
+        .ol-red .quitar:hover { background: var(--pel-sf-2, #fef2f2); color: var(--pel-tx, #b91c1c); }
+        @media (max-width:1100px) { .ol-red { grid-template-columns: 1fr 34px;
+            grid-template-areas: "tipo x" "texto texto" "url url"; } }
         .ol-idiomas { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
         .ol-idiomas .fila-idioma { display: flex; align-items: center; justify-content: space-between; gap: 10px;
             padding: 8px 12px; border: 1px solid var(--bd, #e5e7eb); border-radius: 8px; }
@@ -365,14 +377,14 @@
                     <input type="text" id="ol-tel" maxlength="60" placeholder="Ej: +45 12 34 56 78"></div>
                 <div class="form-group"><label>Correo</label>
                     <input type="text" id="ol-email" maxlength="200" placeholder="Ej: reservas@turestaurante.com"></div>
-                <div class="form-group"><label>Instagram</label>
-                    <input type="text" id="ol-ig" maxlength="100" placeholder="Ej: @turestaurante"></div>
-                <div class="form-group"><label>Facebook</label>
-                    <input type="text" id="ol-fb" maxlength="200" placeholder="Ej: turestaurante o el enlace de la página"></div>
-                <div class="form-group"><label>Sitio web</label>
-                    <input type="text" id="ol-web" maxlength="300" placeholder="Ej: turestaurante.dk"></div>
-                <div class="form-group"><label>Otras redes <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(texto libre)</span></label>
-                    <input type="text" id="ol-redes" maxlength="200" placeholder="Ej: TikTok @turestaurante"></div>
+                <div class="form-group">
+                    <label>Redes sociales y web</label>
+                    <div id="ol-redes-lista" class="ol-redes"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="olAgregarRed()" style="margin-top:6px;">+ Agregar red</button>
+                    <span style="display:block;font-size:11.5px;color: var(--tx-8, #94a3b8);margin-top:6px;">
+                        <b>Texto</b> = lo que ve el cliente · <b>Enlace</b> = a dónde lo lleva al tocarlo.
+                        Si dejás el enlace vacío en Instagram, Facebook o TikTok, se arma solo con el usuario.</span>
+                </div>
                 <div id="ol-preview" style="display:none;background: var(--sup-2, #f8fafc);border: 1px solid var(--bd-5, #e2e8f0);border-radius:8px;
                     padding:10px 12px;font-size:12.5px;color: var(--fg-a15, #475569);margin-bottom:14px;"></div>
             </div>
@@ -2153,10 +2165,7 @@ async function cargarConfigOnline(){
         document.getElementById('ol-hor').value   = c.horizonte_dias ?? '';
         document.getElementById('ol-tel').value   = c.contacto_telefono || '';
         document.getElementById('ol-email').value = c.contacto_email || '';
-        document.getElementById('ol-redes').value = c.contacto_redes || '';
-        document.getElementById('ol-ig').value    = c.instagram ? '@' + c.instagram : '';
-        document.getElementById('ol-fb').value    = c.facebook || '';
-        document.getElementById('ol-web').value   = c.web || '';
+        _olPintarRedes(c.redes || []);
         document.getElementById('ol-desc').value  = c.descripcion || '';
         document.getElementById('ol-dir').value   = c.direccion || '';
         document.getElementById('ol-dir').placeholder = c.direccion_negocio
@@ -2175,7 +2184,7 @@ async function cargarConfigOnline(){
         _olPintarBanner();
         _olPintarIdiomas(c.idiomas);
         _olCargada = true;
-        ['ol-max','ol-tel','ol-email','ol-redes'].forEach(id =>
+        ['ol-max','ol-tel','ol-email'].forEach(id =>
             document.getElementById(id).addEventListener('input', _olPreview));
         _olPreview();
     }catch(e){
@@ -2189,10 +2198,8 @@ function _olPreview(){
     const partes = [];
     const tel = document.getElementById('ol-tel').value.trim();
     const em  = document.getElementById('ol-email').value.trim();
-    const rd  = document.getElementById('ol-redes').value.trim();
-    if(tel) partes.push('Tel: ' + tel);
+    if(tel) partes.push('Tel. ' + tel);
     if(em)  partes.push('Correo: ' + em);
-    if(rd)  partes.push(rd);
     if(max){
         pv.style.display = '';
         pv.textContent = `El cliente verá: "¿Son más de ${max}? Contactate con el restaurante` +
@@ -2276,6 +2283,46 @@ function olQuitar(tipo){
     document.getElementById('ol-msg').textContent = 'Tocá Guardar para aplicar el cambio.';
     document.getElementById('ol-msg').style.color = '';
 }
+// Redes: cada fila = tipo (el ícono), texto (lo que se ve) y enlace (a dónde lleva).
+const _OL_TIPOS_RED = [['instagram','Instagram','@turestaurante','https://instagram.com/turestaurante'],
+    ['facebook','Facebook','Tu Restaurante','https://facebook.com/turestaurante'],
+    ['tiktok','TikTok','@turestaurante','https://www.tiktok.com/@turestaurante'],
+    ['web','Sitio web','turestaurante.dk','https://turestaurante.dk'],
+    ['otra','Otra','Ej: TripAdvisor','https://…']];
+const _escOl = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function _olFilaRed(r){
+    const tipo = (_OL_TIPOS_RED.find(x => x[0] === r.tipo) || _OL_TIPOS_RED[4]);
+    return `<div class="ol-red">
+        <select aria-label="Tipo de red" onchange="_olTipoRed(this)">${_OL_TIPOS_RED.map(([v, n]) =>
+            `<option value="${v}" ${v === tipo[0] ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        <input type="text" class="r-texto" maxlength="80" aria-label="Texto que se muestra" placeholder="Texto: ${_escOl(tipo[2])}" value="${_escOl(r.texto)}">
+        <input type="text" class="r-url" maxlength="500" aria-label="Enlace" placeholder="Enlace: ${_escOl(tipo[3])}" value="${_escOl(r.url)}">
+        <button type="button" class="quitar" title="Quitar" aria-label="Quitar esta red" onclick="this.closest('.ol-red').remove()">✕</button>
+    </div>`;
+}
+function _olPintarRedes(lista){
+    document.getElementById('ol-redes-lista').innerHTML = lista.map(_olFilaRed).join('');
+}
+function _olTipoRed(sel){
+    const t = _OL_TIPOS_RED.find(x => x[0] === sel.value);
+    const fila = sel.closest('.ol-red');
+    fila.querySelector('.r-texto').placeholder = 'Texto: ' + t[2];
+    fila.querySelector('.r-url').placeholder = 'Enlace: ' + t[3];
+}
+function olAgregarRed(){
+    const usados = [...document.querySelectorAll('#ol-redes-lista select')].map(s => s.value);
+    const libre = (_OL_TIPOS_RED.find(t => !usados.includes(t[0]) && t[0] !== 'otra') || _OL_TIPOS_RED[4])[0];
+    document.getElementById('ol-redes-lista').insertAdjacentHTML('beforeend', _olFilaRed({ tipo: libre }));
+    const filas = document.querySelectorAll('#ol-redes-lista .ol-red');
+    filas[filas.length - 1].querySelector('.r-texto').focus();
+}
+function _olRedesElegidas(){
+    return [...document.querySelectorAll('#ol-redes-lista .ol-red')].map(f => ({
+        tipo: f.querySelector('select').value,
+        texto: f.querySelector('.r-texto').value.trim(),
+        url: f.querySelector('.r-url').value.trim(),
+    })).filter(r => r.texto || r.url);
+}
 async function guardarConfigOnline(){
     const num = id => { const v = document.getElementById(id).value.trim(); return v === '' ? null : parseInt(v, 10); };
     const txt = id => document.getElementById(id).value.trim() || null;
@@ -2289,10 +2336,7 @@ async function guardarConfigOnline(){
             horizonte_dias: num('ol-hor'),
             contacto_telefono: txt('ol-tel'),
             contacto_email: txt('ol-email'),
-            contacto_redes: txt('ol-redes'),
-            instagram: txt('ol-ig'),
-            facebook: txt('ol-fb'),
-            web: txt('ol-web'),
+            redes: _olRedesElegidas(),
             descripcion: txt('ol-desc'),
             direccion: txt('ol-dir'),
             mapa_url: txt('ol-mapa'),
