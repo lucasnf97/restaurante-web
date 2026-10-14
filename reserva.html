@@ -214,6 +214,53 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
 .fin .pie{ color:rgba(255,255,255,.6); margin-top:auto; }
 .fin .pie .cp-marca{ color:#fff; }
 
+.lado-form{ display:flex; flex-direction:column; gap:22px; flex:1; }
+.form-titulo{ margin:0; font-family:Poppins,sans-serif; font-weight:600; font-size:26px; letter-spacing:-.02em; }
+.solo-ancho{ display:none !important; }
+
+/* ── Formato ESCRITORIO ──────────────────────────────────────────────────────
+   Se decide por el ANCHO disponible, no por el tipo de aparato: un iPad se anuncia
+   como Mac, una ventana chica de escritorio necesita el formato celular, y si el
+   local mete la página en su web (iframe) lo que importa es el espacio que le dio.
+   A la izquierda el local (banner + presentación + contacto + horarios), a la
+   derecha la reserva. Es la MISMA página: sólo cambia cómo se acomoda. */
+@media (min-width:900px){
+    body{ padding:40px 24px; align-items:flex-start; }
+    .app{ max-width:1120px; display:grid; grid-template-columns:minmax(340px, 400px) 1fr;
+        grid-template-rows:auto 1fr; grid-template-areas:"banner form" "lado form"; min-height:680px; }
+    .hoja{ display:contents; }
+    .banner{ grid-area:banner; min-height:300px; padding:34px 32px 30px; }
+    .b-eyebrow{ display:none; }   /* el título "Reservá tu mesa" va arriba del formulario */
+    .banner.con-foto{ min-height:320px; }
+    .idiomas{ top:20px; right:20px; }
+    /* En escritorio el selector cae sobre el lado BLANCO (no sobre el banner). */
+    .app:not(.ticket-modo) .idiomas{ background:var(--sup-2); backdrop-filter:none; -webkit-backdrop-filter:none; }
+    .app:not(.ticket-modo) .idiomas button{ color:var(--tx-2); }
+    .app:not(.ticket-modo) .idiomas button:hover{ color:var(--navy); }
+    .app:not(.ticket-modo) .idiomas button[aria-pressed=true]{ background:var(--navy); color:var(--lime); }
+    .local{ grid-area:lado; background:var(--navy); color:#fff; padding:6px 32px 34px; gap:16px; }
+    .local.hidden{ display:flex !important; }   /* la columna navy sigue aunque no haya datos */
+    .local p{ color:rgba(255,255,255,.78); font-size:15px; }
+    .local .chip{ background:rgba(255,255,255,.08); color:#fff; }
+    .local a.chip:hover{ background:rgba(255,255,255,.16); }
+    .local .chip svg{ color:var(--r1); }
+    .solo-ancho{ display:block !important; }
+    .semana.hidden{ display:none !important; }
+    .lado-form{ grid-area:form; padding:40px 48px 26px; gap:26px; min-width:0; }
+    .personas{ grid-template-columns:repeat(auto-fill, 52px) !important; gap:10px; }
+    .persona{ max-width:none; }
+    .horas{ grid-template-columns:repeat(6, minmax(0,1fr)); }
+    .cta{ max-width:520px; }
+    /* El ticket es una pieza angosta: en escritorio, centrado. */
+    .app.ticket-modo{ display:flex; max-width:560px; min-height:0; }
+}
+.semana{ margin-top:6px; }
+.semana-t{ display:block; font-size:12px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--r1); margin-bottom:8px; }
+.semana .fila-dia{ display:flex; justify-content:space-between; gap:12px; font-size:14px; padding:3px 0;
+    color:rgba(255,255,255,.72); font-variant-numeric:tabular-nums; }
+.semana .fila-dia.hoy{ color:#fff; font-weight:600; }
+
 @media (max-width:360px){
     .hoja{ padding:22px 16px 16px; }
     .horas{ grid-template-columns:repeat(3, minmax(0,1fr)); }
@@ -236,12 +283,18 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
     </header>
 
     <main class="hoja" id="hoja">
-        <p class="nota hidden" id="msg-global"></p>
-
         <section class="local hidden" id="local">
             <p id="local-desc" class="hidden"></p>
             <div class="chips" id="local-chips"></div>
+            <div class="semana solo-ancho hidden" id="semana">
+                <span class="semana-t" data-t="horarios"></span>
+                <div id="semana-filas"></div>
+            </div>
         </section>
+
+        <div class="lado-form" id="lado-form">
+        <p class="nota hidden" id="msg-global"></p>
+        <h2 class="form-titulo solo-ancho" data-t="reservar"></h2>
 
         <div id="form-wrap" class="sec" style="gap:22px;">
             <section class="sec">
@@ -308,6 +361,7 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
             <span data-t="reservas_con"></span>
             <span class="cp-marca" aria-label="Chief Point">Chief p<span class="cp-dot cp-xs" aria-hidden="true"></span>int</span>
         </div>
+        </div>
     </main>
 </div>
 
@@ -330,7 +384,7 @@ const UMBRAL_ESPERA = 400;        // regla de la marca: sin indicador por debajo
 // ⚠ Los textos que escribe el local (presentación, otras redes) se muestran tal cual.
 const TXT = {
 es: {
-    reservar:'Reserva tu mesa', dia:'Día', personas:'Personas', hora:'Hora',
+    reservar:'Reserva tu mesa', horarios:'Horarios', cerrado_dia:'Cerrado', dia:'Día', personas:'Personas', hora:'Hora',
     buscando:'Buscando horarios…', cambiar:'Cambiar', nombre:'Nombre y apellido',
     nombre_ph:'¿A nombre de quién?', telefono:'Teléfono', email:'Email', opcional:'Opcional',
     contacto_nota:'Deja al menos un teléfono o un email para confirmar la reserva.',
@@ -370,7 +424,7 @@ es: {
     est_programada:'Confirmada', est_en_espera:'En espera', est_sentado:'En curso', est_terminada:'Finalizada', est_cancelada:'Cancelada',
 },
 en: {
-    reservar:'Book a table', dia:'Day', personas:'Guests', hora:'Time',
+    reservar:'Book a table', horarios:'Opening hours', cerrado_dia:'Closed', dia:'Day', personas:'Guests', hora:'Time',
     buscando:'Finding available times…', cambiar:'Change', nombre:'Full name',
     nombre_ph:'Who is the booking for?', telefono:'Phone', email:'Email', opcional:'Optional',
     contacto_nota:'Leave at least a phone number or an email so we can confirm your booking.',
@@ -410,7 +464,7 @@ en: {
     est_programada:'Confirmed', est_en_espera:'Waiting list', est_sentado:'In progress', est_terminada:'Finished', est_cancelada:'Cancelled',
 },
 da: {
-    reservar:'Book et bord', dia:'Dag', personas:'Personer', hora:'Tidspunkt',
+    reservar:'Book et bord', horarios:'Åbningstider', cerrado_dia:'Lukket', dia:'Dag', personas:'Personer', hora:'Tidspunkt',
     buscando:'Finder ledige tider…', cambiar:'Ændr', nombre:'Fulde navn',
     nombre_ph:'Hvilket navn skal bordet stå i?', telefono:'Telefon', email:'E-mail', opcional:'Valgfrit',
     contacto_nota:'Angiv mindst et telefonnummer eller en e-mail, så vi kan bekræfte din booking.',
@@ -708,9 +762,32 @@ function pintarLocal(){
         chips.push(chip(ICO_RED[r.tipo] || 'otro', r.texto, url, 'target="_blank" rel="noopener"'));
     }
     $('local-chips').innerHTML = chips.join('');
+    pintarSemana();
     if(p.descripcion){ $('local-desc').textContent = p.descripcion; mostrar('local-desc', true); }
     mostrar('local', !!(chips.length || p.descripcion));
 }
+
+// Horarios de toda la semana (columna del local, sólo en escritorio). Lunes primero;
+// el día de hoy resaltado. Los nombres salen de Intl con el idioma elegido.
+function pintarSemana(){
+    const hs = (state.info && state.info.horarios) || [];
+    if(!hs.length){ mostrar('semana', false); return; }
+    const lunes = sumarDias(hoyRest(), -diaSemanaPy(hoyRest()));
+    $('semana-filas').innerHTML = [0,1,2,3,4,5,6].map(i => {
+        const iso = sumarDias(lunes, i);
+        const h = hs.find(x => x.dia_semana === i);
+        const franjas = (h && h.activo !== false) ? (h.franjas || []) : [];
+        const nombre = _cap(new Intl.DateTimeFormat(LOCALE[LANG], {weekday:'long'}).format(_d(iso)));
+        const horas = franjas.length ? franjas.map(f => `${f.inicio}–${f.fin}`).join(', ') : t('cerrado_dia');
+        return `<div class="fila-dia${iso === hoyRest() ? ' hoy' : ''}"><span>${esc(nombre)}</span><span>${esc(horas)}</span></div>`;
+    }).join('');
+    mostrar('semana', true);
+}
+
+// Ancho de escritorio: la tira de días muestra la semana entera.
+const ANCHO = window.matchMedia('(min-width:900px)');
+const _alCambiarAncho = () => { if(MIN_F && _vista === 'form') renderDias(); };
+if(ANCHO.addEventListener) ANCHO.addEventListener('change', _alCambiarAncho); else ANCHO.addListener(_alCambiarAncho);
 
 // Topes/contacto del restaurante → rango de fechas, tope de personas y leyenda.
 function aplicarConfigOnline(){
@@ -737,7 +814,7 @@ function aplicarTope(){
 
 // ── Días: tira de los próximos + calendario para cualquier otro ──
 function renderDias(){
-    const N = 4; const dias = [];
+    const N = ANCHO.matches ? 7 : 4; const dias = [];
     for(let i = 0; dias.length < N; i++){
         const d = sumarDias(MIN_F, i);
         if(MAX_F && d > MAX_F) break;
