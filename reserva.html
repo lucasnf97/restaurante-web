@@ -2,246 +2,523 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Reservá tu mesa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+/* ── Página pública de reservas ──────────────────────────────────────────────
+   Esencia de la marca (Chief Point) + la cara del local. Lo del local es todo
+   opcional y viene de /publico/info → perfil (se edita en Reservas › Online):
+   sin banner propio, el encabezado es el navy de la marca.
+   Las animaciones del punto significan lo mismo que en el resto del sistema:
+   latido = vivo/activo (abierto ahora, reserva confirmada) · órbita = pedido en
+   vuelo (buscar horarios, confirmar), y sólo si tarda más de 400 ms.          */
 :root{
-    --ink:#1f2024; --ink-soft:#5d5f66; --faint:#8b8d94;
-    --paper:#fbfaf8; --card:#ffffff; --line:#e8e3d9; --line-soft:#f0ece4;
-    --wine:#8a2b3a; --wine-deep:#6f2230; --gold:#bfa24e; --ok:#3f7a52;
-    --shadow:0 18px 50px -28px rgba(31,32,36,.45);
-    --r:14px;
+    --navy:#1B1B33; --navy-2:#2A2A4A; --lime:#C9FF1F;
+    --r1:#B4E025; --r2:#93BE1E; --r3:#6E8A18; --r4:#4C5A15;
+    --tx:#1B1B33; --tx-2:#5B5B72; --tx-3:#6B6B80;
+    --bd:#E3E3EA; --bd-2:#F0F0F4; --sup-2:#F6F6F9;
+    --pel:#B42336; --pel-sf:#FDF2F3; --av-sf:#FDF8EC; --av-bd:#E7D29A; --av-tx:#7A5B18;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;}
 body{
-    font-family:'Inter',system-ui,sans-serif; color:var(--ink);
-    background:
-        radial-gradient(120% 60% at 50% -10%, #fff 0%, var(--paper) 55%, #f4f0e8 100%);
-    min-height:100vh; display:flex; align-items:flex-start; justify-content:center;
-    padding:32px 18px 48px; line-height:1.5; -webkit-font-smoothing:antialiased;
+    font-family:Figtree,system-ui,sans-serif; color:var(--tx); background:#EDEEF2;
+    line-height:1.45; -webkit-font-smoothing:antialiased;
+    display:flex; justify-content:center; min-height:100vh;
 }
-.card{
-    width:100%; max-width:520px; background:var(--card); border:1px solid var(--line);
-    border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden;
+button{font:inherit; color:inherit;}
+.app{ position:relative; width:100%; max-width:480px; background:#fff; min-height:100vh; display:flex; flex-direction:column; }
+@media (min-width:520px){
+    body{ padding:28px 16px; min-height:0; }
+    .app{ min-height:0; border-radius:28px; overflow:hidden; box-shadow:0 30px 70px -40px rgba(27,27,51,.55); }
 }
-
-/* ── Encabezado ── */
-.head{ padding:34px 34px 26px; border-bottom:1px solid var(--line-soft);
-    background:linear-gradient(180deg,#fff, #fdfcfa); }
-.eyebrow{ font-size:11px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
-    color:var(--wine); margin:0 0 10px; }
-.rest-name{ font-family:'Fraunces',serif; font-weight:500; font-size:30px; line-height:1.12;
-    margin:0; letter-spacing:-.01em; }
-.rest-name .sk{ display:inline-block; width:60%; height:.9em; border-radius:6px;
-    background:linear-gradient(90deg,#efeae1,#f7f3ec,#efeae1); animation:sh 1.2s infinite; }
-@keyframes sh{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
-.rule{ display:flex; align-items:center; gap:10px; margin-top:14px; color:var(--gold); }
-.rule::before,.rule::after{ content:""; height:1px; flex:1; background:var(--line); }
-.rule span{ font-size:13px; letter-spacing:.05em; }
-.sub{ margin:14px 0 0; font-size:14px; color:var(--ink-soft); }
-
-/* ── Cuerpo ── */
-.body{ padding:26px 34px 32px; }
-.section{ margin-top:24px; }
-.section:first-child{ margin-top:0; }
-.label{ display:block; font-size:12px; font-weight:600; letter-spacing:.04em;
-    text-transform:uppercase; color:var(--faint); margin:0 0 8px; }
-.row{ display:flex; gap:14px; }
-.row > *{ flex:1; }
-
-input[type=date], input[type=text], input[type=email], textarea{
-    width:100%; font:inherit; color:var(--ink); background:#fff;
-    border:1.5px solid var(--line); border-radius:10px; padding:12px 13px; outline:none;
-    transition:border-color .15s, box-shadow .15s;
-}
-textarea{ resize:vertical; min-height:62px; }
-input:focus, textarea:focus{ border-color:var(--wine); box-shadow:0 0 0 3px rgba(138,43,58,.12); }
-
-/* Selector de comensales (teclado numérico desplegable) */
-.numwrap{ position:relative; }
-.numpick{ display:flex; align-items:center; justify-content:space-between; gap:10px;
-    width:100%; height:46px; padding:0 13px; font:inherit; font-size:15px; cursor:pointer;
-    border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);
-    transition:border-color .15s, box-shadow .15s; }
-.numpick:hover{ border-color:var(--wine); }
-.numpick[aria-expanded=true]{ border-color:var(--wine); box-shadow:0 0 0 3px rgba(138,43,58,.12); }
-.numpick .val{ font-weight:600; font-variant-numeric:tabular-nums; }
-.numpick svg{ color:var(--wine); flex:0 0 auto; }
-.numpad{ position:absolute; z-index:30; top:calc(100% + 8px); right:0; min-width:100%;
-    background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px;
-    box-shadow:var(--shadow); display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
-.numpad.cols4{ grid-template-columns:repeat(4,1fr); }
-.numpad button{ font:inherit; font-weight:600; font-variant-numeric:tabular-nums;
-    min-width:44px; padding:10px 0; cursor:pointer; border:1.5px solid var(--line);
-    border-radius:9px; background:#fff; color:var(--ink); transition:all .12s; }
-.numpad button:hover{ border-color:var(--wine); color:var(--wine); }
-.numpad button.sel{ background:var(--wine); border-color:var(--wine); color:#fff; }
-
-/* Botón primario */
-.btn{ width:100%; border:none; border-radius:11px; padding:14px 18px; font:inherit;
-    font-weight:600; font-size:15px; cursor:pointer; background:var(--wine); color:#fff;
-    transition:background .15s, transform .05s; margin-top:24px; }
-.btn:hover{ background:var(--wine-deep); }
-.btn:active{ transform:translateY(1px); }
-.btn[disabled]{ background:#c9b9bc; cursor:default; }
-.btn.ghost{ background:transparent; color:var(--wine); margin-top:14px; padding:6px;
-    font-weight:600; font-size:14px; }
-.btn.ghost:hover{ background:transparent; text-decoration:underline; }
-
-/* Chips de horario */
-.slots{ display:flex; flex-wrap:wrap; gap:9px; }
-.slot{ font:inherit; font-weight:500; font-variant-numeric:tabular-nums; cursor:pointer;
-    border:1.5px solid var(--line); background:#fff; color:var(--ink);
-    border-radius:999px; padding:9px 16px; transition:all .13s; }
-.slot:hover{ border-color:var(--wine); color:var(--wine); }
-.slot[aria-pressed=true]{ background:var(--wine); border-color:var(--wine); color:#fff; }
-.muted{ font-size:14px; color:var(--ink-soft); }
-.note{ font-size:13px; color:var(--faint); margin-top:8px; }
-
-/* Resumen de selección */
-.pick{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
-    background:#faf7f2; border:1px solid var(--line-soft); border-radius:10px;
-    padding:13px 15px; }
-.pick b{ font-family:'Fraunces',serif; font-weight:600; font-size:17px; }
-.pick .chg{ margin-left:auto; font-size:13px; color:var(--wine); cursor:pointer; background:none;
-    border:none; font-weight:600; }
-
-.err{ background:#fdf2f3; border:1px solid #f3c7cd; color:var(--wine-deep);
-    border-radius:10px; padding:11px 13px; font-size:14px; margin-top:16px; display:none; }
-
-/* honeypot */
-.hp{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
-
-/* ── Confirmación (firma: tarjeta de mesa con sello) ── */
-.done{ text-align:center; padding:40px 34px 44px; }
-.seal{ width:78px; height:78px; margin:0 auto 22px; border-radius:50%;
-    background:radial-gradient(120% 120% at 30% 25%, #d8bd6a, var(--gold));
-    color:#fff; font-family:'Fraunces',serif; font-weight:600; font-size:34px;
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 10px 24px -10px rgba(191,162,78,.7), inset 0 2px 6px rgba(255,255,255,.4); }
-.done h2{ font-family:'Fraunces',serif; font-weight:500; font-size:26px; margin:0 0 6px; }
-.done .who{ color:var(--ink-soft); font-size:15px; margin:0 0 22px; }
-.ticket{ border:1px dashed var(--line); border-radius:12px; padding:4px 0; margin:0 0 18px;
-    text-align:left; }
-.ticket .li{ display:flex; justify-content:space-between; gap:14px; padding:13px 18px;
-    border-bottom:1px solid var(--line-soft); font-size:15px; }
-.ticket .li:last-child{ border-bottom:none; }
-.ticket .li span{ color:var(--faint); }
-.ticket .li b{ font-weight:600; font-variant-numeric:tabular-nums; }
-.done .post{ font-size:13.5px; color:var(--ink-soft); }
-
-.foot{ text-align:center; font-size:12px; color:var(--faint); padding:16px; }
-.foot a{ color:var(--faint); }
-
 .hidden{ display:none !important; }
 
-@media (max-width:480px){
-    body{ padding:0; }
-    .card{ border-radius:0; border-left:none; border-right:none; min-height:100vh; }
-    .head{ padding:28px 22px 22px; } .body{ padding:22px 22px 28px; }
-    .rest-name{ font-size:26px; }
+/* ── Banner ── */
+.banner{ position:relative; background:var(--navy) center/cover no-repeat; color:#fff;
+    padding:30px 24px 52px; min-height:190px; display:flex; flex-direction:column;
+    justify-content:flex-end; gap:12px; overflow:hidden; }
+.banner .aro{ position:absolute; border-radius:50%; pointer-events:none; }
+.banner .aro.a1{ right:-120px; top:-120px; width:300px; height:300px; border:1px solid rgba(201,255,31,.10); }
+.banner .aro.a2{ right:-70px; top:-70px; width:200px; height:200px; border:1px solid rgba(201,255,31,.14); }
+.banner.con-foto{ min-height:230px; }
+.banner.con-foto .aro{ display:none; }
+.banner.con-foto::before{ content:""; position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(27,27,51,.10) 0%, rgba(27,27,51,0) 30%, rgba(27,27,51,.85) 100%); }
+.banner.sin-texto::before{ background:linear-gradient(180deg, rgba(27,27,51,0) 60%, rgba(27,27,51,.55) 100%); }
+.banner > *{ position:relative; }
+/* Selector de idioma: sólo aparece con más de un idioma activo en el local. */
+.idiomas{ position:absolute; top:16px; right:16px; z-index:2; display:flex; gap:2px; padding:3px;
+    border-radius:999px; background:rgba(27,27,51,.55); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+.idiomas button{ min-width:40px; min-height:32px; padding:0 10px; border:none; border-radius:999px; background:transparent;
+    color:rgba(255,255,255,.8); font-size:12.5px; font-weight:600; letter-spacing:.06em; cursor:pointer; }
+.idiomas button:hover{ color:#fff; }
+.idiomas button[aria-pressed=true]{ background:var(--lime); color:var(--navy); }
+.b-logo{ width:56px; height:56px; border-radius:16px; object-fit:cover; background:#fff; }
+.b-eyebrow{ font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--lime); font-weight:600; }
+.b-nombre{ margin:2px 0 0; font-family:Poppins,sans-serif; font-weight:600; font-size:31px; line-height:1.08; letter-spacing:-.02em; }
+.b-nombre .sk{ display:inline-block; width:62%; height:.85em; border-radius:8px; background:rgba(255,255,255,.14); }
+.b-estado{ display:flex; align-items:center; gap:9px; font-size:14px; color:rgba(255,255,255,.85); }
+.b-estado .pt{ width:9px; height:9px; border-radius:50%; background:#9CA194; flex:none; }
+.b-estado .pt.vivo{ background:var(--lime); animation:cp-beat 1.9s ease-in-out infinite; }
+
+/* ── Hoja blanca ── */
+.hoja{ position:relative; margin-top:-28px; background:#fff; border-radius:28px 28px 0 0;
+    padding:24px 22px 18px; display:flex; flex-direction:column; gap:22px; flex:1; }
+
+/* El local: presentación + ubicación + contacto */
+.local{ display:flex; flex-direction:column; gap:12px; }
+.local p{ margin:0; font-size:14.5px; color:var(--tx-2); }
+.chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip{ display:inline-flex; align-items:center; gap:7px; min-height:36px; padding:0 12px;
+    border-radius:999px; background:var(--sup-2); color:var(--tx); text-decoration:none;
+    font-size:13.5px; font-weight:500; max-width:100%; }
+.chip span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.chip svg{ flex:none; color:var(--r3); }
+a.chip:hover{ background:#ECEEF2; }
+
+.sec{ display:flex; flex-direction:column; gap:10px; }
+.lbl{ font-size:13px; font-weight:600; color:var(--tx-2); }
+.nota{ font-size:12.5px; color:var(--tx-3); margin:0; }
+
+/* Días */
+.dias{ display:flex; gap:8px; }
+.dia{ flex:1; min-width:0; height:64px; border-radius:14px; border:1.5px solid var(--bd); background:#fff;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer;
+    transition:border-color .12s; }
+.dia small{ font-size:11px; color:var(--tx-3); font-weight:600; text-transform:uppercase; }
+.dia b{ font-family:Poppins,sans-serif; font-size:19px; font-weight:600; }
+.dia:hover{ border-color:var(--navy); }
+.dia[aria-pressed=true]{ background:var(--navy); border-color:var(--navy); color:#fff; }
+.dia[aria-pressed=true] small{ color:var(--lime); }
+.dia:disabled{ background:var(--sup-2); border-color:var(--bd-2); color:#A9A9B8; cursor:default; }
+.dia:disabled small{ color:#B5B5C3; }
+.dia.cal{ flex:0 0 52px; border-style:dashed; border-color:#C8C8D4; }
+.fecha-oculta{ position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; }
+
+/* Personas */
+.personas{ display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:8px; }
+.persona{ width:100%; max-width:52px; aspect-ratio:1; justify-self:center; padding:0; border-radius:50%; border:1.5px solid var(--bd); background:#fff;
+    font-family:Poppins,sans-serif; font-weight:500; font-size:16px; cursor:pointer; }
+.persona:hover{ border-color:var(--navy); }
+.persona[aria-pressed=true]{ background:var(--lime); border-color:var(--lime); box-shadow:inset 0 0 0 2px var(--r4); font-weight:600; }
+
+/* Horarios */
+.horas{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; }
+.hora{ height:46px; border-radius:12px; border:1.5px solid var(--bd); background:#fff; font-weight:500;
+    font-size:15px; font-variant-numeric:tabular-nums; cursor:pointer; }
+.hora:hover{ border-color:var(--navy); }
+.hora[aria-pressed=true]{ background:var(--navy); border-color:var(--navy); color:var(--lime); font-weight:600; }
+.cargando{ display:flex; align-items:center; gap:10px; font-size:14px; color:var(--tx-2); min-height:46px; }
+.aviso{ display:flex; gap:10px; align-items:flex-start; padding:13px 14px; border-radius:14px;
+    background:#F4F6EC; font-size:13.5px; color:#3A4510; }
+.aviso svg{ flex:none; margin-top:1px; }
+
+/* Datos */
+.resumen{ display:flex; align-items:center; gap:10px; padding:13px 15px; border-radius:14px; background:var(--sup-2); }
+.resumen b{ font-family:Poppins,sans-serif; font-weight:600; font-size:15px; }
+.resumen button{ margin-left:auto; border:none; background:none; color:var(--r3); font-weight:600; font-size:13.5px;
+    cursor:pointer; min-height:36px; }
+.fila{ display:flex; gap:12px; }
+.fila > *{ flex:1; min-width:0; }
+.campo{ display:flex; flex-direction:column; gap:6px; }
+.campo label{ font-size:13px; font-weight:600; color:var(--tx-2); }
+input[type=text], input[type=email], input[type=tel], textarea{
+    width:100%; font:inherit; font-size:16px; color:var(--tx); background:#fff;
+    border:1.5px solid var(--bd); border-radius:12px; padding:12px 13px; outline:none;
+    transition:border-color .15s, box-shadow .15s; }
+textarea{ resize:vertical; min-height:64px; }
+input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba(27,27,51,.12); }
+.hp{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+
+.err{ background:var(--pel-sf); border:1px solid #F3C7CD; color:var(--pel); border-radius:12px;
+    padding:11px 13px; font-size:14px; }
+.dup{ background:var(--av-sf); border:1px solid var(--av-bd); color:var(--av-tx); border-radius:12px;
+    padding:12px 13px; font-size:14px; }
+.dup .acc{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.dup .acc button{ flex:1; min-width:140px; height:44px; border-radius:12px; border:none; cursor:pointer; font-weight:600; font-size:14px; }
+
+/* Botón principal */
+.cta{ height:56px; border-radius:16px; border:none; background:var(--navy); color:#fff; cursor:pointer;
+    font-weight:600; font-size:16px; display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:0 20px; width:100%; }
+.cta .det{ color:var(--lime); font-weight:500; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cta:disabled{ opacity:.7; cursor:default; }
+.cta.centro{ justify-content:center; }
+
+/* Pie: la marca */
+.pie{ display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; color:var(--tx-3); padding:6px 0 4px; }
+.cp-marca{ display:inline-flex; align-items:center; font-family:Poppins,sans-serif; font-weight:500;
+    color:var(--navy); font-size:13px; letter-spacing:-.012em; line-height:1; }
+.cp-marca .cp-dot{ width:.78em; height:.78em; margin:0 .5px; }
+
+/* El punto de la marca (mismas reglas que el kit de api.js: 3 anillos desde 32 px,
+   2 entre 24 y 32, y nunca el lima tocando el fondo claro). */
+.cp-dot{ position:relative; display:inline-block; flex:none; width:1em; height:1em; border-radius:50%; background:var(--r4); }
+.cp-dot::before,.cp-dot::after{ content:""; position:absolute; border-radius:50%; }
+.cp-dot::before{ inset:11%; background:var(--r2); }
+.cp-dot::after{ inset:26%; background:var(--lime); }
+.cp-dot.cp-xs{ background:var(--r3); }          /* < 24 px: plano; oliva sobre claro */
+.cp-dot.cp-xs::before,.cp-dot.cp-xs::after{ display:none; }
+.fin .cp-dot.cp-xs{ background:var(--lime); }     /* sobre el navy, el lima plano */
+.cp-orbit{ position:relative; display:inline-block; flex:none; width:22px; height:22px; }
+.cp-orbit::before{ content:""; position:absolute; inset:32%; border-radius:50%; background:var(--r3); }
+.cp-orbit::after{ content:""; position:absolute; inset:0; border-radius:50%; border:2px solid rgba(147,190,30,.22);
+    border-top-color:var(--r2); animation:cp-spin .95s linear infinite; }
+.cta .cp-orbit::before{ background:var(--lime); }
+@keyframes cp-spin{ to{ transform:rotate(360deg); } }
+@keyframes cp-beat{
+    0%,42%,100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(201,255,31,.55); }
+    12%{ transform:scale(1.16); box-shadow:0 0 0 7px rgba(201,255,31,0); }
+    26%{ transform:scale(1.10); box-shadow:0 0 0 10px rgba(201,255,31,0); }
+}
+@keyframes cp-beat-xl{
+    0%,42%,100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(201,255,31,.5); }
+    12%{ transform:scale(1.06); box-shadow:0 0 0 14px rgba(201,255,31,0); }
+    26%{ transform:scale(1.03); box-shadow:0 0 0 22px rgba(201,255,31,0); }
+}
+
+/* ── Confirmación / gestión: el ticket ── */
+.app.ticket-modo{ background:var(--navy); color:#fff; }
+.fin{ padding:44px 20px 24px; display:flex; flex-direction:column; align-items:center; gap:24px; flex:1; }
+.fin .sello{ font-size:84px; animation:cp-beat-xl 1.9s ease-in-out infinite; }
+.fin .sello.quieto{ animation:none; }
+.fin h1{ margin:0; font-family:Poppins,sans-serif; font-weight:600; font-size:28px; letter-spacing:-.02em; text-align:center; }
+.fin .sub{ margin:6px 0 0; font-size:15px; color:rgba(255,255,255,.78); text-align:center; }
+.talon{ width:100%; background:#fff; color:var(--tx); border-radius:20px; }
+.talon .top{ padding:20px 22px 18px; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
+.talon .k{ font-size:11px; font-weight:600; letter-spacing:.12em; color:var(--tx-3); text-transform:uppercase; }
+.talon .v{ font-family:Poppins,sans-serif; font-weight:600; font-size:19px; display:block; }
+.talon .s{ font-size:12.5px; color:var(--tx-2); }
+.talon .corte{ position:relative; border-top:2px dashed var(--bd); margin:0 18px; }
+.talon .corte::before,.talon .corte::after{ content:""; position:absolute; top:-12px; width:22px; height:22px;
+    border-radius:50%; background:var(--navy); }
+.talon .corte::before{ left:-30px; } .talon .corte::after{ right:-30px; }
+.talon .bot{ padding:16px 22px 20px; display:flex; flex-direction:column; gap:10px; font-size:14px; }
+.talon .li{ display:flex; justify-content:space-between; gap:14px; }
+.talon .li span{ color:var(--tx-2); flex:none; }
+.talon .li b{ font-weight:600; text-align:right; overflow-wrap:anywhere; }
+.acciones{ width:100%; display:flex; flex-direction:column; gap:10px; }
+.btn-lima, .btn-borde{ height:54px; border-radius:16px; font-weight:600; font-size:16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:10px; text-decoration:none; width:100%; }
+.btn-lima{ border:none; background:var(--lime); color:var(--navy); }
+.btn-borde{ border:1.5px solid rgba(255,255,255,.28); background:transparent; color:#fff; }
+.btn-borde:hover{ border-color:rgba(255,255,255,.55); }
+.link-suave{ color:rgba(255,255,255,.72); font-size:14px; min-height:44px; display:inline-flex; align-items:center;
+    background:none; border:none; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.link-suave:hover{ color:#fff; }
+.fin .err{ width:100%; }
+.fin .pie{ color:rgba(255,255,255,.6); margin-top:auto; }
+.fin .pie .cp-marca{ color:#fff; }
+
+@media (max-width:360px){
+    .hoja{ padding:22px 16px 16px; }
+    .horas{ grid-template-columns:repeat(3, minmax(0,1fr)); }
+    .fila{ flex-direction:column; }
 }
 @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
 </style>
 </head>
 <body>
-<main class="card" id="card">
-    <div class="head">
-        <p class="eyebrow">Reservá tu mesa</p>
-        <h1 class="rest-name" id="rest-name"><span class="sk"></span></h1>
-        <div class="rule"><span>◆</span></div>
-        <p class="sub" id="sub">Elegí día y cantidad de personas para ver los horarios disponibles.</p>
-    </div>
+<div class="app" id="app">
+    <div class="idiomas hidden" id="idiomas" role="group" aria-label="Idioma / Language / Sprog"></div>
+    <header class="banner" id="banner">
+        <span class="aro a1"></span><span class="aro a2"></span>
+        <img class="b-logo hidden" id="b-logo" alt="">
+        <div id="b-texto">
+            <div class="b-eyebrow" data-t="reservar"></div>
+            <h1 class="b-nombre" id="rest-name"><span class="sk"></span></h1>
+        </div>
+        <div class="b-estado hidden" id="b-estado"><span class="pt" id="b-pt"></span><span id="b-estado-txt"></span></div>
+    </header>
 
-    <div class="body" id="form-wrap">
-        <!-- Paso 1: fecha + personas -->
-        <div class="section">
-            <div class="row">
-                <div>
-                    <label class="label" for="f-fecha">Día</label>
-                    <input type="date" id="f-fecha" onchange="resetDisponibilidad()">
+    <main class="hoja" id="hoja">
+        <p class="nota hidden" id="msg-global"></p>
+
+        <section class="local hidden" id="local">
+            <p id="local-desc" class="hidden"></p>
+            <div class="chips" id="local-chips"></div>
+        </section>
+
+        <div id="form-wrap" class="sec" style="gap:22px;">
+            <section class="sec">
+                <span class="lbl" id="lbl-dia" data-t="dia"></span>
+                <div class="dias" id="dias" role="group" aria-labelledby="lbl-dia"></div>
+                <input type="date" id="f-fecha" class="fecha-oculta" tabindex="-1" aria-hidden="true" onchange="elegirFecha(this.value)">
+            </section>
+
+            <section class="sec">
+                <span class="lbl" id="lbl-pers" data-t="personas"></span>
+                <div class="personas" id="personas" role="group" aria-labelledby="lbl-pers"></div>
+                <p class="nota hidden" id="tope-leyenda"></p>
+            </section>
+
+            <section class="sec" id="sec-horarios">
+                <span class="lbl" id="lbl-hora" data-t="hora"></span>
+                <div class="horas" id="slots" role="group" aria-labelledby="lbl-hora"></div>
+                <div class="cargando hidden" id="buscando"><span class="cp-orbit"></span><span data-t="buscando"></span></div>
+                <div class="aviso hidden" id="sin-horarios">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
+                    <span id="sin-horarios-txt"></span>
                 </div>
-                <div>
-                    <label class="label">Personas</label>
-                    <div class="numwrap">
-                        <button type="button" class="numpick" id="btn-personas" onclick="toggleNumpad()"
-                                aria-haspopup="true" aria-expanded="false" aria-label="Cantidad de personas">
-                            <span class="val" id="f-personas" aria-live="polite">2</span>
-                            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
-                                <circle cx="3" cy="3" r="1.8"/><circle cx="9" cy="3" r="1.8"/><circle cx="15" cy="3" r="1.8"/>
-                                <circle cx="3" cy="9" r="1.8"/><circle cx="9" cy="9" r="1.8"/><circle cx="15" cy="9" r="1.8"/>
-                                <circle cx="3" cy="15" r="1.8"/><circle cx="9" cy="15" r="1.8"/><circle cx="15" cy="15" r="1.8"/>
-                            </svg>
-                        </button>
-                        <div class="numpad hidden" id="numpad" role="listbox" aria-label="Elegí la cantidad de personas"></div>
+            </section>
+
+            <section class="sec hidden" id="sec-datos" style="gap:16px;">
+                <div class="resumen">
+                    <b id="pick-txt">—</b>
+                    <button type="button" onclick="volverAHorarios()" data-t="cambiar"></button>
+                </div>
+                <div class="campo">
+                    <label for="d-nombre" data-t="nombre"></label>
+                    <input type="text" id="d-nombre" data-tp="nombre_ph" autocomplete="name">
+                </div>
+                <div class="fila">
+                    <div class="campo">
+                        <label for="d-tel" data-t="telefono"></label>
+                        <input type="tel" id="d-tel" data-tp="opcional" autocomplete="tel" inputmode="tel">
+                    </div>
+                    <div class="campo">
+                        <label for="d-email" data-t="email"></label>
+                        <input type="email" id="d-email" data-tp="opcional" autocomplete="email">
                     </div>
                 </div>
-            </div>
-            <p class="note hidden" id="tope-leyenda"></p>
-            <button class="btn" id="btn-buscar" onclick="buscarDisponibilidad()">Ver horarios</button>
-        </div>
-
-        <!-- Paso 2: horarios -->
-        <div class="section hidden" id="sec-horarios">
-            <span class="label">Horarios disponibles</span>
-            <div class="slots" id="slots"></div>
-            <p class="muted hidden" id="sin-horarios">No hay horarios disponibles ese día. Probá con otra fecha.</p>
-        </div>
-
-        <!-- Paso 3: datos -->
-        <div class="section hidden" id="sec-datos">
-            <div class="pick">
-                Reservás para <b id="pick-txt">—</b>
-                <button class="chg" type="button" onclick="volverAHorarios()">Cambiar</button>
-            </div>
-
-            <div class="section">
-                <label class="label" for="d-nombre">Nombre y apellido</label>
-                <input type="text" id="d-nombre" placeholder="¿A nombre de quién?" autocomplete="name">
-            </div>
-            <div class="section row">
-                <div>
-                    <label class="label" for="d-tel">Teléfono</label>
-                    <input type="text" id="d-tel" placeholder="Opcional" autocomplete="tel" inputmode="tel">
+                <p class="nota" data-t="contacto_nota"></p>
+                <div class="campo">
+                    <label for="d-alergeno" data-t="alergias"></label>
+                    <input type="text" id="d-alergeno" data-tp="alergias_ph">
                 </div>
-                <div>
-                    <label class="label" for="d-email">Email</label>
-                    <input type="email" id="d-email" placeholder="Opcional" autocomplete="email">
+                <div class="campo">
+                    <label for="d-notas" data-t="notas"></label>
+                    <textarea id="d-notas" data-tp="notas_ph"></textarea>
                 </div>
-            </div>
-            <p class="note">Dejá al menos un teléfono o un email para confirmar la reserva.</p>
-            <div class="section">
-                <label class="label" for="d-alergeno">Alergias o restricciones</label>
-                <input type="text" id="d-alergeno" placeholder="Opcional (ej: sin gluten)">
-            </div>
-            <div class="section">
-                <label class="label" for="d-notas">Notas</label>
-                <textarea id="d-notas" placeholder="Opcional (ocasión, preferencia de mesa…)"></textarea>
-            </div>
-            <!-- honeypot anti-bots -->
-            <div class="hp" aria-hidden="true"><label>No completar<input type="text" id="d-website" tabindex="-1" autocomplete="off"></label></div>
+                <div class="hp" aria-hidden="true"><label>No completar<input type="text" id="d-website" tabindex="-1" autocomplete="off"></label></div>
 
-            <div class="err" id="dup-aviso" style="background:#fdf8ec;border-color:#e7d29a;color:#7a5b18;"></div>
-            <div class="err" id="err"></div>
-            <button class="btn" id="btn-confirmar" onclick="confirmar()">Confirmar reserva</button>
+                <div class="dup hidden" id="dup-aviso"></div>
+                <div class="err hidden" id="err"></div>
+                <button class="cta" id="btn-confirmar" onclick="confirmar()">
+                    <span id="btn-confirmar-txt" data-t="confirmar"></span><span class="det" id="cta-det"></span>
+                </button>
+            </section>
         </div>
-    </div>
 
-    <div class="foot">Reservas en línea</div>
-</main>
+        <div class="pie" id="pie">
+            <span data-t="reservas_con"></span>
+            <span class="cp-marca" aria-label="Chief Point">Chief p<span class="cp-dot cp-xs" aria-hidden="true"></span>int</span>
+        </div>
+    </main>
+</div>
 
 <script>
 const API  = "https://restaurante-backend-production-459b.up.railway.app";
-const CODE = new URLSearchParams(location.search).get('r') || '';
-const GTOKEN = new URLSearchParams(location.search).get('c') || '';   // modo gestión (link del email)
+const QS   = new URLSearchParams(location.search);
+const CODE = QS.get('r') || '';
+const GTOKEN = QS.get('c') || '';   // modo gestión (link del email)
 
-const state = { info:null, personas:2, hora:null, horarios:[], motivo:null };
+const state = { info:null, fecha:null, personas:2, hora:null, horarios:[], motivo:null };
 let CFG = {};        // config online del restaurante (topes/contacto) — llega en /publico/info
-let MAX_P = 20;      // tope del stepper (config o el 20 histórico)
+let PERFIL = {};     // la cara del local (banner, logo, dirección, redes, idiomas) — opcional entera
+let MAX_P = 20;      // tope de personas (config o el 20 histórico)
+let MIN_F = null, MAX_F = null;   // rango de fechas reservables (hora del restaurante)
+const UMBRAL_ESPERA = 400;        // regla de la marca: sin indicador por debajo de esto
+
+// ── Idiomas ─────────────────────────────────────────────────────────────────
+// El local activa cuáles habla (Reservas › Online); el cliente ve el de su navegador
+// si está activo, si no el principal, y puede cambiarlo con el selector del banner.
+// ⚠ Los textos que escribe el local (presentación, otras redes) se muestran tal cual.
+const TXT = {
+es: {
+    reservar:'Reserva tu mesa', dia:'Día', personas:'Personas', hora:'Hora',
+    buscando:'Buscando horarios…', cambiar:'Cambiar', nombre:'Nombre y apellido',
+    nombre_ph:'¿A nombre de quién?', telefono:'Teléfono', email:'Email', opcional:'Opcional',
+    contacto_nota:'Deja al menos un teléfono o un email para confirmar la reserva.',
+    alergias:'Alergias o restricciones', alergias_ph:'Opcional (ej.: sin gluten)',
+    notas:'Notas', notas_ph:'Opcional (ocasión, preferencia de mesa…)',
+    confirmar:'Confirmar reserva', confirmando:'Confirmando…', reservas_con:'Reservas con',
+    titulo:'Reserva en {r}', titulo_gestion:'Tu reserva en {r}',
+    sin_codigo_t:'Restaurante no indicado', sin_codigo:'El enlace no incluye el restaurante. Pide el enlace correcto.',
+    no_rest_t:'No encontramos el restaurante', no_rest:'Verifica el enlace de reservas.',
+    abierto:'Abierto ahora · hasta las {h}', cerrado_abre:'Cerrado ahora · abre a las {h}', cerrado_hoy:'Cerrado por hoy',
+    hoy:'Hoy', otra_fecha:'Elegir otra fecha', cerrado:'cerrado',
+    persona:'persona', personas_n:'personas',
+    tope:'¿Son más de {n}? Contacta con el restaurante{c}.',
+    tel:'Tel.', correo:'Correo',
+    sin_ant:'Las reservas online se aceptan con al menos {h} h de antelación. Prueba con una fecha posterior{c}',
+    sin_ant_c:', o contáctanos: {c}.', sin_hor:'Por ahora aceptamos reservas hasta {d} días antes. Prueba con una fecha más cercana.',
+    sin_libres:'No quedan horarios para ese día. Prueba con otra fecha.',
+    err_horarios:'No pudimos cargar los horarios. Inténtalo de nuevo.',
+    err_nombre:'Indica tu nombre.', err_contacto:'Deja un teléfono o un email para confirmar.',
+    err_hora:'Elige un horario.', err_ocupado:'Ese horario se acaba de ocupar. Elige otro, por favor.',
+    err_confirmar:'No pudimos confirmar la reserva. Inténtalo de nuevo.',
+    dup:'Ya tenemos una reserva a tu nombre para ese día.', dup_preg:'¿Quieres cambiarla por esta nueva, o añadir una reserva más?',
+    dup_cambiar:'Cambiar la reserva', dup_nueva:'Añadir una nueva',
+    ev_titulo:'Reserva en {r}', ev_mesa:'Mesa para {p}.', ev_cancelar:'Si no puedes venir: {u}',
+    k_dia:'Día', k_hora:'Hora', k_pers:'Personas', hasta:'hasta las {h}', mesa_llegar:'mesa al llegar',
+    a_nombre:'A nombre de', direccion:'Dirección', confirmacion:'Confirmación', estado:'Estado',
+    conf_email:'Te la enviamos por email', conf_guardar:'Guarda esta pantalla',
+    reservada:'Mesa reservada', esperamos:'Te esperamos en {r}',
+    calendario:'Añadir al calendario', gcal:'o abrirlo en Google Calendar', llegar:'Cómo llegar',
+    no_podes:'¿No puedes venir? Cancelar la reserva',
+    tu_reserva:'Tu reserva', cancelada_t:'Reserva cancelada',
+    cancelada:'Gracias por avisar: hemos liberado tu mesa. ¡Te esperamos en otra ocasión!',
+    no_cancelable:'Esta reserva ya no se puede cancelar online. Si necesitas algo, contacta con el restaurante{c}.',
+    si_cancelar:'Sí, cancelar la reserva', cancelando:'Cancelando…',
+    err_cancelar:'No pudimos cancelar la reserva. Inténtalo de nuevo.',
+    gestion_404:'El enlace no es válido o la reserva ya no existe.', gestion_err:'No pudimos cargar la reserva.',
+    est_programada:'Confirmada', est_en_espera:'En espera', est_sentado:'En curso', est_terminada:'Finalizada', est_cancelada:'Cancelada',
+},
+en: {
+    reservar:'Book a table', dia:'Day', personas:'Guests', hora:'Time',
+    buscando:'Finding available times…', cambiar:'Change', nombre:'Full name',
+    nombre_ph:'Who is the booking for?', telefono:'Phone', email:'Email', opcional:'Optional',
+    contacto_nota:'Leave at least a phone number or an email so we can confirm your booking.',
+    alergias:'Allergies or dietary needs', alergias_ph:'Optional (e.g. gluten-free)',
+    notas:'Notes', notas_ph:'Optional (occasion, seating preference…)',
+    confirmar:'Confirm booking', confirmando:'Confirming…', reservas_con:'Bookings by',
+    titulo:'Book at {r}', titulo_gestion:'Your booking at {r}',
+    sin_codigo_t:'No restaurant specified', sin_codigo:'This link doesn\u2019t include the restaurant. Please ask for the correct link.',
+    no_rest_t:'We couldn\u2019t find the restaurant', no_rest:'Please check the booking link.',
+    abierto:'Open now · until {h}', cerrado_abre:'Closed now · opens at {h}', cerrado_hoy:'Closed for today',
+    hoy:'Today', otra_fecha:'Pick another date', cerrado:'closed',
+    persona:'guest', personas_n:'guests',
+    tope:'More than {n} guests? Contact the restaurant{c}.',
+    tel:'Tel.', correo:'Email',
+    sin_ant:'Online bookings must be made at least {h} hours in advance. Try a later date{c}',
+    sin_ant_c:', or contact us: {c}.', sin_hor:'We currently take bookings up to {d} days ahead. Try an earlier date.',
+    sin_libres:'There are no times left on that day. Try another date.',
+    err_horarios:'We couldn\u2019t load the available times. Please try again.',
+    err_nombre:'Please enter your name.', err_contacto:'Leave a phone number or an email so we can confirm.',
+    err_hora:'Pick a time.', err_ocupado:'That time was just taken. Please pick another one.',
+    err_confirmar:'We couldn\u2019t confirm your booking. Please try again.',
+    dup:'We already have a booking under your name for that day.', dup_preg:'Do you want to replace it with this one, or add another booking?',
+    dup_cambiar:'Replace the booking', dup_nueva:'Add a new one',
+    ev_titulo:'Table at {r}', ev_mesa:'Table for {p}.', ev_cancelar:'If you can\u2019t make it: {u}',
+    k_dia:'Day', k_hora:'Time', k_pers:'Guests', hasta:'until {h}', mesa_llegar:'table on arrival',
+    a_nombre:'Name', direccion:'Address', confirmacion:'Confirmation', estado:'Status',
+    conf_email:'Sent to your email', conf_guardar:'Save this page',
+    reservada:'Table booked', esperamos:'See you at {r}',
+    calendario:'Add to calendar', gcal:'or open in Google Calendar', llegar:'Get directions',
+    no_podes:'Can\u2019t make it? Cancel the booking',
+    tu_reserva:'Your booking', cancelada_t:'Booking cancelled',
+    cancelada:'Thanks for letting us know \u2013 we\u2019ve released your table. We hope to see you another time!',
+    no_cancelable:'This booking can no longer be cancelled online. If you need anything, contact the restaurant{c}.',
+    si_cancelar:'Yes, cancel the booking', cancelando:'Cancelling…',
+    err_cancelar:'We couldn\u2019t cancel the booking. Please try again.',
+    gestion_404:'This link is invalid or the booking no longer exists.', gestion_err:'We couldn\u2019t load the booking.',
+    est_programada:'Confirmed', est_en_espera:'Waiting list', est_sentado:'In progress', est_terminada:'Finished', est_cancelada:'Cancelled',
+},
+da: {
+    reservar:'Book et bord', dia:'Dag', personas:'Personer', hora:'Tidspunkt',
+    buscando:'Finder ledige tider…', cambiar:'Ændr', nombre:'Fulde navn',
+    nombre_ph:'Hvilket navn skal bordet stå i?', telefono:'Telefon', email:'E-mail', opcional:'Valgfrit',
+    contacto_nota:'Angiv mindst et telefonnummer eller en e-mail, så vi kan bekræfte din booking.',
+    alergias:'Allergier eller kosthensyn', alergias_ph:'Valgfrit (fx glutenfri)',
+    notas:'Bemærkninger', notas_ph:'Valgfrit (anledning, ønske om bord…)',
+    confirmar:'Bekræft booking', confirmando:'Bekræfter…', reservas_con:'Booking via',
+    titulo:'Book bord hos {r}', titulo_gestion:'Din booking hos {r}',
+    sin_codigo_t:'Restauranten mangler', sin_codigo:'Linket angiver ikke restauranten. Bed om det rigtige link.',
+    no_rest_t:'Vi kunne ikke finde restauranten', no_rest:'Tjek venligst bookinglinket.',
+    abierto:'Åben nu · til kl. {h}', cerrado_abre:'Lukket nu · åbner kl. {h}', cerrado_hoy:'Lukket for i dag',
+    hoy:'I dag', otra_fecha:'Vælg en anden dato', cerrado:'lukket',
+    persona:'person', personas_n:'personer',
+    tope:'Er I flere end {n}? Kontakt restauranten{c}.',
+    tel:'Tlf.', correo:'E-mail',
+    sin_ant:'Online-bookinger skal foretages mindst {h} timer i forvejen. Prøv en senere dato{c}',
+    sin_ant_c:', eller kontakt os: {c}.', sin_hor:'Vi tager i øjeblikket imod bookinger op til {d} dage frem. Prøv en tidligere dato.',
+    sin_libres:'Der er ingen ledige tider den dag. Prøv en anden dato.',
+    err_horarios:'Vi kunne ikke hente de ledige tider. Prøv igen.',
+    err_nombre:'Skriv dit navn.', err_contacto:'Angiv et telefonnummer eller en e-mail, så vi kan bekræfte.',
+    err_hora:'Vælg et tidspunkt.', err_ocupado:'Det tidspunkt er lige blevet optaget. Vælg venligst et andet.',
+    err_confirmar:'Vi kunne ikke bekræfte din booking. Prøv igen.',
+    dup:'Vi har allerede en booking i dit navn den dag.', dup_preg:'Vil du erstatte den med denne, eller tilføje en booking mere?',
+    dup_cambiar:'Erstat bookingen', dup_nueva:'Tilføj en ny',
+    ev_titulo:'Bord hos {r}', ev_mesa:'Bord til {p}.', ev_cancelar:'Hvis du ikke kan komme: {u}',
+    k_dia:'Dag', k_hora:'Tid', k_pers:'Personer', hasta:'til kl. {h}', mesa_llegar:'bord ved ankomst',
+    a_nombre:'Navn', direccion:'Adresse', confirmacion:'Bekræftelse', estado:'Status',
+    conf_email:'Sendt til din e-mail', conf_guardar:'Gem denne side',
+    reservada:'Bordet er booket', esperamos:'Vi glæder os til at se dig hos {r}',
+    calendario:'Føj til kalender', gcal:'eller åbn i Google Kalender', llegar:'Find vej',
+    no_podes:'Kan du ikke komme? Aflys bookingen',
+    tu_reserva:'Din booking', cancelada_t:'Bookingen er aflyst',
+    cancelada:'Tak fordi du sagde til \u2013 vi har frigivet dit bord. Vi håber at se dig en anden gang!',
+    no_cancelable:'Bookingen kan ikke længere aflyses online. Kontakt restauranten, hvis du har brug for noget{c}.',
+    si_cancelar:'Ja, aflys bookingen', cancelando:'Aflyser…',
+    err_cancelar:'Vi kunne ikke aflyse bookingen. Prøv igen.',
+    gestion_404:'Linket er ugyldigt, eller bookingen findes ikke længere.', gestion_err:'Vi kunne ikke hente bookingen.',
+    est_programada:'Bekræftet', est_en_espera:'Venteliste', est_sentado:'I gang', est_terminada:'Afsluttet', est_cancelada:'Aflyst',
+},
+};
+const LOCALE = { es:'es-ES', en:'en-GB', da:'da-DK' };
+const NOMBRE_IDIOMA = { es:'Español', en:'English', da:'Dansk' };
+let IDIOMAS = ['da','en','es'];   // los activos del local; se fija al llegar /publico/info
+let LANG = 'es';
+
+function t(k, vars){
+    let s = (TXT[LANG] && TXT[LANG][k]) ?? TXT.es[k] ?? k;
+    if(vars) for(const [a, b] of Object.entries(vars)) s = s.split('{' + a + '}').join(b);
+    return s;
+}
+function _lsGet(k){ try{ return localStorage.getItem(k); }catch{ return null; } }
+function _lsSet(k, v){ try{ localStorage.setItem(k, v); }catch{} }
+function elegirIdiomaInicial(){
+    const pedidos = [QS.get('lang'), _lsGet('reserva-idioma::' + CODE),
+        ...((navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language])]
+        .filter(Boolean).map(x => String(x).slice(0, 2).toLowerCase());
+    // Noruego/sueco leen danés mejor que inglés.
+    const parecido = { nb:'da', no:'da', nn:'da', sv:'da' };
+    for(const p of pedidos){
+        if(IDIOMAS.includes(p)) return p;
+        if(parecido[p] && IDIOMAS.includes(parecido[p])) return parecido[p];
+    }
+    return IDIOMAS[0];
+}
+function pintarSelectorIdioma(){
+    const box = $('idiomas');
+    if(!box) return;
+    if(IDIOMAS.length < 2){ box.classList.add('hidden'); return; }
+    box.innerHTML = IDIOMAS.map(c => `<button type="button" lang="${c}" aria-pressed="${c === LANG}"
+        aria-label="${NOMBRE_IDIOMA[c]}" onclick="cambiarIdioma('${c}')">${c.toUpperCase()}</button>`).join('');
+    box.classList.remove('hidden');
+}
+function cambiarIdioma(c){
+    if(!IDIOMAS.includes(c) || c === LANG) return;
+    LANG = c; _lsSet('reserva-idioma::' + CODE, c);
+    aplicarIdioma();
+}
+// Repinta TODO lo que tiene texto. Las vistas armadas por JS se vuelven a generar con
+// su estado actual (lo elegido no se pierde al cambiar de idioma).
+function aplicarIdioma(){
+    document.documentElement.lang = LANG;
+    document.querySelectorAll('[data-t]').forEach(el => el.textContent = t(el.dataset.t));
+    document.querySelectorAll('[data-tp]').forEach(el => el.placeholder = t(el.dataset.tp));
+    pintarSelectorIdioma();
+    if(_vista === 'mensaje'){
+        $('msg-global').textContent = t(_mensajeClave);
+        if(_tituloClave) $('rest-name').textContent = t(_tituloClave);
+        return;
+    }
+    if(!state.info) return;
+    document.title = t(GTOKEN ? 'titulo_gestion' : 'titulo', { r: state.info.restaurante || '' });
+    // El ticket reemplaza la página entera (sin banner ni formulario): se vuelve a armar.
+    if(_vista === 'confirmada'){ mostrarConfirmacion(_ultima, _ultimoNombre); return; }
+    if(_vista === 'gestion'){ if(_gestion) renderGestion(_gestionCancelada); return; }
+    pintarEstado();
+    pintarLocal();
+    if(MIN_F){
+        aplicarTope(); renderDias(); renderPersonas();
+        if(!_cargandoHorarios) renderHorarios();
+        if(state.hora){
+            const b = [...document.querySelectorAll('.hora')].find(x => x.textContent === state.hora);
+            if(b) b.setAttribute('aria-pressed', 'true');
+            pintarResumen();
+        }
+        if(!$('btn-confirmar').disabled) $('btn-confirmar-txt').textContent = t('confirmar');
+        if(!$('dup-aviso').classList.contains('hidden')) mostrarDuplicado(true);
+        mostrar('err', false);   // un error viejo quedaría en el idioma anterior
+    }
+}
 
 // ── Fetch con header de restaurante (sin login) ──
 async function api(path, opts={}){
@@ -255,8 +532,11 @@ async function api(path, opts={}){
     }
     return data;
 }
+// Los mensajes del server están en español: en otro idioma se muestra el genérico.
+const msgServer = (e, generico) => (LANG === 'es' && e && e.message && typeof e.data?.detail === 'string') ? e.message : t(generico);
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const mostrar = (id, si) => $(id).classList.toggle('hidden', !si);
 
 // ── Iframe: avisar la altura al contenedor anfitrión ──
 function postHeight(){
@@ -265,354 +545,540 @@ function postHeight(){
 new ResizeObserver(postHeight).observe(document.body);
 
 // ── Fechas ──
-function hoyStr(){
-    const d = new Date(); const p = n => String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
-}
-function fmtFechaLarga(iso){
-    const [y,m,dd] = iso.split('-').map(Number);
-    const d = new Date(y, m-1, dd);
-    const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
-    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-    return `${dias[d.getDay()]} ${dd} de ${meses[m-1]}`;
-}
 // Aritmética de calendario en la hora del RESTAURANTE (info.hoy/info.ahora): el Date
 // local se usa solo como calculadora de componentes, nunca se convierte de zona.
+// Los nombres de días y meses salen de Intl con el idioma elegido.
 function _fmtYMD(d){ const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+function _d(iso){ const [y,m,dd] = iso.split('-').map(Number); return new Date(y, m-1, dd); }
+function hoyStr(){ return _fmtYMD(new Date()); }
+function hoyRest(){ return (state.info && state.info.hoy) || hoyStr(); }
+const _cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+function diaCorto(iso){ return new Intl.DateTimeFormat(LOCALE[LANG], {weekday:'short'}).format(_d(iso)).replace(/\.$/, ''); }
+function mesLargo(iso){ return new Intl.DateTimeFormat(LOCALE[LANG], {month:'long'}).format(_d(iso)); }
+function fmtFechaLarga(iso){ return new Intl.DateTimeFormat(LOCALE[LANG], {weekday:'long', day:'numeric', month:'long'}).format(_d(iso)); }
+function fmtFechaCorta(iso){ return iso === hoyRest() ? t('hoy') : `${_cap(diaCorto(iso))} ${_d(iso).getDate()}`; }
+function personasTxt(n){ return `${n} ${n === 1 ? t('persona') : t('personas_n')}`; }
 function sumarHoras(isoMin, horas){
-    const [f,t] = isoMin.split('T'); const [y,m,dd] = f.split('-').map(Number);
-    const [H,M] = (t||'0:0').split(':').map(Number);
+    const [f,tt] = isoMin.split('T'); const [y,m,dd] = f.split('-').map(Number);
+    const [H,M] = (tt||'0:0').split(':').map(Number);
     const d = new Date(y, m-1, dd, H, M); d.setHours(d.getHours() + horas);
     return _fmtYMD(d);
 }
-function sumarDias(isoFecha, dias){
-    const [y,m,dd] = isoFecha.split('-').map(Number);
-    const d = new Date(y, m-1, dd); d.setDate(d.getDate() + dias);
-    return _fmtYMD(d);
+function sumarDias(isoFecha, dias){ const d = _d(isoFecha); d.setDate(d.getDate() + dias); return _fmtYMD(d); }
+function sumarMin(hhmm, min){
+    const [H,M] = hhmm.split(':').map(Number); const x = (H*60 + M + min) % 1440;
+    return `${String(Math.floor(x/60)).padStart(2,'0')}:${String(x%60).padStart(2,'0')}`;
 }
+// dia_semana del server: 0 = lunes … 6 = domingo (date.weekday() de Python)
+function diaSemanaPy(iso){ return (_d(iso).getDay() + 6) % 7; }
+function abreEseDia(iso){
+    const hs = (state.info && state.info.horarios) || [];
+    if(!hs.length) return true;   // sin horarios cargados no se adivina: que decida el server
+    const h = hs.find(x => x.dia_semana === diaSemanaPy(iso));
+    return !!(h && h.activo !== false && (h.franjas || []).length);
+}
+
 function contactoTxt(){
     const c = CFG.contacto || {}; const p = [];
-    if(c.telefono) p.push('Tel: ' + c.telefono);
-    if(c.email) p.push('Correo: ' + c.email);
+    if(c.telefono) p.push(t('tel') + ' ' + c.telefono);
+    if(c.email) p.push(t('correo') + ': ' + c.email);
     if(c.redes) p.push(c.redes);
     return p.join(' · ');
 }
 
 // ── Init ──
+let _vista = 'form', _mensajeClave = null, _tituloClave = null;
 async function init(){
-    const f = $('f-fecha'); f.min = hoyStr(); f.value = hoyStr();
+    LANG = elegirIdiomaInicial();
+    aplicarIdioma();
     if(!CODE){
-        $('rest-name').textContent = 'Restaurante no indicado';
-        $('sub').textContent = 'El enlace no incluye el restaurante. Pedí el enlace correcto.';
-        $('form-wrap').classList.add('hidden');
+        mensajeGlobal('sin_codigo', 'sin_codigo_t');
         return;
     }
-    if(GTOKEN){ modoGestion(); return; }   // link de cancelación del email
     try{
         state.info = await api('/publico/info');
-        $('rest-name').textContent = state.info.restaurante || 'Reservá tu mesa';
-        document.title = 'Reservá en ' + (state.info.restaurante || '');
-        aplicarConfigOnline();
     }catch(e){
-        $('rest-name').textContent = 'No encontramos el restaurante';
-        $('sub').textContent = 'Verificá el enlace de reservas.';
-        $('form-wrap').classList.add('hidden');
+        mensajeGlobal('no_rest', 'no_rest_t');
+        return;
     }
+    CFG = state.info.online || {};
+    PERFIL = state.info.perfil || {};
+    if(Array.isArray(PERFIL.idiomas) && PERFIL.idiomas.length){
+        IDIOMAS = PERFIL.idiomas.filter(c => TXT[c]);
+        if(!IDIOMAS.length) IDIOMAS = ['es'];
+        LANG = elegirIdiomaInicial();
+    }
+    pintarBanner();
+    if(GTOKEN){ aplicarIdioma(); modoGestion(); return; }   // link de cancelación del email
+    aplicarConfigOnline();
+    aplicarIdioma();
     postHeight();
 }
 
-// Topes/contacto del restaurante → fechas min/max, tope del stepper y leyenda.
-// Con un server viejo (sin `online`) todo queda como antes.
-function aplicarConfigOnline(){
-    CFG = state.info.online || {};
-    const f = $('f-fecha');
-    const hoyRest = state.info.hoy || hoyStr();
-    let minF = hoyRest;
-    if(CFG.anticipacion_horas != null && state.info.ahora){
-        minF = sumarHoras(state.info.ahora, CFG.anticipacion_horas);
+function mensajeGlobal(clave, tituloClave){
+    _vista = 'mensaje'; _mensajeClave = clave; _tituloClave = tituloClave || null;
+    if(_tituloClave) $('rest-name').textContent = t(_tituloClave);
+    $('msg-global').textContent = t(clave); mostrar('msg-global', true);
+    mostrar('form-wrap', false); mostrar('local', false);
+    $('b-estado').classList.add('hidden');
+    postHeight();
+}
+
+// ── Banner: navy de la marca, o la imagen del local ──
+function pintarBanner(){
+    const b = $('banner');
+    const nombre = state.info.restaurante || '';
+    $('rest-name').textContent = nombre;
+    if(PERFIL.banner_url){
+        b.style.backgroundImage = `url("${String(PERFIL.banner_url).replace(/"/g,'%22')}")`;
+        b.classList.add('con-foto');
     }
-    f.min = minF;
-    if(f.value < minF) f.value = minF;
-    if(CFG.horizonte_dias != null) f.max = sumarDias(hoyRest, CFG.horizonte_dias);
+    // Si el banner ya trae el nombre dibujado, no se repite (ni el logo).
+    const conTexto = PERFIL.banner_nombre !== false || !PERFIL.banner_url;
+    mostrar('b-texto', conTexto);
+    b.classList.toggle('sin-texto', !conTexto);
+    if(!conTexto) b.setAttribute('aria-label', nombre);   // el nombre sigue estando para lectores
+    if(PERFIL.logo_url && conTexto){
+        $('b-logo').src = PERFIL.logo_url; $('b-logo').alt = nombre;
+        mostrar('b-logo', true);
+    }
+}
+
+// "Abierto ahora" con el latido (vivo); cerrado = punto gris y quieto.
+function pintarEstado(){
+    const hs = state.info.horarios || [];
+    const ahora = state.info.ahora; if(!hs.length || !ahora || _vista === 'mensaje') return;
+    const [f, hm] = ahora.split('T'); const [H,M] = hm.split(':').map(Number); const m = H*60 + M;
+    const franjasDe = iso => {
+        const h = hs.find(x => x.dia_semana === diaSemanaPy(iso));
+        if(!h || h.activo === false) return [];
+        return (h.franjas || []).map(fr => {
+            const [a1,a2] = fr.inicio.split(':').map(Number), [b1,b2] = fr.fin.split(':').map(Number);
+            let ini = a1*60 + a2, fin = b1*60 + b2; if(fin <= ini) fin += 1440;
+            return { ini, fin, txtIni: fr.inicio, txtFin: fr.fin };
+        });
+    };
+    const hoyF = franjasDe(f), ayerF = franjasDe(sumarDias(f, -1));
+    const abierta = hoyF.find(x => m >= x.ini && m < x.fin) || ayerF.find(x => m + 1440 < x.fin);
+    let txt;
+    if(abierta){
+        txt = t('abierto', { h: abierta.txtFin });
+    }else{
+        const prox = hoyF.filter(x => x.ini > m).sort((a,b) => a.ini - b.ini)[0];
+        txt = prox ? t('cerrado_abre', { h: prox.txtIni }) : t('cerrado_hoy');
+    }
+    $('b-estado-txt').textContent = txt;
+    $('b-pt').classList.toggle('vivo', !!abierta);
+    mostrar('b-estado', true);
+}
+
+// ── El local: presentación, ubicación y contacto ──
+const ICO = {
+    pin:  '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+    tel:  '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    ig:   '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="currentColor"/>',
+    fb:   '<path d="M14 8h3V4h-3a4 4 0 0 0-4 4v3H7v4h3v6h4v-6h3l1-4h-4V8"/>',
+    web:  '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    otro: '<path d="M8 12h8M12 8v8"/><circle cx="12" cy="12" r="9"/>',
+    cal:  '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>',
+    calmas:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18M12 13v5M9.5 15.5h5"/>',
+};
+const svg = (k, s=15) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
+function urlMapa(){
+    if(PERFIL.mapa_url) return PERFIL.mapa_url;
+    const q = PERFIL.direccion || (state.info && state.info.restaurante);
+    return q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : null;
+}
+const chip = (ico, txt, href, extra='') => href
+    ? `<a class="chip" href="${esc(href)}" ${extra}>${svg(ico)}<span>${esc(txt)}</span></a>`
+    : `<span class="chip">${svg(ico)}<span>${esc(txt)}</span></span>`;
+function pintarLocal(){
+    if(_vista !== 'form') return;
+    const c = CFG.contacto || {}; const p = PERFIL; const chips = [];
+    if(p.direccion) chips.push(chip('pin', p.direccion, urlMapa(), 'target="_blank" rel="noopener"'));
+    if(c.telefono) chips.push(chip('tel', c.telefono, 'tel:' + String(c.telefono).replace(/[^\d+]/g,'')));
+    if(c.email) chips.push(chip('mail', c.email, 'mailto:' + c.email));
+    if(p.instagram) chips.push(chip('ig', '@' + p.instagram, 'https://instagram.com/' + encodeURIComponent(p.instagram), 'target="_blank" rel="noopener"'));
+    if(p.facebook) chips.push(chip('fb', 'Facebook', p.facebook, 'target="_blank" rel="noopener"'));
+    if(p.web) chips.push(chip('web', String(p.web).replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,''), p.web, 'target="_blank" rel="noopener"'));
+    if(c.redes) chips.push(chip('otro', c.redes, null));
+    $('local-chips').innerHTML = chips.join('');
+    if(p.descripcion){ $('local-desc').textContent = p.descripcion; mostrar('local-desc', true); }
+    mostrar('local', !!(chips.length || p.descripcion));
+}
+
+// Topes/contacto del restaurante → rango de fechas, tope de personas y leyenda.
+function aplicarConfigOnline(){
+    const hoy = hoyRest();
+    MIN_F = (CFG.anticipacion_horas != null && state.info.ahora)
+        ? sumarHoras(state.info.ahora, CFG.anticipacion_horas) : hoy;
+    if(MIN_F < hoy) MIN_F = hoy;
+    MAX_F = CFG.horizonte_dias != null ? sumarDias(hoy, CFG.horizonte_dias) : null;
+    const f = $('f-fecha'); f.min = MIN_F; if(MAX_F) f.max = MAX_F;
     MAX_P = CFG.max_personas || 20;
     if(state.personas > MAX_P) state.personas = MAX_P;
-    $('f-personas').textContent = state.personas;
-    if(CFG.max_personas != null){
-        const c = contactoTxt();
-        $('tope-leyenda').textContent = `Para reservas más numerosas, contactate con el personal del restaurante${c ? ': ' + c : ''}.`;
-        $('tope-leyenda').classList.remove('hidden');
-    }
-    _renderNumpad();
+    // Primer día que abre dentro del rango.
+    let d = MIN_F;
+    for(let i = 0; i < 14 && !abreEseDia(d) && (!MAX_F || d < MAX_F); i++) d = sumarDias(d, 1);
+    state.fecha = d;
+    buscarDisponibilidad();
+}
+function aplicarTope(){
+    if(CFG.max_personas == null) return;
+    const c = contactoTxt();
+    $('tope-leyenda').textContent = t('tope', { n: MAX_P, c: c ? ': ' + c : '' });
+    mostrar('tope-leyenda', true);
 }
 
-// ── Teclado numérico de comensales: solo ofrece cantidades válidas (1..MAX_P) ──
-function _renderNumpad(){
-    const np = $('numpad'); if(!np) return;
-    np.classList.toggle('cols4', MAX_P > 12);
+// ── Días: tira de los próximos + calendario para cualquier otro ──
+function renderDias(){
+    const N = 4; const dias = [];
+    for(let i = 0; dias.length < N; i++){
+        const d = sumarDias(MIN_F, i);
+        if(MAX_F && d > MAX_F) break;
+        dias.push(d);
+    }
+    if(state.fecha && !dias.includes(state.fecha)) dias[dias.length - 1] = state.fecha;
+    $('dias').innerHTML = dias.map(d => {
+        const abre = abreEseDia(d);
+        const top = d === hoyRest() ? t('hoy') : diaCorto(d);
+        return `<button type="button" class="dia" aria-pressed="${d === state.fecha}" ${abre ? '' : `disabled title="${esc(_cap(t('cerrado')))}"`}
+            aria-label="${esc(fmtFechaLarga(d))}${abre ? '' : ' (' + esc(t('cerrado')) + ')'}" onclick="elegirFecha('${d}')">
+            <small>${esc(top)}</small><b>${_d(d).getDate()}</b></button>`;
+    }).join('') + `<button type="button" class="dia cal" aria-label="${esc(t('otra_fecha'))}" onclick="abrirCalendario()">${svg('cal', 20)}</button>`;
+}
+function abrirCalendario(){
+    const f = $('f-fecha'); f.value = state.fecha || MIN_F;
+    try{ f.showPicker(); }catch{ f.style.pointerEvents = 'auto'; f.focus(); f.click(); }
+}
+function elegirFecha(iso){
+    if(!iso) return;
+    if(iso < MIN_F) iso = MIN_F;
+    if(MAX_F && iso > MAX_F) iso = MAX_F;
+    state.fecha = iso;
+    renderDias();
+    buscarDisponibilidad();
+}
+
+// ── Personas: sólo cantidades válidas (1..MAX_P) ──
+function renderPersonas(){
+    const cont = $('personas');
+    cont.style.gridTemplateColumns = `repeat(${Math.min(6, MAX_P)}, minmax(0,1fr))`;
     let html = '';
     for(let n = 1; n <= MAX_P; n++){
-        html += `<button type="button" class="${n === state.personas ? 'sel' : ''}" onclick="elegirPersonas(${n})">${n}</button>`;
+        html += `<button type="button" class="persona" aria-pressed="${n === state.personas}"
+            aria-label="${esc(personasTxt(n))}" onclick="elegirPersonas(${n})">${n}</button>`;
     }
-    np.innerHTML = html;
-}
-function toggleNumpad(){
-    const np = $('numpad'); if(!np) return;
-    const abrir = np.classList.contains('hidden');
-    if(abrir) _renderNumpad();
-    np.classList.toggle('hidden', !abrir);
-    $('btn-personas').setAttribute('aria-expanded', String(abrir));
-    postHeight();
-}
-function cerrarNumpad(){
-    const np = $('numpad'); if(!np) return;
-    np.classList.add('hidden');
-    const bp = $('btn-personas');
-    if(bp) bp.setAttribute('aria-expanded', 'false');
+    cont.innerHTML = html;
 }
 function elegirPersonas(n){
     state.personas = Math.min(MAX_P, Math.max(1, n));
-    $('f-personas').textContent = state.personas;
-    cerrarNumpad();
-    resetDisponibilidad();
-    postHeight();
-}
-document.addEventListener('click', e => {
-    const np = $('numpad'), bp = $('btn-personas');
-    if(np && bp && !np.classList.contains('hidden')
-        && !np.contains(e.target) && !bp.contains(e.target)) cerrarNumpad();
-});
-document.addEventListener('keydown', e => { if(e.key === 'Escape') cerrarNumpad(); });
-
-function resetDisponibilidad(){
-    $('sec-horarios').classList.add('hidden');
-    $('sec-datos').classList.add('hidden');
-    state.hora = null; postHeight();
+    renderPersonas();
+    buscarDisponibilidad();
 }
 
+// ── Horarios ──
+let _busqueda = 0, _errHorarios = null, _cargandoHorarios = false;
 async function buscarDisponibilidad(){
-    const fecha = $('f-fecha').value;
-    if(!fecha){ return; }
-    const btn = $('btn-buscar'); btn.disabled = true; btn.textContent = 'Buscando…';
+    const fecha = state.fecha; if(!fecha) return;
+    const mia = ++_busqueda;
+    state.hora = null; _errHorarios = null; _cargandoHorarios = true;
+    mostrar('sec-datos', false); mostrar('sin-horarios', false);
+    $('slots').innerHTML = '';
+    renderDias();
+    const tReloj = setTimeout(() => { if(mia === _busqueda) mostrar('buscando', true); }, UMBRAL_ESPERA);
     try{
         const data = await api(`/publico/disponibilidad?fecha=${fecha}&comensales=${state.personas}`);
+        if(mia !== _busqueda) return;   // llegó tarde: ya se pidió otra combinación
+        _cargandoHorarios = false;
         let horas = data.horarios || [];
-        // Para hoy, ocultar horarios ya pasados (hora local del cliente) — solo si NO hay
-        // anticipación configurada: con anticipación el server ya filtró con el huso del
-        // restaurante, que es el que manda.
-        if(fecha === hoyStr() && CFG.anticipacion_horas == null){
-            const ahora = new Date();
-            const hm = ahora.getHours()*60 + ahora.getMinutes();
-            horas = horas.filter(h => { const [H,M]=h.split(':').map(Number); return H*60+M > hm; });
+        // Para hoy, ocultar horarios ya pasados — solo sin anticipación configurada (con
+        // anticipación el server ya filtró con el huso del restaurante, que es el que manda).
+        if(fecha === hoyRest() && CFG.anticipacion_horas == null && state.info.ahora){
+            const [H,M] = state.info.ahora.split('T')[1].split(':').map(Number);
+            horas = horas.filter(h => { const [a,b] = h.split(':').map(Number); return a*60+b > H*60+M; });
         }
         state.horarios = horas;
         state.motivo = data.motivo || null;
         renderHorarios();
     }catch(e){
-        alert(e.message || 'No se pudieron cargar los horarios.');
+        if(mia !== _busqueda) return;
+        _cargandoHorarios = false;
+        state.horarios = [];
+        _errHorarios = e;
+        renderHorarios();
     }finally{
-        btn.disabled = false; btn.textContent = 'Ver horarios';
+        clearTimeout(tReloj);
+        if(mia === _busqueda){ mostrar('buscando', false); _cargandoHorarios = false; }
+        postHeight();
     }
 }
 
 function renderHorarios(){
-    const cont = $('slots'); cont.innerHTML = '';
-    $('sec-horarios').classList.remove('hidden');
-    $('sec-datos').classList.add('hidden');
-    state.hora = null;
-    const vacio = $('sin-horarios');
+    const cont = $('slots');
     if(!state.horarios.length){
         const c = contactoTxt();
-        if(state.motivo === 'anticipacion'){
-            vacio.textContent = `Las reservas online se toman con al menos ${CFG.anticipacion_horas} h de anticipación. `
-                + `Probá con una fecha posterior${c ? ', o contactanos: ' + c : '.'}`;
+        let txt;
+        if(_errHorarios){
+            txt = msgServer(_errHorarios, 'err_horarios');
+        }else if(state.motivo === 'anticipacion'){
+            txt = t('sin_ant', { h: CFG.anticipacion_horas, c: c ? t('sin_ant_c', { c }) : '.' });
         }else if(state.motivo === 'horizonte'){
-            vacio.textContent = `Por ahora tomamos reservas hasta ${CFG.horizonte_dias} días adelante. Probá con una fecha más cercana.`;
+            txt = t('sin_hor', { d: CFG.horizonte_dias });
         }else{
-            vacio.textContent = 'No hay horarios disponibles ese día. Probá con otra fecha.';
+            txt = t('sin_libres');
         }
-        vacio.classList.remove('hidden'); postHeight(); return;
+        $('sin-horarios-txt').textContent = txt;
+        mostrar('sin-horarios', true);
+        cont.innerHTML = '';
+        return;
     }
-    vacio.classList.add('hidden');
-    state.horarios.forEach(h => {
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'slot'; b.textContent = h;
-        b.setAttribute('aria-pressed','false');
-        b.onclick = () => elegirHora(h, b);
-        cont.appendChild(b);
-    });
-    postHeight();
+    mostrar('sin-horarios', false);
+    cont.innerHTML = state.horarios.map(h =>
+        `<button type="button" class="hora" aria-pressed="false" onclick="elegirHora('${h}', this)">${h}</button>`).join('');
 }
 
+function pintarResumen(){
+    $('pick-txt').textContent = `${fmtFechaCorta(state.fecha)} · ${state.hora} · ${personasTxt(state.personas)}`;
+    $('cta-det').textContent = `${fmtFechaCorta(state.fecha)} · ${state.hora} · ${state.personas}`;
+}
 function elegirHora(h, btn){
     state.hora = h;
-    document.querySelectorAll('.slot').forEach(s => s.setAttribute('aria-pressed','false'));
+    document.querySelectorAll('.hora').forEach(s => s.setAttribute('aria-pressed','false'));
     btn.setAttribute('aria-pressed','true');
-    $('pick-txt').textContent = `${fmtFechaLarga($('f-fecha').value)} · ${h} · ${state.personas} ${state.personas===1?'persona':'personas'}`;
-    $('sec-datos').classList.remove('hidden');
-    $('err').style.display = 'none';
-    $('d-nombre').focus({preventScroll:true});
-    $('sec-datos').scrollIntoView({behavior:'smooth', block:'nearest'});
+    pintarResumen();
+    mostrar('sec-datos', true);
+    mostrar('err', false);
+    $('sec-datos').scrollIntoView({behavior:'smooth', block:'start'});
+    setTimeout(() => $('d-nombre').focus({preventScroll:true}), 350);
     postHeight();
 }
 
 function volverAHorarios(){
-    $('sec-datos').classList.add('hidden');
+    mostrar('sec-datos', false);
     state.hora = null;
-    document.querySelectorAll('.slot').forEach(s => s.setAttribute('aria-pressed','false'));
-    $('sec-horarios').scrollIntoView({behavior:'smooth', block:'nearest'});
+    document.querySelectorAll('.hora').forEach(s => s.setAttribute('aria-pressed','false'));
+    $('sec-horarios').scrollIntoView({behavior:'smooth', block:'start'});
     postHeight();
 }
 
-function mostrarErr(msg){ const e = $('err'); e.textContent = msg; e.style.display = 'block'; postHeight(); }
+function mostrarErr(msg){ $('err').textContent = msg; mostrar('err', true); postHeight(); }
 
 async function confirmar(){
     const nombre = $('d-nombre').value.trim();
     const tel    = $('d-tel').value.trim();
     const email  = $('d-email').value.trim();
-    if(!nombre){ mostrarErr('Indicá tu nombre.'); $('d-nombre').focus(); return; }
-    if(!tel && !email){ mostrarErr('Dejá un teléfono o un email para confirmar.'); $('d-tel').focus(); return; }
-    if(!state.hora){ mostrarErr('Elegí un horario.'); return; }
+    if(!nombre){ mostrarErr(t('err_nombre')); $('d-nombre').focus(); return; }
+    if(!tel && !email){ mostrarErr(t('err_contacto')); $('d-tel').focus(); return; }
+    if(!state.hora){ mostrarErr(t('err_hora')); return; }
     await enviarReserva(null);
 }
 
+function _btnConfirmando(si){
+    const btn = $('btn-confirmar'); btn.disabled = si;
+    $('btn-confirmar-txt').innerHTML = si
+        ? `<span class="cp-orbit" style="vertical-align:-5px;margin-right:8px;"></span>${esc(t('confirmando'))}`
+        : esc(t('confirmar'));
+}
+
 async function enviarReserva(accion){
-    const btn = $('btn-confirmar'); btn.disabled = true; btn.textContent = 'Confirmando…';
-    $('err').style.display = 'none';
-    $('dup-aviso').style.display = 'none';
+    // La órbita sólo aparece si la espera supera el umbral de la marca.
+    const reloj = setTimeout(() => _btnConfirmando(true), UMBRAL_ESPERA);
+    $('btn-confirmar').disabled = true;
+    mostrar('err', false); mostrar('dup-aviso', false);
     try{
         const r = await api('/publico/reservas', { method:'POST', body: JSON.stringify({
             nombre: $('d-nombre').value.trim(),
             telefono: $('d-tel').value.trim() || null,
             email: $('d-email').value.trim() || null,
-            comensales: state.personas, fecha: $('f-fecha').value, hora_inicio: state.hora,
+            comensales: state.personas, fecha: state.fecha, hora_inicio: state.hora,
             alergeno: $('d-alergeno').value.trim() || null,
             notas: $('d-notas').value.trim() || null,
             website: $('d-website').value || null,
             accion: accion || null,
         })});
-        mostrarConfirmacion(r);
+        clearTimeout(reloj);
+        mostrarConfirmacion(r, $('d-nombre').value.trim());
     }catch(e){
-        btn.disabled = false; btn.textContent = 'Confirmar reserva';
+        clearTimeout(reloj);
+        _btnConfirmando(false);
         // Duplicado por contacto: ya hay una reserva ese día a nombre de este tel/email
-        if(e.status === 409 && e.data && e.data.duplicada){
-            mostrarDuplicado(e.data);
-            return;
-        }
+        if(e.status === 409 && e.data && e.data.duplicada){ mostrarDuplicado(); return; }
         // Si justo se ocupó la última mesa, refrescar horarios
         if(/disponibles|409/.test(e.message||'')){
-            mostrarErr('Ese horario se acaba de ocupar. Elegí otro, por favor.');
+            mostrarErr(t('err_ocupado'));
             buscarDisponibilidad();
         }else{
-            mostrarErr(e.message || 'No pudimos confirmar la reserva. Probá de nuevo.');
+            mostrarErr(msgServer(e, 'err_confirmar'));
         }
     }
 }
 
-function mostrarDuplicado(data){
+function mostrarDuplicado(sinScroll){
     const dv = $('dup-aviso');
-    dv.innerHTML = `${esc(data.detail || 'Ya tenemos una reserva a tu nombre para ese día.')}<br>
-        <span style="font-size:13px;">¿Querés cambiarla por esta nueva, o agregar una reserva más?</span>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-            <button type="button" class="btn" style="margin:0;flex:1;min-width:140px;font-size:14px;padding:11px 12px;"
-                onclick="enviarReserva('reemplazar')">Cambiar la reserva</button>
-            <button type="button" class="btn" style="margin:0;flex:1;min-width:140px;font-size:14px;padding:11px 12px;background:#8b8d94;"
-                onclick="enviarReserva('nueva')">Agregar una nueva</button>
+    dv.innerHTML = `${esc(t('dup'))}<br>
+        <span style="font-size:13px;">${esc(t('dup_preg'))}</span>
+        <div class="acc">
+            <button type="button" style="background:var(--navy);color:#fff;" onclick="enviarReserva('reemplazar')">${esc(t('dup_cambiar'))}</button>
+            <button type="button" style="background:#fff;color:var(--navy);border:1.5px solid var(--bd);" onclick="enviarReserva('nueva')">${esc(t('dup_nueva'))}</button>
         </div>`;
-    dv.style.display = 'block';
-    dv.scrollIntoView({behavior:'smooth', block:'nearest'});
+    mostrar('dup-aviso', true);
+    if(!sinScroll) dv.scrollIntoView({behavior:'smooth', block:'nearest'});
     postHeight();
 }
 
-function mostrarConfirmacion(r){
-    const inicial = (r.restaurante || '·').trim().charAt(0).toUpperCase() || '◆';
-    const card = $('card');
-    card.innerHTML = `
-        <div class="done">
-            <div class="seal">${inicial}</div>
-            <h2>Mesa reservada</h2>
-            <p class="who">${r.restaurante || ''}</p>
-            <div class="ticket">
-                <div class="li"><span>Día</span><b>${fmtFechaLarga(r.fecha)}</b></div>
-                <div class="li"><span>Hora</span><b>${r.hora}</b></div>
-                <div class="li"><span>Personas</span><b>${r.comensales}</b></div>
-            </div>
-            <p class="post">${r.email_enviado
-                ? 'Te enviamos la confirmación por email. La mesa se asigna al llegar.'
-                : 'Tu reserva quedó registrada. La mesa se asigna al llegar.'}</p>
-            ${(!r.email_enviado && r.cancelar_url) ? `
-            <p class="post" style="margin-top:12px;">Guardá este enlace por si necesitás cancelar:<br>
-                <a href="${esc(r.cancelar_url)}" style="color:var(--wine);word-break:break-all;">${esc(r.cancelar_url)}</a></p>` : ''}
+// ── Calendario: .ics (Apple, Outlook, Android) + enlace directo a Google ──
+// Hora "flotante" (sin zona): el cliente está en la ciudad del local, así que la
+// hora que ve es la del restaurante. Evita depender del huso del navegador.
+function _icsFecha(iso, hhmm){ return iso.replace(/-/g,'') + 'T' + hhmm.replace(':','') + '00'; }
+function _finReserva(fecha, hora){
+    const dur = (state.info && state.info.duracion_min) || 90;
+    const fin = sumarMin(hora, dur);
+    return { fecha: fin < hora ? sumarDias(fecha, 1) : fecha, hora: fin };
+}
+function _textoEvento(r){
+    return { titulo: t('ev_titulo', { r: r.restaurante || '' }), lugar: PERFIL.direccion || '',
+             desc: t('ev_mesa', { p: personasTxt(r.comensales) }) + (r.cancelar_url ? '\n' + t('ev_cancelar', { u: r.cancelar_url }) : '') };
+}
+function descargarIcs(r){
+    const f = _finReserva(r.fecha, r.hora); const ev = _textoEvento(r);
+    const e = s => String(s).replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/[,;]/g, m => '\\' + m);
+    const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Chief Point//Reservas//ES','BEGIN:VEVENT',
+        `UID:reserva-${r.id || Date.now()}@chiefpoint`,
+        `DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'')}`,
+        `DTSTART:${_icsFecha(r.fecha, r.hora)}`, `DTEND:${_icsFecha(f.fecha, f.hora)}`,
+        `SUMMARY:${e(ev.titulo)}`, ev.lugar ? `LOCATION:${e(ev.lugar)}` : '', `DESCRIPTION:${e(ev.desc)}`,
+        'END:VEVENT','END:VCALENDAR'].filter(Boolean).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([ics], {type:'text/calendar;charset=utf-8'}));
+    a.download = 'reserva.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+}
+function urlGoogleCal(r){
+    const f = _finReserva(r.fecha, r.hora); const ev = _textoEvento(r);
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+        + '&text=' + encodeURIComponent(ev.titulo)
+        + '&dates=' + _icsFecha(r.fecha, r.hora) + '/' + _icsFecha(f.fecha, f.hora)
+        + '&details=' + encodeURIComponent(ev.desc)
+        + (ev.lugar ? '&location=' + encodeURIComponent(ev.lugar) : '');
+}
+
+// ── El ticket (confirmación y gestión comparten la misma pieza) ──
+function talonHtml(d){
+    const fin = _finReserva(d.fecha, d.hora).hora;
+    const filas = d.filas.filter(x => x[1]).map(([k, v]) =>
+        `<div class="li"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
+    return `<div class="talon">
+        <div class="top">
+            <div><span class="k">${esc(t('k_dia'))}</span><span class="v">${esc(fmtFechaCorta(d.fecha))}</span><span class="s">${esc(mesLargo(d.fecha))}</span></div>
+            <div><span class="k">${esc(t('k_hora'))}</span><span class="v">${esc(d.hora)}</span><span class="s">${esc(t('hasta', { h: fin }))}</span></div>
+            <div><span class="k">${esc(t('k_pers'))}</span><span class="v">${esc(d.comensales)}</span><span class="s">${esc(t('mesa_llegar'))}</span></div>
         </div>
-        <div class="foot">Reservas en línea</div>`;
+        ${filas ? `<div class="corte"></div><div class="bot">${filas}</div>` : ''}
+    </div>`;
+}
+const pieOscuro = () => `<div class="pie"><span>${esc(t('reservas_con'))}</span><span class="cp-marca" aria-label="Chief Point">Chief p<span class="cp-dot cp-xs" aria-hidden="true"></span>int</span></div>`;
+const selectorHtml = () => `<div class="idiomas hidden" id="idiomas" role="group" aria-label="Idioma / Language / Sprog"></div>`;
+
+let _ultima = null, _ultimoNombre = '';
+function mostrarConfirmacion(r, nombreCliente){
+    _vista = 'confirmada'; _ultima = r; _ultimoNombre = nombreCliente;
+    const mapa = urlMapa();
+    const app = $('app'); app.classList.add('ticket-modo');
+    app.innerHTML = selectorHtml() + `
+        <div class="fin">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+                <span class="cp-dot sello" aria-hidden="true"></span>
+                <div><h1>${esc(t('reservada'))}</h1><p class="sub">${esc(t('esperamos', { r: r.restaurante || '' }))}</p></div>
+            </div>
+            ${talonHtml({ fecha:r.fecha, hora:r.hora, comensales:r.comensales, filas:[
+                [t('a_nombre'), nombreCliente],
+                [t('direccion'), PERFIL.direccion],
+                [t('confirmacion'), r.email_enviado ? t('conf_email') : t('conf_guardar')],
+            ]})}
+            <div class="acciones">
+                <button type="button" class="btn-lima" onclick="descargarIcs(_ultima)">${svg('calmas', 18)}${esc(t('calendario'))}</button>
+                <a class="link-suave" style="justify-content:center;margin-top:-6px;" href="${esc(urlGoogleCal(r))}" target="_blank" rel="noopener">${esc(t('gcal'))}</a>
+                ${mapa ? `<a class="btn-borde" href="${esc(mapa)}" target="_blank" rel="noopener">${svg('pin', 18)}${esc(t('llegar'))}</a>` : ''}
+            </div>
+            ${r.cancelar_url ? `<a class="link-suave" href="${esc(r.cancelar_url)}">${esc(t('no_podes'))}</a>` : ''}
+            ${pieOscuro()}
+        </div>`;
+    pintarSelectorIdioma();
     postHeight();
     try{ window.scrollTo({top:0, behavior:'smooth'}); }catch{}
 }
 
 // ── Modo GESTIÓN: el link "Cancelar reserva" del email abre esta misma página con ?c=token ──
-const _ESTADOS_GESTION = { programada:'Confirmada', en_espera:'En espera', sentado:'En curso',
-                           terminada:'Finalizada', cancelada:'Cancelada' };
+let _gestion = null, _gestionCancelada = false;
 async function modoGestion(){
-    $('form-wrap').classList.add('hidden');
-    $('sub').textContent = 'Tu reserva';
     let g = null;
     try{ g = await api(`/publico/reservas/gestion/${encodeURIComponent(GTOKEN)}`); }
     catch(e){
-        $('rest-name').textContent = 'Reserva no encontrada';
-        $('sub').textContent = (e.status === 404)
-            ? 'El enlace no es válido o la reserva ya no existe.'
-            : (e.message || 'No pudimos cargar la reserva.');
-        postHeight(); return;
+        mensajeGlobal(e.status === 404 ? 'gestion_404' : 'gestion_err');
+        return;
     }
-    $('rest-name').textContent = g.restaurante || 'Tu reserva';
-    document.title = 'Tu reserva en ' + (g.restaurante || '');
-    renderGestion(g);
+    _gestion = g;
+    renderGestion(false);
 }
 
-function renderGestion(g){
-    const estado = _ESTADOS_GESTION[g.estado] || g.estado || '—';
-    $('form-wrap').innerHTML = `
-        <div class="section">
-            <div class="ticket">
-                <div class="li"><span>A nombre de</span><b>${esc(g.nombre || '—')}</b></div>
-                <div class="li"><span>Día</span><b>${esc(fmtFechaLarga(g.fecha))}</b></div>
-                <div class="li"><span>Hora</span><b>${esc(g.hora)}</b></div>
-                <div class="li"><span>Personas</span><b>${esc(g.comensales)}</b></div>
-                <div class="li"><span>Estado</span><b>${esc(estado)}</b></div>
+function renderGestion(cancelada){
+    _vista = 'gestion'; _gestionCancelada = cancelada;
+    const g = _gestion;
+    const estado = cancelada ? t('est_cancelada') : (TXT.es['est_' + g.estado] ? t('est_' + g.estado) : (g.estado || '—'));
+    const activa = !cancelada && g.estado !== 'cancelada';
+    const mapa = urlMapa();
+    const c = contactoTxt();
+    const app = $('app'); app.classList.add('ticket-modo');
+    const r = { id:null, restaurante:g.restaurante, fecha:g.fecha, hora:g.hora, comensales:g.comensales, cancelar_url:location.href };
+    _ultima = r;
+    app.innerHTML = selectorHtml() + `
+        <div class="fin">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+                <span class="cp-dot sello ${activa ? '' : 'quieto'}" aria-hidden="true" ${activa ? '' : 'style="filter:grayscale(1);opacity:.5"'}></span>
+                <div><h1>${esc(cancelada ? t('cancelada_t') : t('tu_reserva'))}</h1>
+                <p class="sub">${esc(cancelada ? t('cancelada') : (g.restaurante || ''))}</p></div>
             </div>
-            <div class="err" id="g-err"></div>
-            ${g.cancelable
-                ? `<button class="btn" id="btn-g-cancelar" onclick="pedirCancelacion()">Cancelar reserva</button>`
-                : `<p class="muted">${g.estado === 'cancelada'
-                        ? 'Esta reserva ya fue cancelada.'
-                        : 'Esta reserva ya no se puede cancelar online. Si necesitás algo, contactá al restaurante.'}</p>`}
+            ${talonHtml({ fecha:g.fecha, hora:g.hora, comensales:g.comensales, filas:[
+                [t('a_nombre'), g.nombre],
+                [t('direccion'), PERFIL.direccion],
+                [t('estado'), estado],
+            ]})}
+            <div class="err hidden" id="g-err"></div>
+            ${activa ? `<div class="acciones">
+                <button type="button" class="btn-lima" onclick="descargarIcs(_ultima)">${svg('calmas', 18)}${esc(t('calendario'))}</button>
+                ${mapa ? `<a class="btn-borde" href="${esc(mapa)}" target="_blank" rel="noopener">${svg('pin', 18)}${esc(t('llegar'))}</a>` : ''}
+            </div>` : ''}
+            ${activa && g.cancelable ? `<button type="button" class="link-suave" id="btn-g-cancelar" onclick="pedirCancelacion()">${esc(t('no_podes'))}</button>`
+              : (activa ? `<p class="sub" style="font-size:13.5px;">${esc(t('no_cancelable', { c: c ? ': ' + c : '' }))}</p>` : '')}
+            ${pieOscuro()}
         </div>`;
-    $('form-wrap').classList.remove('hidden');
+    pintarSelectorIdioma();
     postHeight();
 }
 
 function pedirCancelacion(){
     const btn = $('btn-g-cancelar');
-    btn.textContent = '¿Seguro? Sí, cancelar la reserva';
-    btn.onclick = confirmarCancelacion;
-    btn.style.background = '#6f2230';
+    btn.outerHTML = `<button type="button" class="btn-borde" id="btn-g-cancelar" style="border-color:#F3A5B0;color:#FFD5DB;"
+        onclick="confirmarCancelacion()">${esc(t('si_cancelar'))}</button>`;
     postHeight();
 }
 
 async function confirmarCancelacion(){
     const btn = $('btn-g-cancelar');
-    btn.disabled = true; btn.textContent = 'Cancelando…';
+    btn.disabled = true;
+    const reloj = setTimeout(() => { btn.innerHTML = `<span class="cp-orbit"></span>${esc(t('cancelando'))}`; }, UMBRAL_ESPERA);
     try{
         await api(`/publico/reservas/gestion/${encodeURIComponent(GTOKEN)}/cancelar`, { method:'POST' });
-        $('form-wrap').innerHTML = `
-            <div class="done" style="padding:10px 0 6px;">
-                <h2>Reserva cancelada</h2>
-                <p class="post">Gracias por avisar — liberamos el lugar. ¡Te esperamos en otra ocasión!</p>
-            </div>`;
-        postHeight();
+        clearTimeout(reloj);
+        renderGestion(true);
     }catch(e){
-        btn.disabled = false; btn.textContent = 'Cancelar reserva';
+        clearTimeout(reloj);
+        btn.disabled = false; btn.textContent = t('si_cancelar');
         const ge = $('g-err');
-        if(ge){ ge.textContent = e.message || 'No pudimos cancelar la reserva. Probá de nuevo.'; ge.style.display = 'block'; }
+        ge.textContent = msgServer(e, 'err_cancelar');
+        ge.classList.remove('hidden');
         postHeight();
     }
 }

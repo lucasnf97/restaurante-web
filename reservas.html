@@ -71,6 +71,26 @@
         .horarios-hint { font-size: 11px; color: var(--tx-8, #94a3b8); }
         .bloqueos-layout { display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: start; }
         @media (max-width:860px) { .bloqueos-layout { grid-template-columns: 1fr; } }
+        /* Solapa Online: la cara del local. El banner por defecto es el navy de la marca
+           (el mismo de reserva.html); con imagen propia, cover + velo abajo para el nombre. */
+        .ol-cara { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width:860px) { .ol-cara { grid-template-columns: 1fr; } }
+        .ol-banner { position: relative; height: 150px; border-radius: 12px; overflow: hidden;
+            background: #1B1B33 center/cover no-repeat; display: flex; align-items: flex-end;
+            gap: 10px; padding: 14px; box-sizing: border-box; }
+        .ol-banner.con-foto::before { content: ""; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(27,27,51,0) 35%, rgba(27,27,51,.82)); }
+        .ol-banner.sin-velo::before { display: none; }
+        .ol-banner img { position: relative; width: 40px; height: 40px; border-radius: 10px;
+            object-fit: cover; background: #fff; }
+        .ol-idiomas { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+        .ol-idiomas .fila-idioma { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: 8px 12px; border: 1px solid var(--bd, #e5e7eb); border-radius: 8px; }
+        .ol-idiomas label { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 500; cursor: pointer; }
+        .ol-idiomas label.principal { font-weight: 400; font-size: 12.5px; color: var(--tx-9, #64748b); }
+        .ol-idiomas input { width: auto; margin: 0; }
+        .ol-banner span { position: relative; color: #fff; font: 600 22px Poppins, system-ui, sans-serif;
+            letter-spacing: -.02em; }
         .card { background: var(--sup, white); border-radius: 12px; padding: 22px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); }
         .card h3 { font-size: 15px; font-weight: 700; color: var(--tx, #1a1a2e); margin-bottom: 16px; }
         .form-group { margin-bottom: 12px; }
@@ -337,21 +357,82 @@
                 </div>
             </div>
             <div class="card">
-                <h3>📞 Contacto para reservas grandes</h3>
+                <h3>📞 Contacto</h3>
                 <p style="font-size:12.5px;color: var(--tx-9, #64748b);margin:0 0 14px;">
-                    Se muestra en la página pública cuando el cliente necesita más personas
-                    que el máximo (o menos anticipación que la mínima).</p>
+                    Se muestra en la página pública, y es a donde se deriva al cliente que
+                    necesita más personas que el máximo (o menos anticipación que la mínima).</p>
                 <div class="form-group"><label>Teléfono</label>
                     <input type="text" id="ol-tel" maxlength="60" placeholder="Ej: +45 12 34 56 78"></div>
                 <div class="form-group"><label>Correo</label>
                     <input type="text" id="ol-email" maxlength="200" placeholder="Ej: reservas@turestaurante.com"></div>
-                <div class="form-group"><label>Redes sociales</label>
-                    <input type="text" id="ol-redes" maxlength="200" placeholder="Ej: @turestaurante en Instagram"></div>
+                <div class="form-group"><label>Instagram</label>
+                    <input type="text" id="ol-ig" maxlength="100" placeholder="Ej: @turestaurante"></div>
+                <div class="form-group"><label>Facebook</label>
+                    <input type="text" id="ol-fb" maxlength="200" placeholder="Ej: turestaurante o el enlace de la página"></div>
+                <div class="form-group"><label>Sitio web</label>
+                    <input type="text" id="ol-web" maxlength="300" placeholder="Ej: turestaurante.dk"></div>
+                <div class="form-group"><label>Otras redes <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(texto libre)</span></label>
+                    <input type="text" id="ol-redes" maxlength="200" placeholder="Ej: TikTok @turestaurante"></div>
                 <div id="ol-preview" style="display:none;background: var(--sup-2, #f8fafc);border: 1px solid var(--bd-5, #e2e8f0);border-radius:8px;
                     padding:10px 12px;font-size:12.5px;color: var(--fg-a15, #475569);margin-bottom:14px;"></div>
-                <button class="btn btn-primary" style="width:100%;" id="btn-guardar-online" onclick="guardarConfigOnline()">Guardar</button>
-                <div id="ol-msg" style="font-size:12.5px;margin-top:8px;text-align:center;"></div>
             </div>
+        </div>
+
+        <!-- La cara del local en la página pública -->
+        <div class="card" style="margin-top:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+                <h3 style="margin:0;">🖼️ Cómo se ve tu página de reservas</h3>
+                <a id="ol-ver" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="display:none;">Ver la página ↗</a>
+            </div>
+            <p style="font-size:12.5px;color: var(--tx-9, #64748b);margin:0 0 14px;">
+                Todo es opcional. Sin banner propio se usa el azul de la marca.</p>
+            <div class="ol-cara">
+                <div>
+                    <div class="form-group">
+                        <label>Banner <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(foto del local o una imagen diseñada por ustedes · horizontal, ideal 1600×700)</span></label>
+                        <div class="ol-banner" id="ol-banner-prev">
+                            <img id="ol-banner-logo" alt="" style="display:none;">
+                            <span id="ol-banner-nombre"></span>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                            <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir banner
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="olSubir('banner', this)"></label>
+                            <button type="button" class="btn btn-secondary btn-sm" id="ol-banner-quitar" onclick="olQuitar('banner')" style="display:none;">Volver al azul</button>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px;cursor:pointer;">
+                            <input type="checkbox" id="ol-banner-nom" checked onchange="_olPintarBanner()" style="width:auto;margin:0;">
+                            Mostrar el nombre del restaurante sobre el banner
+                        </label>
+                        <span style="font-size:11.5px;color: var(--tx-8, #94a3b8);">Apagalo si tu banner ya tiene el nombre o el logo dibujado.</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Logo <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(cuadrado)</span></label>
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir logo
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="olSubir('logo', this)"></label>
+                            <button type="button" class="btn btn-secondary btn-sm" id="ol-logo-quitar" onclick="olQuitar('logo')" style="display:none;">Quitar</button>
+                            <span id="ol-logo-nota" style="font-size:11.5px;color: var(--tx-8, #94a3b8);"></span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group"><label>Presentación <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(una o dos líneas)</span></label>
+                        <textarea id="ol-desc" maxlength="600" rows="3" placeholder="Ej: Cocina de temporada y vinos naturales en el corazón de Nørrebro."></textarea></div>
+                    <div class="form-group"><label>Dirección</label>
+                        <input type="text" id="ol-dir" maxlength="300" placeholder="Ej: Jægersborggade 12, 2200 København N"></div>
+                    <div class="form-group"><label>Enlace del mapa <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(opcional)</span></label>
+                        <input type="text" id="ol-mapa" maxlength="500" placeholder="Pegá el enlace de Google Maps de tu local">
+                        <span style="font-size:11.5px;color: var(--tx-8, #94a3b8);">Sin enlace, "Cómo llegar" busca la dirección en Google Maps.</span></div>
+                    <div class="form-group">
+                        <label>Idiomas de la página</label>
+                        <div class="ol-idiomas" id="ol-idiomas"></div>
+                        <span style="font-size:11.5px;color: var(--tx-8, #94a3b8);">El cliente ve el idioma de su teléfono si está activo; si no, el principal.
+                            Con más de uno puede cambiarlo en la página. La presentación se muestra tal cual la escribas.</span>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;" id="btn-guardar-online" onclick="guardarConfigOnline()">Guardar</button>
+            <div id="ol-msg" style="font-size:12.5px;margin-top:8px;text-align:center;"></div>
         </div>
     </div>
 </div>
@@ -2061,6 +2142,8 @@ function cambiarTab(tab,btn){
 // Guardada en el server (endpoint dedicado, no la pisa ninguna otra pantalla).
 // Permiso: gerente o gestion_reservas (mismo gate que esta solapa).
 let _olCargada = false;
+// Banner y logo: la URL subida queda acá hasta Guardar (subir no cambia la página pública).
+const _olImg = { banner: null, logo: null, logoNegocio: null, nombre: '' };
 async function cargarConfigOnline(){
     if(_olCargada){ _olPreview(); return; }
     try{
@@ -2071,6 +2154,26 @@ async function cargarConfigOnline(){
         document.getElementById('ol-tel').value   = c.contacto_telefono || '';
         document.getElementById('ol-email').value = c.contacto_email || '';
         document.getElementById('ol-redes').value = c.contacto_redes || '';
+        document.getElementById('ol-ig').value    = c.instagram ? '@' + c.instagram : '';
+        document.getElementById('ol-fb').value    = c.facebook || '';
+        document.getElementById('ol-web').value   = c.web || '';
+        document.getElementById('ol-desc').value  = c.descripcion || '';
+        document.getElementById('ol-dir').value   = c.direccion || '';
+        document.getElementById('ol-dir').placeholder = c.direccion_negocio
+            ? 'Vacío = ' + c.direccion_negocio + ' (la del ticket)' : 'Ej: Jægersborggade 12, 2200 København N';
+        document.getElementById('ol-mapa').value  = c.mapa_url || '';
+        document.getElementById('ol-banner-nom').checked = c.banner_nombre !== false;
+        _olImg.banner = c.banner_url || null;
+        _olImg.logo = c.logo_url || null;
+        _olImg.logoNegocio = c.logo_negocio || null;
+        _olImg.nombre = c.restaurante || '';
+        if(c.codigo){
+            const ver = document.getElementById('ol-ver');
+            ver.href = 'reserva.html?r=' + encodeURIComponent(c.codigo);
+            ver.style.display = '';
+        }
+        _olPintarBanner();
+        _olPintarIdiomas(c.idiomas);
         _olCargada = true;
         ['ol-max','ol-tel','ol-email','ol-redes'].forEach(id =>
             document.getElementById(id).addEventListener('input', _olPreview));
@@ -2092,11 +2195,86 @@ function _olPreview(){
     if(rd)  partes.push(rd);
     if(max){
         pv.style.display = '';
-        pv.textContent = 'El cliente verá: "Para reservas más numerosas, contactate con el personal del restaurante' +
+        pv.textContent = `El cliente verá: "¿Son más de ${max}? Contactate con el restaurante` +
             (partes.length ? ': ' + partes.join(' · ') : '') + '."';
     }else{
         pv.style.display = 'none';
     }
+}
+// Vista previa del banner: el mismo criterio que reserva.html (navy de la marca si no hay
+// imagen; con imagen, velo abajo sólo si va el nombre encima).
+function _olPintarBanner(){
+    const b = document.getElementById('ol-banner-prev');
+    const conNombre = document.getElementById('ol-banner-nom').checked;
+    const logo = _olImg.logo || _olImg.logoNegocio;
+    b.style.backgroundImage = _olImg.banner ? `url("${_olImg.banner}")` : '';
+    b.classList.toggle('con-foto', !!_olImg.banner);
+    b.classList.toggle('sin-velo', !conNombre);
+    const img = document.getElementById('ol-banner-logo');
+    img.style.display = (logo && conNombre) ? '' : 'none';
+    if(logo) img.src = logo;
+    document.getElementById('ol-banner-nombre').textContent = conNombre ? (_olImg.nombre || 'Tu restaurante') : '';
+    document.getElementById('ol-banner-quitar').style.display = _olImg.banner ? '' : 'none';
+    document.getElementById('ol-logo-quitar').style.display = _olImg.logo ? '' : 'none';
+    document.getElementById('ol-logo-nota').textContent = _olImg.logo ? 'Logo propio de la página de reservas'
+        : (_olImg.logoNegocio ? 'Se usa el logo del negocio (Configuración)' : 'Sin logo');
+}
+// Idiomas de la página pública: activables; el principal va primero en la lista que se
+// guarda. Siempre queda al menos uno activo (y el principal siempre está activo).
+const _OL_IDIOMAS = [['da','Danés'], ['en','Inglés'], ['es','Español']];
+function _olPintarIdiomas(activos){
+    activos = (activos && activos.length) ? activos : ['da','en','es'];
+    document.getElementById('ol-idiomas').innerHTML = _OL_IDIOMAS.map(([c, n]) => `
+        <div class="fila-idioma">
+            <label><input type="checkbox" value="${c}" ${activos.includes(c) ? 'checked' : ''} onchange="_olIdiomaCambio(this)"> ${n}</label>
+            <label class="principal"><input type="radio" name="ol-idioma-principal" value="${c}"
+                ${activos[0] === c ? 'checked' : ''} onchange="_olIdiomaCambio(this)"> Principal</label>
+        </div>`).join('');
+    _olIdiomaCambio();
+}
+function _olIdiomaCambio(el){
+    const box = document.getElementById('ol-idiomas');
+    const checks = [...box.querySelectorAll('input[type=checkbox]')];
+    const radios = [...box.querySelectorAll('input[type=radio]')];
+    if(el && el.type === 'radio'){                       // elegir principal lo activa
+        checks.find(c => c.value === el.value).checked = true;
+    }
+    if(!checks.some(c => c.checked) && el) el.checked = true;   // nunca cero idiomas
+    const principal = radios.find(r => r.checked);
+    if(!principal || !checks.find(c => c.value === principal.value).checked){
+        const primero = checks.find(c => c.checked);
+        radios.forEach(r => r.checked = (r.value === primero.value));
+    }
+    radios.forEach(r => r.disabled = !checks.find(c => c.value === r.value).checked);
+}
+function _olIdiomasElegidos(){
+    const box = document.getElementById('ol-idiomas');
+    const principal = (box.querySelector('input[type=radio]:checked') || {}).value;
+    const activos = [...box.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+    return [principal, ...activos.filter(c => c !== principal)].filter(Boolean);
+}
+async function olSubir(tipo, input){
+    const f = input.files && input.files[0];
+    input.value = '';
+    if(!f) return;
+    const msg = document.getElementById('ol-msg');
+    msg.textContent = 'Subiendo imagen…'; msg.style.color = '';
+    try{
+        const fd = new FormData(); fd.append('file', f);
+        const r = await apiFetch('/config/reservas-online/imagen?tipo=' + tipo, { method: 'POST', body: fd });
+        _olImg[tipo] = r.url;
+        _olPintarBanner();
+        msg.textContent = 'Imagen lista. Tocá Guardar para publicarla.';
+    }catch(e){
+        msg.textContent = 'No se pudo subir la imagen: ' + (e.message || e);
+        msg.style.color = '#dc2626';
+    }
+}
+function olQuitar(tipo){
+    _olImg[tipo] = null;
+    _olPintarBanner();
+    document.getElementById('ol-msg').textContent = 'Tocá Guardar para aplicar el cambio.';
+    document.getElementById('ol-msg').style.color = '';
 }
 async function guardarConfigOnline(){
     const num = id => { const v = document.getElementById(id).value.trim(); return v === '' ? null : parseInt(v, 10); };
@@ -2112,6 +2290,16 @@ async function guardarConfigOnline(){
             contacto_telefono: txt('ol-tel'),
             contacto_email: txt('ol-email'),
             contacto_redes: txt('ol-redes'),
+            instagram: txt('ol-ig'),
+            facebook: txt('ol-fb'),
+            web: txt('ol-web'),
+            descripcion: txt('ol-desc'),
+            direccion: txt('ol-dir'),
+            mapa_url: txt('ol-mapa'),
+            banner_url: _olImg.banner,
+            banner_nombre: document.getElementById('ol-banner-nom').checked,
+            logo_url: _olImg.logo,
+            idiomas: _olIdiomasElegidos(),
         });
         msg.textContent = '✅ Guardado — la página pública ya lo aplica.';
         msg.style.color = '#16a34a';
