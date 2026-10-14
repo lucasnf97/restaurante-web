@@ -215,6 +215,40 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
 .fin .pie .cp-marca{ color:#fff; }
 
 .lado-form{ display:flex; flex-direction:column; gap:22px; flex:1; }
+.paso{ display:flex; flex-direction:column; gap:22px; }
+#paso-datos{ gap:16px; }
+.eleccion-fila{ display:flex; flex-direction:column; gap:22px; }
+.pers-fila{ display:flex; flex-direction:column; gap:10px; }
+.solo-movil{}
+.link-gestion{ align-self:center; border:none; background:none; color:var(--tx-2); font-size:14px; font-weight:500;
+    min-height:44px; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.link-gestion:hover{ color:var(--navy); }
+.volver{ align-self:flex-start; border:none; background:none; color:var(--r3); font-weight:600; font-size:14px;
+    min-height:40px; padding:0; cursor:pointer; }
+.gest-t{ margin:0; font-family:Poppins,sans-serif; font-weight:600; font-size:21px; letter-spacing:-.01em; }
+.aviso-modif{ display:flex; align-items:center; gap:4px 12px; flex-wrap:wrap; padding:10px 14px; border-radius:14px;
+    background:#F4F6EC; color:#3A4510; font-size:13.5px; }
+.aviso-modif span{ flex:1 1 260px; }
+.aviso-modif button{ margin-left:auto; border:none; background:none; color:var(--r4); font-weight:600; cursor:pointer;
+    min-height:36px; text-decoration:underline; text-underline-offset:3px; }
+
+/* Calendario del mes (formato escritorio) */
+.cal{ display:flex; flex-direction:column; gap:8px; }
+.cal-cab{ display:flex; justify-content:space-between; align-items:center; }
+.cal-cab b{ font-weight:600; font-size:15px; }
+.cal-cab div{ display:flex; gap:4px; }
+.cal-nav{ width:34px; height:34px; border-radius:50%; border:1.5px solid var(--bd); background:#fff; color:var(--navy);
+    cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+.cal-nav:disabled{ border-color:var(--bd-2); color:#C3C3CF; cursor:default; }
+.cal-grilla{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:2px; text-align:center; }
+.cal-grilla .sem{ font-size:11.5px; font-weight:600; color:var(--tx-3); padding:2px 0 4px; text-transform:uppercase; }
+.cal-dia{ height:38px; border-radius:50%; border:none; background:transparent; font-size:14px; font-weight:500;
+    cursor:pointer; padding:0; font-variant-numeric:tabular-nums; }
+.cal-dia:hover{ background:var(--sup-2); }
+.cal-dia.hoy{ box-shadow:inset 0 0 0 1.5px var(--navy); font-weight:600; }
+.cal-dia[aria-pressed=true]{ background:var(--navy); color:var(--lime); font-weight:600; box-shadow:none; }
+.cal-dia:disabled{ color:#C3C3CF; cursor:default; background:transparent; }
+.cal-dia.cerrado{ text-decoration:line-through; }
 .form-titulo{ margin:0; font-family:Poppins,sans-serif; font-weight:600; font-size:26px; letter-spacing:-.02em; }
 .solo-ancho{ display:none !important; }
 
@@ -245,11 +279,22 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
     .local a.chip:hover{ background:rgba(255,255,255,.16); }
     .local .chip svg{ color:var(--r1); }
     .solo-ancho{ display:block !important; }
+    .cal.solo-ancho{ display:flex !important; }
+    .solo-movil{ display:none !important; }
+    /* Opción 3 (elegida por el dueño): personas en una fila arriba; debajo, el
+       calendario y los horarios lado a lado. Todo entra en una pantalla. */
+    .pers-fila{ flex-direction:row; align-items:center; gap:18px; flex-wrap:wrap; }
+    .pers-fila .nota{ margin:0; }
+    .eleccion-fila{ display:grid; grid-template-columns:340px minmax(0,1fr); gap:36px; align-items:start; }
+    .link-gestion{ align-self:flex-start; }
+    .paso .cta{ align-self:flex-start; }
     .semana.hidden{ display:none !important; }
     .lado-form{ grid-area:form; padding:40px 48px 26px; gap:26px; min-width:0; }
-    .personas{ grid-template-columns:repeat(auto-fill, 52px) !important; gap:10px; }
-    .persona{ max-width:none; }
-    .horas{ grid-template-columns:repeat(6, minmax(0,1fr)); }
+    /* En fila (no grilla): dentro de .pers-fila la grilla no tiene ancho propio y caía
+       a una sola columna, apilando los círculos. */
+    .personas{ display:flex !important; flex-wrap:wrap; gap:10px; }
+    .persona{ width:52px; height:52px; max-width:none; flex:none; }
+    .horas{ grid-template-columns:repeat(3, minmax(0,1fr)); }
     .cta{ max-width:520px; }
     /* El ticket es una pieza angosta: en escritorio, centrado. */
     .app.ticket-modo{ display:flex; max-width:560px; min-height:0; }
@@ -297,32 +342,52 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
         <h2 class="form-titulo solo-ancho" data-t="reservar"></h2>
 
         <div id="form-wrap" class="sec" style="gap:22px;">
-            <section class="sec">
-                <span class="lbl" id="lbl-dia" data-t="dia"></span>
-                <div class="dias" id="dias" role="group" aria-labelledby="lbl-dia"></div>
-                <input type="date" id="f-fecha" class="fecha-oculta" tabindex="-1" aria-hidden="true" onchange="elegirFecha(this.value)">
-            </section>
+            <!-- Modificando una reserva existente (llegó por el enlace del email) -->
+            <div class="aviso-modif hidden" id="aviso-modif">
+                <span id="aviso-modif-txt"></span>
+                <button type="button" onclick="cancelarModificacion()" data-t="modif_volver"></button>
+            </div>
 
-            <section class="sec">
-                <span class="lbl" id="lbl-pers" data-t="personas"></span>
-                <div class="personas" id="personas" role="group" aria-labelledby="lbl-pers"></div>
-                <p class="nota hidden" id="tope-leyenda"></p>
-            </section>
+            <!-- PASO 1: personas, día y hora -->
+            <div class="paso" id="paso-eleccion">
+                <section class="sec" id="sec-pers">
+                    <span class="lbl" id="lbl-pers" data-t="personas"></span>
+                    <div class="pers-fila">
+                        <div class="personas" id="personas" role="group" aria-labelledby="lbl-pers"></div>
+                        <p class="nota hidden" id="tope-leyenda"></p>
+                    </div>
+                </section>
 
-            <section class="sec" id="sec-horarios">
-                <span class="lbl" id="lbl-hora" data-t="hora"></span>
-                <div class="horas" id="slots" role="group" aria-labelledby="lbl-hora"></div>
-                <div class="cargando hidden" id="buscando"><span class="cp-orbit"></span><span data-t="buscando"></span></div>
-                <div class="aviso hidden" id="sin-horarios">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
-                    <span id="sin-horarios-txt"></span>
+                <div class="eleccion-fila">
+                    <section class="sec" id="sec-dia">
+                        <span class="lbl" id="lbl-dia" data-t="dia"></span>
+                        <div class="dias solo-movil" id="dias" role="group" aria-labelledby="lbl-dia"></div>
+                        <div class="cal solo-ancho" id="cal"></div>
+                        <input type="date" id="f-fecha" class="fecha-oculta" tabindex="-1" aria-hidden="true" onchange="elegirFecha(this.value)">
+                    </section>
+
+                    <section class="sec" id="sec-horarios">
+                        <span class="lbl" id="lbl-hora" data-t="hora"></span>
+                        <div class="horas" id="slots" role="group" aria-labelledby="lbl-hora"></div>
+                        <div class="cargando hidden" id="buscando"><span class="cp-orbit"></span><span data-t="buscando"></span></div>
+                        <div class="aviso hidden" id="sin-horarios">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
+                            <span id="sin-horarios-txt"></span>
+                        </div>
+                    </section>
                 </div>
-            </section>
 
-            <section class="sec hidden" id="sec-datos" style="gap:16px;">
+                <button class="cta hidden" id="btn-continuar" onclick="continuar()">
+                    <span data-t="continuar"></span><span class="det" id="cont-det"></span>
+                </button>
+                <button type="button" class="link-gestion" id="btn-gestionar" onclick="abrirGestionar()" data-t="gestionar_link"></button>
+            </div>
+
+            <!-- PASO 2: los datos del cliente -->
+            <div class="paso hidden" id="paso-datos">
                 <div class="resumen">
                     <b id="pick-txt">—</b>
-                    <button type="button" onclick="volverAHorarios()" data-t="cambiar"></button>
+                    <button type="button" onclick="volverAHorarios()" data-t="cambiar_fh"></button>
                 </div>
                 <div class="campo">
                     <label for="d-nombre" data-t="nombre"></label>
@@ -339,13 +404,15 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
                     </div>
                 </div>
                 <p class="nota" data-t="contacto_nota"></p>
-                <div class="campo">
-                    <label for="d-alergeno" data-t="alergias"></label>
-                    <input type="text" id="d-alergeno" data-tp="alergias_ph">
-                </div>
-                <div class="campo">
-                    <label for="d-notas" data-t="notas"></label>
-                    <textarea id="d-notas" data-tp="notas_ph"></textarea>
+                <div class="fila">
+                    <div class="campo">
+                        <label for="d-alergeno" data-t="alergias"></label>
+                        <input type="text" id="d-alergeno" data-tp="alergias_ph">
+                    </div>
+                    <div class="campo">
+                        <label for="d-notas" data-t="notas"></label>
+                        <input type="text" id="d-notas" data-tp="notas_ph">
+                    </div>
                 </div>
                 <div class="hp" aria-hidden="true"><label>No completar<input type="text" id="d-website" tabindex="-1" autocomplete="off"></label></div>
 
@@ -354,7 +421,22 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
                 <button class="cta" id="btn-confirmar" onclick="confirmar()">
                     <span id="btn-confirmar-txt" data-t="confirmar"></span><span class="det" id="cta-det"></span>
                 </button>
-            </section>
+            </div>
+
+            <!-- "Modificar o cancelar": se manda el enlace al email de la reserva -->
+            <div class="paso hidden" id="paso-gestionar">
+                <button type="button" class="volver" onclick="cerrarGestionar()" data-t="gest_volver"></button>
+                <h3 class="gest-t" data-t="gest_t"></h3>
+                <p class="nota" style="font-size:14px;" data-t="gest_txt"></p>
+                <div class="campo">
+                    <label for="g-email" data-t="email"></label>
+                    <input type="email" id="g-email" autocomplete="email" onkeydown="if(event.key==='Enter') enviarGestionar()">
+                </div>
+                <div class="err hidden" id="g-email-err"></div>
+                <div class="aviso hidden" id="g-enviado"><span id="g-enviado-txt"></span></div>
+                <button class="cta centro" id="btn-gest-enviar" onclick="enviarGestionar()"><span data-t="gest_enviar"></span></button>
+                <p class="nota" id="g-tel"></p>
+            </div>
         </div>
 
         <div class="pie" id="pie">
@@ -371,7 +453,9 @@ const QS   = new URLSearchParams(location.search);
 const CODE = QS.get('r') || '';
 const GTOKEN = QS.get('c') || '';   // modo gestión (link del email)
 
-const state = { info:null, fecha:null, personas:2, hora:null, horarios:[], motivo:null };
+const state = { info:null, fecha:null, personas:2, hora:null, horarios:[], motivo:null, horaPre:null };
+const _APP_HTML = document.getElementById('app').innerHTML;
+let MODIF = null;     // {token, fecha, hora}: se está modificando una reserva existente
 let CFG = {};        // config online del restaurante (topes/contacto) — llega en /publico/info
 let PERFIL = {};     // la cara del local (banner, logo, dirección, redes, idiomas) — opcional entera
 let MAX_P = 20;      // tope de personas (config o el 20 histórico)
@@ -384,6 +468,7 @@ const UMBRAL_ESPERA = 400;        // regla de la marca: sin indicador por debajo
 // ⚠ Los textos que escribe el local (presentación, otras redes) se muestran tal cual.
 const TXT = {
 es: {
+    continuar:'Continuar', cambiar_fh:'← Cambiar fecha u hora', gestionar_link:'¿Ya tienes una reserva? Modificar o cancelar', gest_t:'Modificar o cancelar una reserva', gest_txt:'Escribe el email con el que reservaste y te enviaremos un enlace para modificarla o cancelarla.', gest_enviar:'Enviar enlace', gest_volver:'← Volver', gest_enviado:'Listo. Si hay reservas con ese email, en unos minutos te llegará un correo con el enlace.', gest_tel:'Si reservaste solo con teléfono, contacta con el restaurante{c}.', gest_err_email:'Escribe un email válido.', gest_err:'No pudimos enviar el enlace. Inténtalo de nuevo.', modificar:'Modificar reserva', modificar_t:'Modifica tu reserva', modif_volver:'No cambiar', modificando:'Estás modificando tu reserva del {f} a las {h}. La anterior se libera cuando confirmes la nueva.', err_modificar:'Esa reserva ya no se puede modificar online.', mes_ant:'Mes anterior', mes_sig:'Mes siguiente', 
     reservar:'Reserva tu mesa', horarios:'Horarios', cerrado_dia:'Cerrado', dia:'Día', personas:'Personas', hora:'Hora',
     buscando:'Buscando horarios…', cambiar:'Cambiar', nombre:'Nombre y apellido',
     nombre_ph:'¿A nombre de quién?', telefono:'Teléfono', email:'Email', opcional:'Opcional',
@@ -424,6 +509,7 @@ es: {
     est_programada:'Confirmada', est_en_espera:'En espera', est_sentado:'En curso', est_terminada:'Finalizada', est_cancelada:'Cancelada',
 },
 en: {
+    continuar:'Continue', cambiar_fh:'← Change date or time', gestionar_link:'Already booked? Change or cancel', gest_t:'Change or cancel a booking', gest_txt:'Enter the email you booked with and we\u2019ll send you a link to change or cancel it.', gest_enviar:'Send link', gest_volver:'← Back', gest_enviado:'Done. If there are bookings under that email, you\u2019ll get a message with the link in a few minutes.', gest_tel:'If you booked with a phone number only, contact the restaurant{c}.', gest_err_email:'Enter a valid email.', gest_err:'We couldn\u2019t send the link. Please try again.', modificar:'Change booking', modificar_t:'Change your booking', modif_volver:'Keep it', modificando:'You\u2019re changing your booking for {f} at {h}. The old one is released when you confirm the new one.', err_modificar:'This booking can no longer be changed online.', mes_ant:'Previous month', mes_sig:'Next month', 
     reservar:'Book a table', horarios:'Opening hours', cerrado_dia:'Closed', dia:'Day', personas:'Guests', hora:'Time',
     buscando:'Finding available times…', cambiar:'Change', nombre:'Full name',
     nombre_ph:'Who is the booking for?', telefono:'Phone', email:'Email', opcional:'Optional',
@@ -464,6 +550,7 @@ en: {
     est_programada:'Confirmed', est_en_espera:'Waiting list', est_sentado:'In progress', est_terminada:'Finished', est_cancelada:'Cancelled',
 },
 da: {
+    continuar:'Fortsæt', cambiar_fh:'← Ændr dato eller tid', gestionar_link:'Har du allerede booket? Ændr eller aflys', gest_t:'Ændr eller aflys en booking', gest_txt:'Skriv den e-mail, du bookede med, så sender vi dig et link til at ændre eller aflyse bookingen.', gest_enviar:'Send link', gest_volver:'← Tilbage', gest_enviado:'Færdig. Hvis der er bookinger på den e-mail, modtager du et link om få minutter.', gest_tel:'Hvis du kun bookede med telefonnummer, så kontakt restauranten{c}.', gest_err_email:'Skriv en gyldig e-mail.', gest_err:'Vi kunne ikke sende linket. Prøv igen.', modificar:'Ændr booking', modificar_t:'Ændr din booking', modif_volver:'Behold den', modificando:'Du ændrer din booking {f} kl. {h}. Den gamle frigives, når du bekræfter den nye.', err_modificar:'Bookingen kan ikke længere ændres online.', mes_ant:'Forrige måned', mes_sig:'Næste måned', 
     reservar:'Book et bord', horarios:'Åbningstider', cerrado_dia:'Lukket', dia:'Dag', personas:'Personer', hora:'Tidspunkt',
     buscando:'Finder ledige tider…', cambiar:'Ændr', nombre:'Fulde navn',
     nombre_ph:'Hvilket navn skal bordet stå i?', telefono:'Telefon', email:'E-mail', opcional:'Valgfrit',
@@ -569,6 +656,9 @@ function aplicarIdioma(){
             pintarResumen();
         }
         if(!$('btn-confirmar').disabled) $('btn-confirmar-txt').textContent = t('confirmar');
+        pintarModificacion();
+        if(!$('g-enviado').classList.contains('hidden')) $('g-enviado-txt').textContent = t('gest_enviado');
+        pintarNotaTelefono();
         if(!$('dup-aviso').classList.contains('hidden')) mostrarDuplicado(true);
         mostrar('err', false);   // un error viejo quedaría en el idioma anterior
     }
@@ -828,6 +918,43 @@ function renderDias(){
             aria-label="${esc(fmtFechaLarga(d))}${abre ? '' : ' (' + esc(t('cerrado')) + ')'}" onclick="elegirFecha('${d}')">
             <small>${esc(top)}</small><b>${_d(d).getDate()}</b></button>`;
     }).join('') + `<button type="button" class="dia cal" aria-label="${esc(t('otra_fecha'))}" onclick="abrirCalendario()">${svg('cal', 20)}</button>`;
+    if(state.fecha) _calMes = state.fecha.slice(0, 7);
+    renderCalendario();
+}
+// ── Calendario del mes (formato escritorio) ──
+let _calMes = null;   // 'YYYY-MM' que se está mirando
+function renderCalendario(){
+    const cont = $('cal'); if(!cont || !MIN_F) return;
+    if(!_calMes) _calMes = (state.fecha || MIN_F).slice(0, 7);
+    const [y, m] = _calMes.split('-').map(Number);
+    const primero = `${_calMes}-01`;
+    const huecos = diaSemanaPy(primero);                       // lunes primero
+    const nDias = new Date(y, m, 0).getDate();
+    const mesMin = MIN_F.slice(0, 7), mesMax = MAX_F ? MAX_F.slice(0, 7) : null;
+    const titulo = _cap(new Intl.DateTimeFormat(LOCALE[LANG], {month:'long', year:'numeric'}).format(_d(primero)));
+    const lunes = sumarDias(primero, -huecos);
+    const sem = [0,1,2,3,4,5,6].map(i => `<span class="sem">${esc(new Intl.DateTimeFormat(LOCALE[LANG], {weekday:'narrow'}).format(_d(sumarDias(lunes, i))))}</span>`).join('');
+    let dias = '<span></span>'.repeat(huecos);
+    for(let n = 1; n <= nDias; n++){
+        const iso = `${_calMes}-${String(n).padStart(2, '0')}`;
+        const fuera = iso < MIN_F || (MAX_F && iso > MAX_F);
+        const cerrado = !fuera && !abreEseDia(iso);
+        const cls = ['cal-dia', iso === hoyRest() ? 'hoy' : '', cerrado ? 'cerrado' : ''].join(' ');
+        dias += `<button type="button" class="${cls}" aria-pressed="${iso === state.fecha}" ${fuera || cerrado ? 'disabled' : ''}
+            aria-label="${esc(fmtFechaLarga(iso))}${cerrado ? ' (' + esc(t('cerrado')) + ')' : ''}" onclick="elegirFecha('${iso}')">${n}</button>`;
+    }
+    cont.innerHTML = `<div class="cal-cab"><b>${esc(titulo)}</b><div>
+        <button type="button" class="cal-nav" aria-label="${esc(t('mes_ant'))}" ${_calMes <= mesMin ? 'disabled' : ''} onclick="moverMes(-1)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button type="button" class="cal-nav" aria-label="${esc(t('mes_sig'))}" ${mesMax && _calMes >= mesMax ? 'disabled' : ''} onclick="moverMes(1)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div></div><div class="cal-grilla">${sem}${dias}</div>`;
+}
+function moverMes(delta){
+    const [y, m] = _calMes.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    _calMes = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    renderCalendario();
 }
 function abrirCalendario(){
     const f = $('f-fecha'); f.value = state.fecha || MIN_F;
@@ -865,12 +992,13 @@ async function buscarDisponibilidad(){
     const fecha = state.fecha; if(!fecha) return;
     const mia = ++_busqueda;
     state.hora = null; _errHorarios = null; _cargandoHorarios = true;
-    mostrar('sec-datos', false); mostrar('sin-horarios', false);
+    mostrar('btn-continuar', false); mostrar('sin-horarios', false);
     $('slots').innerHTML = '';
     renderDias();
     const tReloj = setTimeout(() => { if(mia === _busqueda) mostrar('buscando', true); }, UMBRAL_ESPERA);
     try{
-        const data = await api(`/publico/disponibilidad?fecha=${fecha}&comensales=${state.personas}`);
+        const data = await api(`/publico/disponibilidad?fecha=${fecha}&comensales=${state.personas}`
+            + (MODIF ? '&reemplaza=' + encodeURIComponent(MODIF.token) : ''));
         if(mia !== _busqueda) return;   // llegó tarde: ya se pidió otra combinación
         _cargandoHorarios = false;
         let horas = data.horarios || [];
@@ -918,30 +1046,64 @@ function renderHorarios(){
     mostrar('sin-horarios', false);
     cont.innerHTML = state.horarios.map(h =>
         `<button type="button" class="hora" aria-pressed="false" onclick="elegirHora('${h}', this)">${h}</button>`).join('');
+    // Al modificar: la hora que tenía queda marcada (si sigue habiendo lugar).
+    if(state.horaPre && state.horarios.includes(state.horaPre)){
+        const b = [...cont.querySelectorAll('.hora')].find(x => x.textContent === state.horaPre);
+        state.horaPre = null;
+        if(b) elegirHora(b.textContent, b);
+    }
 }
 
 function pintarResumen(){
+    const corto = `${fmtFechaCorta(state.fecha)} · ${state.hora} · ${state.personas}`;
     $('pick-txt').textContent = `${fmtFechaCorta(state.fecha)} · ${state.hora} · ${personasTxt(state.personas)}`;
-    $('cta-det').textContent = `${fmtFechaCorta(state.fecha)} · ${state.hora} · ${state.personas}`;
+    $('cta-det').textContent = corto;
+    $('cont-det').textContent = corto;
 }
 function elegirHora(h, btn){
     state.hora = h;
     document.querySelectorAll('.hora').forEach(s => s.setAttribute('aria-pressed','false'));
     btn.setAttribute('aria-pressed','true');
     pintarResumen();
-    mostrar('sec-datos', true);
-    mostrar('err', false);
-    $('sec-datos').scrollIntoView({behavior:'smooth', block:'start'});
-    setTimeout(() => $('d-nombre').focus({preventScroll:true}), 350);
+    mostrar('btn-continuar', true);
     postHeight();
 }
 
+// ── Pasos con animación ──
+// Hacia adelante lo que se deja sube y se desvanece, y lo nuevo entra desde abajo;
+// hacia atrás, al revés. Sin animación si el sistema pide movimiento reducido.
+const _SIN_MOVIMIENTO = window.matchMedia('(prefers-reduced-motion: reduce)');
+let _pasoActual = 'paso-eleccion';
+function irAPaso(destino, adelante){
+    const desde = $(_pasoActual), hacia = $(destino);
+    if(desde === hacia) return;
+    _pasoActual = destino;
+    const fin = () => {
+        desde.classList.add('hidden');
+        hacia.classList.remove('hidden');
+        const top = $('form-wrap').getBoundingClientRect().top;
+        if(top < 0) $('form-wrap').scrollIntoView({behavior: _SIN_MOVIMIENTO.matches ? 'auto' : 'smooth', block:'start'});
+        if(!_SIN_MOVIMIENTO.matches && hacia.animate){
+            hacia.animate([{ opacity:0, transform:`translateY(${adelante ? 36 : -36}px)` },
+                           { opacity:1, transform:'none' }], { duration:300, easing:'cubic-bezier(.2,.8,.2,1)' });
+        }
+        postHeight();
+    };
+    if(_SIN_MOVIMIENTO.matches || !desde.animate){ fin(); return; }
+    desde.animate([{ opacity:1, transform:'none' },
+                   { opacity:0, transform:`translateY(${adelante ? -36 : 36}px)` }],
+                  { duration:220, easing:'cubic-bezier(.4,0,1,1)' }).onfinish = fin;
+}
+function continuar(){
+    if(!state.hora) return;
+    pintarResumen();
+    mostrar('err', false);
+    irAPaso('paso-datos', true);
+    setTimeout(() => { if(!$('d-nombre').value) $('d-nombre').focus({preventScroll:true}); }, 560);
+}
 function volverAHorarios(){
-    mostrar('sec-datos', false);
-    state.hora = null;
-    document.querySelectorAll('.hora').forEach(s => s.setAttribute('aria-pressed','false'));
-    $('sec-horarios').scrollIntoView({behavior:'smooth', block:'start'});
-    postHeight();
+    // La hora elegida se mantiene marcada: volver es para cambiar algo, no para empezar de cero.
+    irAPaso('paso-eleccion', false);
 }
 
 function mostrarErr(msg){ $('err').textContent = msg; mostrar('err', true); postHeight(); }
@@ -979,14 +1141,21 @@ async function enviarReserva(accion){
             website: $('d-website').value || null,
             accion: accion || null,
             idioma: LANG,   // el email de confirmación sale en este idioma
+            reemplaza: MODIF ? MODIF.token : null,
         })});
         clearTimeout(reloj);
+        if(MODIF){
+            // La reserva vieja quedó cancelada: el enlace con su token ya no sirve.
+            MODIF = null;
+            try{ history.replaceState(null, '', location.pathname + '?r=' + encodeURIComponent(CODE)); }catch{}
+        }
         mostrarConfirmacion(r, $('d-nombre').value.trim());
     }catch(e){
         clearTimeout(reloj);
         _btnConfirmando(false);
         // Duplicado por contacto: ya hay una reserva ese día a nombre de este tel/email
         if(e.status === 409 && e.data && e.data.duplicada){ mostrarDuplicado(); return; }
+        if(e.status === 410){ mostrarErr(t('err_modificar')); return; }
         // Si justo se ocupó la última mesa, refrescar horarios
         if(/disponibles|409/.test(e.message||'')){
             mostrarErr(t('err_ocupado'));
@@ -1130,6 +1299,7 @@ function renderGestion(cancelada){
             <div class="err hidden" id="g-err"></div>
             ${activa ? `<div class="acciones">
                 <button type="button" class="btn-lima" onclick="descargarIcs(_ultima)">${svg('calmas', 18)}${esc(t('calendario'))}</button>
+                ${g.cancelable ? `<button type="button" class="btn-borde" onclick="modificarReserva()">${svg('cal', 18)}${esc(t('modificar'))}</button>` : ''}
                 ${mapa ? `<a class="btn-borde" href="${esc(mapa)}" target="_blank" rel="noopener">${svg('pin', 18)}${esc(t('llegar'))}</a>` : ''}
             </div>` : ''}
             ${activa && g.cancelable ? `<button type="button" class="link-suave" id="btn-g-cancelar" onclick="pedirCancelacion()">${esc(t('no_podes'))}</button>`
@@ -1137,6 +1307,75 @@ function renderGestion(cancelada){
             ${pieOscuro()}
         </div>`;
     pintarSelectorIdioma();
+    postHeight();
+}
+
+// ── Modificar: vuelve al formulario con todo precargado ──
+// La reserva vieja NO se toca hasta confirmar la nueva: el server cancela la vieja en
+// la misma transacción en que da de alta la nueva (si la nueva no entra, nada cambia).
+function modificarReserva(){
+    const g = _gestion; if(!g) return;
+    MODIF = { token: GTOKEN, fecha: g.fecha, hora: g.hora };
+    const app = $('app');
+    app.classList.remove('ticket-modo');
+    app.innerHTML = _APP_HTML;
+    _vista = 'form'; _pasoActual = 'paso-eleccion'; _calMes = null;
+    state.personas = g.comensales || 2;
+    pintarBanner();
+    aplicarConfigOnline();
+    if(g.fecha >= MIN_F && (!MAX_F || g.fecha <= MAX_F)) state.fecha = g.fecha;
+    state.horaPre = g.hora;
+    $('d-nombre').value = g.nombre || '';
+    $('d-tel').value = g.telefono || '';
+    $('d-email').value = g.email || '';
+    $('d-alergeno').value = g.alergeno || '';
+    $('d-notas').value = g.notas || '';
+    aplicarIdioma();
+    buscarDisponibilidad();
+    try{ window.scrollTo({top:0}); }catch{}
+}
+function pintarModificacion(){
+    const av = $('aviso-modif'); if(!av) return;
+    av.classList.toggle('hidden', !MODIF);
+    mostrar('btn-gestionar', !MODIF);
+    const tit = document.querySelector('.form-titulo');
+    if(tit) tit.textContent = t(MODIF ? 'modificar_t' : 'reservar');
+    if(MODIF) $('aviso-modif-txt').textContent = t('modificando', { f: fmtFechaCorta(MODIF.fecha), h: MODIF.hora });
+}
+function cancelarModificacion(){
+    MODIF = null;
+    renderGestion(false);
+}
+
+// ── "Modificar o cancelar" desde la pantalla principal ──
+function pintarNotaTelefono(){
+    const c = contactoTxt();
+    if($('g-tel')) $('g-tel').textContent = t('gest_tel', { c: c ? ': ' + c : '' });
+}
+function abrirGestionar(){
+    mostrar('g-enviado', false); mostrar('g-email-err', false);
+    $('btn-gest-enviar').disabled = false;
+    pintarNotaTelefono();
+    irAPaso('paso-gestionar', true);
+    setTimeout(() => $('g-email').focus({preventScroll:true}), 560);
+}
+function cerrarGestionar(){ irAPaso('paso-eleccion', false); }
+async function enviarGestionar(){
+    const email = $('g-email').value.trim();
+    mostrar('g-email-err', false);
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+        $('g-email-err').textContent = t('gest_err_email'); mostrar('g-email-err', true); return;
+    }
+    const btn = $('btn-gest-enviar'); btn.disabled = true;
+    try{
+        await api('/publico/reservas/recuperar', { method:'POST', body: JSON.stringify({ email, idioma: LANG }) });
+        // Siempre el mismo mensaje: la página nunca dice si ese email tiene reservas.
+        $('g-enviado-txt').textContent = t('gest_enviado');
+        mostrar('g-enviado', true);
+    }catch(e){
+        btn.disabled = false;
+        $('g-email-err').textContent = t('gest_err'); mostrar('g-email-err', true);
+    }
     postHeight();
 }
 
