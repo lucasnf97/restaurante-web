@@ -232,6 +232,14 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
 .aviso-modif button{ margin-left:auto; border:none; background:none; color:var(--r4); font-weight:600; cursor:pointer;
     min-height:36px; text-decoration:underline; text-underline-offset:3px; }
 
+/* Franjas del día: pestañas sobre los horarios (con 27 horas la grilla era una pared). */
+.franjas{ display:flex; gap:4px; padding:4px; border-radius:14px; background:var(--sup-2); }
+.franja{ flex:1; min-height:38px; border:none; border-radius:10px; background:transparent; color:var(--tx-2);
+    font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
+.franja:hover{ color:var(--navy); }
+.franja[aria-selected=true]{ background:#fff; color:var(--navy); box-shadow:0 1px 3px rgba(27,27,51,.12); }
+.franja .n{ font-size:12px; font-weight:500; color:var(--tx-3); font-variant-numeric:tabular-nums; }
+
 /* Calendario del mes (formato escritorio) */
 .cal{ display:flex; flex-direction:column; gap:8px; }
 .cal-cab{ display:flex; justify-content:space-between; align-items:center; }
@@ -368,6 +376,7 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
 
                     <section class="sec" id="sec-horarios">
                         <span class="lbl" id="lbl-hora" data-t="hora"></span>
+                        <div class="franjas hidden" id="franjas" role="tablist" aria-labelledby="lbl-hora"></div>
                         <div class="horas" id="slots" role="group" aria-labelledby="lbl-hora"></div>
                         <div class="cargando hidden" id="buscando"><span class="cp-orbit"></span><span data-t="buscando"></span></div>
                         <div class="aviso hidden" id="sin-horarios">
@@ -453,7 +462,7 @@ const QS   = new URLSearchParams(location.search);
 const CODE = QS.get('r') || '';
 const GTOKEN = QS.get('c') || '';   // modo gestión (link del email)
 
-const state = { info:null, fecha:null, personas:2, hora:null, horarios:[], motivo:null, horaPre:null };
+const state = { info:null, fecha:null, personas:2, hora:null, horarios:[], motivo:null, horaPre:null, franja:null };
 const _APP_HTML = document.getElementById('app').innerHTML;
 let MODIF = null;     // {token, fecha, hora}: se está modificando una reserva existente
 let CFG = {};        // config online del restaurante (topes/contacto) — llega en /publico/info
@@ -469,6 +478,7 @@ const UMBRAL_ESPERA = 400;        // regla de la marca: sin indicador por debajo
 const TXT = {
 es: {
     continuar:'Continuar', cambiar_fh:'← Cambiar fecha u hora', gestionar_link:'¿Ya tienes una reserva? Modificar o cancelar', gest_t:'Modificar o cancelar una reserva', gest_txt:'Escribe el email con el que reservaste y te enviaremos un enlace para modificarla o cancelarla.', gest_enviar:'Enviar enlace', gest_volver:'← Volver', gest_enviado:'Listo. Si hay reservas con ese email, en unos minutos te llegará un correo con el enlace.', gest_tel:'Si reservaste solo con teléfono, contacta con el restaurante{c}.', gest_err_email:'Escribe un email válido.', gest_err:'No pudimos enviar el enlace. Inténtalo de nuevo.', modificar:'Modificar reserva', modificar_t:'Modifica tu reserva', modif_volver:'No cambiar', modificando:'Estás modificando tu reserva del {f} a las {h}. La anterior se libera cuando confirmes la nueva.', err_modificar:'Esa reserva ya no se puede modificar online.', mes_ant:'Mes anterior', mes_sig:'Mes siguiente', 
+    f_manana:'Mañana', f_tarde:'Tarde', f_noche:'Noche', 
     reservar:'Reserva tu mesa', horarios:'Horarios', cerrado_dia:'Cerrado', dia:'Día', personas:'Personas', hora:'Hora',
     buscando:'Buscando horarios…', cambiar:'Cambiar', nombre:'Nombre y apellido',
     nombre_ph:'¿A nombre de quién?', telefono:'Teléfono', email:'Email', opcional:'Opcional',
@@ -510,6 +520,7 @@ es: {
 },
 en: {
     continuar:'Continue', cambiar_fh:'← Change date or time', gestionar_link:'Already booked? Change or cancel', gest_t:'Change or cancel a booking', gest_txt:'Enter the email you booked with and we\u2019ll send you a link to change or cancel it.', gest_enviar:'Send link', gest_volver:'← Back', gest_enviado:'Done. If there are bookings under that email, you\u2019ll get a message with the link in a few minutes.', gest_tel:'If you booked with a phone number only, contact the restaurant{c}.', gest_err_email:'Enter a valid email.', gest_err:'We couldn\u2019t send the link. Please try again.', modificar:'Change booking', modificar_t:'Change your booking', modif_volver:'Keep it', modificando:'You\u2019re changing your booking for {f} at {h}. The old one is released when you confirm the new one.', err_modificar:'This booking can no longer be changed online.', mes_ant:'Previous month', mes_sig:'Next month', 
+    f_manana:'Morning', f_tarde:'Afternoon', f_noche:'Evening', 
     reservar:'Book a table', horarios:'Opening hours', cerrado_dia:'Closed', dia:'Day', personas:'Guests', hora:'Time',
     buscando:'Finding available times…', cambiar:'Change', nombre:'Full name',
     nombre_ph:'Who is the booking for?', telefono:'Phone', email:'Email', opcional:'Optional',
@@ -551,6 +562,7 @@ en: {
 },
 da: {
     continuar:'Fortsæt', cambiar_fh:'← Ændr dato eller tid', gestionar_link:'Har du allerede booket? Ændr eller aflys', gest_t:'Ændr eller aflys en booking', gest_txt:'Skriv den e-mail, du bookede med, så sender vi dig et link til at ændre eller aflyse bookingen.', gest_enviar:'Send link', gest_volver:'← Tilbage', gest_enviado:'Færdig. Hvis der er bookinger på den e-mail, modtager du et link om få minutter.', gest_tel:'Hvis du kun bookede med telefonnummer, så kontakt restauranten{c}.', gest_err_email:'Skriv en gyldig e-mail.', gest_err:'Vi kunne ikke sende linket. Prøv igen.', modificar:'Ændr booking', modificar_t:'Ændr din booking', modif_volver:'Behold den', modificando:'Du ændrer din booking {f} kl. {h}. Den gamle frigives, når du bekræfter den nye.', err_modificar:'Bookingen kan ikke længere ændres online.', mes_ant:'Forrige måned', mes_sig:'Næste måned', 
+    f_manana:'Formiddag', f_tarde:'Eftermiddag', f_noche:'Aften', 
     reservar:'Book et bord', horarios:'Åbningstider', cerrado_dia:'Lukket', dia:'Dag', personas:'Personer', hora:'Tidspunkt',
     buscando:'Finder ledige tider…', cambiar:'Ændr', nombre:'Fulde navn',
     nombre_ph:'Hvilket navn skal bordet stå i?', telefono:'Telefon', email:'E-mail', opcional:'Valgfrit',
@@ -992,7 +1004,7 @@ async function buscarDisponibilidad(){
     const fecha = state.fecha; if(!fecha) return;
     const mia = ++_busqueda;
     state.hora = null; _errHorarios = null; _cargandoHorarios = true;
-    mostrar('btn-continuar', false); mostrar('sin-horarios', false);
+    mostrar('btn-continuar', false); mostrar('sin-horarios', false); mostrar('franjas', false);
     $('slots').innerHTML = '';
     renderDias();
     const tReloj = setTimeout(() => { if(mia === _busqueda) mostrar('buscando', true); }, UMBRAL_ESPERA);
@@ -1040,12 +1052,26 @@ function renderHorarios(){
         }
         $('sin-horarios-txt').textContent = txt;
         mostrar('sin-horarios', true);
+        mostrar('franjas', false);
         cont.innerHTML = '';
         return;
     }
     mostrar('sin-horarios', false);
-    cont.innerHTML = state.horarios.map(h =>
-        `<button type="button" class="hora" aria-pressed="false" onclick="elegirHora('${h}', this)">${h}</button>`).join('');
+    // Tres franjas por la hora de INICIO (decisión del dueño): mañana hasta las 12 inclusive
+    // (12:30 incluida), tarde de 13 a 18 (18:30 incluida) y noche el resto, también lo
+    // que pasa de medianoche. Sólo se muestran las que tienen lugar; con una sola, sin pestañas.
+    const grupos = { manana: [], tarde: [], noche: [] };
+    state.horarios.forEach(h => grupos[franjaDe(h)].push(h));
+    const conLugar = ['manana', 'tarde', 'noche'].filter(f => grupos[f].length);
+    const pre = state.horaPre ? franjaDe(state.horaPre) : null;
+    if(pre && conLugar.includes(pre)) state.franja = pre;
+    else if(!conLugar.includes(state.franja)) state.franja = conLugar.includes('noche') ? 'noche' : conLugar[0];
+    const tabs = $('franjas');
+    tabs.innerHTML = conLugar.map(f => `<button type="button" class="franja" role="tab" aria-selected="${f === state.franja}"
+        onclick="elegirFranja('${f}')">${esc(t('f_' + f))}<span class="n">${grupos[f].length}</span></button>`).join('');
+    tabs.classList.toggle('hidden', conLugar.length < 2);
+    cont.innerHTML = grupos[state.franja].map(h =>
+        `<button type="button" class="hora" aria-pressed="${h === state.hora}" onclick="elegirHora('${h}', this)">${h}</button>`).join('');
     // Al modificar: la hora que tenía queda marcada (si sigue habiendo lugar).
     if(state.horaPre && state.horarios.includes(state.horaPre)){
         const b = [...cont.querySelectorAll('.hora')].find(x => x.textContent === state.horaPre);
@@ -1054,6 +1080,18 @@ function renderHorarios(){
     }
 }
 
+function franjaDe(hhmm){
+    const H = parseInt(hhmm, 10);
+    if(H >= 6 && H <= 12) return 'manana';
+    if(H >= 13 && H <= 18) return 'tarde';
+    return 'noche';
+}
+function elegirFranja(f){
+    if(f === state.franja) return;
+    state.franja = f;
+    renderHorarios();   // la hora elegida sigue elegida aunque esté en otra pestaña
+    postHeight();
+}
 function pintarResumen(){
     const corto = `${fmtFechaCorta(state.fecha)} · ${state.hora} · ${state.personas}`;
     $('pick-txt').textContent = `${fmtFechaCorta(state.fecha)} · ${state.hora} · ${personasTxt(state.personas)}`;
