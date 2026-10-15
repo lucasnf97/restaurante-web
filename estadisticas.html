@@ -48,6 +48,12 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
     display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:16px; margin-bottom:32px;
 }
 @media(max-width:700px)  { .billing-cards { grid-template-columns:1fr 1fr; } }
+.canal-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:12px; }
+@media(max-width:700px)  { .canal-cards { grid-template-columns:1fr 1fr; } }
+.canal-card { background: var(--sup, #fff); border: 1px solid var(--bd, #e5e7eb); border-radius:12px; padding:12px 14px; }
+.canal-card .n { font-size:12.5px; color: var(--tx-3, #6b7280); font-weight:600; }
+.canal-card .v { font-size:18px; font-weight:700; margin:2px 0; }
+.canal-card .s { font-size:12px; color: var(--tx-3, #6b7280); }
 
 .bill-card {
     background: var(--sup, white); border-radius:12px; padding:20px 22px;
@@ -658,6 +664,11 @@ body.config-open .hub-wgt-grid {
             <div class="bill-label">Balance mensual</div>
             <div class="bill-value">Cargando…</div>
         </div>
+    </div>
+    <!-- Cobrado por canal: en el local (efectivo / tarjeta / otros) y por la web de Take Away -->
+    <div id="canal-wrap" style="display:none;margin:-16px 0 32px;">
+        <div style="font-size:13px;font-weight:700;color: var(--tx-3, #6b7280);margin-bottom:8px;">Cobrado por canal <span style="font-weight:400;">(con impuesto)</span></div>
+        <div class="canal-cards" id="canal-cards"></div>
     </div>
     </div>
 
@@ -1310,6 +1321,7 @@ async function cargarFacturacion() {
         datosMes = d;
         await _cargarMeta();   // objetivo mensual desde el servidor
         renderBillingCards(d);
+        cargarCanales(anioActual, mesActual);
 
         // Mes anterior para el marcador de la barra
         const prev = prevMonthParams(anioActual, mesActual);
@@ -1324,6 +1336,25 @@ async function cargarFacturacion() {
             `<p style="color: var(--pel-tx-2, #dc2626);padding:16px;">Error al cargar facturación: ${e.message}</p>`;
         document.getElementById("prog-wrap").innerHTML = '';
     }
+}
+
+// Cobrado del mes por canal: dónde y cómo entró la plata (local en efectivo, local con
+// tarjeta, web de Take Away). Es un desglose, no repite las ventas: montos con impuesto
+// tal como se cobraron.
+async function cargarCanales(y, m) {
+    const wrap = document.getElementById('canal-wrap');
+    const ult = new Date(y, m, 0).getDate();
+    const mm = String(m).padStart(2, '0');
+    try {
+        const c = await apiFetch(`/reportes/por-canal?desde=${y}-${mm}-01&hasta=${y}-${mm}-${ult}`);
+        const items = [['local_efectivo', '💵 Local · efectivo'], ['local_tarjeta', '💳 Local · tarjeta'],
+                       ['web', '🌐 Web / Take Away'], ['local_otros', '🎟️ Local · otros']]
+            .filter(([k]) => c[k].monto || c[k].pedidos || k !== 'local_otros');
+        document.getElementById('canal-cards').innerHTML = items.map(([k, n]) => `
+            <div class="canal-card"><div class="n">${n}</div><div class="v">${fmt(c[k].monto)}</div>
+            <div class="s">${c[k].pedidos} cuenta${c[k].pedidos === 1 ? '' : 's'}</div></div>`).join('');
+        wrap.style.display = '';
+    } catch (e) { wrap.style.display = 'none'; }
 }
 
 function renderBillingCards(d) {

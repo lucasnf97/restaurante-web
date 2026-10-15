@@ -479,7 +479,7 @@ async function cargarRestaurantes(){
                 <td class="code">${esc(r.codigo)}</td>
                 <td>${esc(r.nombre||'—')}</td>
                 <td>${gers}</td>
-                <td><span class="badge ${r.activo?'on':'off'}">${r.activo?'ACTIVO':'INACTIVO'}</span></td>
+                <td><span class="badge ${r.activo?'on':'off'}">${r.activo?'ACTIVO':'INACTIVO'}</span>${badgeServidorLocal(r)}</td>
                 <td>${fechaCorta(r.creado_en)}</td>
                 <td class="row-acc">
                     <button class="btn btn-secondary btn-sm" onclick="entrarComoAdmin(${r.id}, '${esc(r.codigo)}')" title="Entrar como admin (oculto)">🔓 Entrar</button>
@@ -514,6 +514,19 @@ async function crearRestaurante(){
     finally{ btn.disabled=false; }
 }
 
+// Servidor local: si está activo y sin contacto, la web de take away de ese local no toma
+// pedidos. "Dejar de esperar" es para cuando se desinstaló.
+function badgeServidorLocal(r){
+    const s = r.servidor_local; if(!s) return '';
+    if(!s.activo) return '';
+    const t = s.conectado ? 'Servidor local conectado' : 'Servidor local SIN conexión (la web no toma pedidos)';
+    return `<div style="margin-top:4px;font-size:11px;color:${s.conectado?'var(--ok-tx, #15803d)':'var(--pel-tx, #b91c1c)'};" title="Último contacto: ${esc(fechaCorta(s.ultimo))}">
+        🖥️ ${t} <a href="#" onclick="olvidarServidorLocal(${r.id});return false;" style="color:inherit;">dejar de esperarlo</a></div>`;
+}
+async function olvidarServidorLocal(id){
+    if(!confirm('¿Este local ya no usa servidor local? La web de take away dejará de esperar su conexión (se vuelve a activar solo si el servidor se conecta otra vez).')) return;
+    try{ await api.patch('/restaurantes/'+id, { servidor_local_activo:false }); cargarRestaurantes(); }catch(err){ alert('Error: '+err.message); }
+}
 async function editarNombre(id, actual){
     const nombre=prompt('Nuevo nombre:', actual||''); if(nombre===null) return;
     try{ await api.patch('/restaurantes/'+id, { nombre }); cargarRestaurantes(); }catch(err){ alert('Error: '+err.message); }

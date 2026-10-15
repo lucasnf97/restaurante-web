@@ -278,7 +278,7 @@
 <div class="modal-overlay" id="modal-detalle">
     <div class="modal">
         <h3 id="modal-titulo">Detalle del cierre</h3>
-        <p class="modal-sub" id="modal-sub"></p>
+        <p class="modal-sub" id="modal-sub" style="white-space:pre-line;"></p>
         <div class="tabla-wrapper">
             <table>
                 <thead>
@@ -1144,7 +1144,21 @@ function filaCajaAbierta(ab) {
 // ── Fila del desglose de caja (compartida entre caja abierta y cierre) ──
 const NCOLS_DETALLE = 12;
 const MET_LABEL = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', mixto: 'Mixto',
-                    ticket: 'Ticket personal', nomina: 'Nómina' };
+                    ticket: 'Ticket personal', nomina: 'Nómina', web: 'Web / Take Away' };
+// Totales por medio de cobro del detalle (cada pago con su método; los refunds restan del
+// suyo). "Web / Take Away" va aparte: no pasó por el cajón ni por el datáfono del local.
+function resumenMetodos(det) {
+    const tot = {};
+    const sumar = (m, v) => { m = m || 'otro'; tot[m] = (tot[m] || 0) + (parseFloat(v) || 0); };
+    (det || []).forEach(d => {
+        if (Array.isArray(d.pagos) && d.pagos.length) d.pagos.forEach(p => sumar(p.metodo, p.monto));
+        else sumar(d.metodo_pago, d.total);
+    });
+    const orden = ['efectivo', 'tarjeta', 'web'];
+    const claves = [...orden.filter(k => k in tot), ...Object.keys(tot).filter(k => !orden.includes(k)).sort()];
+    const s = simboloMoneda();
+    return claves.map(k => `${MET_LABEL[k] || k}: ${s} ${tot[k].toFixed(2)}`).join('  ·  ');
+}
 const MET_GUION = '<span style="color: var(--tx-4, #9ca3af);">—</span>';
 // Método de pago de una venta. Si tuvo VARIOS pagos (mixto), muestra el desglose
 // UNITARIO: cada pago con su método y su monto (Tarjeta 5 · Tarjeta 5 · Efectivo 5).
@@ -1236,7 +1250,9 @@ async function verDetalleAbierta() {
         if (!data || !data.abierta) { alert("No hay una caja abierta."); return; }
         document.getElementById("modal-titulo").textContent = `Caja abierta #${data.id}`;
         document.getElementById("modal-sub").textContent =
-            `Mesas ya cobradas en la sesión — Total parcial: ${simboloMoneda()} ${parseFloat(data.total).toFixed(2)}`;
+            `Mesas ya cobradas en la sesión — Total parcial: ${simboloMoneda()} ${parseFloat(data.total).toFixed(2)}`
+            + ((data.detalle || []).length ? `
+${resumenMetodos(data.detalle)}` : '');
         const tbody = document.getElementById("modal-tabla");
         const det = data.detalle || [];
         if (!det.length) {
@@ -1266,7 +1282,7 @@ async function verDetalle(id) {
         const data = await api.get(`/caja/cierres/${id}`);
         const c = data.cierre;
         document.getElementById("modal-titulo").textContent = `Cierre #${c.id}`;
-        document.getElementById("modal-sub").textContent = "";
+        document.getElementById("modal-sub").textContent = data.detalle.length ? resumenMetodos(data.detalle) : "";
         const tbody = document.getElementById("modal-tabla");
         if (!data.detalle.length) {
             tbody.innerHTML = `<tr><td colspan="${NCOLS_DETALLE}" class="empty">Sin pedidos registrados</td></tr>`;

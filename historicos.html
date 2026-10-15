@@ -345,6 +345,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
         <div class="cal-anual" id="cal-grid">
             <p style="grid-column:1/-1;color: var(--tx-12, #aaa);padding:16px;text-align:center;">Cargando…</p>
         </div>
+        <div id="cal-canal" style="font-size:12.5px;color: var(--tx-3, #6b7280);margin:10px 2px 0;"></div>
         <div class="cal-legend">
             <span>Menos</span>
             <span class="cal-leg" style="background: var(--ok-sf, #dcfce7);"></span>
@@ -587,8 +588,11 @@ async function anConsultar() {
                 wrap.innerHTML = '<p class="an-hint">Seleccioná las fechas de inicio y fin.</p>';
                 return;
             }
-            const data = await api.get(`/reportes/ventas-diarias?desde=${desde}&hasta=${hasta}`);
-            anRenderDiario(data, wrap);
+            const [data, canal] = await Promise.all([
+                api.get(`/reportes/ventas-diarias?desde=${desde}&hasta=${hasta}`),
+                api.get(`/reportes/por-canal?desde=${desde}&hasta=${hasta}&agrupar=dia`).catch(() => []),
+            ]);
+            anRenderDiario(data, wrap, canal);
         } else {
             const anioD = document.getElementById('an-anio-desde').value;
             const anioH = document.getElementById('an-anio-hasta').value;
@@ -607,7 +611,14 @@ async function anConsultar() {
     }
 }
 
-function anRenderDiario(rows, wrap) {
+// Cobrado por canal: en el local (efectivo / tarjeta / otros) y por la web de Take Away.
+// Montos con impuesto: lo que entró de verdad por cada medio.
+const _CANALES = [['local_efectivo', 'Efectivo'], ['local_tarjeta', 'Tarjeta'], ['web', 'Web / Take Away'], ['local_otros', 'Otros']];
+function anRenderDiario(rows, wrap, canal = []) {
+    // tramo ISO (2026-10-15) → fecha de la tabla (15/10/2026)
+    const porDia = Object.fromEntries((canal || []).map(c => [c.tramo.split('-').reverse().join('/'), c]));
+    const usados = _CANALES.filter(([k]) => (canal || []).some(c => c[k].monto));
+    const totCanal = Object.fromEntries(usados.map(([k]) => [k, 0]));
     if (!rows.length) {
         wrap.innerHTML = '<p class="an-hint">Sin datos para el período seleccionado.</p>';
         return;
@@ -622,11 +633,17 @@ function anRenderDiario(rows, wrap) {
         const sinMesas = r.mesas_cerradas === 0;        // importadas: "recibos" del otro POS = mesas cerradas
         const sinFact  = !r.facturacion;
         const vacio    = sinMesas && sinFact;           // fila gris sólo si no hay NADA
+        const c = porDia[r.fecha];
+        const celdasCanal = usados.map(([k]) => {
+            const v = c ? c[k].monto : 0; totCanal[k] += v;
+            return `<td class="num">${v ? fmt(v) : nd}</td>`;
+        }).join('');
         return `<tr class="${vacio ? 'an-row-zero' : ''}">
             <td>${r.fecha}</td>
             <td>${r.dia_semana}</td>
             <td class="num">${sinMesas ? nd : r.mesas_cerradas}</td>
             <td class="num">${sinFact ? nd : fmtNB(r.facturacion, r.facturacion_bruto)}</td>
+            ${celdasCanal}
             <td class="num">${sinMesas ? nd : fmt(r.promedio_por_mesa)}</td>
         </tr>`;
     }).join('');
@@ -642,6 +659,7 @@ function anRenderDiario(rows, wrap) {
                         <th>Día</th>
                         <th class="num">Mesas</th>
                         <th class="num">Facturación</th>
+                        ${usados.map(([, n]) => `<th class="num" title="Cobrado (con impuesto)">${n}</th>`).join('')}
                         <th class="num">Promedio / mesa</th>
                     </tr>
                 </thead>
@@ -651,6 +669,7 @@ function anRenderDiario(rows, wrap) {
                         <td colspan="2">TOTAL</td>
                         <td class="num">${totMesas}</td>
                         <td class="num">${fmtNB(totFact, totFactBruto)}</td>
+                        ${usados.map(([k]) => `<td class="num">${fmt(totCanal[k])}</td>`).join('')}
                         <td class="num">${fmt(promTotal)}</td>
                     </tr>
                 </tbody>
@@ -718,6 +737,12 @@ async function cargarCalendarioAnual() {
     grid.innerHTML = '<p style="grid-column:1/-1;color: var(--tx-12, #aaa);padding:16px;text-align:center;">Cargando…</p>';
     try {
         const d = await api.get(`/reportes/facturacion-anual?year=${_calAnio}`);
+        // Cobrado en el año por canal (con impuesto), debajo del calendario.
+        api.get(`/reportes/por-canal?desde=${_calAnio}-01-01&hasta=${_calAnio}-12-31`).then(c => {
+            const partes = _CANALES.filter(([k]) => c[k].monto)
+                .map(([k, n]) => `${n}: <b>${fmt(c[k].monto)}</b> (${c[k].pedidos} cuenta${c[k].pedidos === 1 ? '' : 's'})`);
+            document.getElementById('cal-canal').innerHTML = partes.length ? 'Cobrado en el año · ' + partes.join(' · ') : '';
+        }).catch(() => { document.getElementById('cal-canal').innerHTML = ''; });
         const meses = d.meses || [];
         // Ranking: índices ordenados por facturación desc → tono por terna (0-2,3-5,6-9,9-11)
         const orden = meses.map((m, i) => i)

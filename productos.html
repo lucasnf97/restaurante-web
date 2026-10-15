@@ -441,6 +441,16 @@
                 <label>Descripción</label>
                 <textarea id="fp-descripcion" rows="2" placeholder="Opcional"></textarea>
             </div>
+            <div class="form-group">
+                <label>Foto <span style="color: var(--tx-4, #9ca3af);font-weight:400;">(opcional, ilustrativa: la ve el cliente en la web de Take Away)</span></label>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <div id="fp-foto-prev" style="width:96px;height:72px;border-radius:8px;background: var(--sup-3, #f1f5f9) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:12px;color: var(--tx-4, #9ca3af);">Sin foto</div>
+                    <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir foto
+                        <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="fpSubirFoto(this)"></label>
+                    <button type="button" class="btn btn-secondary btn-sm" id="fp-foto-quitar" onclick="fpQuitarFoto()">Quitar</button>
+                    <span id="fp-foto-msg" style="font-size:12px;color: var(--tx-3, #6b7280);"></span>
+                </div>
+            </div>
             <div class="form-row">
                 <div class="form-group">
                     <label>Categoría</label>
@@ -1350,7 +1360,7 @@ function _aplicarLocalProducto(id, body, catNombre, areaNombre) {
         nombre: body.nombre, descripcion: body.descripcion, precio: body.precio,
         descuento_pct: body.descuento_pct, categoria_id: body.categoria_id, area_id: body.area_id,
         categoria: catNombre, area: areaNombre, en_carta: body.en_carta,
-        agotado: body.agotado, favorito: body.favorito,
+        agotado: body.agotado, favorito: body.favorito, imagen_url: body.imagen_url || null,
     });
 }
 
@@ -1480,6 +1490,28 @@ function switchProdTab(tab) {
     br.style.color             = isC ? '#9ca3af' : '#4f46e5';
 }
 
+// ── Foto del producto (la usa la web de Take Away) ──
+let _fpFoto = null;
+function fpPintarFoto() {
+    const el = document.getElementById('fp-foto-prev');
+    el.style.backgroundImage = _fpFoto ? `url("${_fpFoto}")` : '';
+    el.textContent = _fpFoto ? '' : 'Sin foto';
+    document.getElementById('fp-foto-quitar').style.display = _fpFoto ? '' : 'none';
+    document.getElementById('fp-foto-msg').textContent = '';
+}
+async function fpSubirFoto(input) {
+    const f = input.files && input.files[0]; input.value = '';
+    if (!f) return;
+    const msg = document.getElementById('fp-foto-msg');
+    msg.textContent = 'Subiendo…';
+    try {
+        const fd = new FormData(); fd.append('file', f);
+        const r = await apiFetch('/productos/imagen', { method: 'POST', body: fd });
+        _fpFoto = r.url; fpPintarFoto();
+    } catch (e) { msg.textContent = 'No se pudo subir: ' + (e.message || e); }
+}
+function fpQuitarFoto() { _fpFoto = null; fpPintarFoto(); }
+
 async function abrirModalProducto(id = null) {
     editandoProdId = id;
     document.getElementById('modal-prod-titulo').textContent = id ? 'Editar producto' : 'Nuevo producto';
@@ -1494,6 +1526,7 @@ async function abrirModalProducto(id = null) {
         document.getElementById('fp-encarta').checked = prod.en_carta;
         document.getElementById('fp-agotado').checked = prod.agotado;
         document.getElementById('fp-favorito').checked = prod.favorito;
+        _fpFoto = prod.imagen_url || null;
     } else {
         ['fp-nombre','fp-descripcion'].forEach(fid => document.getElementById(fid).value = '');
         document.getElementById('fp-precio').value = '';
@@ -1503,7 +1536,9 @@ async function abrirModalProducto(id = null) {
         document.getElementById('fp-encarta').checked = true;
         document.getElementById('fp-agotado').checked = false;
         document.getElementById('fp-favorito').checked = false;
+        _fpFoto = null;
     }
+    fpPintarFoto();
     document.getElementById('btn-elim-en-modal').style.display = id ? '' : 'none';
     switchProdTab('config');
     document.getElementById('modal-producto').classList.add('active');
@@ -1573,7 +1608,8 @@ async function confirmarProducto() {
         en_carta: document.getElementById('fp-encarta').checked,
         agotado: document.getElementById('fp-agotado').checked,
         favorito: document.getElementById('fp-favorito').checked,
-        disponible: !document.getElementById('fp-agotado').checked
+        disponible: !document.getElementById('fp-agotado').checked,
+        imagen_url: _fpFoto || ''   // '' = sin foto (el server lo guarda como vacío)
     };
     if (!body.nombre || isNaN(body.precio)) { alert('Nombre y precio son obligatorios.'); switchProdTab('config'); return; }
     const sinCant = _rnItems.filter(i => !i.cantidad || i.cantidad <= 0);

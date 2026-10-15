@@ -113,6 +113,17 @@
             cursor: pointer; display: flex; flex-direction: column; }
         .tk-prod:hover { border-color: var(--ac, #4f46e5); }
         .tk-prod.off { opacity: .55; }
+        .tk-prod { position: relative; }
+        .tk-prod.marcado { border-color: var(--pel, #dc2626); }
+        .tk-check { position: absolute; top: 8px; left: 8px; z-index: 1; background: var(--sup, white); border-radius: 6px;
+            width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .tk-check input { width: 16px; height: 16px; margin: 0; cursor: pointer; }
+        .tk-sel-barra { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; padding: 10px 14px; }
+        .tk-sel-barra.hidden { display: none; }
+        .tk-sel-barra span { flex: 1; font-weight: 600; font-size: 13.5px; }
+        .tk-elegido { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; margin-bottom: 12px;
+            padding: 10px; border-radius: 10px; background: var(--sup-2, #f8fafc); }
+        .tk-elegido .tk-foto { width: 84px; flex: none; border-radius: 8px; font-size: 22px; }
         .tk-foto { aspect-ratio: 4/3; background: var(--sup-3, #f1f5f9) center/cover no-repeat; display: flex;
             align-items: center; justify-content: center; color: var(--tx-8, #94a3b8); font-size: 28px; }
         .tk-prod-cuerpo { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
@@ -169,13 +180,13 @@
         <a href="online.html?s=reservas" data-s="reservas">📅 Reservas</a>
     </nav>
 
-    <!-- TAKE AWAY: el sitio de pedidos de la cadena y el menú online de este local -->
+    <!-- TAKE AWAY: la página de pedidos de este local y su menú online -->
     <section class="seccion" id="sec-takeaway">
         <div class="tk-sub" id="tk-sub">
             <button data-p="pedidos" onclick="tkPanel('pedidos')">🧾 Pedidos de hoy</button>
             <button data-p="menu" onclick="tkPanel('menu')">🍽️ Menú online</button>
             <button data-p="retiro" onclick="tkPanel('retiro')">⏱️ Retiro y pagos</button>
-            <button data-p="sitio" onclick="tkPanel('sitio')">🏠 Sitio de la cadena</button>
+            <button data-p="sitio" onclick="tkPanel('sitio')">🏠 Página del local</button>
         </div>
 
         <!-- PEDIDOS DE HOY: lo que entró por la web (se actualiza solo) -->
@@ -192,16 +203,22 @@
             </div>
         </div>
 
-        <!-- MENÚ ONLINE: propio de este local, independiente de la carta -->
+        <!-- MENÚ ONLINE: productos del Menú agrupados en categorías propias del take away -->
         <div class="tk-panel" id="tk-p-menu">
             <div class="card" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 <div style="flex:1;min-width:220px;font-size:12.5px;color: var(--tx-9, #64748b);">
-                    El menú que ve el cliente en la web. Es de <b>este local</b> y no cambia la carta: podés
-                    sumar promos o productos que no están en carta, o importarlos de la carta para no cargar todo a mano.
+                    Lo que ve el cliente en la web. Son productos del <b>Menú</b> (estén o no en la carta del salón),
+                    agrupados en categorías propias del take away. Nombre, foto y descripción salen del Menú; acá podés
+                    poner un precio para llevar, promos y extras.
                 </div>
                 <button class="btn btn-secondary" onclick="tkNuevaCategoria()">+ Categoría</button>
-                <button class="btn btn-secondary" onclick="tkAbrirImportar()">⬇️ Importar desde la carta</button>
+                <button class="btn btn-secondary" onclick="tkAbrirImportar()">⬇️ Importar desde el Menú</button>
                 <button class="btn btn-primary" onclick="tkEditarProducto(null)">+ Producto</button>
+            </div>
+            <div class="card tk-sel-barra hidden" id="tk-sel-barra">
+                <span id="tk-sel-n"></span>
+                <button class="btn btn-secondary btn-sm" onclick="tkLimpiarSel()">Desmarcar</button>
+                <button class="btn btn-danger btn-sm" onclick="tkBorrarSel()">Quitar del take away</button>
             </div>
             <div class="tk-menu">
                 <div class="card" style="padding:14px;">
@@ -267,11 +284,12 @@
             <span id="tk-msg-retiro" style="font-size:12.5px;margin-left:10px;"></span>
         </div>
 
-        <!-- SITIO DE LA CADENA: el Home común a todos los locales -->
+        <!-- PÁGINA DEL LOCAL: el Inicio de la web de take away de este local -->
         <div class="tk-panel" id="tk-p-sitio">
             <div class="card" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 <div style="flex:1;min-width:220px;font-size:12.5px;color: var(--tx-9, #64748b);" id="tk-sitio-aviso">
-                    ⚠️ Estos cambios se ven en <b>todos los locales de la cadena</b>.</div>
+                    El Inicio de la página de pedidos de <b>este local</b>: portada, información y promociones.
+                    "Pedir ahora" lleva al menú.</div>
                 <a id="tk-ver-sitio" class="btn btn-secondary btn-sm" target="_blank" rel="noopener" href="#">Ver la página ↗</a>
             </div>
             <div class="bloqueos-layout">
@@ -293,6 +311,7 @@
                                 <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="tkSubirSitio('logo', this)"></label>
                             <button type="button" class="btn btn-secondary btn-sm" onclick="tkQuitarSitio('logo')">Quitar</button>
                         </div></div>
+                    <div class="checkbox-row"><input type="checkbox" id="tk-promos" checked><label for="tk-promos">Mostrar las promociones activas y los destacados en el inicio</label></div>
                     <div class="form-group"><label>Idiomas del sitio</label><div id="tk-idiomas" style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;"></div></div>
                 </div>
                 <div class="card">
@@ -415,26 +434,17 @@
         </div>
     </section>
 
-    <!-- Modal: producto online -->
+    <!-- Modal: producto online (siempre un producto del Menú) -->
     <div class="modal-overlay" id="tk-modal-prod">
         <div class="modal">
             <h3 id="tk-mp-titulo">Producto</h3>
-            <div class="form-group"><label>Nombre *</label><input type="text" id="tk-mp-nombre" maxlength="120"></div>
+            <div class="form-group"><label>Producto del Menú *</label>
+                <input type="text" id="tk-mp-buscar" placeholder="Buscar en el Menú…" oninput="tkFiltrarMenu()" autocomplete="off">
+                <select id="tk-mp-prod" size="6" style="margin-top:6px;height:auto;" onchange="tkPintarElegido()"></select></div>
+            <div class="tk-elegido" id="tk-mp-elegido"></div>
             <div class="form-row">
-                <div class="form-group"><label>Categoría</label><select id="tk-mp-cat"></select></div>
-                <div class="form-group"><label>Precio *</label><input type="number" id="tk-mp-precio" min="0" step="0.01"></div>
-            </div>
-            <div class="form-group"><label>Descripción</label><textarea id="tk-mp-desc" rows="2" maxlength="600"></textarea></div>
-            <div class="form-group"><label>Foto</label>
-                <div class="tk-img-prev" id="tk-mp-foto">Sin foto</div>
-                <div style="display:flex;gap:8px;margin-top:8px;">
-                    <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir foto
-                        <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="tkSubirFotoProd(this)"></label>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="tkQuitarFotoProd()">Quitar</button>
-                </div></div>
-            <div class="form-row">
-                <div class="form-group"><label>Producto de la carta <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(stock y costo)</span></label><select id="tk-mp-vinculo"></select></div>
-                <div class="form-group"><label>Va a</label><select id="tk-mp-area"></select></div>
+                <div class="form-group"><label>Categoría del take away</label><select id="tk-mp-cat"></select></div>
+                <div class="form-group"><label>Precio para llevar <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(vacío = el del Menú)</span></label><input type="number" id="tk-mp-precio" min="0" step="0.01"></div>
             </div>
             <div class="form-row">
                 <div class="form-group"><label>Precio promo <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(opcional)</span></label><input type="number" id="tk-mp-promo" min="0" step="0.01"></div>
@@ -444,28 +454,27 @@
                 <div class="form-group"><label>Promo desde</label><input type="date" id="tk-mp-desde"></div>
                 <div class="form-group"><label>Promo hasta</label><input type="date" id="tk-mp-hasta"></div>
             </div>
-            <div class="checkbox-row"><input type="checkbox" id="tk-mp-destacado"><label for="tk-mp-destacado">Destacado en la portada</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="tk-mp-destacado"><label for="tk-mp-destacado">Destacado en el inicio</label></div>
             <div class="checkbox-row"><input type="checkbox" id="tk-mp-activo" checked><label for="tk-mp-activo">Visible en la web</label></div>
             <div class="form-group"><label>Extras que el cliente puede sumar</label>
                 <div id="tk-mp-extras"></div>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="tkAgregarExtra()">+ Extra</button></div>
             <div class="modal-footer">
-                <button class="btn btn-danger" id="tk-mp-borrar" onclick="tkBorrarProducto()" style="margin-right:auto;">Eliminar</button>
+                <button class="btn btn-danger" id="tk-mp-borrar" onclick="tkBorrarProducto()" style="margin-right:auto;">Quitar del take away</button>
                 <button class="btn btn-secondary" onclick="tkCerrar('tk-modal-prod')">Cancelar</button>
                 <button class="btn btn-primary" onclick="tkGuardarProducto()">Guardar</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal: importar desde la carta -->
+    <!-- Modal: importar desde el Menú -->
     <div class="modal-overlay" id="tk-modal-imp">
         <div class="modal">
-            <h3>⬇️ Importar desde la carta</h3>
-            <p style="font-size:12.5px;color: var(--tx-9, #64748b);margin-bottom:10px;">Se copian nombre, precio, foto y descripción, y quedan
-                vinculados a la carta (stock y costo). Después los podés cambiar acá sin tocar la carta.</p>
+            <h3>⬇️ Importar desde el Menú</h3>
+            <p style="font-size:12.5px;color: var(--tx-9, #64748b);margin-bottom:10px;">Se suman al take away con su nombre, foto y precio del Menú
+                (estén o no en la carta del salón). Los que ya están no se duplican.</p>
             <div class="tk-arbol" id="tk-arbol"></div>
             <div class="checkbox-row" style="margin-top:10px;"><input type="checkbox" id="tk-imp-extras" checked><label for="tk-imp-extras">Traer también los extras de cada categoría</label></div>
-            <div class="checkbox-row"><input type="checkbox" id="tk-imp-actualizar"><label for="tk-imp-actualizar">Actualizar los que ya estaban importados (pisa nombre, precio, foto y descripción)</label></div>
             <div id="tk-imp-msg" style="font-size:12.5px;"></div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="tkCerrar('tk-modal-imp')">Cerrar</button>
@@ -695,10 +704,10 @@ async function guardarConfigOnline(){
 }
 
 // ══ TAKE AWAY ══════════════════════════════════════════════════════════════════
-// Tres paneles: el menú online de ESTE local, el retiro y los pagos de este local, y el
-// sitio de la CADENA (común a todos sus locales). La web pública es takeaway.html.
-const _tk = { menu: null, carta: null, areas: [], catSel: 'todas', prodId: null, prodFoto: null,
-              cfg: null, sitio: null, cadena: null };
+// Cuatro paneles, todos de ESTE local: pedidos de hoy, menú online (productos del Menú),
+// retiro y pagos, y la página (su Inicio). La web pública es takeaway.html?r=<local>.
+const _tk = { menu: null, catalogo: null, areas: [], catSel: 'todas', prodId: null, prodElegido: null, sel: new Set(),
+              cfg: null, sitio: null };
 const _tkMoney = (n) => (typeof fmtDinero === 'function' ? fmtDinero(n) : Number(n || 0).toFixed(2));
 const _tkErr = (e) => (e && e.message) || String(e);
 
@@ -748,20 +757,38 @@ function tkPintarMenu() {
             !p.activo ? '<span class="tk-chip">Oculto</span>' : '',
             p.destacado ? '<span class="tk-chip lila">Destacado</span>' : '',
             p.etiqueta ? `<span class="tk-chip">${esc(p.etiqueta)}</span>` : '',
-            p.producto_id ? '<span class="tk-chip verde">Vinculado a carta</span>' : '',
-            p.producto_id && (p.carta_agotado || p.carta_disponible === false) ? '<span class="tk-chip rojo">Agotado en carta</span>' : '',
+            p.precio != null ? '<span class="tk-chip verde">Precio para llevar</span>' : '',
+            !p.en_carta && !p.sin_producto ? '<span class="tk-chip">No está en carta</span>' : '',
+            p.sin_producto ? '<span class="tk-chip rojo">Ya no está en el Menú</span>' : '',
+            !p.sin_producto && (p.carta_agotado || p.carta_disponible === false) ? '<span class="tk-chip rojo">Agotado</span>' : '',
             p.extras.length ? `<span class="tk-chip">${p.extras.length} extra${p.extras.length === 1 ? '' : 's'}</span>` : '',
         ].join('');
-        return `<div class="tk-prod${p.activo ? '' : ' off'}" onclick="tkEditarProducto(${p.id})">
+        const marcado = _tk.sel.has(p.id);
+        return `<div class="tk-prod${p.activo ? '' : ' off'}${marcado ? ' marcado' : ''}" onclick="tkEditarProducto(${p.id})">
+            <label class="tk-check" onclick="event.stopPropagation()" title="Marcar"><input type="checkbox" ${marcado ? 'checked' : ''} onchange="tkMarcar(${p.id}, this.checked)"></label>
             <div class="tk-foto" ${p.imagen_url ? `style="background-image:url('${escAttr(p.imagen_url)}')"` : ''}>${p.imagen_url ? '' : '🍽️'}</div>
             <div class="tk-prod-cuerpo">
                 <div class="tk-prod-nom">${esc(p.nombre)}</div>
-                <div class="tk-precio">${promo ? `${_tkMoney(p.precio_promo)}<s>${_tkMoney(p.precio)}</s>` : _tkMoney(p.precio)}</div>
+                <div class="tk-precio">${promo ? `${_tkMoney(p.precio_promo)}<s>${_tkMoney(p.precio_final)}</s>` : _tkMoney(p.precio_final)}</div>
                 <div class="tk-chips">${chips}</div>
             </div></div>`;
     }).join('') : `<div class="tk-vacio" style="grid-column:1/-1;">${m.productos.length
         ? 'No hay productos en esta categoría.'
-        : 'Todavía no hay productos. Creá uno o importalos desde la carta.'}</div>`;
+        : 'Todavía no hay productos. Sumalos del Menú con "+ Producto" o "Importar desde el Menú".'}</div>`;
+    tkPintarSel();
+}
+function tkMarcar(id, on) { on ? _tk.sel.add(id) : _tk.sel.delete(id); tkPintarMenu(); }
+function tkLimpiarSel() { _tk.sel.clear(); tkPintarMenu(); }
+function tkPintarSel() {
+    const n = [..._tk.sel].filter(id => _tk.menu.productos.some(p => p.id === id)).length;
+    document.getElementById('tk-sel-barra').classList.toggle('hidden', !n);
+    document.getElementById('tk-sel-n').textContent = `${n} marcado${n === 1 ? '' : 's'}`;
+}
+async function tkBorrarSel() {
+    const ids = [..._tk.sel];
+    if (!ids.length || !confirm(`¿Quitar ${ids.length} producto${ids.length === 1 ? '' : 's'} del take away? El Menú no se toca.`)) return;
+    try { await api.post('/online/productos/borrar', { ids }); _tk.sel.clear(); await tkCargarMenu(); }
+    catch (e) { alert(_tkErr(e)); }
 }
 function tkElegirCat(cid) { _tk.catSel = cid; tkPintarMenu(); }
 async function tkNuevaCategoria() {
@@ -787,19 +814,20 @@ async function tkMoverCat(i, d) {
     try { await api.put('/online/categorias/orden', { ids }); await tkCargarMenu(); } catch (e) { alert(_tkErr(e)); }
 }
 
-async function tkCargarCarta() {
-    if (!_tk.carta) _tk.carta = await api.get('/online/carta');
-    return _tk.carta;
+// El Menú del local (todos los productos, estén o no en carta).
+async function tkCargarCatalogo() {
+    if (!_tk.catalogo) _tk.catalogo = await api.get('/online/catalogo');
+    return _tk.catalogo;
 }
 async function tkEditarProducto(id) {
-    let carta = { productos: [] };
-    try { carta = await tkCargarCarta(); } catch (_) {}
+    _tk.catalogo = null;
+    try { await tkCargarCatalogo(); } catch (_) { _tk.catalogo = { categorias: [], productos: [] }; }
     const p = id ? _tk.menu.productos.find(x => x.id === id) : null;
-    _tk.prodId = id; _tk.prodFoto = p ? p.imagen_url : null;
-    document.getElementById('tk-mp-titulo').textContent = p ? 'Editar producto' : 'Nuevo producto';
+    _tk.prodId = id; _tk.prodElegido = p ? p.producto_id : null;
+    document.getElementById('tk-mp-titulo').textContent = p ? 'Editar producto del take away' : 'Sumar un producto del Menú';
     document.getElementById('tk-mp-borrar').style.display = p ? '' : 'none';
     const val = (k, v) => { document.getElementById(k).value = v == null ? '' : v; };
-    val('tk-mp-nombre', p && p.nombre); val('tk-mp-precio', p && p.precio); val('tk-mp-desc', p && p.descripcion);
+    val('tk-mp-buscar', ''); val('tk-mp-precio', p && p.precio);
     val('tk-mp-promo', p && p.precio_promo); val('tk-mp-etiqueta', p && p.etiqueta);
     val('tk-mp-desde', p && p.promo_desde); val('tk-mp-hasta', p && p.promo_hasta);
     document.getElementById('tk-mp-destacado').checked = !!(p && p.destacado);
@@ -807,15 +835,33 @@ async function tkEditarProducto(id) {
     const catDef = p ? p.categoria_id : (typeof _tk.catSel === 'number' ? _tk.catSel : null);
     document.getElementById('tk-mp-cat').innerHTML = '<option value="">Sin categoría</option>' +
         _tk.menu.categorias.map(c => `<option value="${c.id}"${c.id === catDef ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('');
-    document.getElementById('tk-mp-vinculo').innerHTML = '<option value="">— Ninguno (no descuenta stock) —</option>' +
-        carta.productos.map(c => `<option value="${c.id}"${p && p.producto_id === c.id ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('');
-    document.getElementById('tk-mp-area').innerHTML = '<option value="">La del producto de la carta</option>' +
-        _tk.areas.map(a => `<option value="${a.id}"${p && p.area_id === a.id ? ' selected' : ''}>${esc(a.nombre)}</option>`).join('');
     document.getElementById('tk-mp-extras').innerHTML = '';
     (p ? p.extras : []).forEach(e => tkAgregarExtra(e));
-    tkPintarFotoProd();
+    tkFiltrarMenu();
     document.getElementById('tk-modal-prod').classList.add('active');
-    setTimeout(() => document.getElementById('tk-mp-nombre').focus(), 50);
+    setTimeout(() => document.getElementById('tk-mp-buscar').focus(), 50);
+}
+function tkFiltrarMenu() {
+    const cat = _tk.catalogo || { categorias: [], productos: [] };
+    const q = document.getElementById('tk-mp-buscar').value.trim().toLowerCase();
+    const nomCat = Object.fromEntries(cat.categorias.map(c => [c.id, c.nombre]));
+    const lista = cat.productos.filter(x => !q || x.nombre.toLowerCase().includes(q) || x.id === _tk.prodElegido);
+    document.getElementById('tk-mp-prod').innerHTML = lista.map(x =>
+        `<option value="${x.id}"${x.id === _tk.prodElegido ? ' selected' : ''}>${esc(x.nombre)} — ${_tkMoney(x.precio)}${nomCat[x.categoria_id] ? ' · ' + esc(nomCat[x.categoria_id]) : ''}${x.en_carta ? '' : ' · no está en carta'}</option>`).join('')
+        || '<option disabled>No hay productos que coincidan</option>';
+    tkPintarElegido();
+}
+function tkPintarElegido() {
+    const sel = document.getElementById('tk-mp-prod');
+    if (sel.value) _tk.prodElegido = Number(sel.value);
+    const x = (_tk.catalogo ? _tk.catalogo.productos : []).find(y => y.id === _tk.prodElegido);
+    const box = document.getElementById('tk-mp-elegido');
+    if (!x) { box.innerHTML = '<span style="color:var(--tx-9,#64748b);">Elegí un producto de la lista.</span>'; return; }
+    box.innerHTML = `<div class="tk-foto" ${x.imagen_url ? `style="background-image:url('${escAttr(x.imagen_url)}')"` : ''}>${x.imagen_url ? '' : '🍽️'}</div>
+        <div><b>${esc(x.nombre)}</b> · ${_tkMoney(x.precio)} en el Menú
+        ${x.descripcion ? `<div style="color:var(--tx-9,#64748b);">${esc(x.descripcion)}</div>` : ''}
+        <div style="color:var(--tx-9,#64748b);font-size:12px;">${x.imagen_url ? '' : 'Sin foto: se carga en Carta y productos. '}Nombre, foto y descripción se cambian en el Menú.</div></div>`;
+    document.getElementById('tk-mp-precio').placeholder = `${_tkMoney(x.precio)} (el del Menú)`;
 }
 function tkAgregarExtra(e) {
     const div = document.createElement('div');
@@ -826,11 +872,6 @@ function tkAgregarExtra(e) {
     if (e && e.producto_id) div.dataset.prod = e.producto_id;
     document.getElementById('tk-mp-extras').appendChild(div);
 }
-function tkPintarFotoProd() {
-    const el = document.getElementById('tk-mp-foto');
-    el.style.backgroundImage = _tk.prodFoto ? `url("${_tk.prodFoto}")` : '';
-    el.textContent = _tk.prodFoto ? '' : 'Sin foto';
-}
 async function tkSubirImagen(tipo, input) {
     const f = input.files && input.files[0]; input.value = '';
     if (!f) return null;
@@ -838,33 +879,28 @@ async function tkSubirImagen(tipo, input) {
     const r = await apiFetch('/online/imagen?tipo=' + tipo, { method: 'POST', body: fd });
     return r.url;
 }
-async function tkSubirFotoProd(input) {
-    try { const u = await tkSubirImagen('producto', input); if (u) { _tk.prodFoto = u; tkPintarFotoProd(); } }
-    catch (e) { alert('No se pudo subir la foto: ' + _tkErr(e)); }
-}
-function tkQuitarFotoProd() { _tk.prodFoto = null; tkPintarFotoProd(); }
 async function tkGuardarProducto() {
     const v = (k) => document.getElementById(k).value.trim();
     const num = (k) => v(k) === '' ? null : Number(v(k));
+    if (!_tk.prodElegido) { alert('Elegí un producto del Menú.'); return; }
     const body = {
-        nombre: v('tk-mp-nombre'), precio: num('tk-mp-precio'), descripcion: v('tk-mp-desc') || null,
+        producto_id: _tk.prodElegido,
+        precio: num('tk-mp-precio'),
         categoria_id: v('tk-mp-cat') ? Number(v('tk-mp-cat')) : null,
-        producto_id: v('tk-mp-vinculo') ? Number(v('tk-mp-vinculo')) : null,
-        area_id: v('tk-mp-area') ? Number(v('tk-mp-area')) : null,
         precio_promo: num('tk-mp-promo'), etiqueta: v('tk-mp-etiqueta') || null,
         promo_desde: document.getElementById('tk-mp-desde').value || null,
         promo_hasta: document.getElementById('tk-mp-hasta').value || null,
         destacado: document.getElementById('tk-mp-destacado').checked,
         activo: document.getElementById('tk-mp-activo').checked,
-        imagen_url: _tk.prodFoto,
         extras: [...document.querySelectorAll('#tk-mp-extras .tk-extra')].map(r => ({
             nombre: r.querySelector('.tk-ex-nom').value.trim(),
             precio: Number(r.querySelector('.tk-ex-pre').value || 0),
             producto_id: r.dataset.prod ? Number(r.dataset.prod) : null,
         })).filter(x => x.nombre),
     };
-    if (!body.nombre) { alert('Poné un nombre.'); return; }
-    if (body.precio == null || isNaN(body.precio)) { alert('Poné un precio.'); return; }
+    if (!_tk.prodId && _tk.menu.productos.some(p => p.producto_id === body.producto_id && p.categoria_id === body.categoria_id)) {
+        alert('Ese producto ya está en esa categoría del take away.'); return;
+    }
     try {
         if (_tk.prodId) await api.patch('/online/productos/' + _tk.prodId, body);
         else await api.post('/online/productos', body);
@@ -873,28 +909,28 @@ async function tkGuardarProducto() {
     } catch (e) { alert('No se pudo guardar: ' + _tkErr(e)); }
 }
 async function tkBorrarProducto() {
-    if (!_tk.prodId || !confirm('¿Eliminar este producto del menú online? La carta no se toca.')) return;
+    if (!_tk.prodId || !confirm('¿Quitar este producto del take away? El Menú no se toca.')) return;
     try { await api.delete('/online/productos/' + _tk.prodId); tkCerrar('tk-modal-prod'); await tkCargarMenu(); }
     catch (e) { alert(_tkErr(e)); }
 }
 
 async function tkAbrirImportar() {
-    _tk.carta = null;   // siempre fresca: puede haber cambiado la carta o lo ya importado
+    _tk.catalogo = null;   // siempre fresco: puede haber cambiado el Menú o lo ya importado
     document.getElementById('tk-imp-msg').textContent = '';
-    document.getElementById('tk-arbol').innerHTML = '<div class="tk-vacio">Cargando la carta…</div>';
+    document.getElementById('tk-arbol').innerHTML = '<div class="tk-vacio">Cargando el Menú…</div>';
     document.getElementById('tk-modal-imp').classList.add('active');
-    let carta;
-    try { carta = await tkCargarCarta(); } catch (e) {
+    let cat;
+    try { cat = await tkCargarCatalogo(); } catch (e) {
         document.getElementById('tk-arbol').innerHTML = `<div class="tk-vacio">${esc(_tkErr(e))}</div>`; return;
     }
-    const grupos = [...carta.categorias, { id: null, nombre: 'Sin categoría' }].map(c => {
-        const ps = carta.productos.filter(p => (p.categoria_id || null) === c.id);
+    const grupos = [...cat.categorias, { id: null, nombre: 'Sin categoría' }].map(c => {
+        const ps = cat.productos.filter(p => (p.categoria_id || null) === c.id);
         if (!ps.length) return '';
         return `<div class="cat"><input type="checkbox" onchange="tkMarcarCat(this)"> ${esc(c.nombre)}</div>` +
             ps.map(p => `<label><input type="checkbox" class="tk-imp-p" value="${p.id}">${esc(p.nombre)}
-                <span class="ya">${_tkMoney(p.precio)}${p.importado ? ' · ya importado' : ''}</span></label>`).join('');
+                <span class="ya">${_tkMoney(p.precio)}${p.en_carta ? '' : ' · no está en carta'}${p.importado ? ' · ya está en el take away' : ''}</span></label>`).join('');
     }).join('');
-    document.getElementById('tk-arbol').innerHTML = grupos || '<div class="tk-vacio">La carta está vacía.</div>';
+    document.getElementById('tk-arbol').innerHTML = grupos || '<div class="tk-vacio">El Menú está vacío.</div>';
 }
 function tkMarcarCat(cb) {
     let el = cb.parentElement.nextElementSibling;
@@ -909,11 +945,12 @@ async function tkImportar() {
         const r = await api.post('/online/menu/importar', {
             producto_ids: ids,
             incluir_extras: document.getElementById('tk-imp-extras').checked,
-            actualizar_existentes: document.getElementById('tk-imp-actualizar').checked,
         });
-        msg.style.color = 'var(--ok-tx, #15803d)';
-        msg.textContent = `✅ ${r.creados} nuevos, ${r.actualizados} actualizados, ${r.omitidos} ya estaban.`;
-        _tk.carta = null;
+        msg.style.color = r.omitidos ? 'var(--adv-tx, #b45309)' : 'var(--ok-tx, #15803d)';
+        msg.textContent = `✅ ${r.creados} importado${r.creados === 1 ? '' : 's'}.` + (r.omitidos
+            ? ` ⚠️ Ya estaban en el take away y no se duplicaron: ${r.omitidos_nombres.join(', ')}.` : '');
+        if (r.omitidos) alert(`Ya estaban en el take away y no se volvieron a importar:\n\n• ${r.omitidos_nombres.join('\n• ')}`);
+        _tk.catalogo = null;
         await tkCargarMenu();
     } catch (e) { msg.style.color = 'var(--pel-tx, #b91c1c)'; msg.textContent = _tkErr(e); }
     finally { btn.disabled = false; }
@@ -991,12 +1028,12 @@ async function tkAbrirTpv() {
     catch (e) { if (w) w.close(); alert('No se pudo abrir el TPV virtual: ' + _tkErr(e)); }
 }
 
-// ── Sitio de la cadena ──
+// ── Página del local ──
 const _TK_IDIOMAS = [['da', 'Danés'], ['en', 'Inglés'], ['es', 'Español']];
 async function tkCargarSitio() {
     try {
-        const r = await api.get('/online/cadena');
-        _tk.cadena = r.cadena; _tk.sitio = r.config || {};
+        const r = await api.get('/online/sitio');
+        _tk.sitio = r.config || {};
         const c = _tk.sitio;
         document.getElementById('tk-titulo').value = c.titulo || '';
         document.getElementById('tk-subtitulo').value = c.subtitulo || '';
@@ -1006,10 +1043,8 @@ async function tkCargarSitio() {
         document.getElementById('tk-secciones').innerHTML = '';
         (c.secciones || []).forEach(s => tkAgregarSeccion(s));
         document.getElementById('tk-redes').innerHTML = (c.redes || []).map(_olFilaRed).join('');
-        const loc = (r.locales || []).length;
-        document.getElementById('tk-sitio-aviso').innerHTML = `⚠️ Estos cambios se ven en <b>todos los locales de la cadena</b>` +
-            (loc ? ` (${loc} local${loc === 1 ? '' : 'es'}: ${r.locales.map(l => esc(l.nombre)).join(', ')}).` : '.');
-        document.getElementById('tk-ver-sitio').href = 'takeaway.html?c=' + encodeURIComponent(r.cadena.codigo);
+        document.getElementById('tk-promos').checked = c.promos !== false;
+        document.getElementById('tk-ver-sitio').href = 'takeaway.html?r=' + encodeURIComponent(r.local.codigo);
         tkPintarImagenesSitio();
     } catch (e) {
         document.getElementById('tk-msg-sitio').textContent = 'No se pudo cargar: ' + _tkErr(e);
@@ -1065,6 +1100,7 @@ async function tkGuardarSitio() {
         titulo: document.getElementById('tk-titulo').value.trim(),
         subtitulo: document.getElementById('tk-subtitulo').value.trim(),
         hero_url: _tk.sitio.hero_url || null, logo_url: _tk.sitio.logo_url || null,
+        promos: document.getElementById('tk-promos').checked,
         web: document.getElementById('tk-web').value.trim(),
         idiomas: idiomas.length ? idiomas : ['da', 'en', 'es'],
         secciones: [...document.querySelectorAll('#tk-secciones .tk-seccion')].map(b => ({
@@ -1076,7 +1112,7 @@ async function tkGuardarSitio() {
     };
     const msg = document.getElementById('tk-msg-sitio'); msg.textContent = '';
     try {
-        const r = await api.put('/online/cadena', { config });
+        const r = await api.put('/online/sitio', { config });
         _tk.sitio = r.config;
         msg.style.color = 'var(--ok-tx, #15803d)'; msg.textContent = '✅ Guardado: ya se ve en la página';
     } catch (e) { msg.style.color = 'var(--pel-tx, #b91c1c)'; msg.textContent = _tkErr(e); }

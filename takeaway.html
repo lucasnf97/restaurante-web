@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* ── Sitio de Take Away de una cadena ──────────────────────────────────────────
-   Home y Locales son de la cadena; el menú, el carrito y el pedido, de cada local.
+/* ── Sitio de Take Away de un local ────────────────────────────────────────────
+   Inicio (portada, información, promociones) y Menú del local; carrito, pago y seguimiento.
    Mismos tokens y reglas que reserva.html (marca Chief Point + decisiones de Taste):
    sin sombras en reposo (sólo lo que flota: carrito, diálogo), sin etiquetas chicas
    en mayúsculas, texto de lectura ≥ 14 px, grises con contraste ≥ 7:1.
@@ -100,16 +100,18 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.025e
 .cp-marca{ display:inline-flex; align-items:center; font-family:Poppins,sans-serif; font-weight:500; color:#fff; font-size:14px; }
 .cp-marca .cp-dot{ width:.78em; height:.78em; margin:0 .5px; background:var(--lime); }
 
-/* ── Locales ── */
-.locales{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:20px; }
-.local{ border-radius:22px; background:var(--sup-2); overflow:hidden; display:flex; flex-direction:column; }
-.local .foto{ aspect-ratio:16/9; background:var(--navy) center/cover no-repeat; position:relative; }
-.local .foto .aro{ position:absolute; right:-60px; top:-60px; width:160px; height:160px; border-radius:50%; border:1px solid rgba(201,255,31,.14); } /* taste-skill-ignore */
-.local .cuerpo{ padding:18px 20px 20px; display:flex; flex-direction:column; gap:8px; flex:1; }
-.local h3{ font-size:22px; }
-.local .dato{ font-size:14.5px; color:var(--tx-2); }
-.local .aviso{ font-size:14px; background:var(--ok-sf); color:var(--ok-tx); padding:8px 12px; border-radius:12px; }
-.local .btn{ margin-top:auto; align-self:flex-start; height:48px; font-size:15px; }
+/* ── Información del local (Inicio) ── */
+.info-local{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media (max-width:760px){ .info-local{ grid-template-columns:1fr; } }
+.info-caja{ border-radius:22px; background:var(--sup-2); padding:22px 24px; display:flex; flex-direction:column; gap:10px; }
+.info-caja h2{ font-size:24px; margin-bottom:4px; }
+.info-caja .dato{ margin:0; font-size:15px; color:var(--tx-2); display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.info-caja .aviso{ margin:0; font-size:14.5px; background:var(--ok-sf); color:var(--ok-tx); padding:10px 12px; border-radius:12px; }
+.semana{ display:flex; flex-direction:column; }
+.semana .dia{ display:flex; justify-content:space-between; gap:12px; padding:7px 0; font-size:15px; border-bottom:1px solid var(--bd); }
+.semana .dia:last-child{ border-bottom:none; }
+.semana .dia span{ color:var(--tx-2); text-transform:capitalize; }
+.semana .dia.hoy span{ color:var(--navy); font-weight:700; }
 .estado{ display:inline-flex; align-items:center; gap:8px; font-size:14.5px; font-weight:500; }
 .estado .pt{ width:9px; height:9px; border-radius:50%; background:#9CA194; flex:none; }
 .estado .pt.vivo{ background:var(--lime); box-shadow:0 0 0 2px var(--r4); animation:cp-beat 1.9s ease-in-out infinite; } /* taste-skill-ignore */
@@ -273,7 +275,6 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
         <nav class="nav" aria-label="Secciones">
             <a href="#home" data-r="home" data-t="nav_home"></a>
             <a href="#menu" data-r="menu" data-t="nav_menu"></a>
-            <a href="#stores" data-r="stores" data-t="nav_stores"></a>
         </nav>
         <div class="idiomas hidden" id="idiomas" role="group" aria-label="Idioma / Language / Sprog"></div>
         <button class="btn-carrito" id="btn-carrito" onclick="abrirCarrito()" aria-label="Carrito">
@@ -289,7 +290,8 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
 <script>
 const API = "https://restaurante-backend-production-459b.up.railway.app";
 const QS = new URLSearchParams(location.search);
-const CODIGO_SITIO = (QS.get('c') || QS.get('r') || '').trim();
+// El sitio es de UN local (?r=<código>; se acepta también ?c=).
+const CODIGO_SITIO = (QS.get('r') || QS.get('c') || '').trim();
 const UMBRAL_ESPERA = 400;   // regla de la marca: sin indicador de espera por debajo de esto
 
 // ══ Idiomas ═══════════════════════════════════════════════════════════════════
@@ -323,6 +325,8 @@ es: {
     p_pago:'Pago confirmado', p_prep:'En preparación', p_listo:'Listo para retirar', p_entregado:'Entregado',
     retira:'Retiro', local:'Local', calendario:'Agregar al calendario', ver_ticket:'Ver ticket',
     sin_sitio:'Este enlace no corresponde a ningún local.', sin_menu:'Este local todavía no tiene menú online.',
+    info_t:'Información', horario_t:'Horario', promos_t:'Promociones', cerrado_dia:'Cerrado',
+    no_disponible:'Hubo un problema con el local y el servicio no está disponible en este momento. Probá de nuevo en unos minutos.',
     pedidos_con:'Pedidos con', aviso_no_pedidos:'Pedidos online muy pronto.',
 },
 en: {
@@ -354,6 +358,8 @@ en: {
     p_pago:'Payment confirmed', p_prep:'Being prepared', p_listo:'Ready for pickup', p_entregado:'Picked up',
     retira:'Pickup', local:'Store', calendario:'Add to calendar', ver_ticket:'View receipt',
     sin_sitio:'This link does not belong to any store.', sin_menu:'This store has no online menu yet.',
+    info_t:'Information', horario_t:'Opening hours', promos_t:'Offers', cerrado_dia:'Closed',
+    no_disponible:'There is a problem at the store and ordering is not available right now. Please try again in a few minutes.',
     pedidos_con:'Orders by', aviso_no_pedidos:'Online ordering coming soon.',
 },
 da: {
@@ -385,6 +391,8 @@ da: {
     p_pago:'Betaling bekræftet', p_prep:'Under tilberedning', p_listo:'Klar til afhentning', p_entregado:'Afhentet',
     retira:'Afhentning', local:'Butik', calendario:'Føj til kalender', ver_ticket:'Se kvittering',
     sin_sitio:'Dette link hører ikke til nogen butik.', sin_menu:'Denne butik har endnu ingen onlinemenu.',
+    info_t:'Information', horario_t:'Åbningstider', promos_t:'Tilbud', cerrado_dia:'Lukket',
+    no_disponible:'Der er et problem i butikken, og det er ikke muligt at bestille lige nu. Prøv igen om et par minutter.',
     pedidos_con:'Bestillinger via', aviso_no_pedidos:'Onlinebestilling kommer snart.',
 },
 };
@@ -443,12 +451,14 @@ const svg = { pin:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" s
 
 // ══ Estado ════════════════════════════════════════════════════════════════════
 const S = { sitio: null, local: null, menu: null, prodAbierto: null, retiro: null, horaElegida: null, diaElegido: null, franja: null };
-const claveCarrito = (c) => 'tk-carrito::' + c;
+// Carrito y pedido en curso guardados POR LOCAL: dos pestañas de locales distintos no se pisan.
+const CLAVE_CARRITO = 'tk-carrito::' + CODIGO_SITIO, CLAVE_PEDIDO = 'tk-pedido::' + CODIGO_SITIO;
 function leerCarrito() {
-    try { return JSON.parse(_ls.get('tk-carrito') || 'null') || { codigo: null, items: [] }; } catch { return { codigo: null, items: [] }; }
+    const vacio = { codigo: CODIGO_SITIO, items: [] };
+    try { return JSON.parse(_ls.get(CLAVE_CARRITO) || 'null') || vacio; } catch { return vacio; }
 }
 let CARRITO = leerCarrito();
-function guardarCarrito() { _ls.set('tk-carrito', JSON.stringify(CARRITO)); pintarContador(); }
+function guardarCarrito() { _ls.set(CLAVE_CARRITO, JSON.stringify(CARRITO)); pintarContador(); }
 const totalCarrito = () => CARRITO.items.reduce((a, i) => a + i.precio * i.cantidad, 0);
 const unidades = () => CARRITO.items.reduce((a, i) => a + i.cantidad, 0);
 function pintarContador() {
@@ -460,39 +470,25 @@ function pintarContador() {
     barra.innerHTML = `<span>${esc(t('ver_pedido'))}</span><span class="det">${n} ${esc(n === 1 ? t('producto') : t('productos'))} · ${esc(dinero(totalCarrito()))}</span>`;
 }
 
-// ══ Rutas (#home, #stores, #menu/<local>, #checkout, #pedido/<local>/<token>) ══
+// ══ Rutas (#home, #menu, #checkout, #pedido/<token>) ══
 function rutaActual() {
     const [vista, a, b] = (location.hash.replace(/^#/, '') || 'home').split('/');
-    return { vista: ['home', 'stores', 'menu', 'checkout', 'pedido'].includes(vista) ? vista : 'home', a, b };
+    // #pedido/<local>/<token> es el formato viejo de los enlaces: se sigue aceptando.
+    return { vista: ['home', 'menu', 'checkout', 'pedido'].includes(vista) ? vista : 'home', token: b || a };
 }
 window.addEventListener('hashchange', () => { render(); window.scrollTo({ top: 0 }); });
 function marcarNav(v) {
     document.querySelectorAll('.nav a').forEach(a => { if (a.dataset.r === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-}
-function localPorDefecto() {
-    const tiendas = (S.sitio && S.sitio.tiendas) || [];
-    if (tiendas.length === 1) return tiendas[0].codigo;
-    const r = QS.get('r'); if (r && tiendas.some(x => x.codigo === r)) return r;
-    const ult = _ls.get('tk-local'); if (ult && tiendas.some(x => x.codigo === ult)) return ult;
-    return null;
 }
 async function render() {
     const r = rutaActual();
     cerrarDialogo();
     marcarNav(r.vista === 'checkout' || r.vista === 'pedido' ? 'menu' : r.vista);
     pintarContador();
-    // El enlace "Menú" de la barra va al local elegido (o a elegir uno).
-    const lp = localPorDefecto();
-    document.querySelector('.nav a[data-r="menu"]').href = lp ? '#menu/' + lp : '#stores';
     if (r.vista === 'home') return pintarHome();
-    if (r.vista === 'stores') return pintarLocales();
-    if (r.vista === 'menu') {
-        const cod = r.a || lp;
-        if (!cod) { location.hash = '#stores'; return; }
-        return pintarMenu(cod);
-    }
+    if (r.vista === 'menu') return pintarMenu(CODIGO_SITIO);
     if (r.vista === 'checkout') return pintarCheckout();
-    if (r.vista === 'pedido') return pintarPedido(r.a, r.b);
+    if (r.vista === 'pedido') return pintarPedido(CODIGO_SITIO, r.token);
 }
 function entrada(sel) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -517,23 +513,42 @@ function pieHtml() {
     </div></footer>`;
 }
 async function pintarHome() {
-    const h = S.sitio.home || {};
-    const lp = localPorDefecto();
+    const h = S.sitio.home || {}, L = S.sitio.local;
     const hero = urlSegura(h.hero_url);
     let html = `<section class="hero${hero ? ' con-foto' : ''}" ${hero ? `style="background-image:url('${esc(hero)}')"` : ''}>
         <span class="aro" style="right:-160px;top:-160px;width:520px;height:520px;"></span>
         <span class="aro" style="right:-60px;top:-60px;width:320px;height:320px;"></span>
         <div class="envase">
-            <h1>${esc(h.titulo || S.sitio.cadena.nombre)}</h1>
+            <h1>${esc(h.titulo || L.nombre)}</h1>
             ${h.subtitulo ? `<p>${esc(h.subtitulo)}</p>` : ''}
             <div class="acciones">
-                <a class="btn btn-lima" href="${lp ? '#menu/' + lp : '#stores'}">${esc(t('pedir_ahora'))}</a>
-                ${S.sitio.tiendas.length > 1 ? `<a class="btn btn-borde-claro" href="#stores">${esc(t('ver_locales'))}</a>` : ''}
+                <a class="btn btn-lima" href="#menu">${esc(t('pedir_ahora'))}</a>
             </div>
         </div></section>`;
-    html += `<section class="bloque hidden" id="destacados"><div class="envase"><h2>${esc(t('destacados'))}</h2><div class="carrusel" id="carrusel"></div></div></section>`;
+    // Información del local: dirección, horario de la semana, abierto ahora, contacto.
+    const mapa = urlSegura(L.mapa_url) || (L.direccion ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(L.direccion) : null);
+    const hoy = (new Date().getDay() + 6) % 7;
+    const nomDia = (d) => new Intl.DateTimeFormat(LOCALE[LANG], { weekday: 'long' }).format(new Date(2024, 0, 1 + d));
+    const semana = (L.horario || []).map(d => `<div class="dia${d.dia_semana === hoy ? ' hoy' : ''}"><span>${esc(nomDia(d.dia_semana))}</span>
+        <b>${d.franjas.length ? esc(d.franjas.join(', ')) : esc(t('cerrado_dia'))}</b></div>`).join('');
+    html += `<section class="bloque"><div class="envase info-local">
+        <div class="info-caja">
+            <h2>${esc(t('info_t'))}</h2>
+            <span class="estado"><span class="pt${L.abierto ? ' vivo' : ''}"></span>${esc(estadoTxt(L))}</span>
+            ${L.direccion ? `<p class="dato">${svg.pin} ${esc(L.direccion)}${mapa ? ` · <a href="${esc(mapa)}" target="_blank" rel="noopener">${esc(t('como_llegar'))}</a>` : ''}</p>` : ''}
+            ${L.telefono ? `<p class="dato">${esc(t('telefono'))}: <a href="tel:${esc(L.telefono.replace(/\s+/g, ''))}">${esc(L.telefono)}</a></p>` : ''}
+            ${L.email ? `<p class="dato">${esc(t('email'))}: <a href="mailto:${esc(L.email)}">${esc(L.email)}</a></p>` : ''}
+            ${L.aviso ? `<p class="aviso">${esc(L.aviso)}</p>` : ''}
+        </div>
+        ${semana ? `<div class="info-caja"><h2>${esc(t('horario_t'))}</h2><div class="semana">${semana}</div></div>` : ''}
+    </div></section>`;
+    const promos = S.sitio.promos || [];
+    if (promos.length) {
+        html += `<section class="bloque gris"><div class="envase"><h2>${esc(t('promos_t'))}</h2>
+            <div class="carrusel">${promos.map(p => tarjetaProducto(p, `irAProducto(${p.id})`)).join('')}</div></div></section>`;
+    }
     if ((h.secciones || []).length) {
-        html += `<section class="bloque gris"><div class="envase">` + h.secciones.map(s => `
+        html += `<section class="bloque"><div class="envase">` + h.secciones.map(s => `
             <div class="seccion-home">
                 <div class="foto-sec" ${urlSegura(s.imagen_url) ? `style="background-image:url('${esc(s.imagen_url)}')"` : ''}></div>
                 <div>${s.titulo ? `<h2>${esc(s.titulo)}</h2>` : ''}${s.texto ? `<p>${esc(s.texto)}</p>` : ''}</div>
@@ -541,45 +556,13 @@ async function pintarHome() {
     }
     html += pieHtml();
     $('vista').innerHTML = html;
-    entrada('.hero h1, .hero p, .hero .acciones, .seccion-home');
-    // Destacados del local elegido (o del único): el carrusel lleva al menú.
-    if (lp) {
-        try {
-            const m = await cargarMenu(lp);
-            const dest = m.productos.filter(p => p.destacado && !p.agotado).slice(0, 10);
-            if (dest.length && rutaActual().vista === 'home') {
-                $('carrusel').innerHTML = dest.map(p => tarjetaProducto(p, `location.hash='#menu/${lp}';setTimeout(()=>abrirProducto(${p.id}),300)`)).join('');
-                $('destacados').classList.remove('hidden');
-            }
-        } catch (_) {}
-    }
+    entrada('.hero h1, .hero p, .hero .acciones, .info-caja, .seccion-home');
 }
-
-// ══ Locales ═══════════════════════════════════════════════════════════════════
-function hoyDeSemana() { return (new Date().getDay() + 6) % 7; }
-function pintarLocales() {
-    const ts = S.sitio.tiendas;
-    let html = `<section class="bloque"><div class="envase">
-        <h1 style="font-size:clamp(34px,5vw,56px);margin-bottom:8px;">${esc(t('locales_t'))}</h1>
-        <p class="nota" style="font-size:16px;margin-bottom:28px;">${esc(t('locales_sub'))}</p>`;
-    if (!ts.length) html += `<p class="nota">${esc(t('sin_locales'))}</p>`;
-    html += `<div class="locales">` + ts.map(x => {
-        const hoy = (x.horario || []).find(h => h.dia_semana === hoyDeSemana());
-        const mapa = urlSegura(x.mapa_url) || (x.direccion ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.direccion) : null);
-        return `<article class="local">
-            <div class="foto" ${urlSegura(x.foto_url) ? `style="background-image:url('${esc(x.foto_url)}')"` : ''}>${urlSegura(x.foto_url) ? '' : '<span class="aro"></span>'}</div>
-            <div class="cuerpo">
-                <h3>${esc(x.nombre)}</h3>
-                <span class="estado"><span class="pt${x.abierto ? ' vivo' : ''}"></span>${esc(estadoTxt(x))}</span>
-                ${x.direccion ? `<span class="dato">${esc(x.direccion)}${mapa ? ` · <a href="${esc(mapa)}" target="_blank" rel="noopener">${esc(t('como_llegar'))}</a>` : ''}</span>` : ''}
-                ${hoy && hoy.franjas.length ? `<span class="dato">${esc(t('hoy'))}: ${esc(hoy.franjas.join(', '))}</span>` : ''}
-                ${x.aviso ? `<span class="aviso">${esc(x.aviso)}</span>` : ''}
-                ${x.acepta_ahora ? `<a class="btn btn-navy" href="#menu/${esc(x.codigo)}" onclick="_ls.set('tk-local','${esc(x.codigo)}')">${esc(t('pedir_aqui'))}</a>`
-                                 : `<span class="nota">${esc(t('no_toma'))}</span>`}
-            </div></article>`;
-    }).join('') + `</div></div></section>` + pieHtml();
-    $('vista').innerHTML = html;
-    entrada('.local');
+// Desde una promo del Inicio: ir al menú y abrir ese producto.
+async function irAProducto(id) {
+    location.hash = '#menu';
+    try { await cargarMenu(CODIGO_SITIO); } catch (_) { return; }
+    setTimeout(() => abrirProducto(id), 250);
 }
 
 // ══ Menú ══════════════════════════════════════════════════════════════════════
@@ -609,8 +592,7 @@ async function pintarMenu(cod) {
     $('vista').innerHTML = `<div class="carga"><span class="cp-orbit hidden" id="carga-menu"></span></div>`;
     let m;
     try { m = await conEspera($('carga-menu'), cargarMenu(cod)); }
-    catch (e) { $('vista').innerHTML = `<section class="bloque"><div class="envase"><p class="nota">${esc(t('sin_menu'))}</p><a class="btn btn-navy" href="#stores">${esc(t('ver_locales'))}</a></div></section>`; return; }
-    _ls.set('tk-local', cod);
+    catch (e) { $('vista').innerHTML = `<section class="bloque"><div class="envase"><p class="nota">${esc(t('sin_menu'))}</p><a class="btn btn-navy" href="#home">${esc(t('nav_home'))}</a></div></section>`; return; }
     S.local = m.local; S.menu = m;
     const L = m.local;
     const mapa = urlSegura(L.mapa_url) || (L.direccion ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(L.direccion) : null);
@@ -621,10 +603,9 @@ async function pintarMenu(cod) {
             <span class="estado"><span class="pt${L.abierto ? ' vivo' : ''}"></span>${esc(estadoTxt(L))}</span>
             ${L.direccion ? `<span class="dato">${esc(L.direccion)}${mapa ? ` · <a href="${esc(mapa)}" target="_blank" rel="noopener" style="color:#fff;">${esc(t('como_llegar'))}</a>` : ''}</span>` : ''}
         </div>
-        ${S.sitio.tiendas.length > 1 ? `<a class="cambiar" href="#stores">${esc(t('cambiar_local'))}</a>` : ''}
     </div></section>`;
     if (L.aviso) html += `<div class="envase" style="padding-top:16px;"><div class="err" style="background:var(--ok-sf);color:var(--ok-tx);">${esc(L.aviso)}</div></div>`;
-    if (!L.acepta_ahora) html += `<div class="envase" style="padding-top:16px;"><div class="err">${esc(t('no_toma'))}</div></div>`;
+    if (!L.acepta_ahora) html += `<div class="envase" style="padding-top:16px;"><div class="err">${esc(t(L.sin_conexion ? 'no_disponible' : 'no_toma'))}</div></div>`;
     html += `<nav class="cats" aria-label="Categorías"><div class="envase" id="cats">${cats.map(c =>
         `<button type="button" data-cat="${c.id ?? 'otros'}" onclick="irACategoria('${c.id ?? 'otros'}')">${esc(c.nombre)}</button>`).join('')}</div></nav>`;
     html += `<div class="envase menu-cuerpo"><div>` + cats.map(c => {
@@ -705,12 +686,8 @@ function pintarPrecioDialogo() {
     $('dlg-agregar').textContent = `${t('agregar')} · ${dinero(precioUnidad(o.p, o.extras) * o.cantidad)}`;
 }
 function agregarAlCarrito() {
-    const o = S.prodAbierto, cod = S.local.codigo;
-    if (CARRITO.codigo && CARRITO.codigo !== cod && CARRITO.items.length) {
-        if (!confirm(t('cambio_local'))) return;
-        CARRITO.items = [];
-    }
-    CARRITO.codigo = cod;
+    const o = S.prodAbierto;
+    CARRITO.codigo = CODIGO_SITIO;
     const extras = o.p.extras.filter(e => o.extras.has(e.id)).map(e => ({ id: e.id, nombre: e.nombre, precio: e.precio }));
     const clave = o.p.id + '|' + extras.map(e => e.id).sort().join(',') + '|' + o.nota.trim();
     const ya = CARRITO.items.find(i => i.clave === clave);
@@ -748,7 +725,7 @@ function abrirCarrito(repintar) {
     if (window.matchMedia('(min-width:1000px)').matches && rutaActual().vista === 'menu' && !repintar) {
         $('carrito-lateral') && $('carrito-lateral').scrollIntoView({ behavior: 'smooth' }); return;
     }
-    if (!CARRITO.items.length && !repintar) { location.hash = CARRITO.codigo ? '#menu/' + CARRITO.codigo : '#stores'; return; }
+    if (!CARRITO.items.length && !repintar) { location.hash = '#menu'; return; }
     cerrarDialogo();
     const velo = document.createElement('div');
     velo.className = 'velo'; velo.id = 'velo'; velo.dataset.carrito = '1';
@@ -765,10 +742,10 @@ function abrirCarrito(repintar) {
 function franjaDe(hhmm) { const H = parseInt(hhmm, 10); return H >= 6 && H <= 12 ? 'manana' : (H >= 13 && H <= 18 ? 'tarde' : 'noche'); }
 async function pintarCheckout() {
     const cod = CARRITO.codigo;
-    if (!cod || !CARRITO.items.length) { location.hash = cod ? '#menu/' + cod : '#stores'; return; }
+    if (!CARRITO.items.length) { location.hash = '#menu'; return; }
     $('vista').innerHTML = `<div class="carga"><span class="cp-orbit hidden" id="carga-co"></span></div>`;
     let m;
-    try { m = await conEspera($('carga-co'), cargarMenu(cod)); } catch { location.hash = '#stores'; return; }
+    try { m = await conEspera($('carga-co'), cargarMenu(cod)); } catch { location.hash = '#home'; return; }
     S.local = m.local; S.menu = m; S.retiro = m.retiro;
     if (!S.horaElegida && !m.retiro.asap) S.horaElegida = null;
     const datos = JSON.parse(_ls.get('tk-cliente') || '{}');
@@ -862,11 +839,10 @@ async function confirmarPedido() {
             web: $('co-web').value || null,
         }) }, CARRITO.codigo);
         clearTimeout(reloj);
-        _ls.set('tk-pedido-actual', JSON.stringify({ codigo: CARRITO.codigo, token: r.token }));
+        _ls.set(CLAVE_PEDIDO, r.token);
         await api(`/publico/takeaway/pedidos/${encodeURIComponent(r.token)}/pagar`, { method: 'POST' }, CARRITO.codigo);
-        const cod = CARRITO.codigo;
-        CARRITO = { codigo: null, items: [] }; guardarCarrito(); S.claveIntento = null;
-        location.hash = `#pedido/${cod}/${r.token}`;
+        CARRITO = { codigo: CODIGO_SITIO, items: [] }; guardarCarrito(); S.claveIntento = null;
+        location.hash = `#pedido/${r.token}`;
     } catch (e) {
         clearTimeout(reloj);
         btn.disabled = false; pintarResumenCheckout();
@@ -876,6 +852,8 @@ async function confirmarPedido() {
             delete _menus[CARRITO.codigo]; S.claveIntento = null;
             return mostrarErrCo(t('err_precio', { t: dinero(e.data.total) }));
         }
+        // El local perdió la conexión (servidor local caído): no se pueden tomar pedidos.
+        if (e.status === 503) return mostrarErrCo(t('no_disponible'));
         if (e.status === 409 && e.data && e.data.retiro) { S.horaElegida = null; delete _menus[CARRITO.codigo]; pintarCheckout(); }
         mostrarErrCo((LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err_general'));
     }
@@ -906,13 +884,13 @@ async function pintarPedido(cod, token) {
     } else if (pago === 'cancelado' || pago === 'expirado' || coc === 'cancelado') {
         cabeza = '<span class="cp-dot sello" style="filter:grayscale(1);opacity:.5" aria-hidden="true"></span>';
         titulo = t('cancelado'); sub = pago === 'expirado' ? t('pago_vencido') : '';
-        acciones = `<a class="btn btn-navy" href="#menu/${esc(cod)}">${esc(t('volver_menu'))}</a>`;
-        _ls.del('tk-pedido-actual');
+        acciones = `<a class="btn btn-navy" href="#menu">${esc(t('volver_menu'))}</a>`;
+        _ls.del(CLAVE_PEDIDO);
     } else if (coc === 'lista') {
         cabeza = '<span class="cp-dot sello vivo" aria-hidden="true"></span>'; titulo = t('listo'); cada = 15000;
     } else if (coc === 'entregado') {
         cabeza = '<span class="cp-dot sello" aria-hidden="true"></span>'; titulo = t('entregado');
-        _ls.del('tk-pedido-actual');
+        _ls.del(CLAVE_PEDIDO);
     } else if (coc === 'programado') {
         cabeza = '<span class="cp-dot sello" aria-hidden="true"></span>'; titulo = t('recibido'); sub = t('programado', { h: hora }); cada = 30000;
     } else {
@@ -954,17 +932,20 @@ async function reintentarPago(cod, token) {
 async function init() {
     LANG = elegirIdioma(); aplicarTextos();
     if (!CODIGO_SITIO) { $('vista').innerHTML = `<section class="bloque"><div class="envase"><p class="nota">${esc(t('sin_sitio'))}</p></div></section>`; return; }
-    try { S.sitio = await conEspera($('carga-inicial'), api('/publico/takeaway/cadena/' + encodeURIComponent(CODIGO_SITIO))); }
+    try { S.sitio = await conEspera($('carga-inicial'), api('/publico/takeaway/local/' + encodeURIComponent(CODIGO_SITIO))); }
     catch (e) { $('vista').innerHTML = `<section class="bloque"><div class="envase"><p class="nota">${esc(t('sin_sitio'))}</p></div></section>`; return; }
     const h = S.sitio.home || {};
     if (Array.isArray(h.idiomas) && h.idiomas.length) { IDIOMAS = h.idiomas.filter(c => TXT[c]); LANG = elegirIdioma(); }
-    $('marca-nom').textContent = S.sitio.cadena.nombre;
-    if (urlSegura(h.logo_url)) $('marca').innerHTML = `<img src="${esc(h.logo_url)}" alt=""><span>${esc(S.sitio.cadena.nombre)}</span>`;
-    document.title = S.sitio.cadena.nombre;
+    const nombre = S.sitio.local.nombre;
+    MONEDA = (S.sitio.local.moneda && S.sitio.local.moneda.codigo) || MONEDA;
+    $('marca-nom').textContent = nombre;
+    if (urlSegura(h.logo_url)) $('marca').innerHTML = `<img src="${esc(h.logo_url)}" alt=""><span>${esc(nombre)}</span>`;
+    document.title = nombre;
     aplicarTextos();
     // Volver al pedido en curso si quedó uno abierto (recargar la página no lo pierde).
     if (!location.hash) {
-        try { const a = JSON.parse(_ls.get('tk-pedido-actual') || 'null'); if (a && a.token) { location.hash = `#pedido/${a.codigo}/${a.token}`; return; } } catch (_) {}
+        const tok = _ls.get(CLAVE_PEDIDO);
+        if (tok) { location.hash = `#pedido/${tok}`; return; }
     }
     render();
 }
