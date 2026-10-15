@@ -39,6 +39,14 @@
                 { href: "clientes.html",  icon: "🧑‍🤝‍🧑", label: "Clientes",             mod: "clientes",  perm: ["gestion_clientes","ver_clientes"] },
                 { href: "facturas.html",  icon: "🧾", label: "Facturas",               mod: "facturas",  perm: ["acceso_facturacion","ver_facturas"] },
                 { href: "caja.html",      icon: "💰", label: "Caja",                   mod: "caja",      perm: "gestion_caja" },
+                // Tercer nivel: "Online" agrupa lo que el local publica en la web.
+                {
+                    key: "online", icon: "🌐", label: "Online", perm: "acceso_online",
+                    children: [
+                        { href: "online.html?s=takeaway", icon: "🥡", label: "Take Away" },
+                        { href: "online.html?s=reservas", icon: "📅", label: "Reservas", mod: "reservas" },
+                    ]
+                },
             ]
         },
         {
@@ -80,6 +88,18 @@
     ];
 
     const currentPage = window.location.pathname.split("/").pop() || "dashboard.html";
+    // Sección dentro de la página (?s=): online.html tiene Take Away y Reservas y cada
+    // una es su propio ítem del menú. Sin ?s= la página abre en la primera.
+    const currentSeccion = new URLSearchParams(window.location.search).get("s");
+    const _SECCION_POR_DEFECTO = { "online.html": "takeaway" };
+    function _esActual(href) {
+        if (!href) return false;
+        const [archivo, query] = href.split("?");
+        if (archivo !== currentPage) return false;
+        if (!query) return true;
+        const s = new URLSearchParams(query).get("s");
+        return s === (currentSeccion || _SECCION_POR_DEFECTO[archivo] || null);
+    }
 
     // ── Helpers de permisos ──────────────────────────────────────
     function _getUser() {
@@ -305,6 +325,17 @@
         .sidebar-child:hover { background:rgba(99,102,241,0.15); color:white; }
         .sidebar-child.active { background:rgba(79,70,229,.5); color:white; }
         .sidebar-child .si-icon { font-size:14px; width:20px; text-align:center; flex-shrink:0; }
+        /* Tercer nivel (Restaurante > Online > Take Away / Reservas) */
+        .sidebar-subhead {
+            display:flex; align-items:center; gap:10px;
+            padding:7px 10px; border-radius:6px; margin-bottom:1px;
+            color:#c4b5fd; font-size:13px; font-weight:500;
+            cursor:pointer; user-select:none; transition:background .15s, color .15s;
+        }
+        .sidebar-subhead:hover { background:rgba(99,102,241,0.15); color:white; }
+        .sidebar-subhead.active { color:white; }
+        .sidebar-subhead .si-icon { font-size:14px; width:20px; text-align:center; flex-shrink:0; }
+        .sidebar-children.nivel-3 { margin-left:14px; padding-left:10px; }
 
         /* ── Modo Edición: btn-config oculto por defecto ── */
         .btn-config { display: none !important; }
@@ -337,8 +368,34 @@
     }
 
     function isInGroup(p) {
-        if (!p.group) return false;
-        return (p.href && p.href === currentPage) || p.children.some(c => c.href === currentPage);
+        if (!p.group && !p.children) return false;
+        return _esActual(p.href) || p.children.some(c => c.children ? isInGroup(c) : _esActual(c.href));
+    }
+
+    // Un hijo se ve si su permiso y su módulo lo permiten; un sub-grupo, además, sólo
+    // si le queda algún hijo visible (si no, sería una cabecera que no abre nada).
+    function _visibleHijo(c) {
+        if (!_canSee(c.perm) || !_canModulo(c.mod)) return false;
+        if (c.children) return c.children.some(_visibleHijo);
+        return true;
+    }
+
+    function _renderHijo(c) {
+        if (!c.children) {
+            return `
+                <a href="${c.href}" class="sidebar-child${_esActual(c.href) ? " active" : ""}">
+                    <span class="si-icon">${c.icon}</span>${c.label}
+                </a>`;
+        }
+        const key   = groupKey(c);
+        const abre  = isInGroup(c) ? " open" : "";
+        const nietos = c.children.filter(_visibleHijo).map(_renderHijo).join("");
+        return `
+                <div class="sidebar-subhead${abre ? " active" : ""}" onclick="toggleGroup('${key}')">
+                    <span class="si-icon">${c.icon}</span>${c.label}
+                    <span class="grp-arrow${abre}" id="grpa-${key}">›</span>
+                </div>
+                <div class="sidebar-children nivel-3${abre}" id="grpc-${key}">${nietos}</div>`;
     }
 
     function renderNav() {
@@ -360,7 +417,7 @@
             // Grupo: si el módulo del grupo está apagado, ocultar todo el grupo
             if (!_canModulo(p.mod)) return "";
             // Filtrar hijos por permiso y por módulo propio del hijo
-            const visibleChildren = p.children.filter(c => _canSee(c.perm) && _canModulo(c.mod));
+            const visibleChildren = p.children.filter(_visibleHijo);
 
             // Si el grupo tiene perm propio, verificarlo; si no, mostrar solo si hay hijos visibles
             if (p.perm && !_canSee(p.perm)) return "";
@@ -372,10 +429,7 @@
             const headActive = inGroup ? " active" : "";
             const openCls    = isOpen  ? " open"   : "";
 
-            const childrenHtml = visibleChildren.map(c => `
-                <a href="${c.href}" class="sidebar-child${currentPage === c.href ? " active" : ""}">
-                    <span class="si-icon">${c.icon}</span>${c.label}
-                </a>`).join("");
+            const childrenHtml = visibleChildren.map(_renderHijo).join("");
 
             return `
                 <div class="sidebar-group-head${headActive}" onclick="toggleGroup('${key}')">
@@ -422,6 +476,7 @@
         { href:"clientes.html",        icon:"🧑‍🤝‍🧑", label:"Clientes",            mod:"clientes",     perm:["gestion_clientes","ver_clientes"] },
         { href:"facturas.html",        icon:"🧾", label:"Facturas",                mod:"facturas",     perm:["acceso_facturacion","ver_facturas"] },
         { href:"caja.html",            icon:"💰", label:"Caja",                    mod:"caja",         perm:"gestion_caja" },
+        { href:"online.html?s=takeaway", icon:"🌐", label:"Online",                                perm:"acceso_online" },
         { href:"usuarios.html",        icon:"👤", label:"Usuarios",                mod:"personal",     perm:["acceso_usuarios","ver_usuarios"] },
         { href:"salarios.html",        icon:"💼", label:"Salarios",                mod:"personal",     perm:"revision_salarios" },
         { href:"estadisticas.html",    icon:"📊", label:"Facturación y Est.",      mod:"estadisticas", perm:"acceso_estadisticas" },

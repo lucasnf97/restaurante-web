@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante — Online</title>
+<script id="tema-boot">try{var s=localStorage.getItem('token'),k='@anon';if(s){var p=JSON.parse(atob(s.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));k=(p.admin_override||p.rol==='superadmin')?'@super':(p.sub||'@anon');}var t=localStorage.getItem('tema::'+k)||localStorage.getItem('tema_ultimo')||'auto';document.documentElement.dataset.tema=(t==='auto')?(matchMedia('(prefers-color-scheme:dark)').matches?'oscuro':'claro'):t;}catch(e){}</script>
+<link rel="stylesheet" href="css/tema.css?v=5">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--sup-app, #f0f2f5); min-height: 100vh; }
+        .navbar { background: #1a1a2e; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .navbar-brand { font-size: 18px; font-weight: 700; }
+        .navbar-links { display: flex; gap: 16px; align-items: center; }
+        .navbar-links a { color: #a5b4fc; text-decoration: none; font-size: 14px; }
+        .btn-logout { background: transparent; border: 1px solid var(--ac, #4f46e5); color: var(--nav-tx, #a5b4fc); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-logout:hover { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
+        .content { margin-top: 60px; padding: 24px 32px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .page-header h2 { font-size: 22px; font-weight: 700; color: var(--tx, #1a1a2e); }
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { background: #4f46e5; color: white; } .btn-primary:hover { background: #4338ca; }
+        .btn-secondary { background: var(--sup, white); color: var(--tx-10, #444); border: 1.5px solid var(--bd-2, #e0e0e0); } .btn-secondary:hover { border-color: var(--ac, #4f46e5); color: var(--tx-ac, #4f46e5); }
+        .btn-danger { background: #dc2626; color: white; } .btn-danger:hover { background: #b91c1c; }
+        .btn-sm { padding: 5px 11px; font-size: 12px; }
+        .tabs-bar { display: flex; gap: 4px; margin-bottom: 20px; background: var(--sup, white); border-radius: 12px; padding: 5px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); width: fit-content; }
+        .tab-btn { padding: 7px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; background: transparent; color: var(--tx-9, #64748b); transition: all 0.2s; }
+        .tab-btn.active { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
+        .tab-btn:not(.active):hover { background: var(--sup-3, #f1f5f9); color: var(--tx, #1a1a2e); }
+        /* Secciones de Online (Take Away / Reservas): pestañas que son enlaces, así cada una
+           tiene su URL (online.html?s=...) y el menú lateral marca la correcta. */
+        .secciones { display: flex; gap: 4px; margin-bottom: 20px; background: var(--sup, white); border-radius: 12px; padding: 5px; width: fit-content; }
+        .secciones a { padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--tx-9, #64748b); text-decoration: none; }
+        .secciones a.active { background: var(--ac, #4f46e5); color: var(--tx-inv, white); }
+        .secciones a:not(.active):hover { background: var(--sup-3, #f1f5f9); color: var(--tx, #1a1a2e); }
+        .seccion { display: none; } .seccion.active { display: block; }
+        .bloqueos-layout { display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: start; }
+        @media (max-width:860px) { .bloqueos-layout { grid-template-columns: 1fr; } }
+        /* Solapa Online: la cara del local. El banner por defecto es el navy de la marca
+           (el mismo de reserva.html); con imagen propia, cover + velo abajo para el nombre. */
+        .ol-cara { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width:860px) { .ol-cara { grid-template-columns: 1fr; } }
+        .ol-banner { position: relative; height: 150px; border-radius: 12px; overflow: hidden;
+            background: #1B1B33 center/cover no-repeat; display: flex; align-items: flex-end;
+            gap: 10px; padding: 14px; box-sizing: border-box; }
+        .ol-banner.con-foto::before { content: ""; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(27,27,51,0) 35%, rgba(27,27,51,.82)); }
+        .ol-banner.sin-velo::before { display: none; }
+        .ol-banner img { position: relative; width: 40px; height: 40px; border-radius: 10px;
+            object-fit: cover; background: #fff; }
+        .ol-redes { display: flex; flex-direction: column; gap: 8px; }
+        .ol-red { border: 1px solid var(--bd, #e5e7eb); border-radius: 8px; padding: 8px; display: grid;
+            grid-template-columns: 120px 1fr 1fr 34px; grid-template-areas: "tipo texto url x";
+            gap: 6px; align-items: center; }
+        .ol-red select { grid-area: tipo; } .ol-red .r-texto { grid-area: texto; }
+        .ol-red .r-url { grid-area: url; } .ol-red .quitar { grid-area: x; }
+        .ol-red select, .ol-red input { margin: 0; min-width: 0; }
+        .ol-red .quitar { width: 34px; height: 34px; border: none; border-radius: 6px; background: transparent;
+            color: var(--tx-9, #64748b); cursor: pointer; font-size: 16px; }
+        .ol-red .quitar:hover { background: var(--pel-sf-2, #fef2f2); color: var(--pel-tx, #b91c1c); }
+        @media (max-width:1100px) { .ol-red { grid-template-columns: 1fr 34px;
+            grid-template-areas: "tipo x" "texto texto" "url url"; } }
+        .ol-idiomas { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+        .ol-idiomas .fila-idioma { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: 8px 12px; border: 1px solid var(--bd, #e5e7eb); border-radius: 8px; }
+        .ol-idiomas label { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 500; cursor: pointer; }
+        .ol-idiomas label.principal { font-weight: 400; font-size: 12.5px; color: var(--tx-9, #64748b); }
+        .ol-idiomas input { width: auto; margin: 0; }
+        .ol-banner span { position: relative; color: #fff; font: 600 22px Poppins, system-ui, sans-serif;
+            letter-spacing: -.02em; }
+        .card { background: var(--sup, white); border-radius: 12px; padding: 22px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,0.06)); }
+        .card h3 { font-size: 15px; font-weight: 700; color: var(--tx, #1a1a2e); margin-bottom: 16px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--tx-10, #444); margin-bottom: 5px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--ac, #4f46e5); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .checkbox-row input[type=checkbox] { width: 15px; height: 15px; accent-color: #4f46e5; cursor: pointer; }
+        .checkbox-row label { font-size: 13px; font-weight: 600; color: var(--tx-10, #444); cursor: pointer; }
+        .horas-bloqueo { display: flex; gap: 8px; align-items: center; }
+        .horas-bloqueo input { flex: 1; }
+        /* ── Take Away: administración ── */
+        .tk-sub { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+        .tk-sub button { padding: 6px 14px; border-radius: 999px; border: 1.5px solid var(--bd-2, #e0e0e0); background: var(--sup, white);
+            color: var(--tx-9, #64748b); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+        .tk-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        .tk-tabla th { text-align: left; font-size: 12px; color: var(--tx-9, #64748b); padding: 10px 12px; border-bottom: 1px solid var(--bd-2, #e0e0e0); white-space: nowrap; }
+        .tk-tabla td { padding: 10px 12px; border-bottom: 1px solid var(--bd-2, #eee); vertical-align: top; }
+        .tk-tabla td small { display: block; color: var(--tx-9, #64748b); }
+        .tk-est { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap;
+                  background: var(--sup-2, #f1f5f9); color: var(--tx-2, #334155); }
+        .tk-est.ok { background: var(--ok-sf, #ecfdf5); color: var(--ok-tx, #15803d); }
+        .tk-est.warn { background: var(--adv-sf, #fffbeb); color: var(--adv-tx, #b45309); }
+        .tk-est.off { opacity: .6; }
+        .tk-sub button.active { background: var(--tx, #1a1a2e); border-color: var(--tx, #1a1a2e); color: var(--tx-inv, white); }
+        .tk-panel { display: none; } .tk-panel.active { display: block; }
+        .tk-menu { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+        @media (max-width: 900px) { .tk-menu { grid-template-columns: 1fr; } }
+        .tk-cats { display: flex; flex-direction: column; gap: 4px; }
+        .tk-cat { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px; cursor: pointer;
+            font-size: 13px; color: var(--tx, #1a1a2e); }
+        .tk-cat:hover { background: var(--sup-3, #f1f5f9); }
+        .tk-cat.sel { background: var(--ac-sf, #eef2ff); color: var(--tx-ac, #4f46e5); font-weight: 600; }
+        .tk-cat.off .tk-cat-nom { text-decoration: line-through; opacity: .6; }
+        .tk-cat-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tk-cat .n { font-size: 11.5px; color: var(--tx-8, #94a3b8); }
+        .tk-mini { border: none; background: transparent; color: var(--tx-8, #94a3b8); cursor: pointer; font-size: 13px;
+            padding: 2px 4px; border-radius: 4px; }
+        .tk-mini:hover { background: var(--sup-4, #f0f0f0); color: var(--tx, #1a1a2e); }
+        .tk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+        .tk-prod { background: var(--sup, white); border: 1.5px solid var(--bd-5, #e2e8f0); border-radius: 12px; overflow: hidden;
+            cursor: pointer; display: flex; flex-direction: column; }
+        .tk-prod:hover { border-color: var(--ac, #4f46e5); }
+        .tk-prod.off { opacity: .55; }
+        .tk-foto { aspect-ratio: 4/3; background: var(--sup-3, #f1f5f9) center/cover no-repeat; display: flex;
+            align-items: center; justify-content: center; color: var(--tx-8, #94a3b8); font-size: 28px; }
+        .tk-prod-cuerpo { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+        .tk-prod-nom { font-size: 13.5px; font-weight: 700; color: var(--tx, #1a1a2e); }
+        .tk-precio { font-size: 13px; font-weight: 600; color: var(--tx-2, #374151); }
+        .tk-precio s { color: var(--tx-8, #94a3b8); font-weight: 400; margin-left: 4px; }
+        .tk-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+        .tk-chip { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--sup-3, #f1f5f9); color: var(--tx-9, #64748b); }
+        .tk-chip.verde { background: var(--ok-sf, #dcfce7); color: var(--ok-tx, #15803d); }
+        .tk-chip.rojo { background: var(--pel-sf, #fee2e2); color: var(--pel-tx, #b91c1c); }
+        .tk-chip.lila { background: var(--ac-sf, #eef2ff); color: var(--tx-ac, #4f46e5); }
+        .tk-vacio { padding: 30px; text-align: center; color: var(--tx-8, #94a3b8); font-size: 13px; }
+        #tk-redes input, #tk-redes select { width: 100%; padding: 7px 10px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; }
+        .tk-extra { display: grid; grid-template-columns: 1fr 100px 34px; gap: 6px; margin-bottom: 6px; }
+        .tk-extra input { margin: 0; }
+        .tk-img-prev { width: 100%; aspect-ratio: 16/9; border-radius: 10px; background: var(--sup-3, #f1f5f9) center/cover no-repeat;
+            display: flex; align-items: center; justify-content: center; color: var(--tx-8, #94a3b8); font-size: 12px; }
+        .tk-fila-sw { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0;
+            border-bottom: 1px solid var(--bd-4, #f0f0f0); font-size: 13px; color: var(--tx, #1a1a2e); }
+        .tk-fila-sw small { display: block; color: var(--tx-9, #64748b); font-size: 11.5px; font-weight: 400; }
+        .tk-seccion { border: 1px solid var(--bd, #e5e7eb); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+        .tk-arbol { max-height: 55vh; overflow-y: auto; border: 1px solid var(--bd, #e5e7eb); border-radius: 10px; padding: 8px 12px; }
+        .tk-arbol .cat { font-weight: 700; font-size: 13px; margin: 10px 0 4px; display: flex; gap: 8px; align-items: center; }
+        .tk-arbol label { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0 3px 22px; cursor: pointer; }
+        .tk-arbol input { width: auto; margin: 0; }
+        .tk-arbol .ya { font-size: 11px; color: var(--tx-8, #94a3b8); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: var(--sup, white); border-radius: 16px; padding: 24px; width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; }
+        .modal h3 { font-size: 17px; font-weight: 700; color: var(--tx, #1a1a2e); margin-bottom: 16px; }
+        .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+        .toggle-wrap { position: relative; width: 42px; height: 22px; cursor: pointer; flex: none; display: inline-block; }
+        .toggle-wrap input { opacity: 0; width: 0; height: 0; }
+        .toggle-track { position: absolute; inset: 0; background: var(--sup-6, #cbd5e1); border-radius: 22px; transition: 0.2s; }
+        .toggle-track::before { content: ""; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: var(--sup, white); border-radius: 50%; transition: 0.2s; }
+        .toggle-wrap input:checked + .toggle-track { background: var(--ac, #4f46e5); }
+        .toggle-wrap input:checked + .toggle-track::before { transform: translateX(20px); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar no-print">
+    <div class="navbar-brand">🍽️ Gestión Restaurante</div>
+    <div class="navbar-links">
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="content">
+    <div class="page-header"><h2>🌐 Online</h2></div>
+
+    <nav class="secciones" id="secciones">
+        <a href="online.html?s=takeaway" data-s="takeaway">🥡 Take Away</a>
+        <a href="online.html?s=reservas" data-s="reservas">📅 Reservas</a>
+    </nav>
+
+    <!-- TAKE AWAY: el sitio de pedidos de la cadena y el menú online de este local -->
+    <section class="seccion" id="sec-takeaway">
+        <div class="tk-sub" id="tk-sub">
+            <button data-p="pedidos" onclick="tkPanel('pedidos')">🧾 Pedidos de hoy</button>
+            <button data-p="menu" onclick="tkPanel('menu')">🍽️ Menú online</button>
+            <button data-p="retiro" onclick="tkPanel('retiro')">⏱️ Retiro y pagos</button>
+            <button data-p="sitio" onclick="tkPanel('sitio')">🏠 Sitio de la cadena</button>
+        </div>
+
+        <!-- PEDIDOS DE HOY: lo que entró por la web (se actualiza solo) -->
+        <div class="tk-panel" id="tk-p-pedidos">
+            <div class="card" style="margin-bottom:14px;font-size:12.5px;color: var(--tx-9, #64748b);">
+                Los pedidos pagados entran solos a cocina (los programados, un rato antes de la hora de retiro).
+                Cuando cocina marca la comanda como entregada, el pedido se cierra solo; <b>Entregar</b> lo cierra a mano.
+            </div>
+            <div class="card" style="padding:0;overflow-x:auto;">
+                <table class="tk-tabla">
+                    <thead><tr><th>#</th><th>Retiro</th><th>Cliente</th><th>Pedido</th><th style="text-align:right;">Total</th><th>Estado</th><th></th></tr></thead>
+                    <tbody id="tk-pedidos"><tr><td colspan="7" style="padding:16px;color:var(--tx-9,#64748b);">Cargando…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- MENÚ ONLINE: propio de este local, independiente de la carta -->
+        <div class="tk-panel" id="tk-p-menu">
+            <div class="card" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <div style="flex:1;min-width:220px;font-size:12.5px;color: var(--tx-9, #64748b);">
+                    El menú que ve el cliente en la web. Es de <b>este local</b> y no cambia la carta: podés
+                    sumar promos o productos que no están en carta, o importarlos de la carta para no cargar todo a mano.
+                </div>
+                <button class="btn btn-secondary" onclick="tkNuevaCategoria()">+ Categoría</button>
+                <button class="btn btn-secondary" onclick="tkAbrirImportar()">⬇️ Importar desde la carta</button>
+                <button class="btn btn-primary" onclick="tkEditarProducto(null)">+ Producto</button>
+            </div>
+            <div class="tk-menu">
+                <div class="card" style="padding:14px;">
+                    <h3 style="margin-bottom:10px;">Categorías</h3>
+                    <div class="tk-cats" id="tk-cats"></div>
+                </div>
+                <div>
+                    <div class="tk-grid" id="tk-prods"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RETIRO Y PAGOS: cómo y cuándo retira el cliente, y con qué paga -->
+        <div class="tk-panel" id="tk-p-retiro">
+            <div class="bloqueos-layout">
+                <div class="card">
+                    <h3>🥡 Pedidos online en este local</h3>
+                    <div class="tk-fila-sw"><div>Recibir pedidos online<small>Apagado, el local no aparece en la web.</small></div>
+                        <label class="toggle-wrap"><input type="checkbox" id="tk-activo"><span class="toggle-track"></span></label></div>
+                    <div class="tk-fila-sw"><div>Pausar por ahora<small>Se ve en la web, pero no acepta pedidos (cocina saturada, etc.).</small></div>
+                        <label class="toggle-wrap"><input type="checkbox" id="tk-pausado"><span class="toggle-track"></span></label></div>
+                    <div class="form-group" style="margin-top:12px;"><label>Aviso para el cliente <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(opcional)</span></label>
+                        <input type="text" id="tk-aviso" maxlength="200" placeholder="Ej: Hoy la cocina cierra a las 22:00"></div>
+                    <div class="form-group"><label>Foto del local <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(se ve en la lista de locales)</span></label>
+                        <div class="tk-img-prev" id="tk-foto-prev">Sin foto</div>
+                        <div style="display:flex;gap:8px;margin-top:8px;">
+                            <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir foto
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="tkSubirFotoTienda(this)"></label>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="tkQuitarFotoTienda()">Quitar</button>
+                        </div></div>
+                    <p style="font-size:12px;color: var(--tx-9, #64748b);margin-top:8px;">El horario de retiro es el horario del local
+                        (<a href="reservas.html">Reservas › Horarios</a>). La dirección y el contacto son los de
+                        <a href="online.html?s=reservas">Online › Reservas</a>.</p>
+                </div>
+                <div class="card">
+                    <h3>⏱️ Retiro</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>"Lo antes posible": listo en (min)</label><input type="number" id="tk-prep" min="0" max="240"></div>
+                        <div class="form-group"><label>Programado: entra a cocina antes (min)</label><input type="number" id="tk-envio" min="0" max="240"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Horarios cada (min)</label><input type="number" id="tk-paso" min="5" max="120"></div>
+                        <div class="form-group"><label>Último pedido antes del cierre (min)</label><input type="number" id="tk-margen" min="0" max="240"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Programar con días de anticipación</label>
+                            <select id="tk-dias"><option value="0">Sólo hoy</option><option value="1">Hoy y mañana</option><option value="2">Hasta 2 días</option><option value="6">Hasta una semana</option></select></div>
+                        <div class="form-group"><label>Pedidos por horario <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(vacío = sin tope)</span></label><input type="number" id="tk-cupo" min="1" max="500"></div>
+                    </div>
+                    <h3 style="margin-top:10px;">💳 Pagos</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Cobrar con</label><select id="tk-proveedor" onchange="tkPintarCamposPago()"></select></div>
+                        <div class="form-group"><label>Tiempo para pagar (min)</label><input type="number" id="tk-timeout" min="3" max="120"></div>
+                    </div>
+                    <div id="tk-campos-pago"></div>
+                    <div class="form-group"><label>Importe máximo por pedido</label><input type="number" id="tk-max-total" min="1" step="1"></div>
+                    <p style="font-size:12px;color: var(--tx-9, #64748b);margin:6px 0 10px;">Mientras no haya pasarela de pago, los pagos de la web
+                        se aprueban a mano en el TPV virtual de pruebas.</p>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="tkAbrirTpv()">🖥️ Abrir TPV virtual</button>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="margin-top:14px;" id="tk-guardar-retiro" onclick="tkGuardarRetiro()">Guardar</button>
+            <span id="tk-msg-retiro" style="font-size:12.5px;margin-left:10px;"></span>
+        </div>
+
+        <!-- SITIO DE LA CADENA: el Home común a todos los locales -->
+        <div class="tk-panel" id="tk-p-sitio">
+            <div class="card" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <div style="flex:1;min-width:220px;font-size:12.5px;color: var(--tx-9, #64748b);" id="tk-sitio-aviso">
+                    ⚠️ Estos cambios se ven en <b>todos los locales de la cadena</b>.</div>
+                <a id="tk-ver-sitio" class="btn btn-secondary btn-sm" target="_blank" rel="noopener" href="#">Ver la página ↗</a>
+            </div>
+            <div class="bloqueos-layout">
+                <div class="card">
+                    <h3>Portada</h3>
+                    <div class="form-group"><label>Imagen de portada <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(horizontal, ideal 1920×1080)</span></label>
+                        <div class="tk-img-prev" id="tk-hero-prev">Sin imagen: se usa el azul de la marca</div>
+                        <div style="display:flex;gap:8px;margin-top:8px;">
+                            <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="tkSubirSitio('hero', this)"></label>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="tkQuitarSitio('hero')">Quitar</button>
+                        </div></div>
+                    <div class="form-group"><label>Título</label><input type="text" id="tk-titulo" maxlength="80" placeholder="Ej: Pedí, pasá y llevá"></div>
+                    <div class="form-group"><label>Texto</label><textarea id="tk-subtitulo" rows="2" maxlength="200" placeholder="Una o dos líneas"></textarea></div>
+                    <div class="form-group"><label>Logo</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <span id="tk-logo-prev" style="width:44px;height:44px;border-radius:10px;background: var(--sup-3, #f1f5f9) center/cover no-repeat;display:inline-block;"></span>
+                            <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="tkSubirSitio('logo', this)"></label>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="tkQuitarSitio('logo')">Quitar</button>
+                        </div></div>
+                    <div class="form-group"><label>Idiomas del sitio</label><div id="tk-idiomas" style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;"></div></div>
+                </div>
+                <div class="card">
+                    <h3>Secciones del inicio</h3>
+                    <p style="font-size:12px;color: var(--tx-9, #64748b);margin-bottom:10px;">Bloques con título, texto y foto que van debajo de la portada (la historia, el producto estrella, etc.).</p>
+                    <div id="tk-secciones"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="tkAgregarSeccion()">+ Agregar sección</button>
+                    <h3 style="margin-top:18px;">Redes y web</h3>
+                    <div class="form-group"><label>Sitio web</label><input type="text" id="tk-web" maxlength="300" placeholder="Ej: tumarca.dk"></div>
+                    <div id="tk-redes" class="ol-redes"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="tkAgregarRed()" style="margin-top:6px;">+ Agregar red</button>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="margin-top:14px;" onclick="tkGuardarSitio()">Guardar</button>
+            <span id="tk-msg-sitio" style="font-size:12.5px;margin-left:10px;"></span>
+        </div>
+    </section>
+
+
+    <!-- RESERVAS: la página pública de reservas (antes, solapa Online de Reservas) -->
+    <section class="seccion" id="sec-reservas">
+        <div class="bloqueos-layout">
+            <div class="card">
+                <h3>🌐 Límites de las reservas online</h3>
+                <p style="font-size:12.5px;color: var(--tx-9, #64748b);margin:0 0 14px;">
+                    Aplican SOLO a la página pública de reservas. El personal sigue pudiendo
+                    reservar cualquier cosa desde acá o desde el programa. Vacío = sin límite.</p>
+                <div class="form-group">
+                    <label>Máximo de personas por reserva online</label>
+                    <input type="number" id="ol-max" min="1" max="50" step="1" placeholder="Sin límite (ej: 6)">
+                </div>
+                <div class="form-group">
+                    <label>Anticipación mínima (horas)</label>
+                    <input type="number" id="ol-ant" min="0" max="720" step="1" placeholder="Sin mínimo (ej: 30)">
+                    <span style="font-size:11.5px;color: var(--tx-8, #94a3b8);">Con menos anticipación solo puede reservar el personal.</span>
+                </div>
+                <div class="form-group">
+                    <label>Agenda abierta hasta (días)</label>
+                    <input type="number" id="ol-hor" min="1" max="365" step="1" placeholder="Sin límite (ej: 30)">
+                    <span style="font-size:11.5px;color: var(--tx-8, #94a3b8);">No se aceptan reservas online más allá de hoy + estos días.</span>
+                </div>
+            </div>
+            <div class="card">
+                <h3>📞 Contacto</h3>
+                <p style="font-size:12.5px;color: var(--tx-9, #64748b);margin:0 0 14px;">
+                    Se muestra en la página pública, y es a donde se deriva al cliente que
+                    necesita más personas que el máximo (o menos anticipación que la mínima).</p>
+                <div class="form-group"><label>Teléfono</label>
+                    <input type="text" id="ol-tel" maxlength="60" placeholder="Ej: +45 12 34 56 78"></div>
+                <div class="form-group"><label>Correo</label>
+                    <input type="text" id="ol-email" maxlength="200" placeholder="Ej: reservas@turestaurante.com"></div>
+                <div class="form-group">
+                    <label>Redes sociales y web</label>
+                    <div id="ol-redes-lista" class="ol-redes"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="olAgregarRed()" style="margin-top:6px;">+ Agregar red</button>
+                    <span style="display:block;font-size:11.5px;color: var(--tx-8, #94a3b8);margin-top:6px;">
+                        <b>Texto</b> = lo que ve el cliente · <b>Enlace</b> = a dónde lo lleva al tocarlo.
+                        Si dejás el enlace vacío en Instagram, Facebook o TikTok, se arma solo con el usuario.</span>
+                </div>
+                <div id="ol-preview" style="display:none;background: var(--sup-2, #f8fafc);border: 1px solid var(--bd-5, #e2e8f0);border-radius:8px;
+                    padding:10px 12px;font-size:12.5px;color: var(--fg-a15, #475569);margin-bottom:14px;"></div>
+            </div>
+        </div>
+
+        <!-- La cara del local en la página pública -->
+        <div class="card" style="margin-top:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+                <h3 style="margin:0;">🖼️ Cómo se ve tu página de reservas</h3>
+                <a id="ol-ver" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="display:none;">Ver la página ↗</a>
+            </div>
+            <p style="font-size:12.5px;color: var(--tx-9, #64748b);margin:0 0 14px;">
+                Todo es opcional. Sin banner propio se usa el azul de la marca.</p>
+            <div class="ol-cara">
+                <div>
+                    <div class="form-group">
+                        <label>Banner <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(foto del local o una imagen diseñada por ustedes · horizontal, ideal 1600×700)</span></label>
+                        <div class="ol-banner" id="ol-banner-prev">
+                            <img id="ol-banner-logo" alt="" style="display:none;">
+                            <span id="ol-banner-nombre"></span>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                            <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir banner
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="olSubir('banner', this)"></label>
+                            <button type="button" class="btn btn-secondary btn-sm" id="ol-banner-quitar" onclick="olQuitar('banner')" style="display:none;">Volver al azul</button>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px;cursor:pointer;">
+                            <input type="checkbox" id="ol-banner-nom" checked onchange="_olPintarBanner()" style="width:auto;margin:0;">
+                            Mostrar el nombre del restaurante sobre el banner
+                        </label>
+                        <span style="font-size:11.5px;color: var(--tx-8, #94a3b8);">Apagalo si tu banner ya tiene el nombre o el logo dibujado.</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Logo <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(cuadrado)</span></label>
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir logo
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="olSubir('logo', this)"></label>
+                            <button type="button" class="btn btn-secondary btn-sm" id="ol-logo-quitar" onclick="olQuitar('logo')" style="display:none;">Quitar</button>
+                            <span id="ol-logo-nota" style="font-size:11.5px;color: var(--tx-8, #94a3b8);"></span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group"><label>Presentación <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(una o dos líneas)</span></label>
+                        <textarea id="ol-desc" maxlength="600" rows="3" placeholder="Ej: Cocina de temporada y vinos naturales en el corazón de Nørrebro."></textarea></div>
+                    <div class="form-group"><label>Dirección</label>
+                        <input type="text" id="ol-dir" maxlength="300" placeholder="Ej: Jægersborggade 12, 2200 København N"></div>
+                    <div class="form-group"><label>Enlace del mapa <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(opcional)</span></label>
+                        <input type="text" id="ol-mapa" maxlength="500" placeholder="Pegá el enlace de Google Maps de tu local">
+                        <span style="font-size:11.5px;color: var(--tx-8, #94a3b8);">Sin enlace, "Cómo llegar" busca la dirección en Google Maps.</span></div>
+                    <div class="form-group">
+                        <label>Idiomas de la página</label>
+                        <div class="ol-idiomas" id="ol-idiomas"></div>
+                        <span style="font-size:11.5px;color: var(--tx-8, #94a3b8);">El cliente ve el idioma de su teléfono si está activo; si no, el principal.
+                            Con más de uno puede cambiarlo en la página. La presentación se muestra tal cual la escribas.</span>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;" id="btn-guardar-online" onclick="guardarConfigOnline()">Guardar</button>
+            <div id="ol-msg" style="font-size:12.5px;margin-top:8px;text-align:center;"></div>
+        </div>
+    </section>
+
+    <!-- Modal: producto online -->
+    <div class="modal-overlay" id="tk-modal-prod">
+        <div class="modal">
+            <h3 id="tk-mp-titulo">Producto</h3>
+            <div class="form-group"><label>Nombre *</label><input type="text" id="tk-mp-nombre" maxlength="120"></div>
+            <div class="form-row">
+                <div class="form-group"><label>Categoría</label><select id="tk-mp-cat"></select></div>
+                <div class="form-group"><label>Precio *</label><input type="number" id="tk-mp-precio" min="0" step="0.01"></div>
+            </div>
+            <div class="form-group"><label>Descripción</label><textarea id="tk-mp-desc" rows="2" maxlength="600"></textarea></div>
+            <div class="form-group"><label>Foto</label>
+                <div class="tk-img-prev" id="tk-mp-foto">Sin foto</div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Subir foto
+                        <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="tkSubirFotoProd(this)"></label>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="tkQuitarFotoProd()">Quitar</button>
+                </div></div>
+            <div class="form-row">
+                <div class="form-group"><label>Producto de la carta <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(stock y costo)</span></label><select id="tk-mp-vinculo"></select></div>
+                <div class="form-group"><label>Va a</label><select id="tk-mp-area"></select></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Precio promo <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(opcional)</span></label><input type="number" id="tk-mp-promo" min="0" step="0.01"></div>
+                <div class="form-group"><label>Etiqueta <span style="color: var(--tx-8, #94a3b8);font-weight:400;">(ej: Nuevo, Vegano)</span></label><input type="text" id="tk-mp-etiqueta" maxlength="30"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Promo desde</label><input type="date" id="tk-mp-desde"></div>
+                <div class="form-group"><label>Promo hasta</label><input type="date" id="tk-mp-hasta"></div>
+            </div>
+            <div class="checkbox-row"><input type="checkbox" id="tk-mp-destacado"><label for="tk-mp-destacado">Destacado en la portada</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="tk-mp-activo" checked><label for="tk-mp-activo">Visible en la web</label></div>
+            <div class="form-group"><label>Extras que el cliente puede sumar</label>
+                <div id="tk-mp-extras"></div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="tkAgregarExtra()">+ Extra</button></div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="tk-mp-borrar" onclick="tkBorrarProducto()" style="margin-right:auto;">Eliminar</button>
+                <button class="btn btn-secondary" onclick="tkCerrar('tk-modal-prod')">Cancelar</button>
+                <button class="btn btn-primary" onclick="tkGuardarProducto()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: importar desde la carta -->
+    <div class="modal-overlay" id="tk-modal-imp">
+        <div class="modal">
+            <h3>⬇️ Importar desde la carta</h3>
+            <p style="font-size:12.5px;color: var(--tx-9, #64748b);margin-bottom:10px;">Se copian nombre, precio, foto y descripción, y quedan
+                vinculados a la carta (stock y costo). Después los podés cambiar acá sin tocar la carta.</p>
+            <div class="tk-arbol" id="tk-arbol"></div>
+            <div class="checkbox-row" style="margin-top:10px;"><input type="checkbox" id="tk-imp-extras" checked><label for="tk-imp-extras">Traer también los extras de cada categoría</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="tk-imp-actualizar"><label for="tk-imp-actualizar">Actualizar los que ya estaban importados (pisa nombre, precio, foto y descripción)</label></div>
+            <div id="tk-imp-msg" style="font-size:12.5px;"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="tkCerrar('tk-modal-imp')">Cerrar</button>
+                <button class="btn btn-primary" id="tk-imp-btn" onclick="tkImportar()">Importar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="js/sidebar.js"></script>
+<script src="js/api.js"></script>
+<script src="js/moneda.js"></script>
+<script>
+requireAuth();
+requirePermiso('acceso_online');
+
+// Sección por la URL (online.html?s=takeaway|reservas). Sin ?s= abre Take Away.
+const SECCION = (() => {
+    const s = new URLSearchParams(location.search).get('s');
+    return ['takeaway', 'reservas'].includes(s) ? s : 'takeaway';
+})();
+document.querySelectorAll('#secciones a').forEach(a => a.classList.toggle('active', a.dataset.s === SECCION));
+document.getElementById('sec-' + SECCION).classList.add('active');
+
+// ── Config de reservas ONLINE (topes del widget público + contacto) ──
+// Guardada en el server (endpoint dedicado, no la pisa ninguna otra pantalla).
+// Permiso: gerente o gestion_reservas (mismo gate que esta solapa).
+let _olCargada = false;
+// Banner y logo: la URL subida queda acá hasta Guardar (subir no cambia la página pública).
+const _olImg = { banner: null, logo: null, logoNegocio: null, nombre: '' };
+async function cargarConfigOnline(){
+    if(_olCargada){ _olPreview(); return; }
+    try{
+        const c = await api.get('/config/reservas-online');
+        document.getElementById('ol-max').value   = c.max_personas ?? '';
+        document.getElementById('ol-ant').value   = c.anticipacion_horas ?? '';
+        document.getElementById('ol-hor').value   = c.horizonte_dias ?? '';
+        document.getElementById('ol-tel').value   = c.contacto_telefono || '';
+        document.getElementById('ol-email').value = c.contacto_email || '';
+        _olPintarRedes(c.redes || []);
+        document.getElementById('ol-desc').value  = c.descripcion || '';
+        document.getElementById('ol-dir').value   = c.direccion || '';
+        document.getElementById('ol-dir').placeholder = c.direccion_negocio
+            ? 'Vacío = ' + c.direccion_negocio + ' (la del ticket)' : 'Ej: Jægersborggade 12, 2200 København N';
+        document.getElementById('ol-mapa').value  = c.mapa_url || '';
+        document.getElementById('ol-banner-nom').checked = c.banner_nombre !== false;
+        _olImg.banner = c.banner_url || null;
+        _olImg.logo = c.logo_url || null;
+        _olImg.logoNegocio = c.logo_negocio || null;
+        _olImg.nombre = c.restaurante || '';
+        if(c.codigo){
+            const ver = document.getElementById('ol-ver');
+            ver.href = 'reserva.html?r=' + encodeURIComponent(c.codigo);
+            ver.style.display = '';
+        }
+        _olPintarBanner();
+        _olPintarIdiomas(c.idiomas);
+        _olCargada = true;
+        ['ol-max','ol-tel','ol-email'].forEach(id =>
+            document.getElementById(id).addEventListener('input', _olPreview));
+        _olPreview();
+    }catch(e){
+        document.getElementById('ol-msg').textContent = 'No se pudo cargar la configuración: ' + (e.message || e);
+        document.getElementById('ol-msg').style.color = '#dc2626';
+    }
+}
+function _olPreview(){
+    const pv = document.getElementById('ol-preview');
+    const max = document.getElementById('ol-max').value;
+    const partes = [];
+    const tel = document.getElementById('ol-tel').value.trim();
+    const em  = document.getElementById('ol-email').value.trim();
+    if(tel) partes.push('Tel. ' + tel);
+    if(em)  partes.push('Correo: ' + em);
+    if(max){
+        pv.style.display = '';
+        pv.textContent = `El cliente verá: "¿Son más de ${max}? Contactate con el restaurante` +
+            (partes.length ? ': ' + partes.join(' · ') : '') + '."';
+    }else{
+        pv.style.display = 'none';
+    }
+}
+// Vista previa del banner: el mismo criterio que reserva.html (navy de la marca si no hay
+// imagen; con imagen, velo abajo sólo si va el nombre encima).
+function _olPintarBanner(){
+    const b = document.getElementById('ol-banner-prev');
+    const conNombre = document.getElementById('ol-banner-nom').checked;
+    const logo = _olImg.logo || _olImg.logoNegocio;
+    b.style.backgroundImage = _olImg.banner ? `url("${_olImg.banner}")` : '';
+    b.classList.toggle('con-foto', !!_olImg.banner);
+    b.classList.toggle('sin-velo', !conNombre);
+    const img = document.getElementById('ol-banner-logo');
+    img.style.display = (logo && conNombre) ? '' : 'none';
+    if(logo) img.src = logo;
+    document.getElementById('ol-banner-nombre').textContent = conNombre ? (_olImg.nombre || 'Tu restaurante') : '';
+    document.getElementById('ol-banner-quitar').style.display = _olImg.banner ? '' : 'none';
+    document.getElementById('ol-logo-quitar').style.display = _olImg.logo ? '' : 'none';
+    document.getElementById('ol-logo-nota').textContent = _olImg.logo ? 'Logo propio de la página de reservas'
+        : (_olImg.logoNegocio ? 'Se usa el logo del negocio (Configuración)' : 'Sin logo');
+}
+// Idiomas de la página pública: activables; el principal va primero en la lista que se
+// guarda. Siempre queda al menos uno activo (y el principal siempre está activo).
+const _OL_IDIOMAS = [['da','Danés'], ['en','Inglés'], ['es','Español']];
+function _olPintarIdiomas(activos){
+    activos = (activos && activos.length) ? activos : ['da','en','es'];
+    document.getElementById('ol-idiomas').innerHTML = _OL_IDIOMAS.map(([c, n]) => `
+        <div class="fila-idioma">
+            <label><input type="checkbox" value="${c}" ${activos.includes(c) ? 'checked' : ''} onchange="_olIdiomaCambio(this)"> ${n}</label>
+            <label class="principal"><input type="radio" name="ol-idioma-principal" value="${c}"
+                ${activos[0] === c ? 'checked' : ''} onchange="_olIdiomaCambio(this)"> Principal</label>
+        </div>`).join('');
+    _olIdiomaCambio();
+}
+function _olIdiomaCambio(el){
+    const box = document.getElementById('ol-idiomas');
+    const checks = [...box.querySelectorAll('input[type=checkbox]')];
+    const radios = [...box.querySelectorAll('input[type=radio]')];
+    if(el && el.type === 'radio'){                       // elegir principal lo activa
+        checks.find(c => c.value === el.value).checked = true;
+    }
+    if(!checks.some(c => c.checked) && el) el.checked = true;   // nunca cero idiomas
+    const principal = radios.find(r => r.checked);
+    if(!principal || !checks.find(c => c.value === principal.value).checked){
+        const primero = checks.find(c => c.checked);
+        radios.forEach(r => r.checked = (r.value === primero.value));
+    }
+    radios.forEach(r => r.disabled = !checks.find(c => c.value === r.value).checked);
+}
+function _olIdiomasElegidos(){
+    const box = document.getElementById('ol-idiomas');
+    const principal = (box.querySelector('input[type=radio]:checked') || {}).value;
+    const activos = [...box.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+    return [principal, ...activos.filter(c => c !== principal)].filter(Boolean);
+}
+async function olSubir(tipo, input){
+    const f = input.files && input.files[0];
+    input.value = '';
+    if(!f) return;
+    const msg = document.getElementById('ol-msg');
+    msg.textContent = 'Subiendo imagen…'; msg.style.color = '';
+    try{
+        const fd = new FormData(); fd.append('file', f);
+        const r = await apiFetch('/config/reservas-online/imagen?tipo=' + tipo, { method: 'POST', body: fd });
+        _olImg[tipo] = r.url;
+        _olPintarBanner();
+        msg.textContent = 'Imagen lista. Tocá Guardar para publicarla.';
+    }catch(e){
+        msg.textContent = 'No se pudo subir la imagen: ' + (e.message || e);
+        msg.style.color = '#dc2626';
+    }
+}
+function olQuitar(tipo){
+    _olImg[tipo] = null;
+    _olPintarBanner();
+    document.getElementById('ol-msg').textContent = 'Tocá Guardar para aplicar el cambio.';
+    document.getElementById('ol-msg').style.color = '';
+}
+// Redes: cada fila = tipo (el ícono), texto (lo que se ve) y enlace (a dónde lleva).
+const _OL_TIPOS_RED = [['instagram','Instagram','@turestaurante','https://instagram.com/turestaurante'],
+    ['facebook','Facebook','Tu Restaurante','https://facebook.com/turestaurante'],
+    ['tiktok','TikTok','@turestaurante','https://www.tiktok.com/@turestaurante'],
+    ['web','Sitio web','turestaurante.dk','https://turestaurante.dk'],
+    ['otra','Otra','Ej: TripAdvisor','https://…']];
+const _escOl = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function _olFilaRed(r){
+    const tipo = (_OL_TIPOS_RED.find(x => x[0] === r.tipo) || _OL_TIPOS_RED[4]);
+    return `<div class="ol-red">
+        <select aria-label="Tipo de red" onchange="_olTipoRed(this)">${_OL_TIPOS_RED.map(([v, n]) =>
+            `<option value="${v}" ${v === tipo[0] ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        <input type="text" class="r-texto" maxlength="80" aria-label="Texto que se muestra" placeholder="Texto: ${_escOl(tipo[2])}" value="${_escOl(r.texto)}">
+        <input type="text" class="r-url" maxlength="500" aria-label="Enlace" placeholder="Enlace: ${_escOl(tipo[3])}" value="${_escOl(r.url)}">
+        <button type="button" class="quitar" title="Quitar" aria-label="Quitar esta red" onclick="this.closest('.ol-red').remove()">✕</button>
+    </div>`;
+}
+function _olPintarRedes(lista){
+    document.getElementById('ol-redes-lista').innerHTML = lista.map(_olFilaRed).join('');
+}
+function _olTipoRed(sel){
+    const t = _OL_TIPOS_RED.find(x => x[0] === sel.value);
+    const fila = sel.closest('.ol-red');
+    fila.querySelector('.r-texto').placeholder = 'Texto: ' + t[2];
+    fila.querySelector('.r-url').placeholder = 'Enlace: ' + t[3];
+}
+function olAgregarRed(){
+    const usados = [...document.querySelectorAll('#ol-redes-lista select')].map(s => s.value);
+    const libre = (_OL_TIPOS_RED.find(t => !usados.includes(t[0]) && t[0] !== 'otra') || _OL_TIPOS_RED[4])[0];
+    document.getElementById('ol-redes-lista').insertAdjacentHTML('beforeend', _olFilaRed({ tipo: libre }));
+    const filas = document.querySelectorAll('#ol-redes-lista .ol-red');
+    filas[filas.length - 1].querySelector('.r-texto').focus();
+}
+function _olRedesElegidas(){
+    return [...document.querySelectorAll('#ol-redes-lista .ol-red')].map(f => ({
+        tipo: f.querySelector('select').value,
+        texto: f.querySelector('.r-texto').value.trim(),
+        url: f.querySelector('.r-url').value.trim(),
+    })).filter(r => r.texto || r.url);
+}
+async function guardarConfigOnline(){
+    const num = id => { const v = document.getElementById(id).value.trim(); return v === '' ? null : parseInt(v, 10); };
+    const txt = id => document.getElementById(id).value.trim() || null;
+    const msg = document.getElementById('ol-msg');
+    const btn = document.getElementById('btn-guardar-online');
+    btn.disabled = true; msg.textContent = '';
+    try{
+        await api.put('/config/reservas-online', {
+            max_personas: num('ol-max'),
+            anticipacion_horas: num('ol-ant'),
+            horizonte_dias: num('ol-hor'),
+            contacto_telefono: txt('ol-tel'),
+            contacto_email: txt('ol-email'),
+            redes: _olRedesElegidas(),
+            descripcion: txt('ol-desc'),
+            direccion: txt('ol-dir'),
+            mapa_url: txt('ol-mapa'),
+            banner_url: _olImg.banner,
+            banner_nombre: document.getElementById('ol-banner-nom').checked,
+            logo_url: _olImg.logo,
+            idiomas: _olIdiomasElegidos(),
+        });
+        msg.textContent = '✅ Guardado — la página pública ya lo aplica.';
+        msg.style.color = '#16a34a';
+    }catch(e){
+        msg.textContent = 'Error: ' + (e.message || e);
+        msg.style.color = '#dc2626';
+    }finally{
+        btn.disabled = false;
+    }
+}
+
+// ══ TAKE AWAY ══════════════════════════════════════════════════════════════════
+// Tres paneles: el menú online de ESTE local, el retiro y los pagos de este local, y el
+// sitio de la CADENA (común a todos sus locales). La web pública es takeaway.html.
+const _tk = { menu: null, carta: null, areas: [], catSel: 'todas', prodId: null, prodFoto: null,
+              cfg: null, sitio: null, cadena: null };
+const _tkMoney = (n) => (typeof fmtDinero === 'function' ? fmtDinero(n) : Number(n || 0).toFixed(2));
+const _tkErr = (e) => (e && e.message) || String(e);
+
+function tkPanel(p) {
+    document.querySelectorAll('#tk-sub button').forEach(b => b.classList.toggle('active', b.dataset.p === p));
+    document.querySelectorAll('.tk-panel').forEach(x => x.classList.toggle('active', x.id === 'tk-p-' + p));
+    try { localStorage.setItem(claveRest('online_tk_panel'), p); } catch (_) {}
+    if (p === 'pedidos') tkCargarPedidos();
+    if (p === 'menu' && !_tk.menu) tkCargarMenu();
+    if (p === 'retiro' && !_tk.cfg) tkCargarRetiro();
+    if (p === 'sitio' && !_tk.sitio) tkCargarSitio();
+}
+function tkCerrar(id) { document.getElementById(id).classList.remove('active'); }
+
+// ── Menú online ──
+async function tkCargarMenu() {
+    try {
+        const [menu, areas] = await Promise.all([api.get('/online/menu'), api.get('/productos/areas')]);
+        _tk.menu = menu; _tk.areas = areas || [];
+        tkPintarMenu();
+    } catch (e) {
+        document.getElementById('tk-prods').innerHTML = `<div class="tk-vacio">No se pudo cargar el menú: ${esc(_tkErr(e))}</div>`;
+    }
+}
+function tkPintarMenu() {
+    const m = _tk.menu; if (!m) return;
+    const cuenta = (cid) => m.productos.filter(p => cid === 'todas' ? true : cid === 'sin' ? !p.categoria_id : p.categoria_id === cid).length;
+    const fila = (cid, nombre, extra = '', off = false) => `
+        <div class="tk-cat${_tk.catSel === cid ? ' sel' : ''}${off ? ' off' : ''}" onclick="tkElegirCat(${typeof cid === 'number' ? cid : `'${cid}'`})">
+            <span class="tk-cat-nom">${esc(nombre)}</span><span class="n">${cuenta(cid)}</span>${extra}</div>`;
+    let html = fila('todas', 'Todos los productos');
+    m.categorias.forEach((c, i) => {
+        html += fila(c.id, c.nombre, `
+            <button class="tk-mini" title="Subir" onclick="event.stopPropagation();tkMoverCat(${i},-1)">↑</button>
+            <button class="tk-mini" title="Bajar" onclick="event.stopPropagation();tkMoverCat(${i},1)">↓</button>
+            <button class="tk-mini" title="${c.activo ? 'Ocultar en la web' : 'Mostrar en la web'}" onclick="event.stopPropagation();tkActivarCat(${c.id},${!c.activo})">${c.activo ? '👁' : '🚫'}</button>
+            <button class="tk-mini" title="Renombrar" onclick="event.stopPropagation();tkRenombrarCat(${c.id})">✏️</button>
+            <button class="tk-mini" title="Eliminar" onclick="event.stopPropagation();tkBorrarCat(${c.id})">✕</button>`, !c.activo);
+    });
+    if (m.productos.some(p => !p.categoria_id)) html += fila('sin', 'Sin categoría');
+    document.getElementById('tk-cats').innerHTML = html;
+
+    const lista = m.productos.filter(p => _tk.catSel === 'todas' ? true : _tk.catSel === 'sin' ? !p.categoria_id : p.categoria_id === _tk.catSel);
+    document.getElementById('tk-prods').innerHTML = lista.length ? lista.map(p => {
+        const promo = p.precio_promo != null;
+        const chips = [
+            !p.activo ? '<span class="tk-chip">Oculto</span>' : '',
+            p.destacado ? '<span class="tk-chip lila">Destacado</span>' : '',
+            p.etiqueta ? `<span class="tk-chip">${esc(p.etiqueta)}</span>` : '',
+            p.producto_id ? '<span class="tk-chip verde">Vinculado a carta</span>' : '',
+            p.producto_id && (p.carta_agotado || p.carta_disponible === false) ? '<span class="tk-chip rojo">Agotado en carta</span>' : '',
+            p.extras.length ? `<span class="tk-chip">${p.extras.length} extra${p.extras.length === 1 ? '' : 's'}</span>` : '',
+        ].join('');
+        return `<div class="tk-prod${p.activo ? '' : ' off'}" onclick="tkEditarProducto(${p.id})">
+            <div class="tk-foto" ${p.imagen_url ? `style="background-image:url('${escAttr(p.imagen_url)}')"` : ''}>${p.imagen_url ? '' : '🍽️'}</div>
+            <div class="tk-prod-cuerpo">
+                <div class="tk-prod-nom">${esc(p.nombre)}</div>
+                <div class="tk-precio">${promo ? `${_tkMoney(p.precio_promo)}<s>${_tkMoney(p.precio)}</s>` : _tkMoney(p.precio)}</div>
+                <div class="tk-chips">${chips}</div>
+            </div></div>`;
+    }).join('') : `<div class="tk-vacio" style="grid-column:1/-1;">${m.productos.length
+        ? 'No hay productos en esta categoría.'
+        : 'Todavía no hay productos. Creá uno o importalos desde la carta.'}</div>`;
+}
+function tkElegirCat(cid) { _tk.catSel = cid; tkPintarMenu(); }
+async function tkNuevaCategoria() {
+    const n = (prompt('Nombre de la categoría') || '').trim(); if (!n) return;
+    try { await api.post('/online/categorias', { nombre: n }); await tkCargarMenu(); } catch (e) { alert(_tkErr(e)); }
+}
+async function tkRenombrarCat(id) {
+    const c = _tk.menu.categorias.find(x => x.id === id);
+    const n = (prompt('Nuevo nombre', c ? c.nombre : '') || '').trim(); if (!n) return;
+    try { await api.patch('/online/categorias/' + id, { nombre: n }); await tkCargarMenu(); } catch (e) { alert(_tkErr(e)); }
+}
+async function tkActivarCat(id, activo) {
+    try { await api.patch('/online/categorias/' + id, { activo }); await tkCargarMenu(); } catch (e) { alert(_tkErr(e)); }
+}
+async function tkBorrarCat(id) {
+    if (!confirm('¿Eliminar la categoría? Sus productos quedan "Sin categoría".')) return;
+    try { await api.delete('/online/categorias/' + id); if (_tk.catSel === id) _tk.catSel = 'todas'; await tkCargarMenu(); } catch (e) { alert(_tkErr(e)); }
+}
+async function tkMoverCat(i, d) {
+    const ids = _tk.menu.categorias.map(c => c.id);
+    const j = i + d; if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    try { await api.put('/online/categorias/orden', { ids }); await tkCargarMenu(); } catch (e) { alert(_tkErr(e)); }
+}
+
+async function tkCargarCarta() {
+    if (!_tk.carta) _tk.carta = await api.get('/online/carta');
+    return _tk.carta;
+}
+async function tkEditarProducto(id) {
+    let carta = { productos: [] };
+    try { carta = await tkCargarCarta(); } catch (_) {}
+    const p = id ? _tk.menu.productos.find(x => x.id === id) : null;
+    _tk.prodId = id; _tk.prodFoto = p ? p.imagen_url : null;
+    document.getElementById('tk-mp-titulo').textContent = p ? 'Editar producto' : 'Nuevo producto';
+    document.getElementById('tk-mp-borrar').style.display = p ? '' : 'none';
+    const val = (k, v) => { document.getElementById(k).value = v == null ? '' : v; };
+    val('tk-mp-nombre', p && p.nombre); val('tk-mp-precio', p && p.precio); val('tk-mp-desc', p && p.descripcion);
+    val('tk-mp-promo', p && p.precio_promo); val('tk-mp-etiqueta', p && p.etiqueta);
+    val('tk-mp-desde', p && p.promo_desde); val('tk-mp-hasta', p && p.promo_hasta);
+    document.getElementById('tk-mp-destacado').checked = !!(p && p.destacado);
+    document.getElementById('tk-mp-activo').checked = p ? !!p.activo : true;
+    const catDef = p ? p.categoria_id : (typeof _tk.catSel === 'number' ? _tk.catSel : null);
+    document.getElementById('tk-mp-cat').innerHTML = '<option value="">Sin categoría</option>' +
+        _tk.menu.categorias.map(c => `<option value="${c.id}"${c.id === catDef ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('');
+    document.getElementById('tk-mp-vinculo').innerHTML = '<option value="">— Ninguno (no descuenta stock) —</option>' +
+        carta.productos.map(c => `<option value="${c.id}"${p && p.producto_id === c.id ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('');
+    document.getElementById('tk-mp-area').innerHTML = '<option value="">La del producto de la carta</option>' +
+        _tk.areas.map(a => `<option value="${a.id}"${p && p.area_id === a.id ? ' selected' : ''}>${esc(a.nombre)}</option>`).join('');
+    document.getElementById('tk-mp-extras').innerHTML = '';
+    (p ? p.extras : []).forEach(e => tkAgregarExtra(e));
+    tkPintarFotoProd();
+    document.getElementById('tk-modal-prod').classList.add('active');
+    setTimeout(() => document.getElementById('tk-mp-nombre').focus(), 50);
+}
+function tkAgregarExtra(e) {
+    const div = document.createElement('div');
+    div.className = 'tk-extra';
+    div.innerHTML = `<input type="text" class="tk-ex-nom" maxlength="80" placeholder="Ej: Queso extra" value="${escAttr(e ? e.nombre : '')}">
+        <input type="number" class="tk-ex-pre" min="0" step="0.01" placeholder="Precio" value="${e ? e.precio : ''}">
+        <button type="button" class="tk-mini" title="Quitar" onclick="this.parentElement.remove()">✕</button>`;
+    if (e && e.producto_id) div.dataset.prod = e.producto_id;
+    document.getElementById('tk-mp-extras').appendChild(div);
+}
+function tkPintarFotoProd() {
+    const el = document.getElementById('tk-mp-foto');
+    el.style.backgroundImage = _tk.prodFoto ? `url("${_tk.prodFoto}")` : '';
+    el.textContent = _tk.prodFoto ? '' : 'Sin foto';
+}
+async function tkSubirImagen(tipo, input) {
+    const f = input.files && input.files[0]; input.value = '';
+    if (!f) return null;
+    const fd = new FormData(); fd.append('file', f);
+    const r = await apiFetch('/online/imagen?tipo=' + tipo, { method: 'POST', body: fd });
+    return r.url;
+}
+async function tkSubirFotoProd(input) {
+    try { const u = await tkSubirImagen('producto', input); if (u) { _tk.prodFoto = u; tkPintarFotoProd(); } }
+    catch (e) { alert('No se pudo subir la foto: ' + _tkErr(e)); }
+}
+function tkQuitarFotoProd() { _tk.prodFoto = null; tkPintarFotoProd(); }
+async function tkGuardarProducto() {
+    const v = (k) => document.getElementById(k).value.trim();
+    const num = (k) => v(k) === '' ? null : Number(v(k));
+    const body = {
+        nombre: v('tk-mp-nombre'), precio: num('tk-mp-precio'), descripcion: v('tk-mp-desc') || null,
+        categoria_id: v('tk-mp-cat') ? Number(v('tk-mp-cat')) : null,
+        producto_id: v('tk-mp-vinculo') ? Number(v('tk-mp-vinculo')) : null,
+        area_id: v('tk-mp-area') ? Number(v('tk-mp-area')) : null,
+        precio_promo: num('tk-mp-promo'), etiqueta: v('tk-mp-etiqueta') || null,
+        promo_desde: document.getElementById('tk-mp-desde').value || null,
+        promo_hasta: document.getElementById('tk-mp-hasta').value || null,
+        destacado: document.getElementById('tk-mp-destacado').checked,
+        activo: document.getElementById('tk-mp-activo').checked,
+        imagen_url: _tk.prodFoto,
+        extras: [...document.querySelectorAll('#tk-mp-extras .tk-extra')].map(r => ({
+            nombre: r.querySelector('.tk-ex-nom').value.trim(),
+            precio: Number(r.querySelector('.tk-ex-pre').value || 0),
+            producto_id: r.dataset.prod ? Number(r.dataset.prod) : null,
+        })).filter(x => x.nombre),
+    };
+    if (!body.nombre) { alert('Poné un nombre.'); return; }
+    if (body.precio == null || isNaN(body.precio)) { alert('Poné un precio.'); return; }
+    try {
+        if (_tk.prodId) await api.patch('/online/productos/' + _tk.prodId, body);
+        else await api.post('/online/productos', body);
+        tkCerrar('tk-modal-prod');
+        await tkCargarMenu();
+    } catch (e) { alert('No se pudo guardar: ' + _tkErr(e)); }
+}
+async function tkBorrarProducto() {
+    if (!_tk.prodId || !confirm('¿Eliminar este producto del menú online? La carta no se toca.')) return;
+    try { await api.delete('/online/productos/' + _tk.prodId); tkCerrar('tk-modal-prod'); await tkCargarMenu(); }
+    catch (e) { alert(_tkErr(e)); }
+}
+
+async function tkAbrirImportar() {
+    _tk.carta = null;   // siempre fresca: puede haber cambiado la carta o lo ya importado
+    document.getElementById('tk-imp-msg').textContent = '';
+    document.getElementById('tk-arbol').innerHTML = '<div class="tk-vacio">Cargando la carta…</div>';
+    document.getElementById('tk-modal-imp').classList.add('active');
+    let carta;
+    try { carta = await tkCargarCarta(); } catch (e) {
+        document.getElementById('tk-arbol').innerHTML = `<div class="tk-vacio">${esc(_tkErr(e))}</div>`; return;
+    }
+    const grupos = [...carta.categorias, { id: null, nombre: 'Sin categoría' }].map(c => {
+        const ps = carta.productos.filter(p => (p.categoria_id || null) === c.id);
+        if (!ps.length) return '';
+        return `<div class="cat"><input type="checkbox" onchange="tkMarcarCat(this)"> ${esc(c.nombre)}</div>` +
+            ps.map(p => `<label><input type="checkbox" class="tk-imp-p" value="${p.id}">${esc(p.nombre)}
+                <span class="ya">${_tkMoney(p.precio)}${p.importado ? ' · ya importado' : ''}</span></label>`).join('');
+    }).join('');
+    document.getElementById('tk-arbol').innerHTML = grupos || '<div class="tk-vacio">La carta está vacía.</div>';
+}
+function tkMarcarCat(cb) {
+    let el = cb.parentElement.nextElementSibling;
+    while (el && el.tagName === 'LABEL') { el.querySelector('input').checked = cb.checked; el = el.nextElementSibling; }
+}
+async function tkImportar() {
+    const ids = [...document.querySelectorAll('.tk-imp-p:checked')].map(x => Number(x.value));
+    const msg = document.getElementById('tk-imp-msg');
+    if (!ids.length) { msg.textContent = 'Marcá al menos un producto.'; return; }
+    const btn = document.getElementById('tk-imp-btn'); btn.disabled = true;
+    try {
+        const r = await api.post('/online/menu/importar', {
+            producto_ids: ids,
+            incluir_extras: document.getElementById('tk-imp-extras').checked,
+            actualizar_existentes: document.getElementById('tk-imp-actualizar').checked,
+        });
+        msg.style.color = 'var(--ok-tx, #15803d)';
+        msg.textContent = `✅ ${r.creados} nuevos, ${r.actualizados} actualizados, ${r.omitidos} ya estaban.`;
+        _tk.carta = null;
+        await tkCargarMenu();
+    } catch (e) { msg.style.color = 'var(--pel-tx, #b91c1c)'; msg.textContent = _tkErr(e); }
+    finally { btn.disabled = false; }
+}
+
+// ── Retiro y pagos ──
+async function tkCargarRetiro() {
+    try {
+        const c = _tk.cfg = await api.get('/online/takeaway-config');
+        document.getElementById('tk-activo').checked = !!c.activo;
+        document.getElementById('tk-pausado').checked = !!c.pausado;
+        document.getElementById('tk-aviso').value = c.aviso || '';
+        document.getElementById('tk-prep').value = c.prep_min;
+        document.getElementById('tk-envio').value = c.envio_cocina_min;
+        document.getElementById('tk-paso').value = c.paso_min;
+        document.getElementById('tk-margen').value = c.margen_cierre_min;
+        document.getElementById('tk-dias').value = String(c.dias);
+        document.getElementById('tk-cupo').value = c.max_por_franja ?? '';
+        document.getElementById('tk-timeout').value = c.pago_timeout_min;
+        document.getElementById('tk-max-total').value = c.max_total;
+        document.getElementById('tk-proveedor').innerHTML = c.proveedores.map(p =>
+            `<option value="${escAttr(p.key)}"${p.key === c.pago_proveedor ? ' selected' : ''}>${esc(p.nombre)}</option>`).join('');
+        _tk.fotoTienda = c.foto_url || null;
+        tkPintarFotoTienda();
+        tkPintarCamposPago();
+    } catch (e) {
+        document.getElementById('tk-msg-retiro').textContent = 'No se pudo cargar: ' + _tkErr(e);
+    }
+}
+function tkPintarCamposPago() {
+    const key = document.getElementById('tk-proveedor').value;
+    const p = (_tk.cfg.proveedores || []).find(x => x.key === key);
+    const actual = key === _tk.cfg.pago_proveedor ? (_tk.cfg.pago_config || {}) : {};
+    document.getElementById('tk-campos-pago').innerHTML = (p && p.campos || []).map(c => `
+        <div class="form-group"><label>${esc(c.label)}</label>
+            <input type="${c.tipo === 'password' ? 'password' : c.tipo === 'number' ? 'number' : 'text'}" data-campo-pago="${escAttr(c.key)}"
+                value="${escAttr(actual[c.key] ?? c.default ?? '')}"></div>`).join('');
+}
+function tkPintarFotoTienda() {
+    const el = document.getElementById('tk-foto-prev');
+    el.style.backgroundImage = _tk.fotoTienda ? `url("${_tk.fotoTienda}")` : '';
+    el.textContent = _tk.fotoTienda ? '' : 'Sin foto';
+}
+async function tkSubirFotoTienda(input) {
+    try { const u = await tkSubirImagen('tienda', input); if (u) { _tk.fotoTienda = u; tkPintarFotoTienda(); } }
+    catch (e) { alert('No se pudo subir la foto: ' + _tkErr(e)); }
+}
+function tkQuitarFotoTienda() { _tk.fotoTienda = null; tkPintarFotoTienda(); }
+async function tkGuardarRetiro() {
+    const n = (id) => { const v = document.getElementById(id).value.trim(); return v === '' ? null : Number(v); };
+    const cfgPago = {};
+    document.querySelectorAll('[data-campo-pago]').forEach(i => { cfgPago[i.dataset.campoPago] = i.value; });
+    const msg = document.getElementById('tk-msg-retiro');
+    const btn = document.getElementById('tk-guardar-retiro'); btn.disabled = true; msg.textContent = '';
+    try {
+        await api.put('/online/takeaway-config', {
+            activo: document.getElementById('tk-activo').checked,
+            pausado: document.getElementById('tk-pausado').checked,
+            aviso: document.getElementById('tk-aviso').value.trim() || null,
+            prep_min: n('tk-prep'), envio_cocina_min: n('tk-envio'), paso_min: n('tk-paso'),
+            margen_cierre_min: n('tk-margen'), dias: Number(document.getElementById('tk-dias').value),
+            max_por_franja: n('tk-cupo'), pago_timeout_min: n('tk-timeout'), max_total: n('tk-max-total'),
+            foto_url: _tk.fotoTienda,
+            pago_proveedor: document.getElementById('tk-proveedor').value, pago_config: cfgPago,
+        });
+        msg.style.color = 'var(--ok-tx, #15803d)'; msg.textContent = '✅ Guardado';
+        _tk.cfg = null; await tkCargarRetiro();
+    } catch (e) { msg.style.color = 'var(--pel-tx, #b91c1c)'; msg.textContent = _tkErr(e); }
+    finally { btn.disabled = false; }
+}
+async function tkAbrirTpv() {
+    // Abrir la pestaña ANTES del await: si no, el navegador la bloquea como emergente.
+    const w = window.open('', '_blank');
+    try { const r = await api.post('/datafono/terminal-link', {}); if (w) w.location = r.url; else location.href = r.url; }
+    catch (e) { if (w) w.close(); alert('No se pudo abrir el TPV virtual: ' + _tkErr(e)); }
+}
+
+// ── Sitio de la cadena ──
+const _TK_IDIOMAS = [['da', 'Danés'], ['en', 'Inglés'], ['es', 'Español']];
+async function tkCargarSitio() {
+    try {
+        const r = await api.get('/online/cadena');
+        _tk.cadena = r.cadena; _tk.sitio = r.config || {};
+        const c = _tk.sitio;
+        document.getElementById('tk-titulo').value = c.titulo || '';
+        document.getElementById('tk-subtitulo').value = c.subtitulo || '';
+        document.getElementById('tk-web').value = c.web || '';
+        document.getElementById('tk-idiomas').innerHTML = _TK_IDIOMAS.map(([k, n]) =>
+            `<label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" style="width:auto;margin:0;" value="${k}"${(c.idiomas || ['da','en','es']).includes(k) ? ' checked' : ''}> ${n}</label>`).join('');
+        document.getElementById('tk-secciones').innerHTML = '';
+        (c.secciones || []).forEach(s => tkAgregarSeccion(s));
+        document.getElementById('tk-redes').innerHTML = (c.redes || []).map(_olFilaRed).join('');
+        const loc = (r.locales || []).length;
+        document.getElementById('tk-sitio-aviso').innerHTML = `⚠️ Estos cambios se ven en <b>todos los locales de la cadena</b>` +
+            (loc ? ` (${loc} local${loc === 1 ? '' : 'es'}: ${r.locales.map(l => esc(l.nombre)).join(', ')}).` : '.');
+        document.getElementById('tk-ver-sitio').href = 'takeaway.html?c=' + encodeURIComponent(r.cadena.codigo);
+        tkPintarImagenesSitio();
+    } catch (e) {
+        document.getElementById('tk-msg-sitio').textContent = 'No se pudo cargar: ' + _tkErr(e);
+    }
+}
+function tkPintarImagenesSitio() {
+    const h = document.getElementById('tk-hero-prev'), l = document.getElementById('tk-logo-prev');
+    h.style.backgroundImage = _tk.sitio.hero_url ? `url("${_tk.sitio.hero_url}")` : '';
+    h.style.backgroundColor = _tk.sitio.hero_url ? '' : '#1B1B33';
+    h.style.color = _tk.sitio.hero_url ? '' : '#fff';
+    h.textContent = _tk.sitio.hero_url ? '' : 'Sin imagen: se usa el azul de la marca';
+    l.style.backgroundImage = _tk.sitio.logo_url ? `url("${_tk.sitio.logo_url}")` : '';
+}
+async function tkSubirSitio(tipo, input) {
+    try { const u = await tkSubirImagen(tipo, input); if (u) { _tk.sitio[tipo + '_url'] = u; tkPintarImagenesSitio(); } }
+    catch (e) { alert('No se pudo subir la imagen: ' + _tkErr(e)); }
+}
+function tkQuitarSitio(tipo) { _tk.sitio[tipo + '_url'] = null; tkPintarImagenesSitio(); }
+function tkAgregarSeccion(s) {
+    const div = document.createElement('div');
+    div.className = 'tk-seccion';
+    div.dataset.img = (s && s.imagen_url) || '';
+    div.innerHTML = `<div class="form-group"><input type="text" class="tk-se-tit" maxlength="80" placeholder="Título" value="${escAttr(s ? s.titulo || '' : '')}"></div>
+        <div class="form-group"><textarea class="tk-se-txt" rows="2" maxlength="600" placeholder="Texto">${esc(s ? s.texto || '' : '')}</textarea></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span class="tk-se-img" style="width:64px;height:40px;border-radius:6px;background: var(--sup-3, #f1f5f9) center/cover no-repeat;display:inline-block;${s && s.imagen_url ? `background-image:url('${escAttr(s.imagen_url)}')` : ''}"></span>
+            <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">Foto
+                <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="tkFotoSeccion(this)"></label>
+            <button type="button" class="tk-mini" title="Subir" onclick="tkMoverSeccion(this,-1)">↑</button>
+            <button type="button" class="tk-mini" title="Bajar" onclick="tkMoverSeccion(this,1)">↓</button>
+            <button type="button" class="tk-mini" title="Quitar sección" onclick="this.closest('.tk-seccion').remove()" style="margin-left:auto;">✕ Quitar</button>
+        </div>`;
+    document.getElementById('tk-secciones').appendChild(div);
+}
+async function tkFotoSeccion(input) {
+    const box = input.closest('.tk-seccion');
+    try {
+        const u = await tkSubirImagen('seccion', input);
+        if (u) { box.dataset.img = u; box.querySelector('.tk-se-img').style.backgroundImage = `url("${u}")`; }
+    } catch (e) { alert('No se pudo subir la foto: ' + _tkErr(e)); }
+}
+function tkMoverSeccion(btn, d) {
+    const box = btn.closest('.tk-seccion'), cont = box.parentElement;
+    if (d < 0 && box.previousElementSibling) cont.insertBefore(box, box.previousElementSibling);
+    if (d > 0 && box.nextElementSibling) cont.insertBefore(box.nextElementSibling, box);
+}
+function tkAgregarRed() {
+    document.getElementById('tk-redes').insertAdjacentHTML('beforeend', _olFilaRed({ tipo: 'instagram' }));
+}
+async function tkGuardarSitio() {
+    const idiomas = [...document.querySelectorAll('#tk-idiomas input:checked')].map(i => i.value);
+    const config = {
+        titulo: document.getElementById('tk-titulo').value.trim(),
+        subtitulo: document.getElementById('tk-subtitulo').value.trim(),
+        hero_url: _tk.sitio.hero_url || null, logo_url: _tk.sitio.logo_url || null,
+        web: document.getElementById('tk-web').value.trim(),
+        idiomas: idiomas.length ? idiomas : ['da', 'en', 'es'],
+        secciones: [...document.querySelectorAll('#tk-secciones .tk-seccion')].map(b => ({
+            titulo: b.querySelector('.tk-se-tit').value.trim(), texto: b.querySelector('.tk-se-txt').value.trim(),
+            imagen_url: b.dataset.img || null })),
+        redes: [...document.querySelectorAll('#tk-redes .ol-red')].map(f => ({
+            tipo: f.querySelector('select').value, texto: f.querySelector('.r-texto').value.trim(),
+            url: f.querySelector('.r-url').value.trim() })).filter(r => r.texto || r.url),
+    };
+    const msg = document.getElementById('tk-msg-sitio'); msg.textContent = '';
+    try {
+        const r = await api.put('/online/cadena', { config });
+        _tk.sitio = r.config;
+        msg.style.color = 'var(--ok-tx, #15803d)'; msg.textContent = '✅ Guardado: ya se ve en la página';
+    } catch (e) { msg.style.color = 'var(--pel-tx, #b91c1c)'; msg.textContent = _tkErr(e); }
+}
+
+// ── Pedidos de hoy ──
+const _TK_EST = {
+    esperando: ['Esperando el pago', 'warn'], rechazado: ['Pago rechazado', 'warn'],
+    cancelado: ['Cancelado', 'off'], expirado: ['Pago vencido', 'off'],
+    programado: ['Programado', ''], en_preparacion: ['En preparación', 'warn'],
+    lista: ['Listo para retirar', 'ok'], entregado: ['Entregado', 'off'],
+};
+async function tkCargarPedidos() {
+    const tb = document.getElementById('tk-pedidos');
+    let lista;
+    try { lista = await api.get('/online/pedidos'); }
+    catch (e) { tb.innerHTML = `<tr><td colspan="7" style="padding:16px;">${esc(_tkErr(e))}</td></tr>`; return; }
+    if (!lista.length) { tb.innerHTML = '<tr><td colspan="7" style="padding:16px;color:var(--tx-9,#64748b);">Todavía no entró ningún pedido hoy.</td></tr>'; return; }
+    tb.innerHTML = lista.map(p => {
+        const k = p.pago === 'aprobado' ? p.cocina : p.pago;
+        const [txt, cls] = _TK_EST[k] || [k, ''];
+        const hora = p.retiro_asap ? 'Lo antes posible' : (p.retiro ? p.retiro.slice(11, 16) : '—');
+        const dia = p.retiro && !p.retiro_asap ? `<small>${p.retiro.slice(8, 10) + "/" + p.retiro.slice(5, 7)}</small>` : '';
+        return `<tr>
+            <td><b>${p.id}</b></td>
+            <td>${esc(hora)}${dia}</td>
+            <td>${esc(p.cliente || '')}<small>${esc([p.telefono, p.email].filter(Boolean).join(' · '))}</small></td>
+            <td>${esc(p.resumen)}</td>
+            <td style="text-align:right;white-space:nowrap;">${_tkMoney(p.total)}</td>
+            <td><span class="tk-est ${cls}">${esc(txt)}</span></td>
+            <td>${p.estado === 'abierto' ? `<button class="btn btn-primary btn-sm" onclick="tkEntregar(${p.id}, this)">Entregar</button>` : ''}</td>
+        </tr>`;
+    }).join('');
+}
+async function tkEntregar(id, btn) {
+    btn.disabled = true;
+    try { await api.post(`/online/pedidos/${id}/entregar`, {}); tkCargarPedidos(); }
+    catch (e) { btn.disabled = false; alert(_tkErr(e)); }
+}
+
+if (SECCION === 'takeaway') {
+    let p = 'pedidos';
+    try { p = localStorage.getItem(claveRest('online_tk_panel')) || 'pedidos'; } catch (_) {}
+    tkPanel(['pedidos', 'menu', 'retiro', 'sitio'].includes(p) ? p : 'pedidos');
+    // En vivo: cada cambio de cocina/pedidos ("pos") refresca la lista si está a la vista.
+    suscribirEventos('pos', () => {
+        if (document.getElementById('tk-p-pedidos').classList.contains('active')) tkCargarPedidos();
+    });
+}
+
+if (SECCION === 'reservas') cargarConfigOnline();
+</script>
+</body>
+</html>

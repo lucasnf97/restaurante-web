@@ -27,7 +27,7 @@ const PAGINAS = [
   "clientes.html", "cocina.html", "configuracion-usuario.html", "configuracion.html",
   "dashboard.html", "documentos.html", "estadisticas-personal.html", "estadisticas.html",
   "facturas.html", "fichajes.html", "historicos.html", "horarios.html",
-  "importar-ventas.html", "index.html", "mensajes.html", "mesas.html",
+  "importar-ventas.html", "index.html", "mensajes.html", "mesas.html", "online.html",
   "preview-dashboard.html", "privacidad.html", "productos.html", "reserva.html",
   "reservas.html", "restablecer.html", "restaurantes.html", "salarios.html",
   "social.html", "stock.html", "tareas.html", "terminos.html", "usuarios.html",
