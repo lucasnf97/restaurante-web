@@ -1123,3 +1123,250 @@ async function abrirDocumento(url) {
         } catch (_) { /* silencioso: sin red o token vencido (el 401 ya desloguea) */ }
     })();
 })();
+
+// ══════════════════════════════════════════════════════════════════════════
+//   CAMPOS DE FECHA Y HORA CON MÁSCARA FIJA (decisión del dueño 2026-10-15)
+//
+//   Todo <input type="date|time|datetime-local"> de la web se muestra SIEMPRE como
+//   DD/MM/AAAA, HH:MM (24 h) o DD/MM/AAAA HH:MM, con las "/" y los ":" fijos: se
+//   escriben sólo los números. Los campos nativos dependían del idioma de la
+//   computadora (en inglés de EE.UU. eran mes/día/año y AM/PM) y, al tocar el medio,
+//   se empezaba a escribir en el mes o el año.
+//
+//   ⚠ Las pantallas NO cambian: el campo se convierte solo (también los que se crean
+//   después, con un MutationObserver) y `.value` sigue hablando el formato de siempre
+//   (AAAA-MM-DD, HH:MM, AAAA-MM-DDTHH:MM) en lectura y escritura. Mientras está
+//   incompleto o es inválido, `.value` es "" — igual que el campo nativo.
+//   ⚠ El atributo pasa a type="text": para buscarlos o darles estilo usar
+//   input[data-campo="fecha|hora|fechahora"] (además de input[type=...]).
+// ══════════════════════════════════════════════════════════════════════════
+(function () {
+    if (window.__camposFecha) return;
+    window.__camposFecha = true;
+
+    const TIPOS = {
+        date:            { campo: "fecha",     mascara: "DD/MM/AAAA",       n: 8 },
+        time:            { campo: "hora",      mascara: "HH:MM",            n: 4 },
+        "datetime-local": { campo: "fechahora", mascara: "DD/MM/AAAA HH:MM", n: 12 },
+    };
+    const POR_CAMPO = Object.fromEntries(Object.entries(TIPOS).map(([tipo, t]) => [t.campo, { ...t, tipo }]));
+    const VALOR = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    const nativo = (el) => VALOR.get.call(el);
+    const ponerNativo = (el, v) => VALOR.set.call(el, v);
+    const p2 = (n) => String(n).padStart(2, "0");
+
+    // ── Texto ⇄ dígitos ⇄ valor de siempre ──
+    const digitos = (txt, n) => String(txt || "").replace(/\D/g, "").slice(0, n);
+    function pintar(t, d) {
+        // Rellena la máscara con los dígitos; lo que falta queda como "-" (fijo).
+        if (!d) return "";
+        let i = 0, out = "";
+        for (const ch of t.mascara) out += /[A-Z]/.test(ch) ? (i < d.length ? d[i++] : "-") : ch;
+        return out;
+    }
+    function posDespuesDe(t, k) {
+        // Índice en el texto justo después del dígito k (para dejar el cursor ahí).
+        if (k <= 0) return 0;
+        let i = 0;
+        for (let p = 0; p < t.mascara.length; p++) {
+            if (/[A-Z]/.test(t.mascara[p]) && ++i === k) return p + 1;
+        }
+        return t.mascara.length;
+    }
+    function aValor(t, d) {
+        if (d.length !== t.n) return "";
+        const fechaOk = (dd, mm, aa) => {
+            const f = new Date(aa, mm - 1, dd);
+            return aa >= 1900 && aa <= 2999 && f.getFullYear() === aa && f.getMonth() === mm - 1 && f.getDate() === dd;
+        };
+        const horaOk = (hh, mi) => hh <= 23 && mi <= 59;
+        if (t.campo === "hora") {
+            const hh = +d.slice(0, 2), mi = +d.slice(2, 4);
+            return horaOk(hh, mi) ? `${p2(hh)}:${p2(mi)}` : "";
+        }
+        const dd = +d.slice(0, 2), mm = +d.slice(2, 4), aa = +d.slice(4, 8);
+        if (!fechaOk(dd, mm, aa)) return "";
+        const iso = `${aa}-${p2(mm)}-${p2(dd)}`;
+        if (t.campo === "fecha") return iso;
+        const hh = +d.slice(8, 10), mi = +d.slice(10, 12);
+        return horaOk(hh, mi) ? `${iso}T${p2(hh)}:${p2(mi)}` : "";
+    }
+    function deValor(t, v) {
+        // "AAAA-MM-DD", "HH:MM[:SS]", "AAAA-MM-DDTHH:MM[:SS]" → dígitos en orden de pantalla.
+        v = String(v || "").trim();
+        let m;
+        if (t.campo === "hora") return (m = v.match(/^(\d{1,2}):(\d{2})/)) ? p2(m[1]) + m[2] : "";
+        m = v.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+        if (!m) return "";
+        return m[3] + m[2] + m[1] + (t.campo === "fechahora" ? (m[4] || "00") + (m[5] || "00") : "");
+    }
+
+    // ── Validez: incompleto o inválido no pasa un `required` ni un checkValidity() ──
+    function validar(el, t) {
+        const d = digitos(nativo(el), t.n);
+        let msg = "";
+        if (d && d.length < t.n) msg = "Completá el campo (" + t.mascara + ")";
+        else if (d && !aValor(t, d)) msg = t.campo === "hora" ? "Hora inválida" : "Fecha inválida";
+        el.setCustomValidity(msg);
+        el.classList.toggle("cf-invalido", !!msg && d.length === t.n);
+    }
+
+    // ── El selector del navegador (calendario), para quien prefiera hacer clic ──
+    let selector = null, ultimoToque = null;
+    document.addEventListener("pointerdown", (e) => { ultimoToque = e.target; }, true);
+    function abrirSelector(el, t) {
+        if (t.campo === "hora" || el.disabled || el.readOnly) return;
+        if (!selector) {
+            selector = document.createElement("input");
+            selector.setAttribute("aria-hidden", "true");
+            selector.tabIndex = -1;
+            selector.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0;";
+            document.body.appendChild(selector);
+            selector.addEventListener("change", () => {
+                const destino = selector._destino;
+                if (!destino) return;
+                destino.value = selector.value;                 // setter: actualiza la máscara
+                disparar(destino, "input"); disparar(destino, "change");
+            });
+        }
+        selector.type = t.tipo;
+        // Un campo oculto (Reservas lo abre tocando el título del día): el calendario se
+        // abre junto a lo último que se tocó, no arriba a la izquierda de la pantalla.
+        let r = el.getBoundingClientRect();
+        if (!r.width) r = (ultimoToque && ultimoToque.isConnected ? ultimoToque : document.activeElement || document.body).getBoundingClientRect();
+        selector.style.left = Math.max(0, r.left) + "px";
+        selector.style.top = Math.max(0, r.bottom) + "px";
+        selector.min = el.min || ""; selector.max = el.max || "";
+        selector._destino = el;
+        VALOR.set.call(selector, el.value || "");
+        try { selector.showPicker(); } catch (_) { selector.focus(); selector.click(); }
+    }
+
+    function disparar(el, tipo) {
+        const ev = new Event(tipo, { bubbles: true });
+        ev._campoFecha = true;
+        el.dispatchEvent(ev);
+    }
+
+    // ── Convertir un campo ──
+    function convertir(el, t) {
+        if (el._campoFecha) return;
+        // Valor antes de cambiar el tipo. Un campo copiado de otro ya convertido trae el
+        // texto con máscara: se lee de sus dígitos.
+        const inicial = el.getAttribute("data-campo") ? aValor(t, digitos(nativo(el), t.n)) : nativo(el);
+        el._campoFecha = t;
+        el.type = "text";
+        el.setAttribute("data-campo", t.campo);
+        el.setAttribute("inputmode", "numeric");
+        el.setAttribute("autocomplete", "off");
+        el.setAttribute("spellcheck", "false");
+        if (!el.getAttribute("placeholder")) el.setAttribute("placeholder", t.mascara.replace(/[A-Z]/g, "-"));
+        if (!el.getAttribute("size")) el.setAttribute("size", String(t.mascara.length + (t.campo === "hora" ? 1 : 3)));
+
+        Object.defineProperty(el, "value", {
+            configurable: true,
+            get() { return aValor(t, digitos(nativo(el), t.n)); },
+            set(v) { ponerNativo(el, pintar(t, deValor(t, v))); validar(el, t); },
+        });
+        el.showPicker = () => abrirSelector(el, t);
+        if (inicial) el.value = inicial;
+        validar(el, t);
+
+        let antes = el.value;            // para avisar "change" sólo cuando de verdad cambió
+        // Reescribir la máscara después de cada tecla, pegado o borrado (también en el
+        // celular, donde el teclado no siempre avisa qué tecla fue): se toman los dígitos,
+        // se vuelven a poner en su lugar y el cursor queda después del mismo dígito.
+        el.addEventListener("input", (e) => {
+            if (e._campoFecha) return;
+            let txt = nativo(el);
+            // Pegado (o cargado) en el formato de siempre: 2026-10-15 / 20:30 / 2026-10-15T20:30.
+            const iso = String(txt).trim().match(/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2})?$|^\d{1,2}:\d{2}(?::\d{2})?$/);
+            if (iso) txt = pintar(t, deValor(t, txt.trim()));
+            const cursor = iso ? txt.length : (el.selectionStart == null ? txt.length : el.selectionStart);
+            const k = digitos(txt.slice(0, cursor), t.n).length;
+            const d = digitos(txt, t.n);
+            ponerNativo(el, pintar(t, d));
+            const pos = posDespuesDe(t, Math.min(k, d.length));
+            try { el.setSelectionRange(pos, pos); } catch (_) {}
+            validar(el, t);
+            const ahora = el.value;
+            // Como el campo nativo: "change" cuando queda una fecha/hora completa y válida,
+            // o cuando se vacía. No en cada número intermedio.
+            if (ahora !== antes && (ahora || !d)) { antes = ahora; disparar(el, "change"); }
+        }, true);
+        // El "change" propio del navegador (al salir del campo) se descarta: ya se avisó
+        // en el momento justo y repetirlo recargaría las pantallas dos veces.
+        // ⚠ Sólo el del NAVEGADOR (isTrusted): un "change" que dispara el código de una
+        // pantalla a propósito tiene que llegar (Facturas recalcula el período así).
+        el.addEventListener("change", (e) => {
+            if (e.isTrusted && !e._campoFecha) { e.stopImmediatePropagation(); return; }
+            antes = el.value;
+        }, true);
+        // Al entrar: si ya está completo se selecciona todo (escribir reemplaza desde el
+        // día); si no, el cursor va al primer lugar libre. Nunca en el medio del año.
+        // ⚠ La selección del navegador llega unos milisegundos tarde: además de seleccionar,
+        // se marca "reemplazar" y el PRIMER número que se escriba vacía el campo antes de
+        // entrar, haya llegado o no la selección.
+        let reemplazar = false;
+        const ubicar = () => {
+            const d = digitos(nativo(el), t.n);
+            reemplazar = d.length === t.n;
+            if (reemplazar) el.select();
+            else { const p = posDespuesDe(t, d.length); try { el.setSelectionRange(p, p); } catch (_) {} }
+        };
+        el.addEventListener("focus", () => { ubicar(); setTimeout(ubicar, 0); });
+        el.addEventListener("click", (e) => {
+            if (t.campo !== "hora" && e.offsetX > el.clientWidth - 30) return;   // el ícono
+            ubicar();
+        });
+        el.addEventListener("beforeinput", (e) => {
+            if (reemplazar && /^insert/.test(e.inputType || "") && !/^insertFrom/.test(e.inputType || "")) ponerNativo(el, "");
+            reemplazar = false;
+        });
+        el.addEventListener("keydown", (e) => {
+            if (/^(Arrow|Home|End|Backspace|Delete)/.test(e.key)) reemplazar = false;
+        });
+        // Ícono de calendario (fechas): clic a la derecha del campo o Alt+↓ abre el selector.
+        el.addEventListener("mousedown", (e) => {
+            if (t.campo !== "hora" && e.offsetX > el.clientWidth - 30) { e.preventDefault(); abrirSelector(el, t); }
+        });
+        el.addEventListener("keydown", (e) => {
+            if (e.altKey && e.key === "ArrowDown") { e.preventDefault(); abrirSelector(el, t); }
+        });
+    }
+
+    function revisar(raiz) {
+        if (!raiz || !raiz.querySelectorAll) return;
+        const lista = raiz.matches && raiz.matches("input") ? [raiz] : [];
+        raiz.querySelectorAll('input[type="date"], input[type="time"], input[type="datetime-local"], input[data-campo]')
+            .forEach((x) => lista.push(x));
+        for (const el of lista) {
+            if (el._campoFecha || el.id === "f-fecha") continue;
+            const t = TIPOS[el.getAttribute("type")] || POR_CAMPO[el.getAttribute("data-campo")];
+            if (t) convertir(el, t);
+        }
+    }
+
+    const css = document.createElement("style");
+    css.textContent = `
+      input[data-campo] { font-variant-numeric: tabular-nums; }
+      input[data-campo="fecha"], input[data-campo="fechahora"] {
+        padding-right: 30px !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b8d94' stroke-width='2' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='3'/%3E%3Cpath d='M8 3v4M16 3v4M3 10h18'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 9px center; background-size: 16px;
+      }
+      input[data-campo].cf-invalido { border-color: var(--pel, #dc2626) !important; }`;
+
+    function arrancar() {
+        document.head.appendChild(css);
+        revisar(document);
+        new MutationObserver((cambios) => {
+            for (const c of cambios) {
+                if (c.type === "attributes") { revisar(c.target); continue; }
+                c.addedNodes.forEach((n) => { if (n.nodeType === 1) revisar(n); });
+            }
+        }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["type"] });
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", arrancar);
+    else arrancar();
+})();

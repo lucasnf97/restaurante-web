@@ -59,7 +59,7 @@
         .toggle-wrap input:checked + .toggle-track::before { transform: translateX(20px); }
         .franjas-list { display: flex; flex-direction: column; gap: 7px; }
         .franja-row { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
-        .franja-row input[type=time] { width: 100px; padding: 5px 8px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 7px; font-size: 12px; outline: none; text-align: center; }
+        .franja-row input[type=time], .franja-row input[data-campo=hora] { width: 100px; padding: 5px 8px; border: 1.5px solid var(--bd-2, #e0e0e0); border-radius: 7px; font-size: 12px; outline: none; text-align: center; }
         .franja-row input:focus { border-color: var(--ac, #4f46e5); }
         .franja-sep { color: var(--tx-8, #94a3b8); font-size: 13px; }
         .franja-nextday { font-size: 10px; color: var(--tx-ac-2, #7c3aed); font-weight: 600; background: var(--ac-sf-2, #ede9fe); padding: 1px 5px; border-radius: 4px; }
@@ -1782,7 +1782,7 @@ function renderHorarios(){
 function marcarNextDay(dia,fi,input){
     // Actualizar indicador +1 día en tiempo real
     const row=input.closest('.franja-row');
-    const inputs=row.querySelectorAll('input[type=time]');
+    const inputs=row.querySelectorAll('input[data-campo=hora], input[type=time]');
     if(inputs.length<2)return;
     const[sh,sm]=inputs[0].value.split(':').map(Number),[eh,em]=inputs[1].value.split(':').map(Number);
     const nd=(eh*60+em)<=(sh*60+sm);
@@ -1791,7 +1791,7 @@ function marcarNextDay(dia,fi,input){
 }
 function agregarFranja(dia){const h=horarios.find(x=>x.dia_semana===dia);if(!h.franjas)h.franjas=[];h.franjas.push({inicio:'09:00',fin:'23:00'});renderHorarios();}
 function eliminarFranja(dia,fi){const h=horarios.find(x=>x.dia_semana===dia);if(!h.franjas||h.franjas.length<=1){alert('Debe haber al menos una franja.');return;}h.franjas.splice(fi,1);renderHorarios();}
-function _leerFranjas(dia){return Array.from(document.querySelectorAll('#franjas-'+dia+' .franja-row')).map(row=>{const inputs=row.querySelectorAll('input[type=time]');return{inicio:inputs[0].value,fin:inputs[1].value};});}
+function _leerFranjas(dia){return Array.from(document.querySelectorAll('#franjas-'+dia+' .franja-row')).map(row=>{const inputs=row.querySelectorAll('input[data-campo=hora], input[type=time]');return{inicio:inputs[0].value,fin:inputs[1].value};});}
 async function guardarHorarios(){
     const btn=document.getElementById('btn-guardar-horarios');
     btn.disabled=true;btn.textContent='Guardando...';

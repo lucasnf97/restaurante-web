@@ -1463,7 +1463,7 @@
     }
     function franjaRow(ini,fin){ return `<div class="fr-row"><input type="time" value="${(ini||'').slice(0,5)}" oninput="recalcTotal()"><span style="color: var(--tx-8, #94a3b8);">a</span><input type="time" value="${(fin||'').slice(0,5)}" oninput="recalcTotal()"><button class="fr-del" onclick="this.closest('.fr-row').remove();recalcTotal()">✕</button></div>`; }
     function addFranja(){ document.getElementById('m-franjas').insertAdjacentHTML('beforeend', franjaRow('','')); }
-    function _leerFranjas(){ const out=[]; document.querySelectorAll('#m-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[type=time]'); if(t[0].value && t[1].value) out.push({inicio:t[0].value,fin:t[1].value}); }); return out; }
+    function _leerFranjas(){ const out=[]; document.querySelectorAll('#m-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[data-campo=hora], input[type=time]'); if(t[0].value && t[1].value) out.push({inicio:t[0].value,fin:t[1].value}); }); return out; }
     function recalcTotal(){ const brk=parseInt(document.getElementById('m-break').value,10)||0; document.getElementById('m-total').innerHTML=`Total: <b>${_fmtH(Math.max(0,_totMin(_leerFranjas())-brk))||'0h'}</b>`; }
     function cerrarModal(){ document.getElementById('overlay').classList.remove('open'); _modal=null; }
     // ── Alarma de ROL faltante ────────────────────────────────────
@@ -1666,7 +1666,7 @@
         const nombre=document.getElementById('t-nombre').value.trim();
         if(!nombre){ alert('Poné un nombre a la plantilla.'); return; }
         const franjas=[];
-        document.querySelectorAll('#t-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[type=time]'); if(t[0].value && t[1].value) franjas.push({inicio:t[0].value,fin:t[1].value}); });
+        document.querySelectorAll('#t-franjas .fr-row').forEach(r=>{ const t=r.querySelectorAll('input[data-campo=hora], input[type=time]'); if(t[0].value && t[1].value) franjas.push({inicio:t[0].value,fin:t[1].value}); });
         if(!franjas.length){ alert('Agregá al menos una franja.'); return; }
         const brk=parseInt(document.getElementById('t-break').value,10)||0;
         const rol=document.getElementById('t-rol').value||null;

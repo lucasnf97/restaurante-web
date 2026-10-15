@@ -63,7 +63,9 @@ test.describe("Historial de cierres", () => {
     const hoy = new Date();
     const iso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-` +
                 `${String(hoy.getDate()).padStart(2, "0")}`;
-    await expect(page.locator("#filtro-desde")).toHaveValue(iso);
+    // El campo muestra 15/10/2026 (máscara fija, api.js); lo que usa la pantalla es
+    // .value, que sigue en AAAA-MM-DD. toHaveValue lee lo que se ve: se mira .value.
+    await expect.poll(() => page.$eval("#filtro-desde", (e) => e.value)).toBe(iso);
 
     // Ampliar el rango no puede DEVOLVER MENOS cierres que el rango chico.
     const deHoy = await filas(page).count();
