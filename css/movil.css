@@ -1,0 +1,160 @@
+/* ══ movil.css — capa para celulares ═══════════════════════════════════════════
+   Cada página trae su propio <style> pensado para escritorio. Esta hoja se enlaza al
+   FINAL del <head> de todas (después de esos estilos) y sólo actúa en pantallas
+   angostas: no cambia nada en la computadora.
+
+   Qué resuelve, para todas a la vez, sobre las clases que comparten:
+     · la barra superior: el nombre del local no se superpone con los íconos y lo que
+       no entra se oculta (la navegación está en el menú ☰);
+     · márgenes de escritorio (32 px por lado) → 12 px;
+     · tablas: se desplazan de costado dentro de su tarjeta en vez de ensanchar la
+       página entera;
+     · filas de filtros/acciones/formularios que se acomodan hacia abajo;
+     · solapas en una fila que se desliza (antes partían las palabras);
+     · modales a lo ancho de la pantalla;
+     · campos de texto a 16 px (con menos, el iPhone hace zoom al tocarlos).
+   Lo propio de cada pantalla va en su página, dentro de @media (max-width: 760px).
+
+   ⚠ Los !important son a propósito: los estilos de cada página tienen la misma
+     especificidad y muchos van en línea (style="..."). */
+
+@media (max-width: 760px) {
+    html, body { -webkit-text-size-adjust: 100%; }
+    body { overflow-x: hidden; }
+
+    /* ── Barra superior ── */
+    nav.navbar { padding: 0 8px !important; gap: 6px; }
+    html body nav.navbar .navbar-brand {
+        position: static !important; transform: none !important; left: auto !important;
+        flex: 1 1 auto; min-width: 0; text-align: center;
+        font-size: 15px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        pointer-events: auto;
+    }
+    .navbar-links { gap: 6px !important; flex: none; }
+    .navbar-links > a:not(.btn-logout) { display: none !important; }
+    .navbar-user > span, .navbar-user .user-name { display: none !important; }
+    /* "Cerrar sesión" pasa a ser sólo el ícono */
+    .btn-logout { font-size: 0 !important; padding: 8px 10px !important; min-width: 40px; min-height: 36px; }
+    .btn-logout::before { content: "⏻"; font-size: 17px; line-height: 1; }
+
+    /* ── Contenido ── */
+    .content, .wrap, main.content {
+        padding-left: 12px !important; padding-right: 12px !important;
+        padding-top: 16px !important; max-width: 100% !important;
+    }
+    .page-header { flex-wrap: wrap !important; gap: 8px !important; align-items: center; }
+    .page-header h1, .page-header h2 { font-size: 20px !important; flex: 1 1 100%; margin: 0; }
+    h1 { font-size: 22px; }
+    h2 { font-size: 19px; }
+    .card, .caja, .cfg-panel { padding-left: 14px !important; padding-right: 14px !important; }
+
+    /* ── Tablas: se desplazan dentro de su tarjeta ── */
+    /* (la grilla de Horarios ya trae su propio contenedor que se desliza) */
+    .content table:not(.cq-table), .wrap table:not(.cq-table), .modal table {
+        display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .tabla-wrapper, .table-wrapper, .tabla-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; max-width: 100%; }
+
+    /* ── Filas que se acomodan hacia abajo ── */
+    .filtros, .acciones-bar, .toolbar, .botonera, .modal-footer, .modal-foot, .opt-row, .stats {
+        flex-wrap: wrap !important; gap: 8px !important;
+    }
+    .filtros > *, .acciones-bar > * { max-width: 100%; }
+    .form-row { grid-template-columns: 1fr !important; flex-direction: column !important; flex-wrap: wrap !important; }
+    .form-row > * { min-width: 0 !important; width: 100% !important; }
+
+    /* ── Solapas: una fila que se desliza ── */
+    .tabs, .tabs-bar {
+        flex-wrap: nowrap !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; max-width: 100%;
+    }
+    .tabs::-webkit-scrollbar, .tabs-bar::-webkit-scrollbar { display: none; }
+    .tabs > *, .tabs-bar > *, .tab, .tab-btn { flex: 0 0 auto !important; white-space: nowrap !important; }
+
+    /* ── Tarjetas de números ── */
+    .stats, .stat-cards, .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .stat-value { font-size: 22px !important; }
+
+    /* ── Campos y botones ── */
+    input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea {
+        font-size: 16px !important; max-width: 100%;
+    }
+    .btn, .btn-primary, .btn-secondary, .btn-danger, .btn-success { min-height: 40px; }
+
+    /* ── Modales ── */
+    .modal-overlay, .cfg-overlay { padding: 8px !important; padding-top: 68px !important; align-items: flex-start !important; }
+    .modal-overlay > .modal, .modal-overlay > div, .modal, .cfg-panel {
+        width: 100% !important; max-width: 100% !important; min-width: 0 !important;
+    }
+    .modal { padding: 16px !important; max-height: calc(100vh - 80px) !important; overflow-y: auto !important; }
+}
+
+/* ══ Ajustes propios de cada pantalla (mismas reglas: sólo en el celular) ══════ */
+@media (max-width: 760px) {
+    /* Barra superior en <div class="navbar"> (Horarios) y la de Cocina */
+    div.navbar { padding: 0 8px !important; gap: 6px !important; }
+    .navbar h1 { font-size: 15px !important; min-width: 0; flex: 1 1 auto; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis; margin: 0; }
+    .navbar .who { display: none !important; }
+    .navbar > span:not([class]):not([id]) { display: none !important; }   /* el ícono suelto (🕐) junto al título */
+    .navbar > button { padding: 6px 10px !important; font-size: 13px !important; flex: none; }
+    /* "Salir" y "← Volver" de esa barra: sólo el ícono */
+    .navbar > button[onclick^="logout"], #btn-nav-volver { font-size: 0 !important; min-width: 40px; min-height: 36px; }
+    .navbar > button[onclick^="logout"]::before { content: "⏻"; font-size: 17px; }
+    #btn-nav-volver::before { content: "←"; font-size: 17px; }
+    .navbar-area, .refresh-badge { display: none !important; }
+    .navbar-right { gap: 6px !important; }
+    .navbar-right .btn-nav { padding: 6px 9px !important; font-size: 12.5px !important; }
+
+    /* Inicio (dashboard) y su vista previa: una columna; accesos de a dos */
+    /* minmax(0,1fr): con 1fr a secas la columna se estira al contenido más ancho */
+    .dash-grid, .layout-grid-6, .layout-grid-3, .hub-grid, .hub-wgt-grid, .stats-row { grid-template-columns: minmax(0, 1fr) !important; }
+    .billing-cards, .canal-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .dash-grid > *, .layout-grid-6 > *, .layout-grid-3 > *, .hub-grid > *, .hub-wgt-grid > * { grid-column: 1 / -1 !important; }
+    .layout-grid-6, .layout-grid-3 { grid-auto-rows: auto !important; }
+    .modules-cols-2, .modules-cols-3, .modules-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .module-card { padding: 14px 12px !important; min-width: 0; }
+    .reservas-book { grid-template-columns: 1fr !important; }
+
+    /* Estadísticas: tarjetas de acceso de a dos */
+    .cat-card { padding: 16px 14px !important; }
+
+    /* Herramienta de mesas: paneles uno debajo del otro */
+    .layout { grid-template-columns: 1fr !important; }
+
+    /* Históricos: el mapa de calor se desliza dentro de su tarjeta */
+    .hm-layout { flex-direction: column; }
+    .hm-mapa { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .cal-anual { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .hm-date-row, .hm-controls { flex-wrap: wrap !important; }
+    .hm-date-row input { min-width: 0; flex: 1 1 130px; }
+
+    /* Análisis del mes: gráficos al ancho de la pantalla */
+    .mx-chart-card { min-width: 0 !important; max-width: 100% !important; overflow-x: auto; }
+    .mx-chart-card canvas, .mx-chart-card svg { max-width: 100% !important; }
+
+    /* Estadísticas de personal: el selector de período baja de línea */
+    .periodo-picker { flex-wrap: wrap !important; }
+
+    /* Documentos: las solapas se deslizan */
+    .cat-tabs { gap: 18px !important; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+    .cat-tab { flex: none; white-space: nowrap; }
+
+    /* Horarios: las solapas de vista se deslizan */
+    .view-tabs { overflow-x: auto; flex-wrap: nowrap !important; }
+    .view-tab { flex: none !important; white-space: nowrap; }
+    .nav-bar { flex-wrap: wrap !important; gap: 8px !important; }
+    /* el buscador ocupa su renglón; la semana va centrada debajo */
+    .nav-bar > div:first-child { flex: 1 1 100% !important; }
+    .nav-bar .search { min-width: 0 !important; width: 100%; }
+    .nav-label { min-width: 0 !important; font-size: 14px !important; }
+    /* columna "Personal" más angosta: así se ven más días */
+    .th-user, .td-user, .td-sum-label { width: 132px !important; min-width: 132px !important; }
+    body.view-semana .cq-table { width: 762px !important; }   /* 132 + 7 días × 90: con "auto" no rige el ancho fijo */
+    body.view-semana .th-day { width: 90px; }
+    .td-user { overflow: hidden; }
+    .td-user span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Salarios: el período ocupa su renglón y la etiqueta/total bajan */
+    .pendiente-summary { flex-wrap: wrap !important; gap: 6px 10px !important; }
+    .pendiente-period-label { flex: 1 1 100% !important; white-space: nowrap; }
+}

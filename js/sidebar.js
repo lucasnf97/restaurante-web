@@ -241,10 +241,12 @@
             transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
             display: flex;
             flex-direction: column;
-            box-shadow: 4px 0 24px rgba(0,0,0,0.25);
         }
+        /* La sombra sólo con el menú ABIERTO: cerrado (corrido a la izquierda) igual
+           asomaba 24 px de sombra en el borde de todas las páginas. */
         #sidebar-panel.open {
             transform: translateX(0);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.25);
         }
 
         /* Sidebar header */
