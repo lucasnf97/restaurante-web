@@ -149,6 +149,12 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em
 .para .fila-para input:focus{ border-color:var(--mio-bd); }
 .para .nota{ font-size:13.5px; color:var(--tx-2); margin-top:8px; }
 .chip.sel-chip{ background:var(--mio-bd); color:var(--navy); }
+.nombre-txt{ font-size:17px; font-weight:600; overflow-wrap:anywhere; }
+.link-nombre{ border:none; background:none; padding:4px 0; margin-top:2px; color:var(--tx-2); font-weight:600;
+    font-size:14px; cursor:pointer; text-decoration:underline; text-underline-offset:3px; min-height:32px; }
+.edit-nombre{ display:flex; gap:8px; align-items:center; margin-top:12px; }
+.edit-nombre input{ flex:1; min-width:0; height:46px; border-radius:12px; border:1.5px solid var(--mio-bd);
+    background:var(--sup); padding:0 12px; font-size:16px; outline:none; }
 /* En oscuro la tarjeta ya es navy: lo elegido / "vos" pasa a lima para distinguirse. */
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .chip-para.on,
     :root:not([data-theme="light"]) .chip.yo-chip{ background:var(--lime); color:var(--navy); border-color:var(--lime); } }
@@ -218,6 +224,7 @@ const TXT = {
     agregar_ayuda: 'Para alguien sin celular o que prefiere que elijas vos. Su parte se le cobra aparte.',
     nombre_persona: 'Nombre (opcional)', agregar: 'Agregar', quitar: 'Quitar', cancelar: 'Cancelar',
     ayuda_para: 'Tocá lo que consumió {n}.', para_n: 'Para {n}', lo_elige: 'elige {n}', su_parte: 'Su parte',
+    cambiar_nombre: '✏️ Cambiar nombre', poner_nombre: '✏️ Poner mi nombre', poner_nombre_otro: '✏️ Ponerle nombre', guardar: 'Guardar',
     tu_pagaste: 'Pagaste {m}',
     recibo_t: '¿Querés el recibo por correo?', email: 'Tu correo', ph_email: 'nombre@correo.com',
     acepto_datos: 'Acepto que {local} use mi correo para enviarme el recibo y guardarlo en su base de clientes, según el RGPD. Puedo pedir que lo borren cuando quiera.',
@@ -244,6 +251,7 @@ const TXT = {
     agregar_ayuda: 'For someone without a phone, or who’d rather you choose. Their share is charged separately.',
     nombre_persona: 'Name (optional)', agregar: 'Add', quitar: 'Remove', cancelar: 'Cancel',
     ayuda_para: 'Tap what {n} had.', para_n: 'For {n}', lo_elige: '{n} chooses', su_parte: 'Their share',
+    cambiar_nombre: '✏️ Change name', poner_nombre: '✏️ Add my name', poner_nombre_otro: '✏️ Add a name', guardar: 'Save',
     tu_pagaste: 'You paid {m}',
     recibo_t: 'Want the receipt by email?', email: 'Your email', ph_email: 'name@email.com',
     acepto_datos: 'I agree that {local} may use my email to send me the receipt and keep it in its customer records, under the GDPR. I can ask for it to be deleted at any time.',
@@ -270,6 +278,7 @@ const TXT = {
     agregar_ayuda: 'For en uden telefon, eller som hellere vil have, at du vælger. Deres andel betales for sig.',
     nombre_persona: 'Navn (valgfrit)', agregar: 'Tilføj', quitar: 'Fjern', cancelar: 'Annuller',
     ayuda_para: 'Tryk på det, {n} har fået.', para_n: 'Til {n}', lo_elige: '{n} vælger', su_parte: 'Deres andel',
+    cambiar_nombre: '✏️ Skift navn', poner_nombre: '✏️ Tilføj mit navn', poner_nombre_otro: '✏️ Tilføj et navn', guardar: 'Gem',
     tu_pagaste: 'Du betalte {m}',
     recibo_t: 'Vil du have kvitteringen på mail?', email: 'Din e-mail', ph_email: 'navn@mail.dk',
     acepto_datos: 'Jeg accepterer, at {local} bruger min e-mail til at sende mig kvitteringen og gemmer den i sit kunderegister efter GDPR. Jeg kan altid bede om at få den slettet.',
@@ -388,7 +397,7 @@ const unirse = () => accion(`${RUTA}/unirse`, { nombre: ($('nombre-in') || {}).v
 let PARA = null, AGREGANDO = false;
 const asignar = (key, acc) => accion(`${RUTA}/asignar`, { key, accion: acc, ...(PARA ? { para: PARA } : {}) });
 const elegirPara = (n) => { PARA = n; AGREGANDO = false; render(); };
-const verAgregar = (v) => { AGREGANDO = v; render(); if (v) { const i = $('para-nuevo'); if (i) i.focus(); } };
+const verAgregar = (v) => { AGREGANDO = v; EDIT = null; render(); if (v) { const i = $('para-nuevo'); if (i) i.focus(); } };
 async function agregarPersona() {
     const nombre = (($('para-nuevo') || {}).value || '').trim() || null;
     const antes = new Set((S.clientes || []).map(c => c.num));
@@ -399,13 +408,27 @@ async function agregarPersona() {
     if (nuevo) { PARA = nuevo.num; render(); }
 }
 async function quitarPersona(n) { PARA = null; await accion(`${RUTA}/gestionados/quitar`, { num: n }); }
-let _paraNomT = null;
-function cambioNombrePara(n, v) {
-    clearTimeout(_paraNomT);
-    _paraNomT = setTimeout(() => pedir(`${RUTA}/gestionados/nombre`, { method: 'POST',
-        body: JSON.stringify({ dispositivo: DISP, num: n, nombre: v }) })
-        .then(r => { S = r; render(true); }).catch(() => {}), 700);
+// Cambiar un nombre: sólo cuando se pide ("✏️ Cambiar nombre") y se guarda con Guardar.
+// Mientras el campo está abierto, la actualización en vivo NO repinta encima (en el celular
+// eso cerraba el teclado y cortaba lo que se estaba escribiendo).
+let EDIT = null;   // 'yo' | num de una persona agregada | null
+function editarNombre(k) {
+    EDIT = k; AGREGANDO = false; render();
+    const i = $('edit-nombre'); if (i) { i.focus(); i.select(); }
 }
+function cancelarNombre() { EDIT = null; render(); }
+async function guardarNombre() {
+    const v = (($('edit-nombre') || {}).value || '').trim();
+    const k = EDIT; EDIT = null;
+    if (document.activeElement) document.activeElement.blur();
+    if (k === 'yo') await accion(`${RUTA}/unirse`, { nombre: v });
+    else if (k) await accion(`${RUTA}/gestionados/nombre`, { num: k, nombre: v });
+}
+const campoNombre = (valor, ph) => `<div class="edit-nombre">
+        <input id="edit-nombre" maxlength="30" value="${esc(valor || '')}" placeholder="${esc(ph)}"
+            onkeydown="if(event.key==='Enter')guardarNombre(); if(event.key==='Escape')cancelarNombre()">
+        <button class="acc tomar" onclick="guardarNombre()">${t('guardar')}</button>
+        <button class="acc soltar" onclick="cancelarNombre()">${t('cancelar')}</button></div>`;
 // A quién se le asigna lo que se toca: el comensal o una persona que agregó él.
 function objetivo(yo) {
     const c = PARA ? (S.clientes || []).find(x => x.num === PARA && x.gestor === yo.num) : null;
@@ -413,12 +436,6 @@ function objetivo(yo) {
     return c || yo;
 }
 const nombreDe = (c) => c.nombre || (t('cliente') + ' ' + c.num);
-let _nombreT = null;
-function cambioNombre(v) {
-    clearTimeout(_nombreT);
-    _nombreT = setTimeout(() => pedir(`${RUTA}/unirse`, { method: 'POST', body: JSON.stringify({ dispositivo: DISP, nombre: v }) })
-        .then(r => { S = r; render(true); }).catch(() => {}), 700);
-}
 
 // ── Pintar ──
 function etiquetaCliente(c) { return t('cliente') + ' ' + c.num + (c.nombre ? ' · ' + c.nombre : ''); }
@@ -456,13 +473,9 @@ function render(soloPie) {
             ${avisos}</div>` + listaHTML(null, true);
         return;
     }
-    const foco = document.activeElement && ['yo-nombre', 'para-nombre', 'para-nuevo'].includes(document.activeElement.id)
-        ? document.activeElement.id : null;
-    if (foco && !soloPie && app.querySelector('#' + foco) && OCUPADO === false && document.activeElement.id !== 'yo-nombre') {
-        // escribiendo el nombre de otra persona: no se repinta encima
-        pintarPie(); return;
+    if ((EDIT !== null || AGREGANDO) && app.querySelector('#edit-nombre, #para-nuevo') && !OCUPADO) {
+        return;   // escribiendo un nombre: la actualización en vivo espera a que termine
     }
-    const nombreActual = foco === 'yo-nombre' ? document.activeElement.value : yo.nombre;
     const sel = objetivo(yo);
     const mios = (S.clientes || []).filter(c => c.gestor === yo.num);
     const bloqueoPara = OCUPADO || yo.pagado || S.estado !== 'abierta';
@@ -479,23 +492,24 @@ function render(soloPie) {
                 <button class="acc soltar" onclick="verAgregar(false)">${t('cancelar')}</button></div>
                 <div class="nota">${t('agregar_ayuda')}</div>` : ''}
             ${sel.num !== yo.num ? `<div class="fila-para">
-                <input id="para-nombre" maxlength="30" placeholder="${esc(t('nombre_persona'))}" value="${esc(sel.nombre || '')}"
-                    oninput="cambioNombrePara(${sel.num}, this.value)" ${sel.pagado ? 'disabled' : ''}>
+                <div style="flex:1;min-width:0;"><div class="nombre-txt">${esc(nombreDe(sel))}</div>
+                    ${sel.pagado || EDIT === sel.num ? '' : `<button class="link-nombre" onclick="editarNombre(${sel.num})">${t(sel.nombre ? 'cambiar_nombre' : 'poner_nombre_otro')}</button>`}</div>
                 <div style="text-align:right;white-space:nowrap;"><div class="t" style="margin:0;">${t('su_parte')}</div>
                     <b style="font-size:18px;">${dinero(sel.importe)}</b></div>
                 ${!sel.pagado && sel.importe <= 0 && !(S.piezas || []).some(p => p.clientes.includes(sel.num))
                     ? `<button class="acc soltar" onclick="quitarPersona(${sel.num})" ${bloqueoPara ? 'disabled' : ''}>${t('quitar')}</button>` : ''}
-            </div>` : ''}
+            </div>${EDIT === sel.num ? campoNombre(sel.nombre, t('nombre_persona')) : ''}` : ''}
         </div>`;
     app.innerHTML = `
         <div class="tarjeta yo">
             <div class="num">${yo.num}</div>
             <div class="quien"><div class="t">${t('sos')} ${t('cliente')} ${yo.num}</div>
-                <input id="yo-nombre" maxlength="30" placeholder="${esc(t('tu_nombre'))}" value="${esc(nombreActual)}"
-                    oninput="cambioNombre(this.value)" ${yo.pagado ? 'disabled' : ''} aria-label="${esc(t('tu_nombre'))}"></div>
+                ${yo.nombre ? `<div class="nombre-txt">${esc(yo.nombre)}</div>` : ''}
+                ${yo.pagado || EDIT === 'yo' ? '' : `<button class="link-nombre" onclick="editarNombre('yo')">${t(yo.nombre ? 'cambiar_nombre' : 'poner_nombre')}</button>`}</div>
             <div class="total"><div class="t">${t('tu_parte')}</div><div class="m">${dinero(yo.importe)}</div>
                 ${yo.pagado ? `<div class="pagado">✓ ${t('pagado')}</div>` : ''}</div>
         </div>
+        ${EDIT === 'yo' ? `<div class="tarjeta" style="margin-top:8px;padding-top:4px;">${campoNombre(yo.nombre, t('ph_nombre'))}</div>` : ''}
         ${avisos}
         ${selector}
         ${yo.pagado ? `<div class="aviso info">${t('ya_pagaste')}</div>`
@@ -507,7 +521,6 @@ function render(soloPie) {
                 <span class="n">${esc(etiquetaCliente(c))}${c.gestor ? ` <small style="color:var(--tx-2)">· ${esc(t('lo_elige', { n: nombreDe((S.clientes || []).find(x => x.num === c.gestor) || { num: c.gestor }) }))}</small>` : ''}</span>
                 <span class="m">${c.pagado ? '✓ ' : ''}${c.importe > 0 ? dinero(c.importe) : t('nada_aun')}</span></div>`).join('')}</div></div>
         <div style="height:12px"></div>`;
-    if (foco) { const i = $(foco); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
 }
 // ── Cuenta pagada: recibo por correo (consentimiento RGPD; publicidad opt-in) ──
 let RECIBO = { email: '', datos: true, publi: false, error: '', enviando: false };
