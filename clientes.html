@@ -283,8 +283,10 @@ function chipCanal(h){
 }
 // Mesa para el local; para llevar no hay mesa.
 function lugarCuenta(h){
-    if(h.canal === 'takeaway') return h.web ? 'Pedido por la web' : 'Para llevar';
-    return h.mesa_numero!=null ? ('Mesa '+h.mesa_numero+(h.sala?(' · '+esc(h.sala)):'')) : '—';
+    // `parte`: pagó su parte de la mesa con el reparto por QR (el total es lo suyo).
+    const suParte = h.parte ? ' · <span title="Dividió la cuenta con QR: el importe es lo que pagó él">su parte</span>' : '';
+    if(h.canal === 'takeaway') return (h.web ? 'Pedido por la web' : 'Para llevar') + suParte;
+    return (h.mesa_numero!=null ? ('Mesa '+h.mesa_numero+(h.sala?(' · '+esc(h.sala)):'')) : '—') + suParte;
 }
 
 async function buscar(){
@@ -323,6 +325,7 @@ function render(lista){
                 '<span class="cli-id">#'+c.id+'</span>'+
                 '<span class="cli-nombre">'+esc(c.nombre||'(sin nombre)')+'</span>'+
                 (c.visitas != null ? '<span class="chip" title="'+(filtroCanal() ? 'Visitas ('+CANAL_TXT[filtroCanal()]+')' : 'Visitas (reservas y consumos, en el local y Take Away)')+'">🍽 '+c.visitas+' visita'+(c.visitas==1?'':'s')+'</span>' : '')+
+                (c.acepta_publicidad ? '<span class="chip" title="Aceptó recibir publicidad por correo">📣 Publicidad</span>' : '')+
                 '<span class="cli-contactos">'+esc(resumen)+'</span>'+
                 editBtn+
                 '<span class="cli-arrow">▸</span>'+

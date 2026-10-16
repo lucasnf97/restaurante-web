@@ -136,6 +136,14 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em
 .final .ico{ width:72px; height:72px; margin:0 auto 16px; border-radius:50%; background:var(--navy); color:var(--lime);
     display:flex; align-items:center; justify-content:center; font-size:32px; box-shadow:0 0 0 4px var(--r4); }
 .final p{ color:var(--tx-2); }
+/* Recibo por correo (cuenta pagada) */
+.recibo{ text-align:left; margin-top:22px; }
+.recibo .campo{ margin-top:0; }
+.check{ display:flex; gap:12px; align-items:flex-start; margin-top:14px; font-size:14.5px; color:var(--tx); cursor:pointer; }
+.check input{ width:22px; height:22px; margin:1px 0 0; flex:none; accent-color:var(--mio-bd); }
+.check small{ display:block; color:var(--tx-2); font-size:13.5px; margin-top:2px; }
+.btn-lima:disabled{ opacity:.5; cursor:default; }
+.ok-envio{ margin-top:18px; border-radius:14px; padding:14px; background:var(--mio-sf); color:var(--mio-tx); font-weight:600; }
 /* Latido = en vivo (animación con significado de la marca) */
 .vivo{ display:inline-flex; align-items:center; gap:6px; font-size:13px; color:#C4C4D4; }
 .vivo i{ width:8px; height:8px; border-radius:50%; background:var(--lime); animation:latido 1.6s ease-in-out infinite; }
@@ -188,6 +196,13 @@ const TXT = {
     no_existe_t: 'No encontramos esta cuenta', no_existe_p: 'Revisá que hayas escaneado el QR que te mostró el camarero.',
     sin_red: 'Sin conexión. Reintentando…', err: 'No se pudo hacer. Probá de nuevo.',
     ya_pagaste: 'Ya pagaste tu parte. ¡Gracias!',
+    previo: 'Ya se pagaron {m} de esta cuenta: los precios muestran lo que falta.',
+    tu_pagaste: 'Pagaste {m}',
+    recibo_t: '¿Querés el recibo por correo?', email: 'Tu correo', ph_email: 'nombre@correo.com',
+    acepto_datos: 'Acepto que {local} use mi correo para enviarme el recibo y guardarlo en su base de clientes, según el RGPD. Puedo pedir que lo borren cuando quiera.',
+    acepto_publi: 'Quiero recibir novedades y promociones de {local} por correo.', opcional: 'Opcional',
+    enviar: 'Enviarme el recibo', enviado: 'Listo: te lo enviamos a {e}. Revisá también el correo no deseado.',
+    email_mal: 'Revisá el correo.', falta_ok: 'Para enviarte el recibo tenés que aceptar el uso de tu correo.',
   },
   en: {
     en_vivo: 'Live', titulo: 'Split the bill', intro: 'Pick what you had. If you shared something, tap “Share” and it’s split between you. The waiter sees it instantly.',
@@ -203,6 +218,13 @@ const TXT = {
     no_existe_t: 'We couldn’t find this bill', no_existe_p: 'Make sure you scanned the QR the waiter showed you.',
     sin_red: 'Offline. Retrying…', err: 'That didn’t work. Please try again.',
     ya_pagaste: 'You already paid your share. Thank you!',
+    previo: '{m} of this bill was already paid: prices show what’s left.',
+    tu_pagaste: 'You paid {m}',
+    recibo_t: 'Want the receipt by email?', email: 'Your email', ph_email: 'name@email.com',
+    acepto_datos: 'I agree that {local} may use my email to send me the receipt and keep it in its customer records, under the GDPR. I can ask for it to be deleted at any time.',
+    acepto_publi: 'I’d like to receive news and offers from {local} by email.', opcional: 'Optional',
+    enviar: 'Send me the receipt', enviado: 'Done: we sent it to {e}. Check your spam folder too.',
+    email_mal: 'Please check the email.', falta_ok: 'To send you the receipt you need to accept the use of your email.',
   },
   da: {
     en_vivo: 'Live', titulo: 'Del regningen', intro: 'Vælg det, du har fået. Har I delt noget, så tryk “Del”, så deles beløbet. Tjeneren ser det med det samme.',
@@ -218,6 +240,13 @@ const TXT = {
     no_existe_t: 'Vi kunne ikke finde regningen', no_existe_p: 'Tjek, at du har scannet den QR-kode, tjeneren viste dig.',
     sin_red: 'Ingen forbindelse. Prøver igen…', err: 'Det lykkedes ikke. Prøv igen.',
     ya_pagaste: 'Du har allerede betalt din andel. Tak!',
+    previo: '{m} af regningen er allerede betalt: priserne viser, hvad der mangler.',
+    tu_pagaste: 'Du betalte {m}',
+    recibo_t: 'Vil du have kvitteringen på mail?', email: 'Din e-mail', ph_email: 'navn@mail.dk',
+    acepto_datos: 'Jeg accepterer, at {local} bruger min e-mail til at sende mig kvitteringen og gemmer den i sit kunderegister efter GDPR. Jeg kan altid bede om at få den slettet.',
+    acepto_publi: 'Jeg vil gerne modtage nyheder og tilbud fra {local} på mail.', opcional: 'Valgfrit',
+    enviar: 'Send mig kvitteringen', enviado: 'Færdig: vi har sendt den til {e}. Tjek også din spam-mappe.',
+    email_mal: 'Tjek e-mailen.', falta_ok: 'For at sende kvitteringen skal du acceptere brugen af din e-mail.',
   },
 };
 
@@ -346,10 +375,10 @@ function render(soloPie) {
         return;
     }
     if (!S) { app.innerHTML = ''; return; }
-    if (S.estado === 'cobrada' || S.estado === 'cerrada') {
+    if (S.estado === 'cobrada') { pintarCobrada(app); return; }
+    if (S.estado === 'cerrada') {
         $('pie').classList.add('hidden');
-        const k = S.estado === 'cobrada' ? 'cobrada' : 'cerrada';
-        app.innerHTML = `<div class="final"><div class="ico">${k === 'cobrada' ? '✓' : '·'}</div><h2>${t(k + '_t')}</h2><p>${t(k + '_p')}</p></div>`;
+        app.innerHTML = `<div class="final"><div class="ico">·</div><h2>${t('cerrada_t')}</h2><p>${t('cerrada_p')}</p></div>`;
         return;
     }
     const yo = S.yo ? (S.clientes || []).find(c => c.num === S.yo) : null;
@@ -359,7 +388,8 @@ function render(soloPie) {
         return;
     }
     const avisos = (SIN_RED ? `<div class="aviso pel">${t('sin_red')}</div>` : '')
-        + (S.estado === 'en_cambio' ? `<div class="aviso info">${t('cambio')}</div>` : '');
+        + (S.estado === 'en_cambio' ? `<div class="aviso info">${t('cambio')}</div>` : '')
+        + (S.pagado_previo > 0 ? `<div class="aviso info">${t('previo', { m: dinero(S.pagado_previo) })}</div>` : '');
     if (!yo) {
         // Entrada: nombre opcional y entrar (número por orden de llegada).
         app.innerHTML = `<div class="portada"><h1>${t('titulo')}</h1><p>${t('intro')}</p>
@@ -391,6 +421,57 @@ function render(soloPie) {
         <div style="height:12px"></div>`;
     if (foco) { const i = $('yo-nombre'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
 }
+// ── Cuenta pagada: recibo por correo (consentimiento RGPD; publicidad opt-in) ──
+let RECIBO = { email: '', datos: true, publi: false, error: '', enviando: false };
+function pintarCobrada(app) {
+    $('pie').classList.add('hidden');
+    const yo = S.yo ? (S.clientes || []).find(c => c.num === S.yo) : null;
+    const local = esc(S.local || '');
+    const enviado = S.recibo_enviado_a;
+    // Si el usuario está escribiendo, no se re-pinta encima (perdería el foco).
+    if (app.querySelector('#rc-email') && document.activeElement && app.contains(document.activeElement)) return;
+    app.innerHTML = `<div class="final" style="padding-bottom:20px;"><div class="ico">✓</div>
+            <h2>${t('cobrada_t')}</h2><p>${t('cobrada_p')}</p>
+            ${yo && yo.importe > 0 ? `<p style="font-weight:600;color:var(--tx);">${t('tu_pagaste', { m: dinero(yo.importe) })}</p>` : ''}</div>
+        <div class="tarjeta recibo">
+            <h3 style="font-size:18px;margin-bottom:14px;">${t('recibo_t')}</h3>
+            ${enviado ? `<div class="ok-envio">${esc(t('enviado', { e: enviado }))}</div>` : ''}
+            <div class="campo"><label for="rc-email">${t('email')}</label>
+                <input id="rc-email" type="email" inputmode="email" autocomplete="email" maxlength="160"
+                    placeholder="${esc(t('ph_email'))}" value="${esc(RECIBO.email)}"
+                    oninput="RECIBO.email=this.value" onkeydown="if(event.key==='Enter')enviarRecibo()"></div>
+            <label class="check"><input type="checkbox" id="rc-datos" ${RECIBO.datos ? 'checked' : ''}
+                    onchange="RECIBO.datos=this.checked;pintarBotonRecibo()">
+                <span>${t('acepto_datos', { local })}</span></label>
+            <label class="check"><input type="checkbox" id="rc-publi" ${RECIBO.publi ? 'checked' : ''}
+                    onchange="RECIBO.publi=this.checked">
+                <span>${t('acepto_publi', { local })}<small>${t('opcional')}</small></span></label>
+            ${RECIBO.error ? `<div class="aviso pel">${esc(RECIBO.error)}</div>` : ''}
+            <button class="btn btn-lima" id="rc-enviar" onclick="enviarRecibo()">${t('enviar')}</button>
+        </div><div style="height:24px"></div>`;
+    pintarBotonRecibo();
+}
+function pintarBotonRecibo() {
+    const b = $('rc-enviar'); if (b) b.disabled = !RECIBO.datos || RECIBO.enviando;
+}
+async function enviarRecibo() {
+    const email = (RECIBO.email || '').trim();
+    const errorRecibo = (m) => { RECIBO.error = m; if (document.activeElement) document.activeElement.blur(); render(); };
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { errorRecibo(t('email_mal')); return; }
+    if (!RECIBO.datos) { errorRecibo(t('falta_ok')); return; }
+    RECIBO.enviando = true; RECIBO.error = ''; pintarBotonRecibo();
+    try {
+        const r = await pedir(`${RUTA}/recibo`, { method: 'POST', body: JSON.stringify({
+            dispositivo: DISP, email, acepta_datos: true, acepta_publicidad: !!RECIBO.publi }) });
+        S.recibo_enviado_a = r.email; RECIBO.email = '';
+    } catch (e) {
+        RECIBO.error = (LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err');
+    }
+    RECIBO.enviando = false;
+    if (document.activeElement) document.activeElement.blur();
+    render();
+}
+
 function listaHTML(yo, soloLectura) {
     const porNum = Object.fromEntries((S.clientes || []).map(c => [c.num, c]));
     const bloqueado = OCUPADO || S.estado !== 'abierta' || (yo && yo.pagado);
