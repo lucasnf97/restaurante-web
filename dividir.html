@@ -178,11 +178,8 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em
 .check{ display:flex; gap:12px; align-items:flex-start; margin-top:14px; font-size:10.5px; color:var(--tx); cursor:pointer; }
 .check input{ width:22px; height:22px; margin:1px 0 0; flex:none; accent-color:var(--mio-bd); }
 .check small{ display:block; color:var(--tx-2); font-size:9.5px; margin-top:2px; }
-/* Lo obligatorio que falta, en rojo (al tocar "Enviarme el recibo") */
-.campo input.falta{ border-color:var(--pel); }
-.check.falta span{ color:var(--pel); }
-.check.falta small{ color:var(--pel); font-weight:700; }
-.check.falta input{ outline:2px solid var(--pel); outline-offset:2px; }
+/* Lo obligatorio que falta: un asterisco rojo al lado (al tocar "Enviarme el recibo") */
+.ast{ color:var(--pel); font-weight:700; margin-left:3px; }
 .msg-falta{ color:var(--pel); font-size:13px; font-weight:600; margin-top:6px; }
 .btn-lima:disabled{ opacity:.5; cursor:default; }
 .ok-envio{ margin-top:18px; border-radius:14px; padding:14px; background:var(--mio-sf); color:var(--mio-tx); font-weight:600; }
@@ -632,15 +629,15 @@ function pintarCobrada(app) {
         <div class="tarjeta recibo">
             <h3 style="font-size:18px;margin-bottom:14px;">${t('recibo_t')}</h3>
             ${enviado ? `<div class="ok-envio">${esc(t('enviado', { e: enviado }))}</div>` : ''}
-            <div class="campo"><label for="rc-email">${t('email')}</label>
+            <div class="campo"><label for="rc-email">${t('email')}<span class="ast" id="rc-email-ast" ${RECIBO.falta.email ? '' : 'hidden'}>*</span></label>
                 <input id="rc-email" type="email" inputmode="email" autocomplete="email" maxlength="160"
-                    class="${RECIBO.falta.email ? 'falta' : ''}" aria-invalid="${!!RECIBO.falta.email}"
+                    aria-invalid="${!!RECIBO.falta.email}"
                     placeholder="${esc(t('ph_email'))}" value="${esc(RECIBO.email)}"
                     oninput="RECIBO.email=this.value;quitarFalta('email')" onkeydown="if(event.key==='Enter')enviarRecibo()">
-                ${RECIBO.falta.email ? `<div class="msg-falta" id="rc-email-msg">${esc(RECIBO.falta.email)}</div>` : ''}</div>
-            <label class="check ${RECIBO.falta.datos ? 'falta' : ''}" id="rc-datos-l"><input type="checkbox" id="rc-datos" ${RECIBO.datos ? 'checked' : ''}
+                ${RECIBO.falta.email === t('email_mal') ? `<div class="msg-falta" id="rc-email-msg">${esc(RECIBO.falta.email)}</div>` : ''}</div>
+            <label class="check" id="rc-datos-l"><input type="checkbox" id="rc-datos" ${RECIBO.datos ? 'checked' : ''}
                     onchange="RECIBO.datos=this.checked;quitarFalta('datos')">
-                <span>${t('acepto_datos', { local })}<small>${t('obligatorio')}</small></span></label>
+                <span>${t('acepto_datos', { local })}<span class="ast" id="rc-datos-ast" ${RECIBO.falta.datos ? '' : 'hidden'}>*</span><small>${t('obligatorio')}</small></span></label>
             <label class="check"><input type="checkbox" id="rc-publi" ${RECIBO.publi ? 'checked' : ''}
                     onchange="RECIBO.publi=this.checked">
                 <span>${t('acepto_publi', { local })}</span></label>
@@ -656,8 +653,8 @@ function pintarBotonRecibo() {
 function quitarFalta(k) {
     if (!RECIBO.falta[k]) return;
     delete RECIBO.falta[k];
-    if (k === 'email') { const i = $('rc-email'); if (i) i.classList.remove('falta'); const m = $('rc-email-msg'); if (m) m.remove(); }
-    if (k === 'datos') { const l = $('rc-datos-l'); if (l) l.classList.remove('falta'); }
+    const a = $('rc-' + k + '-ast'); if (a) a.hidden = true;
+    if (k === 'email') { const m = $('rc-email-msg'); if (m) m.remove(); }
 }
 async function enviarRecibo() {
     const email = (RECIBO.email || '').trim();
