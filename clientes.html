@@ -29,13 +29,19 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 
 .card { background: var(--sup, white); border-radius:12px; box-shadow: var(--sh-1, 0 2px 8px rgba(0,0,0,.06)); padding:18px 20px; margin-bottom:16px; }
 
-.filtros { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:12px; align-items:end; }
+.filtros { display:grid; grid-template-columns:1fr 1fr 1fr 1fr auto; gap:12px; align-items:end; }
 @media(max-width:720px){ .filtros{ grid-template-columns:1fr 1fr; } }
 .filtros label { display:block; font-size:12px; font-weight:600; color: var(--tx-2, #374151); margin-bottom:5px; }
-.filtros input {
+.filtros input, .filtros select {
     width:100%; padding:9px 11px; border: 1px solid var(--bd-3, #d1d5db); border-radius:8px; font-size:14px; outline:none;
+    background: var(--sup, white); color: var(--tx, #1a1a2e);
 }
-.filtros input:focus { border-color: var(--ac, #4f46e5); }
+.filtros input:focus, .filtros select:focus { border-color: var(--ac, #4f46e5); }
+/* Dónde fue el consumo */
+.canal { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; }
+table.hist td { vertical-align:middle; }
+.canal.local { background: var(--ac-sf, #eef2ff); color: var(--tx-ac, #4f46e5); }
+.canal.takeaway { background: var(--ok-sf, #dcfce7); color: var(--ok-tx, #166534); }
 
 .btn { border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; transition:opacity .15s; }
 .btn-primary { background:#4f46e5; color:white; }
@@ -50,6 +56,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 .cli { border: 1px solid var(--bd-4, #eef0f3); border-radius:10px; margin-bottom:10px; overflow:hidden; }
 .cli-head { display:flex; align-items:center; gap:12px; padding:14px 16px; cursor:pointer; user-select:none; transition:background .15s; }
 .cli-head:hover { background: var(--sup-2, #fafafa); }
+@media(max-width:760px){ .cli-head { flex-wrap:wrap; gap:8px; } .cli-contactos { flex-basis:100%; order:5; } }
 .cli-id { font-size:12px; font-weight:700; color: var(--tx-ac, #4f46e5); background: var(--ac-sf, #eef2ff); padding:2px 8px; border-radius:20px; white-space:nowrap; }
 .cli-nombre { font-weight:700; color: var(--tx, #1a1a2e); font-size:15px; }
 .cli-contactos { flex:1; color: var(--tx-9, #64748b); font-size:12px; }
@@ -111,8 +118,8 @@ table.hist th { color: var(--tx-4, #9ca3af); font-weight:600; font-size:11px; te
 .u-prev-err { font-size:12px; color: var(--pel-tx-2, #dc2626); font-weight:600; }
 
 /* Detalle en 2 columnas */
-.cli-cols { display:grid; grid-template-columns:1.25fr 1fr; gap:18px; margin-top:6px; }
-@media(max-width:760px){ .cli-cols { grid-template-columns:1fr; } }
+.cli-cols { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:18px; margin-top:6px; }
+@media(max-width:760px){ .cli-cols { grid-template-columns:minmax(0,1fr); } }
 .cli-col-right { border-left: 1px solid var(--bd-4, #f0f0f0); padding-left:16px; }
 @media(max-width:760px){ .cli-col-right { border-left:none; padding-left:0; border-top: 1px solid var(--bd-4, #f0f0f0); padding-top:12px; } }
 
@@ -150,6 +157,12 @@ table.hist th { color: var(--tx-4, #9ca3af); font-weight:600; font-size:11px; te
             <div><label>Nombre</label><input type="text" id="f-nombre" placeholder="Nombre" onkeydown="if(event.key==='Enter')buscar()"></div>
             <div><label>Teléfono</label><input type="text" id="f-telefono" placeholder="Teléfono" onkeydown="if(event.key==='Enter')buscar()"></div>
             <div><label>Correo electrónico</label><input type="text" id="f-email" placeholder="Correo" onkeydown="if(event.key==='Enter')buscar()"></div>
+            <div><label>Consumos</label>
+                <select id="f-canal" onchange="buscar()">
+                    <option value="">Local y Take Away</option>
+                    <option value="local">Sólo en el local</option>
+                    <option value="takeaway">Sólo Take Away</option>
+                </select></div>
             <div><button class="btn btn-primary" onclick="buscar()">Buscar</button></div>
         </div>
     </div>
@@ -261,6 +274,19 @@ if (typeof cargarMonedaSistema === 'function') cargarMonedaSistema();
 function money(n){ return (typeof formatMonto === 'function') ? formatMonto(Number(n)||0) : ('$'+(Number(n)||0).toFixed(2)); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+const filtroCanal = () => document.getElementById('f-canal').value;
+const CANAL_TXT = { local: 'En el local', takeaway: 'Take Away' };
+// Chip de dónde fue el consumo (los de la web dicen "web").
+function chipCanal(h){
+    const c = h.canal === 'takeaway' ? 'takeaway' : 'local';
+    return '<span class="canal '+c+'">'+(c==='takeaway' ? '🥡 Take Away'+(h.web?' · web':'') : '🍽 En el local')+'</span>';
+}
+// Mesa para el local; para llevar no hay mesa.
+function lugarCuenta(h){
+    if(h.canal === 'takeaway') return h.web ? 'Pedido por la web' : 'Para llevar';
+    return h.mesa_numero!=null ? ('Mesa '+h.mesa_numero+(h.sala?(' · '+esc(h.sala)):'')) : '—';
+}
+
 async function buscar(){
     const nombre   = document.getElementById('f-nombre').value.trim();
     const telefono = document.getElementById('f-telefono').value.trim();
@@ -272,6 +298,8 @@ async function buscar(){
     if(nombre) qs.set('nombre', nombre);
     if(telefono) qs.set('telefono', telefono);
     if(email) qs.set('email', email);
+    if(filtroCanal()) qs.set('canal', filtroCanal());
+    _detalleCargado = {};   // el detalle depende del filtro de consumos
     try{
         const lista = await api.get('/clientes/?'+qs.toString());
         render(lista);
@@ -294,7 +322,7 @@ function render(lista){
                 '<span class="cli-star'+(c.vip?' on':'')+'" title="'+(c.vip?'Cliente VIP':'No VIP')+'">★</span>'+
                 '<span class="cli-id">#'+c.id+'</span>'+
                 '<span class="cli-nombre">'+esc(c.nombre||'(sin nombre)')+'</span>'+
-                (c.visitas != null ? '<span class="chip" title="Visitas (reservas y consumos)">🍽 '+c.visitas+' visita'+(c.visitas==1?'':'s')+'</span>' : '')+
+                (c.visitas != null ? '<span class="chip" title="'+(filtroCanal() ? 'Visitas ('+CANAL_TXT[filtroCanal()]+')' : 'Visitas (reservas y consumos, en el local y Take Away)')+'">🍽 '+c.visitas+' visita'+(c.visitas==1?'':'s')+'</span>' : '')+
                 '<span class="cli-contactos">'+esc(resumen)+'</span>'+
                 editBtn+
                 '<span class="cli-arrow">▸</span>'+
@@ -319,7 +347,7 @@ async function toggleCliente(id){
     if(el.classList.contains('open') && !_detalleCargado[id]){
         _detalleCargado[id] = true;
         try{
-            const d = await api.get('/clientes/'+id);
+            const d = await api.get('/clientes/'+id+(filtroCanal() ? '?canal='+filtroCanal() : ''));
             renderHistorico(id, d);
             renderExtra(id, d);
         }catch(err){
@@ -332,21 +360,25 @@ async function toggleCliente(id){
 function renderHistorico(id, d){
     const cont = document.getElementById('cli-hist-'+id);
     const hist = d.historico||[];
-    if(!hist.length){ cont.innerHTML = '<div class="estado-vacio">Sin mesas vinculadas todavía.</div>'; return; }
+    if(!hist.length){
+        const f = filtroCanal();
+        cont.innerHTML = '<div class="estado-vacio">'+(f ? 'Sin consumos '+(f==='takeaway'?'de Take Away':'en el local')+'.' : 'Sin consumos vinculados todavía.')+'</div>';
+        return;
+    }
     const filas = hist.map(h=>{
-        const mesa = h.mesa_numero!=null ? ('Mesa '+h.mesa_numero+(h.sala?(' · '+esc(h.sala)):'')) : '—';
         const fecha = h.fecha ? esc(h.fecha) : '';
         return '<tr>'+
             '<td>'+fecha+'</td>'+
-            '<td>'+mesa+'</td>'+
+            '<td>'+chipCanal(h)+'</td>'+
+            '<td>'+lugarCuenta(h)+'</td>'+
             '<td><a class="cuenta-link" onclick="verConsumo('+h.pedido_id+')">Cuenta #'+h.pedido_id+'</a></td>'+
             '<td><a class="cuenta-link" onclick="verTicketCliente('+h.pedido_id+')" title="Ver el ticket guardado / reimprimir">🧾 Ticket</a></td>'+
             '<td class="hist-tot">'+money(h.total)+'</td>'+
         '</tr>';
     }).join('');
     cont.innerHTML =
-        '<table class="hist"><thead><tr><th>Fecha</th><th>Mesa</th><th>Cuenta</th><th>Ticket</th><th class="hist-tot">Total consumido</th></tr></thead>'+
-        '<tbody>'+filas+'</tbody></table>'+
+        '<div class="tabla-scroll"><table class="hist"><thead><tr><th>Fecha</th><th>Consumo</th><th>Lugar</th><th>Cuenta</th><th>Ticket</th><th class="hist-tot">Total consumido</th></tr></thead>'+
+        '<tbody>'+filas+'</tbody></table></div>'+
         '<div class="resumen-cli">'+d.visitas+' visita(s) · Total consumido: '+money(d.total_general)+'</div>';
 }
 
@@ -367,8 +399,7 @@ function renderExtra(id, d){
     const uc = d.ultima_cuenta;
     html += '<div class="rk-title" style="margin-top:16px;">🧾 Última cuenta</div>';
     if(uc){
-        const mesa = uc.mesa_numero!=null ? ('Mesa '+uc.mesa_numero+(uc.sala?(' · '+esc(uc.sala)):'')) : '—';
-        html += '<div class="uc-head">Cuenta #'+uc.pedido_id+' · '+esc(uc.fecha||'')+' · '+mesa+'</div>';
+        html += '<div class="uc-head">Cuenta #'+uc.pedido_id+' · '+esc(uc.fecha||'')+' · '+lugarCuenta(uc)+'</div>';
         html += (uc.items||[]).map(i=>'<div class="uc-item"><span>'+esc(i.nombre)+' ×'+i.cantidad+'</span><span>'+money(i.subtotal)+'</span></div>').join('');
         html += '<div class="uc-total">Total: '+money(uc.total)+'</div>';
     }else{
