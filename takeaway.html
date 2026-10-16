@@ -816,6 +816,20 @@ function pintarResumenCheckout() {
     $('co-pagar').textContent = t('pagar', { t: dinero(totalCarrito()) });
     $('co-pagar').disabled = !CARRITO.items.length;
 }
+// Tras un 409 de precio: el carrito toma los precios vigentes del menú (y saca lo que ya no
+// está o se agotó). Si no, el siguiente "Pagar" mandaría el total viejo y volvería a fallar.
+async function actualizarPreciosCarrito() {
+    try {
+        const m = await cargarMenu(CODIGO_SITIO);
+        const porId = Object.fromEntries(m.productos.map(p => [p.id, p]));
+        CARRITO.items = CARRITO.items.filter(i => porId[i.id] && !porId[i.id].agotado).map(i => {
+            const p = porId[i.id];
+            const extras = i.extras.map(e => p.extras.find(x => x.id === e.id)).filter(Boolean);
+            return { ...i, nombre: p.nombre, extras, precio: p.precio + extras.reduce((a, e) => a + e.precio, 0) };
+        });
+        guardarCarrito(); pintarResumenCheckout();
+    } catch (_) {}
+}
 function mostrarErrCo(msg) { const e = $('co-err'); e.textContent = msg; e.classList.remove('hidden'); }
 function nuevaClave() { return (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(36).slice(2)); }
 async function confirmarPedido() {
@@ -850,6 +864,7 @@ async function confirmarPedido() {
             // El server recalculó y el total no es el que vio el cliente: se refresca el menú
             // y se le pide que confirme de nuevo (nunca se cobra un importe que no vio).
             delete _menus[CARRITO.codigo]; S.claveIntento = null;
+            await actualizarPreciosCarrito();
             return mostrarErrCo(t('err_precio', { t: dinero(e.data.total) }));
         }
         // El local perdió la conexión (servidor local caído): no se pueden tomar pedidos.
