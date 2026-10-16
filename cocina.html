@@ -508,7 +508,8 @@ function pintarTakeAway() {
     const cuerpo = document.getElementById('tk-cuerpo'); if (!cuerpo || !_tkDatos) return;
     const d = _tkDatos;
     document.getElementById('tk-res').textContent = `· ${d.activos} activo${d.activos === 1 ? '' : 's'} · ${d.listos} listo${d.listos === 1 ? '' : 's'}`;
-    const peds = [...(d.pedidos || [])].sort((a, b) => (_TK_ORD[a.estado_takeaway] ?? 5) - (_TK_ORD[b.estado_takeaway] ?? 5) || String(a.hora).localeCompare(String(b.hora)));
+    // En cocina, sin los entregados: están en "Entregadas", de donde se devuelven a cocina.
+    const peds = [...(d.pedidos || [])].filter(p => p.estado_takeaway !== 'entregado').sort((a, b) => (_TK_ORD[a.estado_takeaway] ?? 5) - (_TK_ORD[b.estado_takeaway] ?? 5) || String(a.hora).localeCompare(String(b.hora)));
     if (!peds.length) { cuerpo.innerHTML = '<div class="tk-sub" style="text-align:center;padding:20px;">Todavía no hay pedidos para llevar hoy.</div>'; return; }
     let html = '', titulo = false;
     for (const p of peds) {
