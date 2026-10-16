@@ -456,12 +456,39 @@ const svg = { pin:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" s
 const S = { sitio: null, local: null, menu: null, prodAbierto: null, retiro: null, horaElegida: null, diaElegido: null, franja: null };
 // Carrito y pedido en curso guardados POR LOCAL: dos pestañas de locales distintos no se pisan.
 const CLAVE_CARRITO = 'tk-carrito::' + CODIGO_SITIO, CLAVE_PEDIDO = 'tk-pedido::' + CODIGO_SITIO;
+// El carrito VENCE: 15 minutos desde la última vez que se tocó. Sin esto quedaba guardado
+// en el teléfono para siempre y al volver días después aparecía un pedido que nunca se hizo.
+// Vencido, se borra del dispositivo (no sólo se oculta).
+const CARRITO_VENCE_MS = 15 * 60 * 1000;
 function leerCarrito() {
     const vacio = { codigo: CODIGO_SITIO, items: [] };
-    try { return JSON.parse(_ls.get(CLAVE_CARRITO) || 'null') || vacio; } catch { return vacio; }
+    let c = null;
+    try { c = JSON.parse(_ls.get(CLAVE_CARRITO) || 'null'); } catch { c = null; }
+    if (!c || !c.t || Date.now() - c.t > CARRITO_VENCE_MS) {   // sin fecha = carrito viejo
+        _ls.del(CLAVE_CARRITO);
+        return vacio;
+    }
+    return c;
 }
 let CARRITO = leerCarrito();
-function guardarCarrito() { _ls.set(CLAVE_CARRITO, JSON.stringify(CARRITO)); pintarContador(); }
+_ls.del('tk-cliente'); _ls.del('tk-carrito');   // restos de versiones anteriores
+function guardarCarrito() {
+    CARRITO.t = Date.now();
+    if (CARRITO.items.length) _ls.set(CLAVE_CARRITO, JSON.stringify(CARRITO));
+    else _ls.del(CLAVE_CARRITO);
+    pintarContador();
+}
+// Si la pestaña quedó abierta y se vuelve después de los 15 minutos, también vence.
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !CARRITO.items.length) return;
+    if (Date.now() - (CARRITO.t || 0) > CARRITO_VENCE_MS) {
+        _ls.del(CLAVE_CARRITO);
+        CARRITO = { codigo: CODIGO_SITIO, items: [] };
+        pintarContador();
+        if (typeof pintarCarritoLateral === 'function') pintarCarritoLateral();
+        if (rutaActual().vista === 'checkout') location.hash = '#menu';
+    }
+});
 const totalCarrito = () => CARRITO.items.reduce((a, i) => a + i.precio * i.cantidad, 0);
 const unidades = () => CARRITO.items.reduce((a, i) => a + i.cantidad, 0);
 function pintarContador() {
@@ -751,7 +778,9 @@ async function pintarCheckout() {
     try { m = await conEspera($('carga-co'), cargarMenu(cod)); } catch { location.hash = '#home'; return; }
     S.local = m.local; S.menu = m; S.retiro = m.retiro;
     if (!S.horaElegida && !m.retiro.asap) S.horaElegida = null;
-    const datos = JSON.parse(_ls.get('tk-cliente') || '{}');
+    // Los datos del cliente NO se guardan en el teléfono (antes quedaban para siempre);
+    // el autocompletado del navegador los ofrece igual (autocomplete name/tel/email).
+    const datos = {};
     $('vista').innerHTML = `<div class="envase checkout">
         <div style="display:flex;flex-direction:column;gap:20px;">
             <h1 style="font-size:clamp(30px,4vw,44px);">${esc(m.local.nombre)}</h1>
@@ -842,7 +871,6 @@ async function confirmarPedido() {
     if (!nombre) return mostrarErrCo(t('err_nombre'));
     if (!tel && !email) return mostrarErrCo(t('err_contacto'));
     if (!$('co-acepto').checked) return mostrarErrCo(t('err_acepto'));
-    _ls.set('tk-cliente', JSON.stringify({ nombre, telefono: tel, email }));
     // Una clave por intento de compra: un doble clic o un reintento no crean dos pedidos.
     if (!S.claveIntento) S.claveIntento = nuevaClave();
     const btn = $('co-pagar'); btn.disabled = true;
