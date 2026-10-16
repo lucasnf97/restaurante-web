@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Dividir la cuenta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Dividir la cuenta con QR ─────────────────────────────────────────────────
+   El comensal escanea el QR que le muestra el camarero en el pago dividido, entra como
+   "Cliente N" y se asigna lo que consumió (o comparte un ítem que ya tiene otro). Todo
+   en vivo: la pantalla de cobro ve lo mismo. Marca Chief Point (mismos tokens que
+   takeaway.html): sin sombras en reposo, texto ≥ 14 px, grises con contraste ≥ 7:1. */
+:root{
+    --navy:#1B1B33; --navy-2:#2A2A4A; --lime:#C9FF1F; --r4:#4C5A15;
+    --fondo:#F6F6F9; --sup:#FFFFFF; --sup-2:#F0F0F4;
+    --tx:#1B1B33; --tx-2:#4A4A60; --bd:#E3E3EA;
+    --mio-sf:#F4F9DD; --mio-bd:#B4E025; --mio-tx:#3A4510;
+    --otro-sf:#EEF0F8; --otro-tx:#2A2A4A;
+    --pel:#B42336; --pel-sf:#FDF2F3; --ok:#3A4510;
+    color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+        --fondo:#121222; --sup:#1B1B33; --sup-2:#25253F;
+        --tx:#F2F2F7; --tx-2:#C4C4D4; --bd:#34345A;
+        --mio-sf:#28331A; --mio-bd:#93BE1E; --mio-tx:#DDF59A;
+        --otro-sf:#2A2A4A; --otro-tx:#DADAF0;
+        --pel:#FF8A98; --pel-sf:#3A1A22; --ok:#DDF59A;
+        color-scheme: dark;
+    }
+}
+:root[data-theme="dark"]{
+    --fondo:#121222; --sup:#1B1B33; --sup-2:#25253F;
+    --tx:#F2F2F7; --tx-2:#C4C4D4; --bd:#34345A;
+    --mio-sf:#28331A; --mio-bd:#93BE1E; --mio-tx:#DDF59A;
+    --otro-sf:#2A2A4A; --otro-tx:#DADAF0;
+    --pel:#FF8A98; --pel-sf:#3A1A22; --ok:#DDF59A;
+    color-scheme: dark;
+}
+*{ box-sizing:border-box; }
+html,body{ margin:0; }
+body{ font-family:Figtree,system-ui,sans-serif; color:var(--tx); background:var(--fondo); line-height:1.45;
+    -webkit-font-smoothing:antialiased; min-height:100vh; min-height:100dvh; }
+button,input{ font:inherit; color:inherit; }
+.hidden{ display:none !important; }
+h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em; margin:0; text-wrap:balance; }
+.envase{ max-width:560px; margin:0 auto; padding:0 16px; }
+
+/* Barra */
+.barra{ background:var(--navy); color:#fff; padding:max(12px, env(safe-area-inset-top)) 0 12px; }
+.barra .envase{ display:flex; align-items:center; gap:12px; }
+.barra .local{ font-family:Poppins,sans-serif; font-weight:600; font-size:17px; flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.idiomas{ display:flex; gap:2px; padding:3px; border-radius:999px; background:var(--navy-2); }
+.idiomas button{ min-width:36px; min-height:32px; border:none; border-radius:999px; background:transparent;
+    color:#C4C4D4; font-size:12.5px; font-weight:600; letter-spacing:.06em; cursor:pointer; }
+.idiomas button[aria-pressed=true]{ background:var(--lime); color:var(--navy); }
+
+/* Tarjetas */
+.tarjeta{ background:var(--sup); border:1px solid var(--bd); border-radius:18px; padding:18px; margin-top:14px; }
+.yo{ display:flex; align-items:center; gap:14px; }
+.yo .num{ width:52px; height:52px; border-radius:50%; background:var(--navy); color:var(--lime); flex:none;
+    display:flex; align-items:center; justify-content:center; font-family:Poppins,sans-serif; font-weight:600; font-size:20px;
+    box-shadow:0 0 0 3px var(--r4); }
+.yo .quien{ flex:1; min-width:0; }
+.yo .quien .t{ font-size:14px; color:var(--tx-2); }
+.yo .quien input{ width:100%; border:none; border-bottom:1.5px solid var(--bd); background:transparent; padding:4px 0;
+    font-size:17px; font-weight:600; outline:none; }
+.yo .quien input:focus{ border-bottom-color:var(--mio-bd); }
+.yo .total{ text-align:right; }
+.yo .total .t{ font-size:14px; color:var(--tx-2); }
+.yo .total .m{ font-family:Poppins,sans-serif; font-weight:600; font-size:24px; white-space:nowrap; }
+.pagado{ display:inline-flex; align-items:center; gap:6px; font-weight:600; color:var(--ok); }
+
+.ayuda{ font-size:14.5px; color:var(--tx-2); margin:16px 2px 6px; }
+
+/* Ítems */
+.lista{ display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+.pieza{ display:flex; align-items:center; gap:12px; background:var(--sup); border:1.5px solid var(--bd);
+    border-radius:14px; padding:12px 12px 12px 14px; min-height:64px; }
+.pieza.mia{ background:var(--mio-sf); border-color:var(--mio-bd); }
+.pieza .info{ flex:1; min-width:0; }
+.pieza .nom{ font-weight:600; font-size:15.5px; overflow-wrap:anywhere; }
+.pieza .sub{ font-size:14px; color:var(--tx-2); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; margin-top:2px; }
+.chip{ display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:600; padding:2px 9px;
+    border-radius:999px; background:var(--otro-sf); color:var(--otro-tx); }
+.chip.yo-chip{ background:var(--navy); color:var(--lime); }
+.pieza .precio{ font-weight:600; white-space:nowrap; font-size:15px; }
+.acc{ border:none; border-radius:999px; min-height:44px; padding:0 16px; font-weight:600; font-size:14.5px; cursor:pointer; white-space:nowrap; }
+.acc.tomar{ background:var(--lime); color:var(--navy); }
+.acc.compartir{ background:var(--navy); color:#fff; }
+:root[data-theme="dark"] .acc.compartir{ background:var(--sup-2); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .acc.compartir{ background:var(--sup-2); } }
+.acc.soltar{ background:transparent; color:var(--tx); border:1.5px solid var(--bd); }
+.acc:disabled{ opacity:.55; cursor:default; }
+.cerrado-lbl{ font-size:13.5px; font-weight:600; color:var(--tx-2); }
+
+/* Clientes */
+.clientes{ display:flex; flex-direction:column; gap:6px; }
+.cli{ display:flex; align-items:center; gap:10px; font-size:15px; }
+.cli .n{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cli .m{ font-weight:600; white-space:nowrap; }
+
+/* Barra inferior: lo que falta */
+.pie{ position:sticky; bottom:0; margin-top:18px; background:var(--sup); border-top:1px solid var(--bd);
+    padding:12px 0 calc(12px + env(safe-area-inset-bottom)); }
+.pie .envase{ display:flex; align-items:center; gap:12px; }
+.pie .falta{ flex:1; font-size:14.5px; }
+.pie .falta b{ font-size:16px; }
+.barra-prog{ height:6px; border-radius:999px; background:var(--sup-2); overflow:hidden; margin-top:6px; }
+.barra-prog i{ display:block; height:100%; background:var(--mio-bd); transition:width .3s; }
+
+/* Entrada / estados */
+.portada{ text-align:center; padding:40px 8px 10px; }
+.portada h1{ font-size:26px; }
+.portada p{ color:var(--tx-2); font-size:15.5px; margin:10px auto 0; max-width:420px; }
+.campo{ margin-top:18px; text-align:left; }
+.campo label{ display:block; font-size:14px; font-weight:600; color:var(--tx-2); margin-bottom:6px; }
+.campo input{ width:100%; height:52px; border-radius:14px; border:1.5px solid var(--bd); background:var(--sup);
+    padding:0 14px; font-size:16px; outline:none; }
+.campo input:focus{ border-color:var(--mio-bd); }
+.btn{ display:flex; width:100%; align-items:center; justify-content:center; border:none; cursor:pointer;
+    border-radius:999px; font-weight:600; font-size:16px; height:54px; margin-top:16px; }
+.btn-lima{ background:var(--lime); color:var(--navy); }
+.aviso{ border-radius:14px; padding:12px 14px; margin-top:14px; font-size:14.5px; font-weight:500; }
+.aviso.pel{ background:var(--pel-sf); color:var(--pel); }
+.aviso.info{ background:var(--otro-sf); color:var(--otro-tx); }
+.toast{ position:fixed; left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    background:var(--navy); color:#fff; border-radius:14px; padding:12px 16px; font-size:14.5px; z-index:50;
+    max-width:min(92vw, 420px); box-shadow:0 8px 30px rgba(0,0,0,.25); }
+.final{ text-align:center; padding:56px 8px; }
+.final .ico{ width:72px; height:72px; margin:0 auto 16px; border-radius:50%; background:var(--navy); color:var(--lime);
+    display:flex; align-items:center; justify-content:center; font-size:32px; box-shadow:0 0 0 4px var(--r4); }
+.final p{ color:var(--tx-2); }
+/* Latido = en vivo (animación con significado de la marca) */
+.vivo{ display:inline-flex; align-items:center; gap:6px; font-size:13px; color:#C4C4D4; }
+.vivo i{ width:8px; height:8px; border-radius:50%; background:var(--lime); animation:latido 1.6s ease-in-out infinite; }
+@keyframes latido{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.35; transform:scale(.8); } }
+@media (prefers-reduced-motion: reduce){ .vivo i{ animation:none; } }
+</style>
+</head>
+<body>
+<header class="barra">
+    <div class="envase">
+        <span class="local" id="local">…</span>
+        <span class="vivo hidden" id="vivo"><i></i><span data-t="en_vivo"></span></span>
+        <div class="idiomas" id="idiomas"></div>
+    </div>
+</header>
+
+<main class="envase" id="app"></main>
+<div class="pie hidden" id="pie">
+    <div class="envase">
+        <div class="falta">
+            <div id="falta-txt"></div>
+            <div class="barra-prog"><i id="prog" style="width:0"></i></div>
+        </div>
+    </div>
+</div>
+<div class="toast hidden" id="toast" role="status"></div>
+
+<script>
+const API = "https://restaurante-backend-production-459b.up.railway.app";
+const QS = new URLSearchParams(location.search);
+const CODIGO = (QS.get('r') || '').trim();
+const TOKEN = (QS.get('t') || '').trim();
+const IDIOMAS = ['es', 'en', 'da'];
+const LOCALE = { es: 'es-ES', en: 'en-GB', da: 'da-DK' };
+const POLL_MS = 2500;
+const VIDA_DISP_MS = 12 * 3600 * 1000;   // el "quién soy" del celular dura lo que una comida, no más
+
+const TXT = {
+  es: {
+    en_vivo: 'En vivo', titulo: 'Dividí la cuenta', intro: 'Elegí lo que consumiste. Si compartiste algo, tocá “Compartir” y se divide entre los dos. El camarero lo ve al momento.',
+    tu_nombre: 'Tu nombre (opcional)', ph_nombre: 'Ej: Ana', entrar: 'Entrar a la cuenta',
+    sos: 'Sos el', cliente: 'Cliente', tu_parte: 'Tu parte', pagado: 'Pagado',
+    ayuda: 'Tocá lo que consumiste.', es_mio: 'Es mío', compartir: 'Compartir', soltar: 'Soltar',
+    libre: 'Sin asignar', de: '{n} de {de}', combo: 'Combo', compartido: 'Compartido ÷{n}',
+    en_la_mesa: 'En la mesa', nada_aun: 'Todavía nada', todo_asignado: 'Todo asignado ✓',
+    falta: 'Falta asignar: <b>{m}</b> · {n} ítem(s)',
+    cobrada_t: '¡Cuenta pagada!', cobrada_p: 'Gracias por tu visita.',
+    cerrada_t: 'El reparto se cerró', cerrada_p: 'Pedile al camarero un QR nuevo si todavía tienen que dividir.',
+    cambio: 'El local está modificando la cuenta. En un momento se actualiza sola.',
+    no_existe_t: 'No encontramos esta cuenta', no_existe_p: 'Revisá que hayas escaneado el QR que te mostró el camarero.',
+    sin_red: 'Sin conexión. Reintentando…', err: 'No se pudo hacer. Probá de nuevo.',
+    ya_pagaste: 'Ya pagaste tu parte. ¡Gracias!',
+  },
+  en: {
+    en_vivo: 'Live', titulo: 'Split the bill', intro: 'Pick what you had. If you shared something, tap “Share” and it’s split between you. The waiter sees it instantly.',
+    tu_nombre: 'Your name (optional)', ph_nombre: 'E.g. Anna', entrar: 'Join the bill',
+    sos: 'You are', cliente: 'Guest', tu_parte: 'Your share', pagado: 'Paid',
+    ayuda: 'Tap what you had.', es_mio: 'Mine', compartir: 'Share', soltar: 'Remove',
+    libre: 'Unassigned', de: '{n} of {de}', combo: 'Combo', compartido: 'Shared ÷{n}',
+    en_la_mesa: 'At the table', nada_aun: 'Nothing yet', todo_asignado: 'All assigned ✓',
+    falta: 'Left to assign: <b>{m}</b> · {n} item(s)',
+    cobrada_t: 'Bill paid!', cobrada_p: 'Thanks for your visit.',
+    cerrada_t: 'Bill splitting closed', cerrada_p: 'Ask the waiter for a new QR if you still need to split.',
+    cambio: 'The restaurant is updating the bill. It will refresh by itself.',
+    no_existe_t: 'We couldn’t find this bill', no_existe_p: 'Make sure you scanned the QR the waiter showed you.',
+    sin_red: 'Offline. Retrying…', err: 'That didn’t work. Please try again.',
+    ya_pagaste: 'You already paid your share. Thank you!',
+  },
+  da: {
+    en_vivo: 'Live', titulo: 'Del regningen', intro: 'Vælg det, du har fået. Har I delt noget, så tryk “Del”, så deles beløbet. Tjeneren ser det med det samme.',
+    tu_nombre: 'Dit navn (valgfrit)', ph_nombre: 'F.eks. Anna', entrar: 'Gå til regningen',
+    sos: 'Du er', cliente: 'Gæst', tu_parte: 'Din andel', pagado: 'Betalt',
+    ayuda: 'Tryk på det, du har fået.', es_mio: 'Min', compartir: 'Del', soltar: 'Fjern',
+    libre: 'Ikke fordelt', de: '{n} af {de}', combo: 'Menu', compartido: 'Delt ÷{n}',
+    en_la_mesa: 'Ved bordet', nada_aun: 'Intet endnu', todo_asignado: 'Alt fordelt ✓',
+    falta: 'Mangler at fordele: <b>{m}</b> · {n} vare(r)',
+    cobrada_t: 'Regningen er betalt!', cobrada_p: 'Tak for besøget.',
+    cerrada_t: 'Deling af regningen er lukket', cerrada_p: 'Bed tjeneren om en ny QR-kode, hvis I stadig skal dele.',
+    cambio: 'Restauranten opdaterer regningen. Den opdateres af sig selv om lidt.',
+    no_existe_t: 'Vi kunne ikke finde regningen', no_existe_p: 'Tjek, at du har scannet den QR-kode, tjeneren viste dig.',
+    sin_red: 'Ingen forbindelse. Prøver igen…', err: 'Det lykkedes ikke. Prøv igen.',
+    ya_pagaste: 'Du har allerede betalt din andel. Tak!',
+  },
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const _ls = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+              set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+              del(k) { try { localStorage.removeItem(k); } catch {} } };
+let LANG = 'es';
+const t = (k, v) => { let s = (TXT[LANG] && TXT[LANG][k]) ?? TXT.es[k] ?? k; if (v) for (const [a, b] of Object.entries(v)) s = s.split('{' + a + '}').join(b); return s; };
+function elegirIdioma() {
+    const pedidos = [QS.get('lang'), _ls.get('tk-idioma'), ...(navigator.languages || [navigator.language])]
+        .filter(Boolean).map(x => String(x).slice(0, 2).toLowerCase());
+    const parecido = { nb: 'da', no: 'da', nn: 'da', sv: 'da' };
+    for (const p of pedidos) {
+        if (IDIOMAS.includes(p)) return p;
+        if (parecido[p]) return parecido[p];
+    }
+    return 'en';
+}
+function pintarIdiomas() {
+    $('idiomas').innerHTML = IDIOMAS.map(c => `<button type="button" aria-pressed="${c === LANG}" onclick="cambiarIdioma('${c}')">${c.toUpperCase()}</button>`).join('');
+}
+function cambiarIdioma(c) { LANG = c; _ls.set('tk-idioma', c); aplicarTextos(); render(); }
+function aplicarTextos() {
+    document.documentElement.lang = LANG;
+    document.querySelectorAll('[data-t]').forEach(el => el.textContent = t(el.dataset.t));
+    pintarIdiomas();
+}
+let MONEDA = 'DKK';
+function dinero(n) {
+    try { return new Intl.NumberFormat(LOCALE[LANG], { style: 'currency', currency: MONEDA }).format(n || 0); }
+    catch { return (Number(n) || 0).toFixed(2); }
+}
+
+// ── Quién soy en este celular: un id al azar por cuenta, que vence (sin datos personales) ──
+const CLAVE_DISP = 'rp-disp::' + TOKEN;
+function limpiarViejos() {
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (!k || !k.startsWith('rp-disp::')) continue;
+            let v = null; try { v = JSON.parse(localStorage.getItem(k)); } catch {}
+            if (!v || !v.t || Date.now() - v.t > VIDA_DISP_MS) localStorage.removeItem(k);
+        }
+    } catch {}
+}
+function dispositivo() {
+    let v = null; try { v = JSON.parse(_ls.get(CLAVE_DISP) || 'null'); } catch {}
+    if (v && v.d && Date.now() - v.t < VIDA_DISP_MS) return v.d;
+    const b = new Uint8Array(18); (window.crypto || {}).getRandomValues ? crypto.getRandomValues(b) : b.forEach((_, i) => b[i] = Math.random() * 256);
+    const d = btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    _ls.set(CLAVE_DISP, JSON.stringify({ d, t: Date.now() }));
+    return d;
+}
+const DISP = dispositivo();
+
+// ── Estado + red ──
+let S = null;            // última respuesta completa
+let ERROR = null;        // 'no_existe' | null
+let SIN_RED = false;
+let OCUPADO = false;     // una acción en vuelo
+const RUTA = `${API}/publico/reparto/${encodeURIComponent(CODIGO)}/${encodeURIComponent(TOKEN)}`;
+
+async function pedir(url, opts = {}) {
+    const r = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+    let data = null; try { data = await r.json(); } catch {}
+    if (!r.ok) { const e = new Error((data && data.detail) || r.statusText); e.status = r.status; e.data = data; throw e; }
+    return data;
+}
+
+let _timer = null;
+async function consultar() {
+    clearTimeout(_timer);
+    if (!CODIGO || !TOKEN) { ERROR = 'no_existe'; render(); return; }
+    try {
+        const v = (S && S.version != null && S.estado === 'abierta') ? `&v=${S.version}` : '';
+        const r = await pedir(`${RUTA}?d=${encodeURIComponent(DISP)}${v}`);
+        SIN_RED = false;
+        if (!r.sin_cambios) { S = r; MONEDA = r.moneda || MONEDA; render(); }
+        else if ($('vivo')) render(true);
+    } catch (e) {
+        if (e.status === 404) { ERROR = 'no_existe'; render(); return; }
+        SIN_RED = true; render(true);
+    }
+    if (S && (S.estado === 'cobrada' || S.estado === 'cerrada')) return;   // ya no cambia
+    if (document.visibilityState === 'visible') _timer = setTimeout(consultar, POLL_MS);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') consultar(); else clearTimeout(_timer); });
+
+function toast(msg) {
+    const el = $('toast'); el.textContent = msg; el.classList.remove('hidden');
+    clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.add('hidden'), 3200);
+}
+async function accion(url, body) {
+    if (OCUPADO) return;
+    OCUPADO = true; render(true);
+    try {
+        const r = await pedir(url, { method: 'POST', body: JSON.stringify({ dispositivo: DISP, ...body }) });
+        S = r; MONEDA = r.moneda || MONEDA;
+    } catch (e) {
+        toast((LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err'));
+        S = null;   // releer todo
+        OCUPADO = false; await consultar(); return;
+    }
+    OCUPADO = false; render();
+}
+const unirse = () => accion(`${RUTA}/unirse`, { nombre: ($('nombre-in') || {}).value || null });
+const asignar = (key, acc) => accion(`${RUTA}/asignar`, { key, accion: acc });
+let _nombreT = null;
+function cambioNombre(v) {
+    clearTimeout(_nombreT);
+    _nombreT = setTimeout(() => pedir(`${RUTA}/unirse`, { method: 'POST', body: JSON.stringify({ dispositivo: DISP, nombre: v }) })
+        .then(r => { S = r; render(true); }).catch(() => {}), 700);
+}
+
+// ── Pintar ──
+function etiquetaCliente(c) { return t('cliente') + ' ' + c.num + (c.nombre ? ' · ' + c.nombre : ''); }
+function render(soloPie) {
+    $('vivo').classList.toggle('hidden', !(S && S.estado === 'abierta' && !SIN_RED));
+    if (S && S.local) { $('local').textContent = S.local; document.title = t('titulo') + ' · ' + S.local; }
+    const app = $('app');
+    if (ERROR === 'no_existe') {
+        $('pie').classList.add('hidden'); $('local').textContent = '';
+        app.innerHTML = `<div class="final"><div class="ico">?</div><h2>${t('no_existe_t')}</h2><p>${t('no_existe_p')}</p></div>`;
+        return;
+    }
+    if (!S) { app.innerHTML = ''; return; }
+    if (S.estado === 'cobrada' || S.estado === 'cerrada') {
+        $('pie').classList.add('hidden');
+        const k = S.estado === 'cobrada' ? 'cobrada' : 'cerrada';
+        app.innerHTML = `<div class="final"><div class="ico">${k === 'cobrada' ? '✓' : '·'}</div><h2>${t(k + '_t')}</h2><p>${t(k + '_p')}</p></div>`;
+        return;
+    }
+    const yo = S.yo ? (S.clientes || []).find(c => c.num === S.yo) : null;
+    pintarPie();
+    if (soloPie && yo && app.querySelector('.lista')) {
+        app.querySelectorAll('.acc').forEach(b => b.disabled = OCUPADO || !!(yo && yo.pagado) || S.estado !== 'abierta');
+        return;
+    }
+    const avisos = (SIN_RED ? `<div class="aviso pel">${t('sin_red')}</div>` : '')
+        + (S.estado === 'en_cambio' ? `<div class="aviso info">${t('cambio')}</div>` : '');
+    if (!yo) {
+        // Entrada: nombre opcional y entrar (número por orden de llegada).
+        app.innerHTML = `<div class="portada"><h1>${t('titulo')}</h1><p>${t('intro')}</p>
+            <div class="campo"><label for="nombre-in">${t('tu_nombre')}</label>
+            <input id="nombre-in" maxlength="30" autocomplete="off" placeholder="${esc(t('ph_nombre'))}" onkeydown="if(event.key==='Enter')unirse()"></div>
+            <button class="btn btn-lima" onclick="unirse()" ${OCUPADO || S.estado !== 'abierta' ? 'disabled' : ''}>${t('entrar')}</button>
+            ${avisos}</div>` + listaHTML(null, true);
+        return;
+    }
+    const foco = document.activeElement && document.activeElement.id === 'yo-nombre';
+    const nombreActual = foco ? document.activeElement.value : yo.nombre;
+    app.innerHTML = `
+        <div class="tarjeta yo">
+            <div class="num">${yo.num}</div>
+            <div class="quien"><div class="t">${t('sos')} ${t('cliente')} ${yo.num}</div>
+                <input id="yo-nombre" maxlength="30" placeholder="${esc(t('tu_nombre'))}" value="${esc(nombreActual)}"
+                    oninput="cambioNombre(this.value)" ${yo.pagado ? 'disabled' : ''} aria-label="${esc(t('tu_nombre'))}"></div>
+            <div class="total"><div class="t">${t('tu_parte')}</div><div class="m">${dinero(yo.importe)}</div>
+                ${yo.pagado ? `<div class="pagado">✓ ${t('pagado')}</div>` : ''}</div>
+        </div>
+        ${avisos}
+        ${yo.pagado ? `<div class="aviso info">${t('ya_pagaste')}</div>` : `<p class="ayuda">${t('ayuda')}</p>`}
+        ${listaHTML(yo, false)}
+        <div class="tarjeta"><h3 style="font-size:16px;margin-bottom:10px;">${t('en_la_mesa')}</h3>
+            <div class="clientes">${(S.clientes || []).map(c => `<div class="cli">
+                <span class="chip ${c.num === yo.num ? 'yo-chip' : ''}">${c.num}</span>
+                <span class="n">${esc(etiquetaCliente(c))}</span>
+                <span class="m">${c.pagado ? '✓ ' : ''}${c.importe > 0 ? dinero(c.importe) : t('nada_aun')}</span></div>`).join('')}</div></div>
+        <div style="height:12px"></div>`;
+    if (foco) { const i = $('yo-nombre'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+}
+function listaHTML(yo, soloLectura) {
+    const porNum = Object.fromEntries((S.clientes || []).map(c => [c.num, c]));
+    const bloqueado = OCUPADO || S.estado !== 'abierta' || (yo && yo.pagado);
+    return `<div class="lista">${(S.piezas || []).map(p => {
+        const mia = yo && p.clientes.includes(yo.num);
+        const chips = p.clientes.map(n => `<span class="chip ${yo && n === yo.num ? 'yo-chip' : ''}">${esc(porNum[n] ? etiquetaCliente(porNum[n]) : t('cliente') + ' ' + n)}</span>`).join('');
+        const sub = [p.combo ? t('combo') : (p.de > 1 ? t('de', { n: p.n, de: p.de }) : ''),
+                     p.clientes.length > 1 ? t('compartido', { n: p.clientes.length }) : '',
+                     !p.clientes.length ? t('libre') : ''].filter(Boolean).map(esc).join(' · ');
+        let btn = '';
+        if (!soloLectura) {
+            if (p.congelada) btn = `<span class="cerrado-lbl">✓ ${t('pagado')}</span>`;
+            else if (mia) btn = `<button class="acc soltar" onclick="asignar('${p.key}','soltar')" ${bloqueado ? 'disabled' : ''}>${t('soltar')}</button>`;
+            else if (p.clientes.length) btn = `<button class="acc compartir" onclick="asignar('${p.key}','compartir')" ${bloqueado ? 'disabled' : ''}>${t('compartir')}</button>`;
+            else btn = `<button class="acc tomar" onclick="asignar('${p.key}','tomar')" ${bloqueado ? 'disabled' : ''}>${t('es_mio')}</button>`;
+        }
+        return `<div class="pieza ${mia ? 'mia' : ''}">
+            <div class="info"><div class="nom">${esc(p.nombre)}</div>
+                <div class="sub">${sub ? `<span>${sub}</span>` : ''}${chips}</div></div>
+            <div class="precio">${dinero(p.precio)}</div>${btn}</div>`;
+    }).join('')}</div>`;
+}
+function pintarPie() {
+    const pie = $('pie');
+    if (!S || S.estado === 'cobrada' || S.estado === 'cerrada') { pie.classList.add('hidden'); return; }
+    pie.classList.remove('hidden');
+    const total = S.total || 0;
+    const asignado = Math.max(total - (S.pendiente || 0), 0);
+    $('prog').style.width = (total > 0 ? Math.round(asignado / total * 100) : 0) + '%';
+    $('falta-txt').innerHTML = S.piezas_sin_asignar
+        ? t('falta', { m: dinero(S.pendiente), n: S.piezas_sin_asignar })
+        : `<b>${t('todo_asignado')}</b>`;
+}
+
+limpiarViejos();
+LANG = elegirIdioma();
+aplicarTextos();
+consultar();
+</script>
+</body>
+</html>
