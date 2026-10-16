@@ -144,6 +144,25 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-inv, #111827); m
     white-space:nowrap;
 }
 .toast.show { opacity:1; }
+
+/* ── Take Away del día (misma lista que el exe y el POS) ── */
+.tk-ov { position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:900; display:flex; align-items:center; justify-content:center; padding:16px; }
+.tk-box { background: var(--sup, #fff); color: var(--tx, #1e293b); border-radius:14px; width:100%; max-width:780px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; }
+.tk-head { display:flex; align-items:center; gap:10px; padding:14px 18px; background:#1a1a2e; color:#fff; }
+.tk-head b { font-size:16px; }
+.tk-head span { color:#cbd5e1; font-size:13px; flex:1; }
+.tk-head button { background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.2); border-radius:8px; padding:6px 12px; cursor:pointer; font-weight:600; }
+.tk-cuerpo { padding:14px 16px; overflow-y:auto; background: var(--sup-2, #f0f2f5); }
+.tk-fila { background: var(--sup, #fff); border:1.5px solid var(--bd, #e2e8f0); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+.tk-fila.lista { border-color:#86efac; }
+.tk-linea { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.tk-abrir { flex:1; min-width:180px; text-align:left; background:none; border:none; cursor:pointer; color:inherit; font-size:14px; padding:4px 0; }
+.tk-chip { border-radius:5px; padding:3px 9px; font-size:12px; font-weight:700; }
+.tk-btn { border-radius:8px; padding:7px 14px; font-weight:700; cursor:pointer; border:1.5px solid #16a34a; background:#fff; color:#16a34a; }
+.tk-btn.fuerte { background:#16a34a; color:#fff; }
+.tk-btn:disabled { opacity:.6; cursor:default; }
+.tk-det { padding:6px 0 2px 24px; font-size:13px; }
+.tk-sub { color: var(--tx-9, #64748b); }
 </style>
 </head>
 <body>
@@ -155,6 +174,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-inv, #111827); m
     </div>
     <div class="navbar-right">
         <div class="refresh-badge" id="refresh-badge">—</div>
+        <button class="btn-nav" id="btn-takeaway" onclick="abrirTakeAway()">🥡 Take Away</button>
         <button class="btn-nav" onclick="cargarOrdenes()">↺ Actualizar</button>
         <button class="btn-nav danger" onclick="logout()">Salir</button>
     </div>
@@ -237,7 +257,8 @@ async function init() {
     await cargarOrdenes();
 
     // Tiempo real vía SSE: el server avisa "pos" cuando cambia algo de cocina.
-    suscribirEventos('pos', () => cargarOrdenes());
+    suscribirEventos('pos', () => { cargarOrdenes(); contarTakeAway(); if (_tkAbierto) cargarTakeAway(); });
+    contarTakeAway();
     // Fallback lento por si se cae el stream (red/proxy); 90 s es suficiente.
     _intervalo = setInterval(cargarOrdenes, 90000);
 }
@@ -439,6 +460,97 @@ setInterval(() => {
 
 // ── Arrancar ───────────────────────────────────────────────────────────────
 init();
+
+// ── Take Away del día ──────────────────────────────────────────────────────────
+// Todo lo que sale para llevar (web, sin mesa y armado sobre una mesa): nombre, hora
+// estimada y estado; tocar un pedido despliega sus comandas. Misma lista que el exe y el
+// POS (GET /pedidos/takeaway/hoy). "Entregar" lo cierra (ya está pagado).
+const _TK_EST = {
+    lista: ['#dcfce7', '#166534', '✓ Listo para entregar'], en_preparacion: ['#dbeafe', '#1e40af', 'En preparación'],
+    programado: ['#ede9fe', '#5b21b6', 'Programado'], sin_enviar: ['#f1f5f9', '#475569', 'Sin enviar a cocina'],
+    sin_pagar: ['#fef9c3', '#92400e', 'Sin pagar'], entregado: ['#f1f5f9', '#475569', 'Entregado'],
+};
+const _TK_ORD = { lista: 0, en_preparacion: 1, programado: 2, sin_enviar: 3, sin_pagar: 4, entregado: 9 };
+const _TK_EST_ORDEN = { pendiente: 'Pendiente', en_preparacion: 'En preparación', lista: 'Lista', entregada: 'Entregada', cancelada: 'Cancelada' };
+let _tkAbierto = false, _tkDatos = null, _tkTimer = null;
+const _tkDesplegados = new Set(), _tkEntregando = new Set();
+const _tkMoney = (n) => (typeof fmtDinero === 'function' ? fmtDinero(n) : Number(n || 0).toFixed(2));
+
+async function contarTakeAway() {
+    try {
+        const d = await api.get('/pedidos/takeaway/hoy');
+        document.getElementById('btn-takeaway').textContent = `🥡 Take Away ${d.activos}`;
+        if (_tkAbierto) { _tkDatos = d; pintarTakeAway(); }
+    } catch (_) {}
+}
+function abrirTakeAway() {
+    if (_tkAbierto) return;
+    _tkAbierto = true;
+    const ov = document.createElement('div');
+    ov.className = 'tk-ov'; ov.id = 'tk-ov';
+    ov.innerHTML = `<div class="tk-box"><div class="tk-head"><b>🥡 Take Away de hoy</b><span id="tk-res"></span>
+        <button onclick="cerrarTakeAway()">Cerrar</button></div><div class="tk-cuerpo" id="tk-cuerpo">Cargando…</div></div>`;
+    ov.addEventListener('click', (e) => { if (e.target === ov) cerrarTakeAway(); });
+    document.body.appendChild(ov);
+    _tkTimer = setInterval(cargarTakeAway, 10000);
+    cargarTakeAway();
+}
+function cerrarTakeAway() {
+    _tkAbierto = false; clearInterval(_tkTimer);
+    const ov = document.getElementById('tk-ov'); if (ov) ov.remove();
+}
+async function cargarTakeAway() {
+    try { _tkDatos = await api.get('/pedidos/takeaway/hoy'); pintarTakeAway(); }
+    catch (e) { if (!_tkDatos) document.getElementById('tk-cuerpo').textContent = 'No se pudo cargar: ' + (e.message || e); }
+}
+function pintarTakeAway() {
+    const cuerpo = document.getElementById('tk-cuerpo'); if (!cuerpo || !_tkDatos) return;
+    const d = _tkDatos;
+    document.getElementById('tk-res').textContent = `· ${d.activos} activo${d.activos === 1 ? '' : 's'} · ${d.listos} listo${d.listos === 1 ? '' : 's'}`;
+    const peds = [...(d.pedidos || [])].sort((a, b) => (_TK_ORD[a.estado_takeaway] ?? 5) - (_TK_ORD[b.estado_takeaway] ?? 5) || String(a.hora).localeCompare(String(b.hora)));
+    if (!peds.length) { cuerpo.innerHTML = '<div class="tk-sub" style="text-align:center;padding:20px;">Todavía no hay pedidos para llevar hoy.</div>'; return; }
+    let html = '', titulo = false;
+    for (const p of peds) {
+        const est = p.estado_takeaway;
+        if (est === 'entregado' && !titulo) { titulo = true; html += '<div class="tk-sub" style="font-weight:700;margin:14px 2px 6px;">Entregados hoy</div>'; }
+        const [bg, fg, txt] = _TK_EST[est] || ['#f1f5f9', '#475569', est];
+        const hora = est === 'entregado' ? `Entregado ${p.hora_entregado || ''}` : (p.programado ? `Programado ${p.hora}` : `Aprox. ${p.hora}`);
+        const abierto = _tkDesplegados.has(p.id);
+        const puede = ['lista', 'en_preparacion', 'programado', 'sin_enviar'].includes(est);
+        let det = '';
+        if (abierto) {
+            det = (p.cliente_telefono ? `<div class="tk-sub">📞 ${esc(p.cliente_telefono)}</div>` : '');
+            for (const o of p.ordenes || []) {
+                const eo = o.oculta ? 'Programada (todavía no en cocina)' : (_TK_EST_ORDEN[o.estado] || o.estado);
+                det += `<div style="font-weight:700;margin-top:4px;">${esc(o.area || 'Cocina')} — ${esc(eo)}</div>`;
+                let items = o.items || []; if (typeof items === 'string') { try { items = JSON.parse(items); } catch { items = []; } }
+                for (const it of items) {
+                    let pers = it.personalizacion || {}; if (typeof pers === 'string') { try { pers = JSON.parse(pers); } catch { pers = {}; } }
+                    const ex = (pers.extras || []).map(e => '+ ' + (e.nombre || '')).join(', ');
+                    det += `<div style="padding-left:10px;">${it.cantidad || 1} × ${esc(it.nombre || '')}${ex ? ` <span class="tk-sub">(${esc(ex)})</span>` : ''}${it.notas ? ` <span class="tk-sub">· ${esc(it.notas)}</span>` : ''}</div>`;
+                }
+            }
+            if (!(p.ordenes || []).length) det += '<div class="tk-sub">Sin comandas.</div>';
+            det = `<div class="tk-det">${det}<div class="tk-sub" style="margin-top:4px;">Total ${_tkMoney(p.total)}</div></div>`;
+        }
+        html += `<div class="tk-fila${est === 'lista' ? ' lista' : ''}"><div class="tk-linea">
+            <button class="tk-abrir" onclick="desplegarTakeAway(${p.id})">${abierto ? '▾' : '▸'} <b>${esc(hora)}</b> &nbsp; <b>${esc(p.nombre)}</b></button>
+            <span class="tk-chip" style="background:${bg};color:${fg};">${txt}</span>
+            ${puede ? `<button class="tk-btn${est === 'lista' ? ' fuerte' : ''}" onclick="entregarTakeAway(${p.id})" ${_tkEntregando.has(p.id) ? 'disabled' : ''}>${_tkEntregando.has(p.id) ? 'Entregando…' : 'Entregar'}</button>` : ''}
+        </div>${det}</div>`;
+    }
+    cuerpo.innerHTML = html;
+}
+function desplegarTakeAway(id) { _tkDesplegados.has(id) ? _tkDesplegados.delete(id) : _tkDesplegados.add(id); pintarTakeAway(); }
+async function entregarTakeAway(id) {
+    const p = (_tkDatos.pedidos || []).find(x => x.id === id); if (!p || _tkEntregando.has(id)) return;
+    if (p.estado_takeaway !== 'lista' && !confirm(`${p.nombre} todavía no está listo en cocina.\n¿Marcarlo igual como entregado?`)) return;
+    _tkEntregando.add(id); pintarTakeAway();
+    try { await api.post(`/pedidos/${id}/takeaway/entregar`, {}); }
+    catch (e) { alert('No se pudo entregar: ' + (e.message || e)); }
+    _tkEntregando.delete(id);
+    await cargarTakeAway(); contarTakeAway(); cargarOrdenes();
+}
 </script>
 </body>
 </html>
