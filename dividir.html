@@ -178,6 +178,12 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em
 .check{ display:flex; gap:12px; align-items:flex-start; margin-top:14px; font-size:10.5px; color:var(--tx); cursor:pointer; }
 .check input{ width:22px; height:22px; margin:1px 0 0; flex:none; accent-color:var(--mio-bd); }
 .check small{ display:block; color:var(--tx-2); font-size:9.5px; margin-top:2px; }
+/* Lo obligatorio que falta, en rojo (al tocar "Enviarme el recibo") */
+.campo input.falta{ border-color:var(--pel); }
+.check.falta span{ color:var(--pel); }
+.check.falta small{ color:var(--pel); font-weight:700; }
+.check.falta input{ outline:2px solid var(--pel); outline-offset:2px; }
+.msg-falta{ color:var(--pel); font-size:13px; font-weight:600; margin-top:6px; }
 .btn-lima:disabled{ opacity:.5; cursor:default; }
 .ok-envio{ margin-top:18px; border-radius:14px; padding:14px; background:var(--mio-sf); color:var(--mio-tx); font-weight:600; }
 /* Latido = en vivo (animación con significado de la marca) */
@@ -248,7 +254,7 @@ const TXT = {
     tu_pagaste: 'Pagaste {m}',
     recibo_t: '¿Querés el recibo por correo?', email: 'Tu correo', ph_email: 'nombre@correo.com',
     acepto_datos: 'Acepto que {local} use mi correo para enviarme el recibo y guardarlo en su base de clientes, según el RGPD. Puedo pedir que lo borren cuando quiera.',
-    acepto_publi: 'Quiero recibir novedades y promociones de {local} por correo.', opcional: 'Opcional',
+    acepto_publi: 'Quiero recibir novedades y promociones de {local} por correo.', opcional: 'Opcional', obligatorio: 'Obligatorio', falta_email: 'Escribí tu correo.',
     enviar: 'Enviarme el recibo', enviado: 'Listo: te lo enviamos a {e}. Revisá también el correo no deseado.',
     email_mal: 'Revisá el correo.', falta_ok: 'Para enviarte el recibo tenés que aceptar el uso de tu correo.',
   },
@@ -282,7 +288,7 @@ const TXT = {
     tu_pagaste: 'You paid {m}',
     recibo_t: 'Want the receipt by email?', email: 'Your email', ph_email: 'name@email.com',
     acepto_datos: 'I agree that {local} may use my email to send me the receipt and keep it in its customer records, under the GDPR. I can ask for it to be deleted at any time.',
-    acepto_publi: 'I’d like to receive news and offers from {local} by email.', opcional: 'Optional',
+    acepto_publi: 'I’d like to receive news and offers from {local} by email.', opcional: 'Optional', obligatorio: 'Required', falta_email: 'Enter your email.',
     enviar: 'Send me the receipt', enviado: 'Done: we sent it to {e}. Check your spam folder too.',
     email_mal: 'Please check the email.', falta_ok: 'To send you the receipt you need to accept the use of your email.',
   },
@@ -316,7 +322,7 @@ const TXT = {
     tu_pagaste: 'Du betalte {m}',
     recibo_t: 'Vil du have kvitteringen på mail?', email: 'Din e-mail', ph_email: 'navn@mail.dk',
     acepto_datos: 'Jeg accepterer, at {local} bruger min e-mail til at sende mig kvitteringen og gemmer den i sit kunderegister efter GDPR. Jeg kan altid bede om at få den slettet.',
-    acepto_publi: 'Jeg vil gerne modtage nyheder og tilbud fra {local} på mail.', opcional: 'Valgfrit',
+    acepto_publi: 'Jeg vil gerne modtage nyheder og tilbud fra {local} på mail.', opcional: 'Valgfrit', obligatorio: 'Påkrævet', falta_email: 'Skriv din e-mail.',
     enviar: 'Send mig kvitteringen', enviado: 'Færdig: vi har sendt den til {e}. Tjek også din spam-mappe.',
     email_mal: 'Tjek e-mailen.', falta_ok: 'For at sende kvitteringen skal du acceptere brugen af din e-mail.',
   },
@@ -612,7 +618,7 @@ function render(soloPie) {
         <div style="height:12px"></div>`;
 }
 // ── Cuenta pagada: recibo por correo (consentimiento RGPD; publicidad opt-in) ──
-let RECIBO = { email: '', datos: false, publi: false, error: '', enviando: false };
+let RECIBO = { email: '', datos: false, publi: false, error: '', enviando: false, falta: {} };
 function pintarCobrada(app) {
     $('pie').classList.add('hidden');
     const yo = S.yo ? (S.clientes || []).find(c => c.num === S.yo) : null;
@@ -628,27 +634,45 @@ function pintarCobrada(app) {
             ${enviado ? `<div class="ok-envio">${esc(t('enviado', { e: enviado }))}</div>` : ''}
             <div class="campo"><label for="rc-email">${t('email')}</label>
                 <input id="rc-email" type="email" inputmode="email" autocomplete="email" maxlength="160"
+                    class="${RECIBO.falta.email ? 'falta' : ''}" aria-invalid="${!!RECIBO.falta.email}"
                     placeholder="${esc(t('ph_email'))}" value="${esc(RECIBO.email)}"
-                    oninput="RECIBO.email=this.value" onkeydown="if(event.key==='Enter')enviarRecibo()"></div>
-            <label class="check"><input type="checkbox" id="rc-datos" ${RECIBO.datos ? 'checked' : ''}
-                    onchange="RECIBO.datos=this.checked;pintarBotonRecibo()">
-                <span>${t('acepto_datos', { local })}</span></label>
+                    oninput="RECIBO.email=this.value;quitarFalta('email')" onkeydown="if(event.key==='Enter')enviarRecibo()">
+                ${RECIBO.falta.email ? `<div class="msg-falta" id="rc-email-msg">${esc(RECIBO.falta.email)}</div>` : ''}</div>
+            <label class="check ${RECIBO.falta.datos ? 'falta' : ''}" id="rc-datos-l"><input type="checkbox" id="rc-datos" ${RECIBO.datos ? 'checked' : ''}
+                    onchange="RECIBO.datos=this.checked;quitarFalta('datos')">
+                <span>${t('acepto_datos', { local })}<small>${t('obligatorio')}</small></span></label>
             <label class="check"><input type="checkbox" id="rc-publi" ${RECIBO.publi ? 'checked' : ''}
                     onchange="RECIBO.publi=this.checked">
-                <span>${t('acepto_publi', { local })}<small>${t('opcional')}</small></span></label>
+                <span>${t('acepto_publi', { local })}</span></label>
             ${RECIBO.error ? `<div class="aviso pel">${esc(RECIBO.error)}</div>` : ''}
             <button class="btn btn-lima" id="rc-enviar" onclick="enviarRecibo()">${t('enviar')}</button>
         </div><div style="height:24px"></div>`;
     pintarBotonRecibo();
 }
+// El botón siempre se puede tocar (salvo mientras envía): lo que falte se marca en rojo.
 function pintarBotonRecibo() {
-    const b = $('rc-enviar'); if (b) b.disabled = !RECIBO.datos || RECIBO.enviando;
+    const b = $('rc-enviar'); if (b) b.disabled = !!RECIBO.enviando;
+}
+function quitarFalta(k) {
+    if (!RECIBO.falta[k]) return;
+    delete RECIBO.falta[k];
+    if (k === 'email') { const i = $('rc-email'); if (i) i.classList.remove('falta'); const m = $('rc-email-msg'); if (m) m.remove(); }
+    if (k === 'datos') { const l = $('rc-datos-l'); if (l) l.classList.remove('falta'); }
 }
 async function enviarRecibo() {
     const email = (RECIBO.email || '').trim();
-    const errorRecibo = (m) => { RECIBO.error = m; if (document.activeElement) document.activeElement.blur(); render(); };
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { errorRecibo(t('email_mal')); return; }
-    if (!RECIBO.datos) { errorRecibo(t('falta_ok')); return; }
+    // Se marcan TODOS los obligatorios que falten a la vez (correo, primera casilla o ambos).
+    const falta = {};
+    if (!email) falta.email = t('falta_email');
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) falta.email = t('email_mal');
+    if (!RECIBO.datos) falta.datos = true;
+    if (Object.keys(falta).length) {
+        RECIBO.falta = falta; RECIBO.error = '';
+        if (document.activeElement) document.activeElement.blur();
+        render();
+        return;
+    }
+    RECIBO.falta = {};
     RECIBO.enviando = true; RECIBO.error = ''; pintarBotonRecibo();
     try {
         const r = await pedir(`${RUTA}/recibo`, { method: 'POST', body: JSON.stringify({
