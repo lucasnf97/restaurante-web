@@ -136,6 +136,23 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em
 .final .ico{ width:72px; height:72px; margin:0 auto 16px; border-radius:50%; background:var(--navy); color:var(--lime);
     display:flex; align-items:center; justify-content:center; font-size:32px; box-shadow:0 0 0 4px var(--r4); }
 .final p{ color:var(--tx-2); }
+/* Elegir para otra persona (sin celular) */
+.para .t{ font-size:14px; color:var(--tx-2); margin-bottom:8px; }
+.chips-para{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip-para{ border:1.5px solid var(--bd); background:var(--sup); color:var(--tx); border-radius:999px;
+    min-height:42px; padding:0 14px; font-weight:600; font-size:14.5px; cursor:pointer; }
+.chip-para.on{ background:var(--navy); color:var(--lime); border-color:var(--navy); }
+.chip-para.mas{ border-style:dashed; color:var(--tx-2); }
+.para .fila-para{ display:flex; gap:8px; align-items:center; margin-top:12px; }
+.para .fila-para input{ flex:1; min-width:0; height:46px; border-radius:12px; border:1.5px solid var(--bd);
+    background:var(--sup); padding:0 12px; font-size:16px; outline:none; }
+.para .fila-para input:focus{ border-color:var(--mio-bd); }
+.para .nota{ font-size:13.5px; color:var(--tx-2); margin-top:8px; }
+.chip.sel-chip{ background:var(--mio-bd); color:var(--navy); }
+/* En oscuro la tarjeta ya es navy: lo elegido / "vos" pasa a lima para distinguirse. */
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .chip-para.on,
+    :root:not([data-theme="light"]) .chip.yo-chip{ background:var(--lime); color:var(--navy); border-color:var(--lime); } }
+:root[data-theme="dark"] .chip-para.on, :root[data-theme="dark"] .chip.yo-chip{ background:var(--lime); color:var(--navy); border-color:var(--lime); }
 /* Recibo por correo (cuenta pagada) */
 .recibo{ text-align:left; margin-top:22px; }
 .recibo .campo{ margin-top:0; }
@@ -197,6 +214,10 @@ const TXT = {
     sin_red: 'Sin conexión. Reintentando…', err: 'No se pudo hacer. Probá de nuevo.',
     ya_pagaste: 'Ya pagaste tu parte. ¡Gracias!',
     previo: 'Ya se pagaron {m} de esta cuenta: los precios muestran lo que falta.',
+    eligiendo: 'Estás eligiendo para', vos: 'Vos', agregar_persona: '+ Agregar persona',
+    agregar_ayuda: 'Para alguien sin celular o que prefiere que elijas vos. Su parte se le cobra aparte.',
+    nombre_persona: 'Nombre (opcional)', agregar: 'Agregar', quitar: 'Quitar', cancelar: 'Cancelar',
+    ayuda_para: 'Tocá lo que consumió {n}.', para_n: 'Para {n}', lo_elige: 'elige {n}', su_parte: 'Su parte',
     tu_pagaste: 'Pagaste {m}',
     recibo_t: '¿Querés el recibo por correo?', email: 'Tu correo', ph_email: 'nombre@correo.com',
     acepto_datos: 'Acepto que {local} use mi correo para enviarme el recibo y guardarlo en su base de clientes, según el RGPD. Puedo pedir que lo borren cuando quiera.',
@@ -219,6 +240,10 @@ const TXT = {
     sin_red: 'Offline. Retrying…', err: 'That didn’t work. Please try again.',
     ya_pagaste: 'You already paid your share. Thank you!',
     previo: '{m} of this bill was already paid: prices show what’s left.',
+    eligiendo: 'You’re choosing for', vos: 'You', agregar_persona: '+ Add a person',
+    agregar_ayuda: 'For someone without a phone, or who’d rather you choose. Their share is charged separately.',
+    nombre_persona: 'Name (optional)', agregar: 'Add', quitar: 'Remove', cancelar: 'Cancel',
+    ayuda_para: 'Tap what {n} had.', para_n: 'For {n}', lo_elige: '{n} chooses', su_parte: 'Their share',
     tu_pagaste: 'You paid {m}',
     recibo_t: 'Want the receipt by email?', email: 'Your email', ph_email: 'name@email.com',
     acepto_datos: 'I agree that {local} may use my email to send me the receipt and keep it in its customer records, under the GDPR. I can ask for it to be deleted at any time.',
@@ -241,6 +266,10 @@ const TXT = {
     sin_red: 'Ingen forbindelse. Prøver igen…', err: 'Det lykkedes ikke. Prøv igen.',
     ya_pagaste: 'Du har allerede betalt din andel. Tak!',
     previo: '{m} af regningen er allerede betalt: priserne viser, hvad der mangler.',
+    eligiendo: 'Du vælger for', vos: 'Dig', agregar_persona: '+ Tilføj en person',
+    agregar_ayuda: 'For en uden telefon, eller som hellere vil have, at du vælger. Deres andel betales for sig.',
+    nombre_persona: 'Navn (valgfrit)', agregar: 'Tilføj', quitar: 'Fjern', cancelar: 'Annuller',
+    ayuda_para: 'Tryk på det, {n} har fået.', para_n: 'Til {n}', lo_elige: '{n} vælger', su_parte: 'Deres andel',
     tu_pagaste: 'Du betalte {m}',
     recibo_t: 'Vil du have kvitteringen på mail?', email: 'Din e-mail', ph_email: 'navn@mail.dk',
     acepto_datos: 'Jeg accepterer, at {local} bruger min e-mail til at sende mig kvitteringen og gemmer den i sit kunderegister efter GDPR. Jeg kan altid bede om at få den slettet.',
@@ -355,7 +384,35 @@ async function accion(url, body) {
     OCUPADO = false; render();
 }
 const unirse = () => accion(`${RUTA}/unirse`, { nombre: ($('nombre-in') || {}).value || null });
-const asignar = (key, acc) => accion(`${RUTA}/asignar`, { key, accion: acc });
+// PARA = num de una persona que agregó este comensal (null = él mismo).
+let PARA = null, AGREGANDO = false;
+const asignar = (key, acc) => accion(`${RUTA}/asignar`, { key, accion: acc, ...(PARA ? { para: PARA } : {}) });
+const elegirPara = (n) => { PARA = n; AGREGANDO = false; render(); };
+const verAgregar = (v) => { AGREGANDO = v; render(); if (v) { const i = $('para-nuevo'); if (i) i.focus(); } };
+async function agregarPersona() {
+    const nombre = (($('para-nuevo') || {}).value || '').trim() || null;
+    const antes = new Set((S.clientes || []).map(c => c.num));
+    AGREGANDO = false;
+    if (document.activeElement) document.activeElement.blur();
+    await accion(`${RUTA}/gestionados`, { nombre });
+    const nuevo = (S && S.clientes || []).find(c => !antes.has(c.num) && c.gestor === S.yo);
+    if (nuevo) { PARA = nuevo.num; render(); }
+}
+async function quitarPersona(n) { PARA = null; await accion(`${RUTA}/gestionados/quitar`, { num: n }); }
+let _paraNomT = null;
+function cambioNombrePara(n, v) {
+    clearTimeout(_paraNomT);
+    _paraNomT = setTimeout(() => pedir(`${RUTA}/gestionados/nombre`, { method: 'POST',
+        body: JSON.stringify({ dispositivo: DISP, num: n, nombre: v }) })
+        .then(r => { S = r; render(true); }).catch(() => {}), 700);
+}
+// A quién se le asigna lo que se toca: el comensal o una persona que agregó él.
+function objetivo(yo) {
+    const c = PARA ? (S.clientes || []).find(x => x.num === PARA && x.gestor === yo.num) : null;
+    if (!c) PARA = null;
+    return c || yo;
+}
+const nombreDe = (c) => c.nombre || (t('cliente') + ' ' + c.num);
 let _nombreT = null;
 function cambioNombre(v) {
     clearTimeout(_nombreT);
@@ -399,8 +456,37 @@ function render(soloPie) {
             ${avisos}</div>` + listaHTML(null, true);
         return;
     }
-    const foco = document.activeElement && document.activeElement.id === 'yo-nombre';
-    const nombreActual = foco ? document.activeElement.value : yo.nombre;
+    const foco = document.activeElement && ['yo-nombre', 'para-nombre', 'para-nuevo'].includes(document.activeElement.id)
+        ? document.activeElement.id : null;
+    if (foco && !soloPie && app.querySelector('#' + foco) && OCUPADO === false && document.activeElement.id !== 'yo-nombre') {
+        // escribiendo el nombre de otra persona: no se repinta encima
+        pintarPie(); return;
+    }
+    const nombreActual = foco === 'yo-nombre' ? document.activeElement.value : yo.nombre;
+    const sel = objetivo(yo);
+    const mios = (S.clientes || []).filter(c => c.gestor === yo.num);
+    const bloqueoPara = OCUPADO || yo.pagado || S.estado !== 'abierta';
+    const selector = yo.pagado ? '' : `<div class="tarjeta para">
+            <div class="t">${t('eligiendo')}</div>
+            <div class="chips-para">
+                <button class="chip-para ${sel.num === yo.num ? 'on' : ''}" onclick="elegirPara(null)">${t('vos')}</button>
+                ${mios.map(c => `<button class="chip-para ${sel.num === c.num ? 'on' : ''}" onclick="elegirPara(${c.num})">${esc(nombreDe(c))}${c.pagado ? ' ✓' : ''}</button>`).join('')}
+                ${AGREGANDO ? '' : `<button class="chip-para mas" onclick="verAgregar(true)" ${bloqueoPara ? 'disabled' : ''}>${t('agregar_persona')}</button>`}
+            </div>
+            ${AGREGANDO ? `<div class="fila-para"><input id="para-nuevo" maxlength="30" placeholder="${esc(t('nombre_persona'))}"
+                    onkeydown="if(event.key==='Enter')agregarPersona()">
+                <button class="acc tomar" onclick="agregarPersona()" ${bloqueoPara ? 'disabled' : ''}>${t('agregar')}</button>
+                <button class="acc soltar" onclick="verAgregar(false)">${t('cancelar')}</button></div>
+                <div class="nota">${t('agregar_ayuda')}</div>` : ''}
+            ${sel.num !== yo.num ? `<div class="fila-para">
+                <input id="para-nombre" maxlength="30" placeholder="${esc(t('nombre_persona'))}" value="${esc(sel.nombre || '')}"
+                    oninput="cambioNombrePara(${sel.num}, this.value)" ${sel.pagado ? 'disabled' : ''}>
+                <div style="text-align:right;white-space:nowrap;"><div class="t" style="margin:0;">${t('su_parte')}</div>
+                    <b style="font-size:18px;">${dinero(sel.importe)}</b></div>
+                ${!sel.pagado && sel.importe <= 0 && !(S.piezas || []).some(p => p.clientes.includes(sel.num))
+                    ? `<button class="acc soltar" onclick="quitarPersona(${sel.num})" ${bloqueoPara ? 'disabled' : ''}>${t('quitar')}</button>` : ''}
+            </div>` : ''}
+        </div>`;
     app.innerHTML = `
         <div class="tarjeta yo">
             <div class="num">${yo.num}</div>
@@ -411,15 +497,17 @@ function render(soloPie) {
                 ${yo.pagado ? `<div class="pagado">✓ ${t('pagado')}</div>` : ''}</div>
         </div>
         ${avisos}
-        ${yo.pagado ? `<div class="aviso info">${t('ya_pagaste')}</div>` : `<p class="ayuda">${t('ayuda')}</p>`}
-        ${listaHTML(yo, false)}
+        ${selector}
+        ${yo.pagado ? `<div class="aviso info">${t('ya_pagaste')}</div>`
+            : `<p class="ayuda">${sel.num === yo.num ? t('ayuda') : esc(t('ayuda_para', { n: nombreDe(sel) }))}</p>`}
+        ${listaHTML(yo, false, sel)}
         <div class="tarjeta"><h3 style="font-size:16px;margin-bottom:10px;">${t('en_la_mesa')}</h3>
             <div class="clientes">${(S.clientes || []).map(c => `<div class="cli">
                 <span class="chip ${c.num === yo.num ? 'yo-chip' : ''}">${c.num}</span>
-                <span class="n">${esc(etiquetaCliente(c))}</span>
+                <span class="n">${esc(etiquetaCliente(c))}${c.gestor ? ` <small style="color:var(--tx-2)">· ${esc(t('lo_elige', { n: nombreDe((S.clientes || []).find(x => x.num === c.gestor) || { num: c.gestor }) }))}</small>` : ''}</span>
                 <span class="m">${c.pagado ? '✓ ' : ''}${c.importe > 0 ? dinero(c.importe) : t('nada_aun')}</span></div>`).join('')}</div></div>
         <div style="height:12px"></div>`;
-    if (foco) { const i = $('yo-nombre'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+    if (foco) { const i = $(foco); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
 }
 // ── Cuenta pagada: recibo por correo (consentimiento RGPD; publicidad opt-in) ──
 let RECIBO = { email: '', datos: true, publi: false, error: '', enviando: false };
@@ -472,12 +560,14 @@ async function enviarRecibo() {
     render();
 }
 
-function listaHTML(yo, soloLectura) {
+function listaHTML(yo, soloLectura, sel) {
+    sel = sel || yo;
     const porNum = Object.fromEntries((S.clientes || []).map(c => [c.num, c]));
-    const bloqueado = OCUPADO || S.estado !== 'abierta' || (yo && yo.pagado);
+    const bloqueado = OCUPADO || S.estado !== 'abierta' || (yo && yo.pagado) || (sel && sel.pagado);
+    const otro = sel && yo && sel.num !== yo.num;
     return `<div class="lista">${(S.piezas || []).map(p => {
-        const mia = yo && p.clientes.includes(yo.num);
-        const chips = p.clientes.map(n => `<span class="chip ${yo && n === yo.num ? 'yo-chip' : ''}">${esc(porNum[n] ? etiquetaCliente(porNum[n]) : t('cliente') + ' ' + n)}</span>`).join('');
+        const mia = sel && p.clientes.includes(sel.num);
+        const chips = p.clientes.map(n => `<span class="chip ${yo && n === yo.num ? 'yo-chip' : (otro && n === sel.num ? 'sel-chip' : '')}">${esc(porNum[n] ? etiquetaCliente(porNum[n]) : t('cliente') + ' ' + n)}</span>`).join('');
         const sub = [p.combo ? t('combo') : (p.de > 1 ? t('de', { n: p.n, de: p.de }) : ''),
                      p.clientes.length > 1 ? t('compartido', { n: p.clientes.length }) : '',
                      !p.clientes.length ? t('libre') : ''].filter(Boolean).map(esc).join(' · ');
@@ -486,7 +576,7 @@ function listaHTML(yo, soloLectura) {
             if (p.congelada) btn = `<span class="cerrado-lbl">✓ ${t('pagado')}</span>`;
             else if (mia) btn = `<button class="acc soltar" onclick="asignar('${p.key}','soltar')" ${bloqueado ? 'disabled' : ''}>${t('soltar')}</button>`;
             else if (p.clientes.length) btn = `<button class="acc compartir" onclick="asignar('${p.key}','compartir')" ${bloqueado ? 'disabled' : ''}>${t('compartir')}</button>`;
-            else btn = `<button class="acc tomar" onclick="asignar('${p.key}','tomar')" ${bloqueado ? 'disabled' : ''}>${t('es_mio')}</button>`;
+            else btn = `<button class="acc tomar" onclick="asignar('${p.key}','tomar')" ${bloqueado ? 'disabled' : ''}>${otro ? esc(t('para_n', { n: nombreDe(sel) })) : t('es_mio')}</button>`;
         }
         return `<div class="pieza ${mia ? 'mia' : ''}">
             <div class="info"><div class="nom">${esc(p.nombre)}</div>
