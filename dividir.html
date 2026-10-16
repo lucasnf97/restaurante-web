@@ -129,7 +129,7 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em
 .aviso{ border-radius:14px; padding:12px 14px; margin-top:14px; font-size:14.5px; font-weight:500; }
 .aviso.pel{ background:var(--pel-sf); color:var(--pel); }
 .aviso.info{ background:var(--otro-sf); color:var(--otro-tx); }
-.toast{ position:fixed; left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+.toast{ position:fixed; left:50%; top:calc(68px + env(safe-area-inset-top)); transform:translateX(-50%);
     background:var(--navy); color:#fff; border-radius:14px; padding:12px 16px; font-size:14.5px; z-index:50;
     max-width:min(92vw, 420px); box-shadow:0 8px 30px rgba(0,0,0,.25); }
 .final{ text-align:center; padding:56px 8px; }
@@ -159,6 +159,19 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .chip-para.on,
     :root:not([data-theme="light"]) .chip.yo-chip{ background:var(--lime); color:var(--navy); border-color:var(--lime); } }
 :root[data-theme="dark"] .chip-para.on, :root[data-theme="dark"] .chip.yo-chip{ background:var(--lime); color:var(--navy); border-color:var(--lime); }
+/* Pagar desde el celular */
+.pagar .t{ font-size:14px; color:var(--tx-2); }
+.pagar h3{ font-size:18px; margin-bottom:4px; }
+.pagar .linea{ display:flex; justify-content:space-between; font-size:15px; margin-top:6px; }
+.pagar .linea.total{ font-family:Poppins,sans-serif; font-weight:600; font-size:20px; margin-top:12px;
+    padding-top:10px; border-top:1px solid var(--bd); }
+.propinas{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.medios{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:10px; }
+.medios span{ font-size:12.5px; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--sup-2); color:var(--tx-2); }
+.esperando-pago{ display:flex; align-items:center; gap:12px; margin-top:12px; padding:14px; border-radius:14px; background:var(--otro-sf); color:var(--otro-tx); }
+.esperando-pago .pulso{ display:flex; gap:5px; }
+.esperando-pago .pulso i{ width:9px; height:9px; border-radius:50%; background:currentColor; animation:latido 1.4s ease-in-out infinite; }
+.esperando-pago .pulso i:nth-child(2){ animation-delay:.2s; } .esperando-pago .pulso i:nth-child(3){ animation-delay:.4s; }
 /* Recibo por correo (cuenta pagada) */
 .recibo{ text-align:left; margin-top:22px; }
 .recibo .campo{ margin-top:0; }
@@ -219,6 +232,13 @@ const TXT = {
     no_existe_t: 'No encontramos esta cuenta', no_existe_p: 'Revisá que hayas escaneado el QR que te mostró el camarero.',
     sin_red: 'Sin conexión. Reintentando…', err: 'No se pudo hacer. Probá de nuevo.',
     ya_pagaste: 'Ya pagaste tu parte. ¡Gracias!',
+    pagar_t: 'Pagar tu parte', pagar_t_otro: 'Pagar la parte de {n}', su_parte_l: 'Parte', propina: 'Propina',
+    sin_propina: 'Sin propina', total_pagar: 'Total', pagar_btn: 'Pagar {m}', pagar_nada: 'Elegí lo que consumiste para poder pagar.',
+    medios_nota: 'Pagás desde el celular. Si preferís pagar en efectivo o con tarjeta en la mesa, avisale al camarero.',
+    demo_nota: 'Modo de prueba: el pago se confirma en el TPV virtual del local.',
+    esperando_pago: 'Esperando la confirmación del pago…', cancelar_pago: 'Cancelar el pago',
+    pago_ok: '¡Pago aprobado! Gracias.', pago_mal: 'El pago no se aprobó. Podés intentar de nuevo o pagarle al camarero.',
+    pagado_ok: '✓ Pagado',
     previo: 'Ya se pagaron {m} de esta cuenta: los precios muestran lo que falta.',
     eligiendo: 'Estás eligiendo para', vos: 'Vos', agregar_persona: '+ Agregar persona',
     agregar_ayuda: 'Para alguien sin celular o que prefiere que elijas vos. Su parte se le cobra aparte.',
@@ -246,6 +266,13 @@ const TXT = {
     no_existe_t: 'We couldn’t find this bill', no_existe_p: 'Make sure you scanned the QR the waiter showed you.',
     sin_red: 'Offline. Retrying…', err: 'That didn’t work. Please try again.',
     ya_pagaste: 'You already paid your share. Thank you!',
+    pagar_t: 'Pay your share', pagar_t_otro: 'Pay {n}’s share', su_parte_l: 'Share', propina: 'Tip',
+    sin_propina: 'No tip', total_pagar: 'Total', pagar_btn: 'Pay {m}', pagar_nada: 'Pick what you had to be able to pay.',
+    medios_nota: 'You pay from your phone. If you’d rather pay cash or by card at the table, let the waiter know.',
+    demo_nota: 'Test mode: the payment is confirmed on the restaurant’s virtual terminal.',
+    esperando_pago: 'Waiting for the payment confirmation…', cancelar_pago: 'Cancel payment',
+    pago_ok: 'Payment approved! Thank you.', pago_mal: 'The payment was not approved. Try again or pay the waiter.',
+    pagado_ok: '✓ Paid',
     previo: '{m} of this bill was already paid: prices show what’s left.',
     eligiendo: 'You’re choosing for', vos: 'You', agregar_persona: '+ Add a person',
     agregar_ayuda: 'For someone without a phone, or who’d rather you choose. Their share is charged separately.',
@@ -273,6 +300,13 @@ const TXT = {
     no_existe_t: 'Vi kunne ikke finde regningen', no_existe_p: 'Tjek, at du har scannet den QR-kode, tjeneren viste dig.',
     sin_red: 'Ingen forbindelse. Prøver igen…', err: 'Det lykkedes ikke. Prøv igen.',
     ya_pagaste: 'Du har allerede betalt din andel. Tak!',
+    pagar_t: 'Betal din andel', pagar_t_otro: 'Betal {n}s andel', su_parte_l: 'Andel', propina: 'Drikkepenge',
+    sin_propina: 'Ingen drikkepenge', total_pagar: 'I alt', pagar_btn: 'Betal {m}', pagar_nada: 'Vælg det, du har fået, for at kunne betale.',
+    medios_nota: 'Du betaler fra din telefon. Vil du hellere betale kontant eller med kort ved bordet, så sig det til tjeneren.',
+    demo_nota: 'Testtilstand: betalingen bekræftes på restaurantens virtuelle terminal.',
+    esperando_pago: 'Venter på bekræftelse af betalingen…', cancelar_pago: 'Annuller betalingen',
+    pago_ok: 'Betalingen er godkendt! Tak.', pago_mal: 'Betalingen blev ikke godkendt. Prøv igen eller betal tjeneren.',
+    pagado_ok: '✓ Betalt',
     previo: '{m} af regningen er allerede betalt: priserne viser, hvad der mangler.',
     eligiendo: 'Du vælger for', vos: 'Dig', agregar_persona: '+ Tilføj en person',
     agregar_ayuda: 'For en uden telefon, eller som hellere vil have, at du vælger. Deres andel betales for sig.',
@@ -364,7 +398,16 @@ async function consultar() {
         const v = (S && S.version != null && S.estado === 'abierta') ? `&v=${S.version}` : '';
         const r = await pedir(`${RUTA}?d=${encodeURIComponent(DISP)}${v}`);
         SIN_RED = false;
-        if (!r.sin_cambios) { S = r; MONEDA = r.moneda || MONEDA; render(); }
+        if (!r.sin_cambios) {
+            S = r; MONEDA = r.moneda || MONEDA;
+            const up = r.ultimo_pago;
+            if (up && JSON.stringify(up) !== _ultimoPagoVisto) {
+                _ultimoPagoVisto = JSON.stringify(up);
+                const mio = (r.clientes || []).find(c => c.num === up.cliente);
+                if (mio && (up.cliente === r.yo || mio.gestor === r.yo)) toast(up.estado === 'aprobado' ? t('pago_ok') : t('pago_mal'));
+            }
+            render();
+        }
         else if ($('vivo')) render(true);
     } catch (e) {
         if (e.status === 404) { ERROR = 'no_existe'; render(); return; }
@@ -436,6 +479,51 @@ function objetivo(yo) {
     return c || yo;
 }
 const nombreDe = (c) => c.nombre || (t('cliente') + ' ' + c.num);
+
+// ── Pagar desde el celular (pago online del local; con pasarela real: Apple Pay, etc.) ──
+let PROPINA_PCT = 0, PAGANDO = false, _ultimoPagoVisto = null;
+const PROPINAS = [0, 5, 10, 15];
+const elegirPropina = (p) => { PROPINA_PCT = p; render(); };
+const propinaDe = (importe) => Math.round(importe * PROPINA_PCT) / 100;
+async function pagarParte() {
+    if (PAGANDO || !S || !S.yo) return;
+    const yo = (S.clientes || []).find(c => c.num === S.yo); const sel = objetivo(yo);
+    PAGANDO = true; render(true);
+    try {
+        const r = await pedir(`${RUTA}/pagar`, { method: 'POST', body: JSON.stringify({
+            dispositivo: DISP, ...(sel.num !== yo.num ? { para: sel.num } : {}), propina: propinaDe(sel.importe) }) });
+        if (r.modo === 'redireccion' && r.url) { location.href = r.url; return; }   // pasarela (Apple Pay, etc.)
+    } catch (e) {
+        toast((LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err'));
+    }
+    PAGANDO = false; S = null; await consultar();
+}
+async function cancelarPago() {
+    const yo = (S.clientes || []).find(c => c.num === S.yo); const sel = objetivo(yo);
+    await accion(`${RUTA}/pagar/cancelar`, { ...(sel.num !== yo.num ? { para: sel.num } : {}) });
+    S = null; await consultar();
+}
+function pagoHTML(yo, sel) {
+    const po = S.pago_online || {};
+    if (!po.disponible || S.estado !== 'abierta') return '';
+    const titulo = sel.num === yo.num ? t('pagar_t') : esc(t('pagar_t_otro', { n: nombreDe(sel) }));
+    if (sel.pagado) return `<div class="tarjeta pagar"><h3>${titulo}</h3><div class="pagado" style="margin-top:6px;">${t('pagado_ok')} · ${dinero(sel.importe)}</div></div>`;
+    if (sel.pagando) return `<div class="tarjeta pagar"><h3>${titulo}</h3>
+        <div class="esperando-pago"><span class="pulso"><i></i><i></i><i></i></span><span>${t('esperando_pago')}</span></div>
+        ${po.demo ? `<p class="t" style="margin-top:8px;">${t('demo_nota')}</p>` : ''}
+        <button class="btn" style="background:transparent;border:1.5px solid var(--bd);color:var(--tx);" onclick="cancelarPago()">${t('cancelar_pago')}</button></div>`;
+    if (!(sel.importe > 0)) return `<div class="tarjeta pagar"><h3>${titulo}</h3><p class="t" style="margin-top:6px;">${t('pagar_nada')}</p></div>`;
+    const prop = propinaDe(sel.importe), total = Math.round((sel.importe + prop) * 100) / 100;
+    return `<div class="tarjeta pagar"><h3>${titulo}</h3>
+        <div class="linea"><span>${t('su_parte_l')}</span><b>${dinero(sel.importe)}</b></div>
+        <div class="t" style="margin-top:12px;">${t('propina')}</div>
+        <div class="propinas">${PROPINAS.map(p => `<button class="chip-para ${PROPINA_PCT === p ? 'on' : ''}" onclick="elegirPropina(${p})">${p ? p + ' %' : t('sin_propina')}</button>`).join('')}</div>
+        ${prop > 0 ? `<div class="linea"><span>${t('propina')} ${PROPINA_PCT} %</span><b>${dinero(prop)}</b></div>` : ''}
+        <div class="linea total"><span>${t('total_pagar')}</span><span>${dinero(total)}</span></div>
+        <button class="btn btn-lima" onclick="pagarParte()" ${PAGANDO || OCUPADO ? 'disabled' : ''}>${esc(t('pagar_btn', { m: dinero(total) }))}</button>
+        <div class="medios"><span>Apple Pay</span><span>Google Pay</span><span>MobilePay</span><span>${LANG === 'da' ? 'Kort' : LANG === 'en' ? 'Card' : 'Tarjeta'}</span></div>
+        <p class="t" style="margin-top:10px;">${po.demo ? t('demo_nota') + ' ' : ''}${t('medios_nota')}</p></div>`;
+}
 
 // ── Pintar ──
 function etiquetaCliente(c) { return t('cliente') + ' ' + c.num + (c.nombre ? ' · ' + c.nombre : ''); }
@@ -520,6 +608,7 @@ function render(soloPie) {
                 <span class="chip ${c.num === yo.num ? 'yo-chip' : ''}">${c.num}</span>
                 <span class="n">${esc(etiquetaCliente(c))}${c.gestor ? ` <small style="color:var(--tx-2)">· ${esc(t('lo_elige', { n: nombreDe((S.clientes || []).find(x => x.num === c.gestor) || { num: c.gestor }) }))}</small>` : ''}</span>
                 <span class="m">${c.pagado ? '✓ ' : ''}${c.importe > 0 ? dinero(c.importe) : t('nada_aun')}</span></div>`).join('')}</div></div>
+        ${pagoHTML(yo, sel)}
         <div style="height:12px"></div>`;
 }
 // ── Cuenta pagada: recibo por correo (consentimiento RGPD; publicidad opt-in) ──
