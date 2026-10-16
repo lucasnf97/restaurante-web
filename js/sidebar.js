@@ -587,7 +587,8 @@
             position: absolute;
             top: -2px;
             right: -2px;
-            background: var(--pel, #dc2626);
+            /* #dc2626 fijo: el --pel del tema oscuro (#ef4444) da 3,8 con la letra blanca. */
+            background: #dc2626;
             color: var(--tx-inv, white);
             border-radius: 10px;
             font-size: 10px;
