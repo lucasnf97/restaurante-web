@@ -33,6 +33,13 @@ a{ color:inherit; }
 .envase{ max-width:var(--ancho); margin:0 auto; padding:0 20px; }
 h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.025em; margin:0; text-wrap:balance; }
 
+/* Número de pedido para el mostrador (los 3 últimos dígitos) */
+.numero-pedido{ display:flex; flex-direction:column; align-items:center; gap:2px; margin:6px auto 4px;
+    padding:14px 26px; border-radius:18px; background:var(--navy); color:#fff; }
+.numero-pedido .t{ font-size:14px; color:#C4C4D4; }
+.numero-pedido b{ font-family:Poppins,sans-serif; font-size:52px; line-height:1.05; letter-spacing:.04em; color:var(--lime); }
+.numero-pedido .d{ font-size:14px; color:#E3E3EA; }
+
 /* ── Barra superior ── */
 .barra{ position:sticky; top:0; z-index:30; background:#fff; border-bottom:1px solid var(--bd-2); }
 .barra .envase{ display:flex; align-items:center; gap:18px; height:64px; }
@@ -314,7 +321,10 @@ es: {
     programar:'Programar', hoy:'Hoy', manana:'Mañana', f_manana:'Mañana', f_tarde:'Tarde', f_noche:'Noche',
     sin_horarios:'No quedan horarios de retiro disponibles.',
     datos_t:'Tus datos', nombre:'Nombre', telefono:'Teléfono', email:'Email',
-    email_nota:'Te mandamos la confirmación y el aviso de que está listo.',
+    email_nota:'Te mandamos la confirmación y, al retirarlo, el recibo.',
+    publi:'Quiero recibir novedades y promociones por email.', opcional:'Opcional',
+    err_email:'Dejá tu email: ahí te mandamos el recibo.', err_email_mal:'Revisá el email.',
+    tu_numero:'Tu número de pedido', tu_numero_det:'Decí este número cuando lo retires.',
     acepto:'Acepto la <a href="privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.',
     pagar:'Pagar {t}', resumen:'Resumen', retiro:'Retiro',
     err_nombre:'Escribí tu nombre.', err_contacto:'Dejá un teléfono o un email.', err_retiro:'Elegí cuándo lo retirás.',
@@ -347,7 +357,10 @@ en: {
     programar:'Schedule', hoy:'Today', manana:'Tomorrow', f_manana:'Morning', f_tarde:'Afternoon', f_noche:'Evening',
     sin_horarios:'There are no pickup times left.',
     datos_t:'Your details', nombre:'Name', telefono:'Phone', email:'Email',
-    email_nota:'We will send you the confirmation and let you know when it is ready.',
+    email_nota:'We will send you the confirmation and, when you pick it up, the receipt.',
+    publi:'I’d like to receive news and offers by email.', opcional:'Optional',
+    err_email:'Leave your email: that’s where we send the receipt.', err_email_mal:'Please check the email.',
+    tu_numero:'Your order number', tu_numero_det:'Say this number when you pick it up.',
     acepto:'I accept the <a href="privacidad.html" target="_blank" rel="noopener">privacy policy</a>.',
     pagar:'Pay {t}', resumen:'Summary', retiro:'Pickup',
     err_nombre:'Enter your name.', err_contacto:'Leave a phone number or an email.', err_retiro:'Choose when you will pick it up.',
@@ -380,7 +393,10 @@ da: {
     programar:'Planlæg', hoy:'I dag', manana:'I morgen', f_manana:'Formiddag', f_tarde:'Eftermiddag', f_noche:'Aften',
     sin_horarios:'Der er ingen ledige afhentningstider.',
     datos_t:'Dine oplysninger', nombre:'Navn', telefono:'Telefon', email:'E-mail',
-    email_nota:'Vi sender dig bekræftelsen og giver besked, når den er klar.',
+    email_nota:'Vi sender dig bekræftelsen og, når du henter den, kvitteringen.',
+    publi:'Jeg vil gerne modtage nyheder og tilbud på e-mail.', opcional:'Valgfrit',
+    err_email:'Angiv din e-mail: der sender vi kvitteringen.', err_email_mal:'Tjek e-mailen.',
+    tu_numero:'Dit bestillingsnummer', tu_numero_det:'Sig dette nummer, når du henter den.',
     acepto:'Jeg accepterer <a href="privacidad.html" target="_blank" rel="noopener">privatlivspolitikken</a>.',
     pagar:'Betal {t}', resumen:'Oversigt', retiro:'Afhentning',
     err_nombre:'Skriv dit navn.', err_contacto:'Angiv et telefonnummer eller en e-mail.', err_retiro:'Vælg hvornår du henter den.',
@@ -786,14 +802,11 @@ async function pintarCheckout() {
             <h1 style="font-size:clamp(30px,4vw,44px);">${esc(m.local.nombre)}</h1>
             <section class="caja"><h2>${esc(t('retiro_t'))}</h2><div id="co-retiro"></div></section>
             <section class="caja"><h2>${esc(t('datos_t'))}</h2>
-                <div class="campo"><label for="co-nombre">${esc(t('nombre'))}</label><input type="text" id="co-nombre" autocomplete="name" maxlength="80" value="${esc(datos.nombre || '')}"></div>
-                <div class="fila2">
-                    <div class="campo"><label for="co-tel">${esc(t('telefono'))}</label><input type="tel" id="co-tel" autocomplete="tel" inputmode="tel" maxlength="40" value="${esc(datos.telefono || '')}"></div>
-                    <div class="campo"><label for="co-email">${esc(t('email'))}</label><input type="email" id="co-email" autocomplete="email" maxlength="200" value="${esc(datos.email || '')}"></div>
-                </div>
+                <div class="campo"><label for="co-email">${esc(t('email'))}</label><input type="email" id="co-email" autocomplete="email" inputmode="email" maxlength="200" required value="${esc(datos.email || '')}"></div>
                 <p class="nota">${esc(t('email_nota'))}</p>
                 <div class="hp" aria-hidden="true"><label>Web<input type="text" id="co-web" tabindex="-1" autocomplete="off"></label></div>
                 <label class="check"><input type="checkbox" id="co-acepto"><span>${t('acepto')}</span></label>
+                <label class="check"><input type="checkbox" id="co-publi"><span>${esc(t('publi'))} <span class="nota" style="display:inline">· ${esc(t('opcional'))}</span></span></label>
             </section>
         </div>
         <aside class="caja co-resumen"><h2>${esc(t('resumen'))}</h2><div id="co-resumen"></div>
@@ -865,11 +878,11 @@ async function actualizarPreciosCarrito() {
 function mostrarErrCo(msg) { const e = $('co-err'); e.textContent = msg; e.classList.remove('hidden'); }
 function nuevaClave() { return (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(36).slice(2)); }
 async function confirmarPedido() {
-    const nombre = $('co-nombre').value.trim(), tel = $('co-tel').value.trim(), email = $('co-email').value.trim();
+    const email = $('co-email').value.trim();
     $('co-err').classList.add('hidden');
     if (!S.horaElegida || S.horaElegida === 'programar') return mostrarErrCo(t('err_retiro'));
-    if (!nombre) return mostrarErrCo(t('err_nombre'));
-    if (!tel && !email) return mostrarErrCo(t('err_contacto'));
+    if (!email) return mostrarErrCo(t('err_email'));
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return mostrarErrCo(t('err_email_mal'));
     if (!$('co-acepto').checked) return mostrarErrCo(t('err_acepto'));
     // Una clave por intento de compra: un doble clic o un reintento no crean dos pedidos.
     if (!S.claveIntento) S.claveIntento = nuevaClave();
@@ -879,7 +892,7 @@ async function confirmarPedido() {
         const r = await api('/publico/takeaway/pedidos', { method: 'POST', body: JSON.stringify({
             items: CARRITO.items.map(i => ({ online_producto_id: i.id, cantidad: i.cantidad, extras: i.extras.map(e => e.id), notas: i.notas || null })),
             retiro: S.horaElegida === 'asap' ? { asap: true } : { asap: false, en: S.horaElegida },
-            cliente: { nombre, telefono: tel || null, email: email || null },
+            cliente: { email, acepta_publicidad: $('co-publi').checked },
             idioma: LANG, idempotency_key: S.claveIntento, total_visto: Math.round(totalCarrito() * 100) / 100,
             web: $('co-web').value || null,
         }) }, CARRITO.codigo);
@@ -947,9 +960,14 @@ async function pintarPedido(cod, token) {
     const pasos = pago === 'aprobado' ? `<div class="pasos">${orden.map((k, i) =>
         `<div class="paso${i < idx ? ' hecho' : (i === idx ? ' actual' : '')}"><span class="m"></span>${esc(t('p_' + k))}</div>`).join('')}</div>` : '';
     const mapa = p.local && (urlSegura(p.local.mapa_url) || (p.local.direccion ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.local.direccion) : null));
+    const corto = p.numero_corto || String((p.numero || 0) % 1000).padStart(3, '0');
+    const numeroHtml = pago === 'aprobado' ? `<div class="numero-pedido">
+            <span class="t">${esc(t('tu_numero'))}</span><b>${esc(corto)}</b>
+            <span class="d">${esc(t('tu_numero_det'))}</span></div>` : '';
     $('vista').innerHTML = `<section class="seguimiento">
         ${cabeza}
         <h1>${esc(titulo)}</h1>${sub ? `<p class="sub">${esc(sub)}</p>` : ''}
+        ${numeroHtml}
         ${pasos}
         <div class="talon">
             <div class="li"><span>${esc(t('pedido_n', { n: p.numero }))}</span><b>${esc(dinero(p.total))}</b></div>
