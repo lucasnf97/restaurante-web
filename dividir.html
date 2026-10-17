@@ -226,7 +226,7 @@ const VIDA_DISP_MS = 12 * 3600 * 1000;   // el "quién soy" del celular dura lo 
 const TXT = {
   es: {
     en_vivo: 'En vivo', titulo: 'Dividí la cuenta', intro: 'Elegí lo que consumiste. Si compartiste algo, tocá “Compartir” y se divide entre los dos. El camarero lo ve al momento.',
-    tu_nombre: 'Tu nombre (opcional)', ph_nombre: 'Ej: Ana', entrar: 'Entrar a la cuenta',
+    tu_nombre: 'Tu nombre (opcional)', ph_nombre: 'Ej: Ana', entrar: 'Unirme como pagador',
     sos: 'Sos el', cliente: 'Cliente', tu_parte: 'Tu parte', pagado: 'Pagado',
     ayuda: 'Tocá lo que consumiste.', es_mio: 'Es mío', compartir: 'Compartir', soltar: 'Soltar',
     libre: 'Sin asignar', de: '{n} de {de}', combo: 'Combo', compartido: 'Compartido ÷{n}',
@@ -260,7 +260,7 @@ const TXT = {
   },
   en: {
     en_vivo: 'Live', titulo: 'Split the bill', intro: 'Pick what you had. If you shared something, tap “Share” and it’s split between you. The waiter sees it instantly.',
-    tu_nombre: 'Your name (optional)', ph_nombre: 'E.g. Anna', entrar: 'Join the bill',
+    tu_nombre: 'Your name (optional)', ph_nombre: 'E.g. Anna', entrar: 'Join as a payer',
     sos: 'You are', cliente: 'Guest', tu_parte: 'Your share', pagado: 'Paid',
     ayuda: 'Tap what you had.', es_mio: 'Mine', compartir: 'Share', soltar: 'Remove',
     libre: 'Unassigned', de: '{n} of {de}', combo: 'Combo', compartido: 'Shared ÷{n}',
@@ -294,7 +294,7 @@ const TXT = {
   },
   da: {
     en_vivo: 'Live', titulo: 'Del regningen', intro: 'Vælg det, du har fået. Har I delt noget, så tryk “Del”, så deles beløbet. Tjeneren ser det med det samme.',
-    tu_nombre: 'Dit navn (valgfrit)', ph_nombre: 'F.eks. Anna', entrar: 'Gå til regningen',
+    tu_nombre: 'Dit navn (valgfrit)', ph_nombre: 'F.eks. Anna', entrar: 'Deltag som betaler',
     sos: 'Du er', cliente: 'Gæst', tu_parte: 'Din andel', pagado: 'Betalt',
     ayuda: 'Tryk på det, du har fået.', es_mio: 'Min', compartir: 'Del', soltar: 'Fjern',
     libre: 'Ikke fordelt', de: '{n} af {de}', combo: 'Menu', compartido: 'Delt ÷{n}',
@@ -441,7 +441,7 @@ async function accion(url, body) {
     }
     OCUPADO = false; render();
 }
-const unirse = () => accion(`${RUTA}/unirse`, { nombre: ($('nombre-in') || {}).value || null });
+const unirse = () => accion(`${RUTA}/unirse`, {});
 // PARA = num de una persona que agregó este comensal (null = él mismo).
 let PARA = null, AGREGANDO = false;
 const asignar = (key, acc) => accion(`${RUTA}/asignar`, { key, accion: acc, ...(PARA ? { para: PARA } : {}) });
@@ -559,11 +559,10 @@ function render(soloPie) {
         + (S.estado === 'en_cambio' ? `<div class="aviso info">${t('cambio')}</div>` : '')
         + (S.pagado_previo > 0 ? `<div class="aviso info">${t('previo', { m: dinero(S.pagado_previo) })}</div>` : '');
     if (!yo) {
-        // Entrada: nombre opcional y entrar (número por orden de llegada).
+        // Entrada: sólo el botón. El número (Cliente N, por orden de llegada) y el nombre
+        // opcional ("✏️ Poner mi nombre") aparecen recién después de unirse.
         app.innerHTML = `<div class="portada"><h1>${t('titulo')}</h1><p>${t('intro')}</p>
-            <div class="campo"><label for="nombre-in">${t('tu_nombre')}</label>
-            <input id="nombre-in" maxlength="30" autocomplete="off" placeholder="${esc(t('ph_nombre'))}" onkeydown="if(event.key==='Enter')unirse()"></div>
-            <button class="btn btn-lima" onclick="unirse()" ${OCUPADO || S.estado !== 'abierta' ? 'disabled' : ''}>${t('entrar')}</button>
+            <button class="btn btn-lima" id="btn-unirse" onclick="unirse()" ${OCUPADO || S.estado !== 'abierta' ? 'disabled' : ''}>${t('entrar')}</button>
             ${avisos}</div>` + listaHTML(null, true);
         return;
     }
