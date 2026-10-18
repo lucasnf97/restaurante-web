@@ -137,6 +137,15 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em
     display:flex; align-items:center; justify-content:center; font-size:32px; box-shadow:0 0 0 4px var(--r4); }
 .final p{ color:var(--tx-2); }
 .final .auto{ font-size:13px; margin-top:14px; }
+/* Código de la mesa (últimos 3 dígitos del Nº de cuenta del ticket) */
+.cod-ej{ display:inline-block; margin-top:14px; padding:8px 14px; border:1px dashed var(--bd); border-radius:10px;
+         font-family:'Courier New',monospace; font-size:15px; color:var(--tx-2); }
+.cod-ej b{ font-size:22px; color:var(--tx); }
+.cod-in{ display:block; width:170px; margin:18px auto 8px; padding:10px 8px; font-size:34px; font-weight:800;
+         text-align:center; letter-spacing:12px; border:2px solid var(--bd); border-radius:14px;
+         background:var(--sup); color:var(--tx); font-family:inherit; }
+.cod-in:focus{ outline:none; border-color:var(--lime); }
+.final .msg-falta{ margin:4px 0 10px; }
 /* Elegir para otra persona (sin celular) */
 .para .t{ font-size:14px; color:var(--tx-2); margin-bottom:8px; }
 .chips-para{ display:flex; flex-wrap:wrap; gap:8px; }
@@ -250,7 +259,10 @@ const TXT = {
     vacia_p: 'Esta sala todavía no tiene una cuenta. Pedile a quien atiende tu mesa que inicie el cobro.',
     vacia_auto: 'Cuando la inicie, esta pantalla se actualiza sola.',
     ya_pago_t: 'Tu cuenta ya está pagada', ya_pago_p: 'Ya pagaste en esta sala. Desde acá podés pedir tu recibo.',
-    ver_recibo: 'Ver mi recibo', recibo_vencido: 'Este enlace del recibo venció. Pedile el ticket al local.',
+    ver_recibo: 'Ver mi recibo',
+    cod_t: 'Código de tu mesa', cod_p: 'Escribí los últimos 3 números del Nº de cuenta de tu ticket. Están resaltados.',
+    cod_ej: 'Ejemplo', cod_entrar: 'Entrar', cod_3: 'Son 3 números.', cod_mal: 'El código no es correcto. Revisalo en el ticket.',
+    cod_muchos: 'Demasiados intentos. Esperá unos minutos o pedile ayuda al camarero.', recibo_vencido: 'Este enlace del recibo venció. Pedile el ticket al local.',
     cambio: 'El local está modificando la cuenta. En un momento se actualiza sola.',
     no_existe_t: 'No encontramos esta cuenta', no_existe_p: 'Revisá que hayas escaneado el QR que te mostró el camarero.',
     sin_red: 'Sin conexión. Reintentando…', err: 'No se pudo hacer. Probá de nuevo.',
@@ -289,7 +301,10 @@ const TXT = {
     vacia_p: 'This room doesn’t have a bill yet. Ask the person serving your table to start the payment.',
     vacia_auto: 'Once they start it, this screen updates by itself.',
     ya_pago_t: 'Your bill is already paid', ya_pago_p: 'You already paid in this room. You can get your receipt here.',
-    ver_recibo: 'See my receipt', recibo_vencido: 'This receipt link has expired. Ask the restaurant for the receipt.',
+    ver_recibo: 'See my receipt',
+    cod_t: 'Your table code', cod_p: 'Enter the last 3 digits of the bill number on your receipt. They’re highlighted.',
+    cod_ej: 'Example', cod_entrar: 'Enter', cod_3: 'It’s 3 digits.', cod_mal: 'That code isn’t right. Check your receipt.',
+    cod_muchos: 'Too many attempts. Wait a few minutes or ask the waiter.', recibo_vencido: 'This receipt link has expired. Ask the restaurant for the receipt.',
     cambio: 'The restaurant is updating the bill. It will refresh by itself.',
     no_existe_t: 'We couldn’t find this bill', no_existe_p: 'Make sure you scanned the QR the waiter showed you.',
     sin_red: 'Offline. Retrying…', err: 'That didn’t work. Please try again.',
@@ -328,7 +343,10 @@ const TXT = {
     vacia_p: 'Dette rum har endnu ingen regning. Bed den, der betjener jeres bord, om at starte betalingen.',
     vacia_auto: 'Når de starter den, opdateres skærmen af sig selv.',
     ya_pago_t: 'Din regning er allerede betalt', ya_pago_p: 'Du har allerede betalt i dette rum. Her kan du få din kvittering.',
-    ver_recibo: 'Se min kvittering', recibo_vencido: 'Linket til kvitteringen er udløbet. Bed restauranten om kvitteringen.',
+    ver_recibo: 'Se min kvittering',
+    cod_t: 'Bordets kode', cod_p: 'Skriv de sidste 3 cifre af regningsnummeret på din bon. De er fremhævet.',
+    cod_ej: 'Eksempel', cod_entrar: 'Gå ind', cod_3: 'Det er 3 cifre.', cod_mal: 'Koden er forkert. Tjek din bon.',
+    cod_muchos: 'For mange forsøg. Vent et par minutter, eller spørg tjeneren.', recibo_vencido: 'Linket til kvitteringen er udløbet. Bed restauranten om kvitteringen.',
     cambio: 'Restauranten opdaterer regningen. Den opdateres af sig selv om lidt.',
     no_existe_t: 'Vi kunne ikke finde regningen', no_existe_p: 'Tjek, at du har scannet den QR-kode, tjeneren viste dig.',
     sin_red: 'Ingen forbindelse. Prøver igen…', err: 'Det lykkedes ikke. Prøv igen.',
@@ -393,7 +411,7 @@ function limpiarViejos() {
     try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
             const k = localStorage.key(i);
-            if (!k || !(k.startsWith('rp-disp::') || k.startsWith('rp-pagado::'))) continue;
+            if (!k || !(k.startsWith('rp-disp::') || k.startsWith('rp-pagado::') || k.startsWith('rp-codigo::'))) continue;
             let v = null; try { v = JSON.parse(localStorage.getItem(k)); } catch {}
             if (!v || !v.t || Date.now() - v.t > VIDA_DISP_MS) localStorage.removeItem(k);
         }
@@ -434,18 +452,44 @@ function yaPagoAca() {
     return v && v.url && Date.now() - v.t < YA_PAGO_MS ? v : null;
 }
 const urlRecibo = (tok) => `${location.pathname}?r=${encodeURIComponent(CODIGO)}&recibo=${encodeURIComponent(tok)}&lang=${LANG}`;
+// ── Código de la mesa: con la sala ocupada, para entrar hay que escribir los últimos 3
+// dígitos del Nº de cuenta (el ticket los imprime resaltados). El QR es fijo y cualquiera
+// puede tenerlo; el ticket sólo lo tiene la mesa. El bueno se guarda: recargar no lo vuelve
+// a pedir, y con la cuenta siguiente ya no sirve (el servidor lo rechaza y se pide de nuevo).
+const CLAVE_COD = 'rp-codigo::' + SALA;
+let PIDE_COD = false, COD_VAL = '', COD_ERR = '', COD_ENVIANDO = false;
+const urlSala = (c) => `${API}/publico/reparto/${encodeURIComponent(CODIGO)}/sala/${encodeURIComponent(SALA)}`
+    + (c != null ? `?c=${encodeURIComponent(c)}` : '');
+function codGuardado() {
+    let v = null; try { v = JSON.parse(_ls.get(CLAVE_COD) || 'null'); } catch {}
+    return v && v.c && Date.now() - v.t < VIDA_DISP_MS ? v.c : null;
+}
+function entrarCon(tok) {
+    PIDE_COD = false; COD_ERR = ''; VACIA = false;
+    if (tok !== TOKEN) fijarReparto(tok);
+    return consultar();
+}
 async function resolverSala() {
     clearTimeout(_timer);
     if (!CODIGO) { ERROR = 'no_existe'; render(); return; }
     try {
-        const r = await pedir(`${API}/publico/reparto/${encodeURIComponent(CODIGO)}/sala/${encodeURIComponent(SALA)}`);
+        const r = await pedir(urlSala());
         SIN_RED = false; SALA_INFO = r;
-        if (r.reparto) {
+        if (!r.ocupada) {
+            const cambio = !VACIA || PIDE_COD;
+            VACIA = true; PIDE_COD = false; S = null;
+            if (cambio || !$('app').querySelector('.sala-vacia')) render();
+        } else {
             VACIA = false;
-            if (r.reparto !== TOKEN) fijarReparto(r.reparto);
-            return consultar();
+            const c = codGuardado();
+            if (c) {
+                try {
+                    const r2 = await pedir(urlSala(c));
+                    if (r2.reparto) return entrarCon(r2.reparto);
+                } catch (e) { if (e.status === 403) _ls.del(CLAVE_COD); }
+            }
+            if (!PIDE_COD) { PIDE_COD = true; S = null; render(); }   // no se re-pinta mientras escribe
         }
-        VACIA = true; S = null; render();
     } catch (e) {
         if (e.status === 404) { ERROR = 'no_existe'; render(); return; }
         SIN_RED = true; render();
@@ -638,6 +682,20 @@ function render(soloPie) {
         app.innerHTML = `<div class="final"><div class="ico">·</div><h2>${t('cobrada_t')}</h2><p>${t('recibo_vencido')}</p></div>`;
         return;
     }
+    if (PIDE_COD && !S) {
+        $('pie').classList.add('hidden');
+        app.innerHTML = `<div class="final codigo"><div class="ico">#</div>
+            <h2>${t('cod_t')}</h2><p>${t('cod_p')}</p>
+            <div class="cod-ej">${t('cod_ej')}: Nº 13<b>457</b></div>
+            <input id="cod-in" class="cod-in" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off"
+                aria-label="${esc(t('cod_t'))}" placeholder="···" value="${esc(COD_VAL)}"
+                oninput="COD_VAL=this.value.replace(/\\D/g,'').slice(0,3);this.value=COD_VAL"
+                onkeydown="if(event.key==='Enter')enviarCodigo()">
+            ${COD_ERR ? `<p class="msg-falta" id="cod-err">${esc(COD_ERR)}</p>` : ''}
+            <button class="btn btn-lima" id="cod-entrar" onclick="enviarCodigo()" ${COD_ENVIANDO ? 'disabled' : ''}>${t('cod_entrar')}</button>
+            ${SIN_RED ? `<p class="auto">${t('sin_red')}</p>` : ''}</div>`;
+        return;
+    }
     if (VACIA && !S) {
         $('pie').classList.add('hidden');
         app.innerHTML = `<div class="final sala-vacia"><div class="ico">…</div>
@@ -828,6 +886,28 @@ function pintarPie() {
     $('falta-txt').innerHTML = S.piezas_sin_asignar
         ? t('falta', { m: dinero(S.pendiente), n: S.piezas_sin_asignar })
         : `<b>${t('todo_asignado')}</b>`;
+}
+
+async function enviarCodigo() {
+    if (COD_ENVIANDO) return;
+    const c = (COD_VAL || '').replace(/\D/g, '');
+    if (c.length !== 3) { COD_ERR = t('cod_3'); render(); return; }
+    COD_ENVIANDO = true; COD_ERR = ''; render();
+    try {
+        const r = await pedir(urlSala(c));
+        COD_ENVIANDO = false;
+        if (r.reparto) {
+            _ls.set(CLAVE_COD, JSON.stringify({ c, t: Date.now() }));
+            COD_VAL = '';
+            return entrarCon(r.reparto);
+        }
+        PIDE_COD = false; VACIA = true; S = null; render();   // la cuenta se cerró justo
+    } catch (e) {
+        COD_ENVIANDO = false;
+        COD_ERR = e.status === 403 ? t('cod_mal') : e.status === 429 ? t('cod_muchos') : t('err');
+        render();
+        const i = $('cod-in'); if (i) { i.focus(); i.select(); }
+    }
 }
 
 // La página del recibo: un solo pedido, sin sondeo ni sala.
