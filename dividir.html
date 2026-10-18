@@ -222,9 +222,14 @@ const CODIGO = (QS.get('r') || '').trim();
 // reparto que la ocupa ahora. `t` (el token del reparto) sigue sirviendo para los enlaces
 // de antes. Con sala, el TOKEN se resuelve al cargar (y cambia cuando la sala se reusa).
 const SALA = (QS.get('s') || '').trim();
+// Enlace PROPIO del recibo (al cobrarse la cuenta la página deja el de la sala y pasa a
+// éste): sólo sirve para pedir el recibo de ese comensal, nunca lleva a otra cuenta.
+const RECIBO_TOK = (QS.get('recibo') || '').trim();
+// Un celular que ya pagó en esta sala no vuelve a entrar a la cuenta de la mesa siguiente
+// por un rato (dejó la pestaña abierta, recargó, reescaneó): ve su recibo.
+const YA_PAGO_MS = 2 * 3600 * 1000;
 let TOKEN = SALA ? '' : (QS.get('t') || '').trim();
 const SALA_POLL_MS = 4000;
-const VIDA_SALA_MS = 3 * 3600 * 1000;   // para volver a ver el recibo después del cobro
 const IDIOMAS = ['es', 'en', 'da'];
 const LOCALE = { es: 'es-ES', en: 'en-GB', da: 'da-DK' };
 const POLL_MS = 2500;
@@ -244,6 +249,8 @@ const TXT = {
     sala: 'Sala {n}', vacia_t: 'Sala de pago {n} · vacía',
     vacia_p: 'Esta sala todavía no tiene una cuenta. Pedile a quien atiende tu mesa que inicie el cobro.',
     vacia_auto: 'Cuando la inicie, esta pantalla se actualiza sola.',
+    ya_pago_t: 'Tu cuenta ya está pagada', ya_pago_p: 'Ya pagaste en esta sala. Desde acá podés pedir tu recibo.',
+    ver_recibo: 'Ver mi recibo', recibo_vencido: 'Este enlace del recibo venció. Pedile el ticket al local.',
     cambio: 'El local está modificando la cuenta. En un momento se actualiza sola.',
     no_existe_t: 'No encontramos esta cuenta', no_existe_p: 'Revisá que hayas escaneado el QR que te mostró el camarero.',
     sin_red: 'Sin conexión. Reintentando…', err: 'No se pudo hacer. Probá de nuevo.',
@@ -281,6 +288,8 @@ const TXT = {
     sala: 'Room {n}', vacia_t: 'Payment room {n} · empty',
     vacia_p: 'This room doesn’t have a bill yet. Ask the person serving your table to start the payment.',
     vacia_auto: 'Once they start it, this screen updates by itself.',
+    ya_pago_t: 'Your bill is already paid', ya_pago_p: 'You already paid in this room. You can get your receipt here.',
+    ver_recibo: 'See my receipt', recibo_vencido: 'This receipt link has expired. Ask the restaurant for the receipt.',
     cambio: 'The restaurant is updating the bill. It will refresh by itself.',
     no_existe_t: 'We couldn’t find this bill', no_existe_p: 'Make sure you scanned the QR the waiter showed you.',
     sin_red: 'Offline. Retrying…', err: 'That didn’t work. Please try again.',
@@ -318,6 +327,8 @@ const TXT = {
     sala: 'Rum {n}', vacia_t: 'Betalingsrum {n} · tomt',
     vacia_p: 'Dette rum har endnu ingen regning. Bed den, der betjener jeres bord, om at starte betalingen.',
     vacia_auto: 'Når de starter den, opdateres skærmen af sig selv.',
+    ya_pago_t: 'Din regning er allerede betalt', ya_pago_p: 'Du har allerede betalt i dette rum. Her kan du få din kvittering.',
+    ver_recibo: 'Se min kvittering', recibo_vencido: 'Linket til kvitteringen er udløbet. Bed restauranten om kvitteringen.',
     cambio: 'Restauranten opdaterer regningen. Den opdateres af sig selv om lidt.',
     no_existe_t: 'Vi kunne ikke finde regningen', no_existe_p: 'Tjek, at du har scannet den QR-kode, tjeneren viste dig.',
     sin_red: 'Ingen forbindelse. Prøver igen…', err: 'Det lykkedes ikke. Prøv igen.',
@@ -382,7 +393,7 @@ function limpiarViejos() {
     try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
             const k = localStorage.key(i);
-            if (!k || !(k.startsWith('rp-disp::') || k.startsWith('rp-sala::'))) continue;
+            if (!k || !(k.startsWith('rp-disp::') || k.startsWith('rp-pagado::'))) continue;
             let v = null; try { v = JSON.parse(localStorage.getItem(k)); } catch {}
             if (!v || !v.t || Date.now() - v.t > VIDA_DISP_MS) localStorage.removeItem(k);
         }
@@ -416,11 +427,13 @@ function fijarReparto(tok) {
 }
 
 // ── Sala virtual: a qué cuenta apunta el QR impreso ──
-const CLAVE_SALA = 'rp-sala::' + SALA;
-function salaVista() {
-    let v = null; try { v = JSON.parse(_ls.get(CLAVE_SALA) || 'null'); } catch {}
-    return v && v.tok && Date.now() - v.t < VIDA_SALA_MS ? v : null;
+const CLAVE_PAGADO = 'rp-pagado::' + SALA;
+let YA_PAGO = null;      // {url, t}: este celular ya pagó en esta sala hace poco
+function yaPagoAca() {
+    let v = null; try { v = JSON.parse(_ls.get(CLAVE_PAGADO) || 'null'); } catch {}
+    return v && v.url && Date.now() - v.t < YA_PAGO_MS ? v : null;
 }
+const urlRecibo = (tok) => `${location.pathname}?r=${encodeURIComponent(CODIGO)}&recibo=${encodeURIComponent(tok)}&lang=${LANG}`;
 async function resolverSala() {
     clearTimeout(_timer);
     if (!CODIGO) { ERROR = 'no_existe'; render(); return; }
@@ -428,20 +441,9 @@ async function resolverSala() {
         const r = await pedir(`${API}/publico/reparto/${encodeURIComponent(CODIGO)}/sala/${encodeURIComponent(SALA)}`);
         SIN_RED = false; SALA_INFO = r;
         if (r.reparto) {
-            _ls.set(CLAVE_SALA, JSON.stringify({ tok: r.reparto, t: Date.now() }));
             VACIA = false;
             if (r.reparto !== TOKEN) fijarReparto(r.reparto);
             return consultar();
-        }
-        // Vacía. Si este celular estuvo en la cuenta que acaba de cobrarse en esta sala,
-        // sigue viendo SU recibo (aunque la sala ya la use otra mesa, esa cuenta es suya).
-        const prev = salaVista();
-        if (prev && !VACIA) {
-            try {
-                if (prev.tok !== TOKEN) fijarReparto(prev.tok);
-                const r2 = await pedir(`${RUTA}?d=${encodeURIComponent(DISP)}`);
-                if (r2.yo && r2.estado === 'cobrada') { S = r2; MONEDA = r2.moneda || MONEDA; render(); return; }
-            } catch {}
         }
         VACIA = true; S = null; render();
     } catch (e) {
@@ -461,12 +463,19 @@ async function pedir(url, opts = {}) {
 let _timer = null;
 async function consultar() {
     clearTimeout(_timer);
+    if (RECIBO_TOK || YA_PAGO) return;      // páginas sin cuenta en vivo
     if (SALA && (!TOKEN || VACIA)) return resolverSala();
     if (!CODIGO || !TOKEN) { ERROR = 'no_existe'; render(); return; }
     try {
         const v = (S && S.version != null && S.estado === 'abierta') ? `&v=${S.version}` : '';
         const r = await pedir(`${RUTA}?d=${encodeURIComponent(DISP)}${v}`);
         SIN_RED = false;
+        if (!r.sin_cambios && r.estado === 'cobrada' && r.recibo) {
+            const url = urlRecibo(r.recibo);
+            if (SALA) _ls.set(CLAVE_PAGADO, JSON.stringify({ url, t: Date.now(), local: r.local || '' }));
+            location.replace(url);
+            return;
+        }
         if (!r.sin_cambios) {
             S = r; MONEDA = r.moneda || MONEDA;
             const up = r.ultimo_pago;
@@ -501,6 +510,9 @@ async function accion(url, body) {
     OCUPADO = true; render(true);
     try {
         const r = await pedir(url, { method: 'POST', body: JSON.stringify({ dispositivo: DISP, ...body }) });
+        // Lo que la respuesta de una acción no trae se conserva (si no, la tarjeta de pago
+        // desaparecía hasta el próximo cambio de otro comensal).
+        if (S && r.pago_online === undefined) r.pago_online = S.pago_online;
         S = r; MONEDA = r.moneda || MONEDA;
     } catch (e) {
         toast((LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err'));
@@ -612,6 +624,18 @@ function render(soloPie) {
     if (ERROR === 'no_existe') {
         $('pie').classList.add('hidden'); $('local').textContent = '';
         app.innerHTML = `<div class="final"><div class="ico">?</div><h2>${t('no_existe_t')}</h2><p>${t('no_existe_p')}</p></div>`;
+        return;
+    }
+    if (YA_PAGO) {
+        $('pie').classList.add('hidden');
+        if (YA_PAGO.local) $('local').textContent = YA_PAGO.local;
+        app.innerHTML = `<div class="final"><div class="ico">✓</div><h2>${t('ya_pago_t')}</h2><p>${t('ya_pago_p')}</p>
+            <button class="btn btn-lima" style="margin-top:18px;" onclick="location.href=YA_PAGO.url">${t('ver_recibo')}</button></div>`;
+        return;
+    }
+    if (RECIBO_TOK && S && S.vencido) {
+        $('pie').classList.add('hidden');
+        app.innerHTML = `<div class="final"><div class="ico">·</div><h2>${t('cobrada_t')}</h2><p>${t('recibo_vencido')}</p></div>`;
         return;
     }
     if (VACIA && !S) {
@@ -756,8 +780,11 @@ async function enviarRecibo() {
     RECIBO.falta = {};
     RECIBO.enviando = true; RECIBO.error = ''; pintarBotonRecibo();
     try {
-        const r = await pedir(`${RUTA}/recibo`, { method: 'POST', body: JSON.stringify({
-            dispositivo: DISP, email, acepta_datos: true, acepta_publicidad: !!RECIBO.publi }) });
+        const r = RECIBO_TOK
+            ? await pedir(`${API}/publico/reparto/${encodeURIComponent(CODIGO)}/recibo/${encodeURIComponent(RECIBO_TOK)}`,
+                { method: 'POST', body: JSON.stringify({ email, acepta_datos: true, acepta_publicidad: !!RECIBO.publi }) })
+            : await pedir(`${RUTA}/recibo`, { method: 'POST', body: JSON.stringify({
+                dispositivo: DISP, email, acepta_datos: true, acepta_publicidad: !!RECIBO.publi }) });
         S.recibo_enviado_a = r.email; RECIBO.email = '';
     } catch (e) {
         RECIBO.error = (LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err');
@@ -803,10 +830,25 @@ function pintarPie() {
         : `<b>${t('todo_asignado')}</b>`;
 }
 
+// La página del recibo: un solo pedido, sin sondeo ni sala.
+async function cargarRecibo() {
+    try {
+        const r = await pedir(`${API}/publico/reparto/${encodeURIComponent(CODIGO)}/recibo/${encodeURIComponent(RECIBO_TOK)}`);
+        MONEDA = r.moneda || MONEDA;
+        S = { estado: 'cobrada', local: r.local, moneda: r.moneda, yo: r.yo, vencido: r.vencido,
+              recibo_enviado_a: r.recibo_enviado_a, clientes: [{ num: r.yo, nombre: r.nombre, importe: r.importe }] };
+    } catch (e) {
+        if (e.status === 404) ERROR = 'no_existe'; else SIN_RED = true;
+    }
+    render();
+}
+
 limpiarViejos();
 LANG = elegirIdioma();
 aplicarTextos();
-consultar();
+if (RECIBO_TOK) cargarRecibo();
+else if (SALA && (YA_PAGO = yaPagoAca())) render();
+else consultar();
 </script>
 </body>
 </html>
