@@ -234,9 +234,6 @@ const SALA = (QS.get('s') || '').trim();
 // Enlace PROPIO del recibo (al cobrarse la cuenta la página deja el de la sala y pasa a
 // éste): sólo sirve para pedir el recibo de ese comensal, nunca lleva a otra cuenta.
 const RECIBO_TOK = (QS.get('recibo') || '').trim();
-// Un celular que ya pagó en esta sala no vuelve a entrar a la cuenta de la mesa siguiente
-// por un rato (dejó la pestaña abierta, recargó, reescaneó): ve su recibo.
-const YA_PAGO_MS = 2 * 3600 * 1000;
 let TOKEN = SALA ? '' : (QS.get('t') || '').trim();
 const SALA_POLL_MS = 4000;
 const IDIOMAS = ['es', 'en', 'da'];
@@ -258,8 +255,6 @@ const TXT = {
     sala: 'Sala {n}', vacia_t: 'Sala de pago {n} · vacía',
     vacia_p: 'Esta sala todavía no tiene una cuenta. Pedile a quien atiende tu mesa que inicie el cobro.',
     vacia_auto: 'Cuando la inicie, esta pantalla se actualiza sola.',
-    ya_pago_t: 'Tu cuenta ya está pagada', ya_pago_p: 'Ya pagaste en esta sala. Desde acá podés pedir tu recibo.',
-    ver_recibo: 'Ver mi recibo',
     cod_t: 'Código de tu mesa', cod_p: 'Escribí los últimos 3 números del Nº de cuenta de tu ticket. Están resaltados.',
     cod_ej: 'Ejemplo', cod_entrar: 'Entrar', cod_3: 'Son 3 números.', cod_mal: 'El código no es correcto. Revisalo en el ticket.',
     cod_muchos: 'Demasiados intentos. Esperá unos minutos o pedile ayuda al camarero.', recibo_vencido: 'Este enlace del recibo venció. Pedile el ticket al local.',
@@ -300,8 +295,6 @@ const TXT = {
     sala: 'Room {n}', vacia_t: 'Payment room {n} · empty',
     vacia_p: 'This room doesn’t have a bill yet. Ask the person serving your table to start the payment.',
     vacia_auto: 'Once they start it, this screen updates by itself.',
-    ya_pago_t: 'Your bill is already paid', ya_pago_p: 'You already paid in this room. You can get your receipt here.',
-    ver_recibo: 'See my receipt',
     cod_t: 'Your table code', cod_p: 'Enter the last 3 digits of the bill number on your receipt. They’re highlighted.',
     cod_ej: 'Example', cod_entrar: 'Enter', cod_3: 'It’s 3 digits.', cod_mal: 'That code isn’t right. Check your receipt.',
     cod_muchos: 'Too many attempts. Wait a few minutes or ask the waiter.', recibo_vencido: 'This receipt link has expired. Ask the restaurant for the receipt.',
@@ -342,8 +335,6 @@ const TXT = {
     sala: 'Rum {n}', vacia_t: 'Betalingsrum {n} · tomt',
     vacia_p: 'Dette rum har endnu ingen regning. Bed den, der betjener jeres bord, om at starte betalingen.',
     vacia_auto: 'Når de starter den, opdateres skærmen af sig selv.',
-    ya_pago_t: 'Din regning er allerede betalt', ya_pago_p: 'Du har allerede betalt i dette rum. Her kan du få din kvittering.',
-    ver_recibo: 'Se min kvittering',
     cod_t: 'Bordets kode', cod_p: 'Skriv de sidste 3 cifre af regningsnummeret på din bon. De er fremhævet.',
     cod_ej: 'Eksempel', cod_entrar: 'Gå ind', cod_3: 'Det er 3 cifre.', cod_mal: 'Koden er forkert. Tjek din bon.',
     cod_muchos: 'For mange forsøg. Vent et par minutter, eller spørg tjeneren.', recibo_vencido: 'Linket til kvitteringen er udløbet. Bed restauranten om kvitteringen.',
@@ -445,12 +436,6 @@ function fijarReparto(tok) {
 }
 
 // ── Sala virtual: a qué cuenta apunta el QR impreso ──
-const CLAVE_PAGADO = 'rp-pagado::' + SALA;
-let YA_PAGO = null;      // {url, t}: este celular ya pagó en esta sala hace poco
-function yaPagoAca() {
-    let v = null; try { v = JSON.parse(_ls.get(CLAVE_PAGADO) || 'null'); } catch {}
-    return v && v.url && Date.now() - v.t < YA_PAGO_MS ? v : null;
-}
 const urlRecibo = (tok) => `${location.pathname}?r=${encodeURIComponent(CODIGO)}&recibo=${encodeURIComponent(tok)}&lang=${LANG}`;
 // ── Código de la mesa: con la sala ocupada, para entrar hay que escribir los últimos 3
 // dígitos del Nº de cuenta (el ticket los imprime resaltados). El QR es fijo y cualquiera
@@ -507,7 +492,7 @@ async function pedir(url, opts = {}) {
 let _timer = null;
 async function consultar() {
     clearTimeout(_timer);
-    if (RECIBO_TOK || YA_PAGO) return;      // páginas sin cuenta en vivo
+    if (RECIBO_TOK) return;      // la página del recibo no tiene cuenta en vivo
     if (SALA && (!TOKEN || VACIA)) return resolverSala();
     if (!CODIGO || !TOKEN) { ERROR = 'no_existe'; render(); return; }
     try {
@@ -516,7 +501,9 @@ async function consultar() {
         SIN_RED = false;
         if (!r.sin_cambios && r.estado === 'cobrada' && r.recibo) {
             const url = urlRecibo(r.recibo);
-            if (SALA) _ls.set(CLAVE_PAGADO, JSON.stringify({ url, t: Date.now(), local: r.local || '' }));
+            // Cuenta terminada: el código de la sala ya no sirve. Si vuelve a escanear, la sala
+            // está vacía o (con otra mesa) le pide el código de ESA cuenta.
+            if (SALA) _ls.del(CLAVE_COD);
             location.replace(url);
             return;
         }
@@ -668,13 +655,6 @@ function render(soloPie) {
     if (ERROR === 'no_existe') {
         $('pie').classList.add('hidden'); $('local').textContent = '';
         app.innerHTML = `<div class="final"><div class="ico">?</div><h2>${t('no_existe_t')}</h2><p>${t('no_existe_p')}</p></div>`;
-        return;
-    }
-    if (YA_PAGO) {
-        $('pie').classList.add('hidden');
-        if (YA_PAGO.local) $('local').textContent = YA_PAGO.local;
-        app.innerHTML = `<div class="final"><div class="ico">✓</div><h2>${t('ya_pago_t')}</h2><p>${t('ya_pago_p')}</p>
-            <button class="btn btn-lima" style="margin-top:18px;" onclick="location.href=YA_PAGO.url">${t('ver_recibo')}</button></div>`;
         return;
     }
     if (RECIBO_TOK && S && S.vencido) {
@@ -927,7 +907,6 @@ limpiarViejos();
 LANG = elegirIdioma();
 aplicarTextos();
 if (RECIBO_TOK) cargarRecibo();
-else if (SALA && (YA_PAGO = yaPagoAca())) render();
 else consultar();
 </script>
 </body>
