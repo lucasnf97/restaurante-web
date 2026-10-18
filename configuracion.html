@@ -384,6 +384,24 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 /* ── Menú Dashboard (solapas + filas) ── */
 .dash-cfg-tabs { display:flex; gap:8px; margin-bottom:10px; }
 .dash-cfg-tab { padding:7px 20px; border: 1px solid var(--bd-6, #d7dbe3); background: var(--sup, #fff); border-radius:8px; font-size:13px; font-weight:700; color: var(--tx-9, #64748b); cursor:pointer; }
+.sp-barra { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:16px; }
+.sp-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:14px; margin-top:18px; }
+.sp-card { border:1px solid var(--bd, #e5e7eb); border-radius:12px; padding:14px; background: var(--sup, #fff); display:flex; flex-direction:column; gap:10px; min-width:0; }
+.sp-card-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.sp-card-head b { font-size:15px; color: var(--tx, #1a1a2e); }
+/* Botones de Pagos digitales (no tenían estilo en esta página: se veían nativos). */
+#sec-datafono .btn-primary { background: var(--ac, #4f46e5); color: var(--tx-inv, #fff); border:none; padding:9px 20px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
+#sec-datafono .btn-primary:hover { background: var(--ac-h, #4338ca); }
+#sec-datafono .btn-gear { background: var(--sup, #fff); color: var(--tx-2, #374151); border:1px solid var(--bd-6, #d7dbe3); padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
+#sec-datafono .btn-gear:hover { border-color: var(--ac, #4f46e5); }
+.sp-chip { font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+.sp-chip.libre { background:#dcfce7; color:#166534; }
+.sp-chip.ocupada { background:#fef3c7; color:#92400e; }
+/* El QR va SIEMPRE sobre blanco (se escanea mejor y es lo que sale impreso). */
+.sp-qr { background:#fff; border-radius:8px; padding:10px; display:flex; justify-content:center; align-items:center; min-height:180px; }
+.sp-qr img, .sp-qr canvas { width:160px; height:160px; }
+.sp-url { display:flex; gap:6px; }
+.sp-url input { flex:1; min-width:0; font-size:11.5px; padding:7px; border:1px solid var(--bd, #e5e7eb); border-radius:8px; background: var(--sup-2, #f9fafb); color: var(--tx-2, #374151); }
 .dash-cfg-tab.active { background: var(--ac, #4f46e5); border-color: var(--ac, #4f46e5); color: var(--tx-inv, #fff); }
 .dc-row { display:flex; align-items:center; gap:12px; padding:10px 4px; border-bottom: 1px solid var(--bd-4, #f1f3f5); }
 .dc-row:last-child { border-bottom:none; }
@@ -1040,14 +1058,19 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
         </div>
     </div>
 
-    <!-- ═══ 💳 PAGOS CON TARJETA (DATÁFONO) ═══════════════════════ -->
+    <!-- ═══ 💳 PAGOS DIGITALES: tarjeta (datáfono) + salas virtuales de pago ═══ -->
     <div class="cfg-section" id="sec-datafono">
         <div class="cfg-section-head" onclick="toggleSection('datafono')">
             <span class="cfg-section-icon">💳</span>
-            <span class="cfg-section-title">Pagos con tarjeta (datáfono)</span>
+            <span class="cfg-section-title">Pagos digitales</span>
             <span class="cfg-section-arrow">›</span>
         </div>
         <div class="cfg-section-body">
+            <div class="dash-cfg-tabs" style="margin-top:14px;">
+                <button type="button" class="dash-cfg-tab active" id="pdtab-tarjeta" onclick="pagosDigTab('tarjeta')">Pagos con tarjeta</button>
+                <button type="button" class="dash-cfg-tab" id="pdtab-salas" onclick="pagosDigTab('salas')">Salas virtuales de pago</button>
+            </div>
+            <div id="pd-tarjeta">
             <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-top:14px;line-height:1.6;">
                 Conexión del POS con el <strong>datáfono</strong>. Con un proveedor integrado, al cobrar
                 con tarjeta el importe se manda solo al aparato y el sistema espera el resultado
@@ -1079,6 +1102,26 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
                 <span id="df-estado" style="font-size:13px;color: var(--tx-3, #6b7280);"></span>
             </div>
             <div id="df-terminal-out" style="display:none;margin-top:16px;max-width:520px;"></div>
+            </div>
+
+            <!-- Salas virtuales de pago: QR FIJO por sala, para imprimir y dejar en la mesa -->
+            <div id="pd-salas" style="display:none;">
+                <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-top:14px;line-height:1.6;">
+                    Cada sala tiene un <strong>QR fijo</strong> que no cambia nunca: imprimilo una vez y
+                    dejalo sobre la mesa. La sala está <strong>vacía</strong> hasta que, en el pago dividido,
+                    el camarero toca <strong>"Iniciar sala virtual"</strong> y la elige: desde ese momento
+                    los comensales escanean el QR, eligen lo que consumieron y pagan su parte. Al cobrarse
+                    la cuenta, la sala se libera sola para la próxima mesa.
+                </p>
+                <div class="sp-barra">
+                    <label class="cfg-label" for="sp-cantidad" style="margin:0;">Cantidad de salas</label>
+                    <select class="cfg-input" id="sp-cantidad" style="width:80px;"></select>
+                    <button class="btn-primary" onclick="guardarSalas()">Guardar</button>
+                    <button class="btn-gear" onclick="imprimirSalas()">🖨 Imprimir todas</button>
+                    <span id="sp-estado" style="font-size:13px;color: var(--tx-3, #6b7280);"></span>
+                </div>
+                <div id="sp-lista" class="sp-grid"></div>
+            </div>
         </div>
     </div>
 
@@ -1683,6 +1726,127 @@ function _dfRenderCampos() {
         return `<div class="cfg-field" style="margin-bottom:10px;">
             <label class="cfg-label">${c.label}${c.requerido ? ' *' : ''}</label>${input}${ayuda}</div>`;
     }).join('');
+}
+
+// ── Pagos digitales: solapas (tarjeta / salas virtuales) ──
+function pagosDigTab(t) {
+    ['tarjeta', 'salas'].forEach(x => {
+        document.getElementById('pdtab-' + x).classList.toggle('active', x === t);
+        document.getElementById('pd-' + x).style.display = (x === t) ? '' : 'none';
+    });
+    if (t === 'salas') cargarSalas();
+}
+
+// ── Salas virtuales de pago ──────────────────────────────────────
+// QR FIJO por sala (1 a 5). El token de cada sala no cambia nunca: bajar la cantidad
+// desactiva las que sobran (no las borra), así un QR ya impreso vuelve a servir.
+let _salas = null;
+async function cargarSalas() {
+    const est = document.getElementById('sp-estado');
+    try {
+        _salas = await apiFetch('/salas-pago');
+    } catch (e) {
+        est.textContent = 'No se pudieron cargar las salas: ' + ((e && e.message) || e);
+        return;
+    }
+    const sel = document.getElementById('sp-cantidad');
+    sel.innerHTML = Array.from({ length: _salas.maximo || 5 }, (_, i) =>
+        `<option value="${i + 1}">${i + 1}</option>`).join('');
+    sel.value = String(_salas.cantidad);
+    pintarSalas();
+}
+function pintarSalas() {
+    const cont = document.getElementById('sp-lista');
+    cont.innerHTML = (_salas.salas || []).map(s => `
+        <div class="sp-card">
+            <div class="sp-card-head">
+                <b>Sala ${s.numero}</b>
+                <span class="sp-chip ${s.ocupada ? 'ocupada' : 'libre'}">${s.ocupada
+                    ? 'Ocupada' + (s.mesa ? ' · Mesa ' + escHtml(s.mesa) : '') : 'Libre'}</span>
+            </div>
+            <div class="sp-qr" id="sp-qr-${s.numero}"></div>
+            <div class="sp-url">
+                <input id="sp-url-${s.numero}" readonly aria-label="Dirección fija de la Sala ${s.numero}">
+                <button class="btn-gear" onclick="copiarSala(${s.numero})">Copiar</button>
+            </div>
+            <button class="btn-gear" onclick="imprimirSalas(${s.numero})">🖨 Imprimir</button>
+        </div>`).join('');
+    (_salas.salas || []).forEach(s => { document.getElementById('sp-url-' + s.numero).value = s.url || ''; });
+    _cargarQrLib().then(ok => {
+        (_salas.salas || []).forEach(s => {
+            const box = document.getElementById('sp-qr-' + s.numero);
+            if (!box) return;
+            if (ok && window.QRCode && s.url) {
+                try { new QRCode(box, { text: s.url, width: 320, height: 320, correctLevel: QRCode.CorrectLevel.M }); return; }
+                catch (e) { /* cae al aviso */ }
+            }
+            box.innerHTML = '<div style="font-size:12px;color:#6b7280;text-align:center;">(Sin conexión para dibujar el QR; copiá la dirección.)</div>';
+        });
+    });
+}
+function escHtml(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function copiarSala(n) {
+    const inp = document.getElementById('sp-url-' + n);
+    if (!inp) return;
+    inp.select();
+    try { navigator.clipboard.writeText(inp.value); } catch (e) { try { document.execCommand('copy'); } catch (_) {} }
+    const est = document.getElementById('sp-estado');
+    est.textContent = `✓ Dirección de la Sala ${n} copiada`;
+    setTimeout(() => { est.textContent = ''; }, 2000);
+}
+async function guardarSalas() {
+    const est = document.getElementById('sp-estado');
+    const cantidad = parseInt(document.getElementById('sp-cantidad').value, 10);
+    est.textContent = 'Guardando…';
+    try {
+        _salas = await apiFetch('/salas-pago', { method: 'PUT', body: JSON.stringify({ cantidad }) });
+        pintarSalas();
+        est.textContent = '✓ Guardado';
+        setTimeout(() => { est.textContent = ''; }, 2000);
+    } catch (e) {
+        est.textContent = (e && e.message) || 'No se pudo guardar';
+        if (_salas) document.getElementById('sp-cantidad').value = String(_salas.cantidad);
+    }
+}
+// Hoja para imprimir: una sala por página, QR grande, siempre sobre blanco. Texto en los
+// tres idiomas del sistema: el QR lo escanea cualquier comensal.
+function imprimirSalas(n) {
+    if (!_salas) return;
+    const salas = (_salas.salas || []).filter(s => !n || s.numero === n);
+    const paginas = salas.map(s => {
+        const box = document.getElementById('sp-qr-' + s.numero);
+        const cv = box && box.querySelector('canvas');
+        const img = box && box.querySelector('img');
+        const src = cv ? cv.toDataURL('image/png') : (img && img.src) || '';
+        return `<section class="hoja">
+            <div class="local">${escHtml(_salas.local || '')}</div>
+            <div class="sala">Sala de pago ${s.numero}</div>
+            ${src ? `<img src="${src}" alt="QR Sala ${s.numero}">` : '<p>(Sin QR)</p>'}
+            <p class="t1">Escaneá con la cámara para dividir y pagar tu cuenta</p>
+            <p class="t2">Scan to split and pay your bill · Scan for at dele og betale regningen</p>
+        </section>`;
+    }).join('');
+    const doc = `<!doctype html><html><head><meta charset="utf-8"><title>Salas de pago</title><style>
+        @page { size: A5; margin: 12mm; }
+        html, body { background:#fff; color:#111; margin:0; font-family: Arial, Helvetica, sans-serif; }
+        .hoja { text-align:center; page-break-after: always; padding-top: 6mm; }
+        .hoja:last-child { page-break-after: auto; }
+        .local { font-size: 15pt; color:#444; }
+        .sala { font-size: 26pt; font-weight: 700; margin: 3mm 0 6mm; }
+        img { width: 95mm; height: 95mm; image-rendering: pixelated; }
+        .t1 { font-size: 13pt; font-weight: 700; margin: 6mm 0 2mm; }
+        .t2 { font-size: 10pt; color:#555; margin: 0; }
+    </style></head><body>${paginas}</body></html>`;
+    const fr = document.createElement('iframe');
+    fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(fr);
+    fr.contentDocument.open(); fr.contentDocument.write(doc); fr.contentDocument.close();
+    setTimeout(() => {
+        try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) {}
+        setTimeout(() => fr.remove(), 60000);
+    }, 300);
 }
 
 // ── TPV virtual de pruebas: link + QR para abrir la terminal en un celu/tablet ──
