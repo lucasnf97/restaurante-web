@@ -146,6 +146,20 @@ h1,h2,h3{ font-family:Poppins,sans-serif; font-weight:600; letter-spacing:-.02em
          background:var(--sup); color:var(--tx); font-family:inherit; }
 .cod-in:focus{ outline:none; border-color:var(--lime); }
 .final .msg-falta{ margin:4px 0 10px; }
+/* Recibo de varias personas (el comensal + las que gestiona) */
+.modo-recibo{ display:flex; gap:6px; margin:0 0 12px; }
+.modo-recibo button{ flex:1; min-height:40px; border-radius:999px; border:1.5px solid var(--bd); background:transparent;
+    color:var(--tx); font:inherit; font-weight:700; font-size:14px; }
+.modo-recibo button[aria-pressed=true]{ background:var(--navy); color:var(--lime); border-color:var(--navy); }
+.persona-rc{ border:1px solid var(--bd); border-radius:12px; padding:10px 12px; margin-bottom:10px; }
+.persona-rc .cab{ display:flex; align-items:center; gap:10px; }
+.persona-rc .cab label{ flex:1; display:flex; align-items:center; gap:8px; font-weight:700; }
+.persona-rc .cab input{ width:20px; height:20px; accent-color:var(--navy); }
+.persona-rc .fila{ display:flex; gap:6px; margin-top:8px; }
+.persona-rc .fila input{ flex:1; min-width:0; }
+.persona-rc .mini{ font-size:12px; color:var(--tx-2); margin-top:4px; }
+.btn-mini{ border:1.5px solid var(--bd); background:transparent; color:var(--tx); border-radius:10px;
+    font:inherit; font-size:13px; font-weight:700; padding:0 10px; white-space:nowrap; }
 /* Elegir para otra persona (sin celular) */
 .para .t{ font-size:14px; color:var(--tx-2); margin-bottom:8px; }
 .chips-para{ display:flex; flex-wrap:wrap; gap:8px; }
@@ -255,6 +269,12 @@ const TXT = {
     sala: 'Sala {n}', vacia_t: 'Sala de pago {n} · vacía',
     vacia_p: 'Esta sala todavía no tiene una cuenta. Pedile a quien atiende tu mesa que inicie el cobro.',
     vacia_auto: 'Cuando la inicie, esta pantalla se actualiza sola.',
+    recibo_todo: 'Un recibo con todo', recibo_persona: 'Por persona',
+    recibo_todo_p: 'Te mandamos un solo correo con la parte de cada uno y el ticket completo.',
+    recibo_persona_p: 'Elegí a qué correo va el recibo de cada persona.',
+    mi_correo: 'Mi correo', vos_par: '(vos)', enviar_recibos: 'Enviar recibos', falta_alguno: 'Elegí al menos una persona.',
+    pagaste_total: 'Pagaste {m} en total', enviado_corto: 'Enviado a {e}', siguiente: 'Ahora: la parte de {n}',
+    todos_listos: 'Ya pagaste lo tuyo y lo de las personas que agregaste.',
     cod_t: 'Código de tu mesa', cod_p: 'Escribí los últimos 3 números del Nº de cuenta de tu ticket. Están resaltados.',
     cod_ej: 'Ejemplo', cod_entrar: 'Entrar', cod_3: 'Son 3 números.', cod_mal: 'El código no es correcto. Revisalo en el ticket.',
     cod_muchos: 'Demasiados intentos. Esperá unos minutos o pedile ayuda al camarero.', recibo_vencido: 'Este enlace del recibo venció. Pedile el ticket al local.',
@@ -295,6 +315,12 @@ const TXT = {
     sala: 'Room {n}', vacia_t: 'Payment room {n} · empty',
     vacia_p: 'This room doesn’t have a bill yet. Ask the person serving your table to start the payment.',
     vacia_auto: 'Once they start it, this screen updates by itself.',
+    recibo_todo: 'One receipt for all', recibo_persona: 'Per person',
+    recibo_todo_p: 'We’ll send one email with each person’s share and the full receipt.',
+    recibo_persona_p: 'Choose which email each person’s receipt goes to.',
+    mi_correo: 'My email', vos_par: '(you)', enviar_recibos: 'Send receipts', falta_alguno: 'Choose at least one person.',
+    pagaste_total: 'You paid {m} in total', enviado_corto: 'Sent to {e}', siguiente: 'Next: {n}’s share',
+    todos_listos: 'You’ve paid your share and the shares of the people you added.',
     cod_t: 'Your table code', cod_p: 'Enter the last 3 digits of the bill number on your receipt. They’re highlighted.',
     cod_ej: 'Example', cod_entrar: 'Enter', cod_3: 'It’s 3 digits.', cod_mal: 'That code isn’t right. Check your receipt.',
     cod_muchos: 'Too many attempts. Wait a few minutes or ask the waiter.', recibo_vencido: 'This receipt link has expired. Ask the restaurant for the receipt.',
@@ -335,6 +361,12 @@ const TXT = {
     sala: 'Rum {n}', vacia_t: 'Betalingsrum {n} · tomt',
     vacia_p: 'Dette rum har endnu ingen regning. Bed den, der betjener jeres bord, om at starte betalingen.',
     vacia_auto: 'Når de starter den, opdateres skærmen af sig selv.',
+    recibo_todo: 'Én kvittering for alle', recibo_persona: 'Pr. person',
+    recibo_todo_p: 'Vi sender én e-mail med hver persons andel og den fulde kvittering.',
+    recibo_persona_p: 'Vælg hvilken e-mail hver persons kvittering skal sendes til.',
+    mi_correo: 'Min e-mail', vos_par: '(dig)', enviar_recibos: 'Send kvitteringer', falta_alguno: 'Vælg mindst én person.',
+    pagaste_total: 'Du betalte {m} i alt', enviado_corto: 'Sendt til {e}', siguiente: 'Nu: {n}s andel',
+    todos_listos: 'Du har betalt din andel og andelene for de personer, du tilføjede.',
     cod_t: 'Bordets kode', cod_p: 'Skriv de sidste 3 cifre af regningsnummeret på din bon. De er fremhævet.',
     cod_ej: 'Eksempel', cod_entrar: 'Gå ind', cod_3: 'Det er 3 cifre.', cod_mal: 'Koden er forkert. Tjek din bon.',
     cod_muchos: 'For mange forsøg. Vent et par minutter, eller spørg tjeneren.', recibo_vencido: 'Linket til kvitteringen er udløbet. Bed restauranten om kvitteringen.',
@@ -596,6 +628,7 @@ function objetivo(yo) {
     return c || yo;
 }
 const nombreDe = (c) => c.nombre || (t('cliente') + ' ' + c.num);
+let AVANCE = null;   // a quién se pasó solo la última vez (para avisarlo una sola vez)
 
 // ── Pagar desde el celular (pago online del local; con pasarela real: Apple Pay, etc.) ──
 let PROPINA_PCT = 0, PAGANDO = false, _ultimoPagoVisto = null;
@@ -693,7 +726,7 @@ function render(soloPie) {
     const yo = S.yo ? (S.clientes || []).find(c => c.num === S.yo) : null;
     pintarPie();
     if (soloPie && yo && app.querySelector('.lista')) {
-        app.querySelectorAll('.acc').forEach(b => b.disabled = OCUPADO || !!(yo && yo.pagado) || S.estado !== 'abierta');
+        app.querySelectorAll('.acc').forEach(b => b.disabled = OCUPADO || !!objetivo(yo).pagado || S.estado !== 'abierta');
         return;
     }
     const avisos = (SIN_RED ? `<div class="aviso pel">${t('sin_red')}</div>` : '')
@@ -710,15 +743,24 @@ function render(soloPie) {
     if ((EDIT !== null || AGREGANDO) && app.querySelector('#edit-nombre, #para-nuevo') && !OCUPADO) {
         return;   // escribiendo un nombre: la actualización en vivo espera a que termine
     }
-    const sel = objetivo(yo);
+    let sel = objetivo(yo);
     const mios = (S.clientes || []).filter(c => c.gestor === yo.num);
-    const bloqueoPara = OCUPADO || yo.pagado || S.estado !== 'abierta';
-    const selector = yo.pagado ? '' : `<div class="tarjeta para">
+    // Pagada la seleccionada, pasa sola a la siguiente persona de este celular sin pagar.
+    if (sel.pagado) {
+        const sig = [yo, ...mios].find(c => !c.pagado);
+        if (sig) {
+            PARA = sig.num === yo.num ? null : sig.num; sel = sig;
+            if (AVANCE !== sig.num) { AVANCE = sig.num; toast(t('siguiente', { n: sig.num === yo.num ? t('vos') : nombreDe(sig) })); }
+        }
+    }
+    const quedan = [yo, ...mios].some(c => !c.pagado);
+    const bloqueoPara = OCUPADO || yo.pagado || S.estado !== 'abierta';   // agregar personas: sólo antes de pagar lo propio
+    const selector = (yo.pagado && !quedan) ? '' : `<div class="tarjeta para">
             <div class="t">${t('eligiendo')}</div>
             <div class="chips-para">
-                <button class="chip-para ${sel.num === yo.num ? 'on' : ''}" onclick="elegirPara(null)">${t('vos')}</button>
+                <button class="chip-para ${sel.num === yo.num ? 'on' : ''}" onclick="elegirPara(null)">${t('vos')}${yo.pagado ? ' ✓' : ''}</button>
                 ${mios.map(c => `<button class="chip-para ${sel.num === c.num ? 'on' : ''}" onclick="elegirPara(${c.num})">${esc(nombreDe(c))}${c.pagado ? ' ✓' : ''}</button>`).join('')}
-                ${AGREGANDO ? '' : `<button class="chip-para mas" onclick="verAgregar(true)" ${bloqueoPara ? 'disabled' : ''}>${t('agregar_persona')}</button>`}
+                ${AGREGANDO || yo.pagado ? '' : `<button class="chip-para mas" onclick="verAgregar(true)" ${bloqueoPara ? 'disabled' : ''}>${t('agregar_persona')}</button>`}
             </div>
             ${AGREGANDO ? `<div class="fila-para"><input id="para-nuevo" maxlength="30" placeholder="${esc(t('nombre_persona'))}"
                     onkeydown="if(event.key==='Enter')agregarPersona()">
@@ -746,7 +788,7 @@ function render(soloPie) {
         ${EDIT === 'yo' ? `<div class="tarjeta" style="margin-top:8px;padding-top:4px;">${campoNombre(yo.nombre, t('ph_nombre'))}</div>` : ''}
         ${avisos}
         ${selector}
-        ${yo.pagado ? `<div class="aviso info">${t('ya_pagaste')}</div>`
+        ${!quedan ? `<div class="aviso info">${mios.length ? t('todos_listos') : t('ya_pagaste')}</div>`
             : `<p class="ayuda">${sel.num === yo.num ? t('ayuda') : esc(t('ayuda_para', { n: nombreDe(sel) }))}</p>`}
         ${listaHTML(yo, false, sel)}
         <div class="tarjeta"><h3 style="font-size:16px;margin-bottom:10px;">${t('en_la_mesa')}</h3>
@@ -758,27 +800,66 @@ function render(soloPie) {
         <div style="height:12px"></div>`;
 }
 // ── Cuenta pagada: recibo por correo (consentimiento RGPD; publicidad opt-in) ──
-let RECIBO = { email: '', datos: false, publi: false, error: '', enviando: false, falta: {} };
+let RECIBO = { email: '', datos: false, publi: false, error: '', enviando: false, falta: {}, modo: 'todo', por: {} };
+const variasPersonas = () => (S.personas || []).length > 1;
+function porDe(num) { return RECIBO.por[num] || (RECIBO.por[num] = { email: '', on: true }); }
+function miCorreoPara(num) {
+    const mio = porDe(S.yo).email || RECIBO.email;
+    porDe(num).email = mio; const i = $('rc-p-' + num); if (i) i.value = mio;
+}
+function personasHTML() {
+    const pers = S.personas;
+    const total = pers.reduce((a, p) => a + (p.importe || 0) + (p.propina || 0), 0);
+    const modo = RECIBO.modo;
+    const filas = pers.map(p => {
+        const st = porDe(p.num), soy = p.num === S.yo;
+        return `<div class="persona-rc">
+            <div class="cab"><label><input type="checkbox" ${st.on ? 'checked' : ''} onchange="porDe(${p.num}).on=this.checked">
+                ${esc(nombreDe(p))} ${soy ? `<small style="font-weight:400;color:var(--tx-2)">${t('vos_par')}</small>` : ''}</label>
+                <b>${dinero((p.importe || 0) + (p.propina || 0))}</b></div>
+            <div class="fila"><input id="rc-p-${p.num}" type="email" inputmode="email" maxlength="160" placeholder="${esc(t('ph_email'))}"
+                    value="${esc(st.email)}" oninput="porDe(${p.num}).email=this.value">
+                ${soy ? '' : `<button class="btn-mini" onclick="miCorreoPara(${p.num})">${t('mi_correo')}</button>`}</div>
+            ${RECIBO.falta['p' + p.num] ? `<div class="msg-falta">${esc(RECIBO.falta['p' + p.num])}</div>` : ''}
+            ${p.recibo_enviado_a ? `<div class="mini">✓ ${esc(t('enviado_corto', { e: p.recibo_enviado_a }))}</div>` : ''}
+        </div>`;
+    }).join('');
+    return { total, html: `
+        <div class="modo-recibo">
+            <button aria-pressed="${modo === 'todo'}" onclick="RECIBO.modo='todo';RECIBO.falta={};render()">${t('recibo_todo')}</button>
+            <button aria-pressed="${modo === 'persona'}" onclick="RECIBO.modo='persona';RECIBO.falta={};render()">${t('recibo_persona')}</button>
+        </div>
+        <p class="t" style="margin-bottom:12px;">${t(modo === 'todo' ? 'recibo_todo_p' : 'recibo_persona_p')}</p>
+        ${modo === 'persona' ? filas : ''}` };
+}
 function pintarCobrada(app) {
     $('pie').classList.add('hidden');
     const yo = S.yo ? (S.clientes || []).find(c => c.num === S.yo) : null;
     const local = esc(S.local || '');
-    const enviado = S.recibo_enviado_a;
-    // Si el usuario está escribiendo, no se re-pinta encima (perdería el foco).
-    if (app.querySelector('#rc-email') && document.activeElement && app.contains(document.activeElement)) return;
+    const varias = variasPersonas();
+    const enviado = varias ? null : S.recibo_enviado_a;
+    // Si el usuario está escribiendo, no se re-pinta encima (perdería el foco). Sólo con un
+    // campo de texto enfocado: los botones (modo del recibo) tienen que poder repintar.
+    const foco = document.activeElement;
+    if (foco && app.contains(foco) && foco.tagName === 'INPUT' && foco.type !== 'checkbox') return;
+    const multi = varias ? personasHTML() : null;
+    const conCampoUnico = !varias || RECIBO.modo === 'todo';
     app.innerHTML = `<div class="final" style="padding-bottom:20px;"><div class="ico">✓</div>
             <h2>${t('cobrada_t')}</h2><p>${t('cobrada_p')}</p>
-            ${yo && yo.importe > 0 ? `<p style="font-weight:600;color:var(--tx);">${t('tu_pagaste', { m: dinero(yo.importe) })}</p>` : ''}</div>
+            ${variasPersonas() ? `<p style="font-weight:600;color:var(--tx);">${t('pagaste_total', { m: dinero(personasHTML().total) })}</p>`
+              : (yo && yo.importe > 0 ? `<p style="font-weight:600;color:var(--tx);">${t('tu_pagaste', { m: dinero(yo.importe) })}</p>` : '')}</div>
         <div class="tarjeta recibo">
             <h3 style="font-size:18px;margin-bottom:14px;">${t('recibo_t')}</h3>
             ${RECIBO.falta.email === t('falta_email') || RECIBO.falta.datos ? `<p class="aviso-oblig" id="rc-aviso-oblig">${t('completar_oblig')}</p>` : ''}
             ${enviado ? `<div class="ok-envio">${esc(t('enviado', { e: enviado }))}</div>` : ''}
-            <div class="campo"><label for="rc-email">${t('email')}<span class="ast">*</span></label>
+            ${multi ? multi.html : ''}
+            ${RECIBO.falta.alguno ? `<p class="aviso-oblig">${t('falta_alguno')}</p>` : ''}
+            ${conCampoUnico ? `<div class="campo"><label for="rc-email">${t('email')}<span class="ast">*</span></label>
                 <input id="rc-email" type="email" inputmode="email" autocomplete="email" maxlength="160"
                     aria-invalid="${!!RECIBO.falta.email}"
                     placeholder="${esc(t('ph_email'))}" value="${esc(RECIBO.email)}"
                     oninput="RECIBO.email=this.value;quitarFalta('email')" onkeydown="if(event.key==='Enter')enviarRecibo()">
-                ${RECIBO.falta.email === t('email_mal') ? `<div class="msg-falta" id="rc-email-msg">${esc(RECIBO.falta.email)}</div>` : ''}</div>
+                ${RECIBO.falta.email === t('email_mal') ? `<div class="msg-falta" id="rc-email-msg">${esc(RECIBO.falta.email)}</div>` : ''}</div>` : ''}
             <label class="check" id="rc-datos-l"><input type="checkbox" id="rc-datos" ${RECIBO.datos ? 'checked' : ''}
                     onchange="RECIBO.datos=this.checked;quitarFalta('datos')">
                 <span>${t('acepto_datos', { local })}<span class="ast">*</span></span></label>
@@ -786,7 +867,7 @@ function pintarCobrada(app) {
                     onchange="RECIBO.publi=this.checked">
                 <span>${t('acepto_publi', { local })}</span></label>
             ${RECIBO.error ? `<div class="aviso pel">${esc(RECIBO.error)}</div>` : ''}
-            <button class="btn btn-lima" id="rc-enviar" onclick="enviarRecibo()">${t('enviar')}</button>
+            <button class="btn btn-lima" id="rc-enviar" onclick="enviarRecibo()">${t(varias ? 'enviar_recibos' : 'enviar')}</button>
             <p class="leyenda-oblig"><span class="ast">*</span>${t('campo_oblig')}</p>
         </div><div style="height:24px"></div>`;
     pintarBotonRecibo();
@@ -802,7 +883,49 @@ function quitarFalta(k) {
     // Completó lo obligatorio que faltaba: se va el aviso de arriba.
     if (!(RECIBO.falta.email === t('falta_email') || RECIBO.falta.datos)) { const a = $('rc-aviso-oblig'); if (a) a.remove(); }
 }
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// Varias personas (el comensal + las que gestiona): todo a un correo, o cada una al suyo.
+async function enviarRecibos() {
+    const pers = S.personas, falta = {};
+    let envios = [];
+    if (RECIBO.modo === 'todo') {
+        const email = (RECIBO.email || '').trim();
+        if (!email) falta.email = t('falta_email');
+        else if (!EMAIL_RE.test(email)) falta.email = t('email_mal');
+        envios = pers.map(p => ({ num: p.num, email }));
+    } else {
+        for (const p of pers) {
+            const st = porDe(p.num);
+            if (!st.on) continue;
+            const em = (st.email || '').trim();
+            if (!em) falta['p' + p.num] = t('falta_email');
+            else if (!EMAIL_RE.test(em)) falta['p' + p.num] = t('email_mal');
+            else envios.push({ num: p.num, email: em });
+        }
+        if (!pers.some(p => porDe(p.num).on)) falta.alguno = true;
+    }
+    if (!RECIBO.datos) falta.datos = true;
+    if (Object.keys(falta).length) {
+        RECIBO.falta = falta; RECIBO.error = '';
+        if (document.activeElement) document.activeElement.blur();
+        render();
+        return;
+    }
+    RECIBO.falta = {};
+    RECIBO.enviando = true; RECIBO.error = ''; pintarBotonRecibo();
+    try {
+        const r = await pedir(`${API}/publico/reparto/${encodeURIComponent(CODIGO)}/recibo/${encodeURIComponent(RECIBO_TOK)}`,
+            { method: 'POST', body: JSON.stringify({ envios, acepta_datos: true, acepta_publicidad: !!RECIBO.publi }) });
+        for (const p of pers) if (r.enviados && r.enviados[p.num]) p.recibo_enviado_a = r.enviados[p.num];
+    } catch (e) {
+        RECIBO.error = (LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err');
+    }
+    RECIBO.enviando = false;
+    if (document.activeElement) document.activeElement.blur();
+    render();
+}
 async function enviarRecibo() {
+    if (RECIBO_TOK && variasPersonas()) return enviarRecibos();
     const email = (RECIBO.email || '').trim();
     // Se marcan TODOS los obligatorios que falten a la vez (correo, primera casilla o ambos).
     const falta = {};
@@ -835,7 +958,9 @@ async function enviarRecibo() {
 function listaHTML(yo, soloLectura, sel) {
     sel = sel || yo;
     const porNum = Object.fromEntries((S.clientes || []).map(c => [c.num, c]));
-    const bloqueado = OCUPADO || S.estado !== 'abierta' || (yo && yo.pagado) || (sel && sel.pagado);
+    // Se bloquea por la persona SELECCIONADA: pagada la propia, se puede seguir eligiendo
+    // (y pagando) por las personas que este celular gestiona.
+    const bloqueado = OCUPADO || S.estado !== 'abierta' || (sel ? sel.pagado : (yo && yo.pagado));
     const otro = sel && yo && sel.num !== yo.num;
     return `<div class="lista">${(S.piezas || []).map(p => {
         const mia = sel && p.clientes.includes(sel.num);
@@ -896,7 +1021,8 @@ async function cargarRecibo() {
         const r = await pedir(`${API}/publico/reparto/${encodeURIComponent(CODIGO)}/recibo/${encodeURIComponent(RECIBO_TOK)}`);
         MONEDA = r.moneda || MONEDA;
         S = { estado: 'cobrada', local: r.local, moneda: r.moneda, yo: r.yo, vencido: r.vencido,
-              recibo_enviado_a: r.recibo_enviado_a, clientes: [{ num: r.yo, nombre: r.nombre, importe: r.importe }] };
+              recibo_enviado_a: r.recibo_enviado_a, clientes: [{ num: r.yo, nombre: r.nombre, importe: r.importe }],
+              personas: (r.personas || []).filter(p => p.pagado) };
     } catch (e) {
         if (e.status === 404) ERROR = 'no_existe'; else SIN_RED = true;
     }
