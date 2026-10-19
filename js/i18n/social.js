@@ -59,4 +59,5 @@ I18N.agregar({
     "Prioritaria": ["Priority", "Prioriteret"],
     "Prioritaria (todos deben aceptarla)": ["Priority (everyone must accept it)", "Prioriteret (alle skal acceptere det)"],
     "Una publicación PRIORITARIA aparece en primer plano al entrar al sistema y cada persona debe aceptarla para continuar. ¿Marcarla como prioritaria?": ["A PRIORITY post appears up front when entering the system and each person must accept it to continue. Mark it as priority?", "Et PRIORITERET opslag vises forrest, når man åbner systemet, og hver person skal acceptere det for at fortsætte. Markér det som prioriteret?"],
+    "Roles": ["Roles", "Roller"],
 });

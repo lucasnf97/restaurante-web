@@ -15,13 +15,15 @@ const path = require("path");
 const vm = require("vm");
 const RAIZ = path.resolve(__dirname, "..");
 
-function diccionarios() {
+// Lo que ve una página: el diccionario base, el común y el de esa página (no los de otras).
+function diccionarios(pagina) {
   const todo = {};
   const base = fs.readFileSync(path.join(RAIZ, "js/i18n.js"), "utf8");
   const ini = base.indexOf("var D = {"), fin = base.indexOf("\n    };", ini);
   Object.assign(todo, vm.runInNewContext("(" + base.slice(ini + 8, fin + 6) + ")"));
   const dir = path.join(RAIZ, "js/i18n");
-  if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir).filter(x => x.endsWith(".js"))) {
+  const propio = path.basename(pagina || "", ".html") + ".js";
+  if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir).filter(x => x === "comun.js" || x === propio)) {
     vm.runInNewContext(fs.readFileSync(path.join(dir, f), "utf8"), { I18N: { agregar: o => Object.assign(todo, o) } });
   }
   return todo;
@@ -131,9 +133,20 @@ function extraer(archivo) {
 
 const args = process.argv.slice(2);
 const todo = args.includes("--todo");
-const dic = diccionarios();
 const res = {};
+// Lo que el motor ya resuelve: exacto, sin el emoji/símbolo del principio, por patrón
+// ("{0} visitas") o como comienzo de un patrón ("Error al guardar:" ← "Error al guardar: {0}").
+function cubierto(dic) {
+  const pats = Object.keys(dic).filter(k => k.includes("{")).map(k => new RegExp("^" +
+    k.split(/(\{\w+\})/).map(p => /^\{\w+\}$/.test(p) ? "[\\s\\S]*?" : p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("") + "$"));
+  const uno = t => t in dic || pats.some(re => re.test(t)) || (t + " {0}") in dic || (t + "{0}") in dic;
+  return k => {
+    const sin = k.replace(/^[^A-Za-zÀ-ÿ¿¡0-9"'(]+/, "");
+    return uno(k) || (sin && uno(sin));
+  };
+}
 for (const a of args.filter(x => !x.startsWith("--"))) {
-  res[a] = [...extraer(a)].filter(k => todo || !(k in dic)).sort();
+  const dic = diccionarios(a), cub = cubierto(dic);
+  res[a] = [...extraer(a)].filter(k => todo || !cub(k)).sort();
 }
 console.log(JSON.stringify(res, null, 1));

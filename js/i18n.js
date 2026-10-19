@@ -166,7 +166,9 @@
         // Frases con poco texto fijo ("{0} de {1}") sólo valen con datos cortos: si no, se
         // comerían una oración entera que casualmente tiene un " de " en el medio.
         var fijo = k.replace(/\{\w+\}/g, "").replace(/\s+/g, "").length;
-        var it = { re: new RegExp("^" + rx + "$"), nombres: nombres, k: k, maxDato: fijo < 10 ? 25 : 400 };
+        var it = { re: new RegExp("^" + rx + "$"), nombres: nombres, k: k, maxDato: fijo < 10 ? 25 : 400,
+                   // "{0} de {1}" (sólo un conector entre datos) es para números: "3 de 5".
+                   numeros: fijo <= 3 && /^\{\w+\}/.test(k) && /\{\w+\}$/.test(k) };
         var pre = k.split("{")[0].slice(0, 3).toLowerCase();
         if (pre.length === 3) (PAT_IDX[pre] = PAT_IDX[pre] || []).push(it);
         else PAT.push(it);
@@ -177,17 +179,26 @@
         for (var k in obj) { if (!(k in D)) _compilar(k); D[k] = obj[k]; }
     }
     function _de(k) { var v = D[k]; return v ? (v[LANG === "en" ? 0 : 1] || k) : null; }
+    // Un dato dentro de una frase ("Cuenta #12 · 🍽 En el local") también puede ser una clave.
+    function _dato(parte) {
+        var s = parte.trim(), r = _de(s);
+        if (r != null || !s) return r;
+        var p = /^([^A-Za-zÀ-ÿ¿¡0-9"'(]+)([\s\S]+)$/.exec(s);
+        r = p ? _de(p[2]) : null;
+        return r != null ? p[1] + r : null;
+    }
     function _patron(s) {
         var lista = (PAT_IDX[s.slice(0, 3).toLowerCase()] || []).concat(PAT);
         for (var i = 0; i < lista.length; i++) {
             var m = lista[i].re.exec(s);
             if (!m) continue;
             var largo = false;
-            for (var q = 1; q < m.length; q++) if (m[q].length > lista[i].maxDato) largo = true;
+            for (var q = 1; q < m.length; q++)
+                if (m[q].length > lista[i].maxDato || (lista[i].numeros && !/\d/.test(m[q]))) largo = true;
             if (largo) continue;
             var out = _de(lista[i].k);
             for (var j = 0; j < lista[i].nombres.length; j++) {
-                var parte = m[j + 1], tr = _de(parte.trim());
+                var parte = m[j + 1], tr = _dato(parte);
                 out = out.split("{" + lista[i].nombres[j] + "}").join(tr != null ? tr : parte);
             }
             return out;

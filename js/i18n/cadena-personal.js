@@ -32,4 +32,12 @@ I18N.agregar({
     "Buscar por nombre, usuario o email…": ["Search by name, username or email…", "Søg efter navn, brugernavn eller e-mail…"],
     "＋ Nuevo empleado": ["＋ New employee", "＋ Ny medarbejder"],
     "tu@email.com": ["you@email.com", "dig@email.dk"],
+    "Cada empleado es una <b>ficha única</b> de la cadena (identidad, datos). Lo <b>asignás a uno o más locales</b> con un rol; su acceso (login + rol) se crea en cada local sin duplicar la persona. El <b>rol y el estado (alta/baja) son POR local</b>: con ⏸ lo das de baja en un local sin quitarlo (queda agregado, sin acceso ahí).": ["Each employee is a <b>single record</b> in the chain (identity, details). You <b>assign them to one or more venues</b> with a role; their access (login + role) is created at each venue without duplicating the person. <b>Role and status (active/inactive) are PER venue</b>: with ⏸ you deactivate them at a venue without removing them (they stay added, without access there).", "Hver medarbejder er <b>ét kort</b> i kæden (identitet, data). Du <b>tildeler personen ét eller flere steder</b> med en rolle; adgangen (login + rolle) oprettes på hvert sted uden at duplikere personen. <b>Rolle og status (aktiv/inaktiv) er PR. sted</b>: med ⏸ deaktiverer du personen på et sted uden at fjerne den (forbliver tilføjet, uden adgang der)."],
+    "(opcional · tipo carnet)": ["(optional · ID-photo style)", "(valgfrit · pasfoto)"],
+    "Apellido": ["Last name", "Efternavn"],
+    "Foto": ["Photo", "Foto"],
+    "Salir": ["Sign out", "Log ud"],
+    "Se propone solo; editable": ["Suggested automatically; editable", "Foreslås automatisk; kan redigeres"],
+    "Teléfono": ["Phone", "Telefon"],
+    "Nombre de usuario": ["Username", "Brugernavn"],
 });

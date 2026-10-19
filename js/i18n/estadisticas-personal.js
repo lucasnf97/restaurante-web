@@ -57,4 +57,5 @@ I18N.agregar({
     "← Volver a Estadísticas": ["← Back to Statistics", "← Tilbage til statistik"],
     "Estadísticas de Personal": ["Staff statistics", "Personalestatistik"],
     "Camareros": ["Waiters", "Tjenere"],
+    "Mesas cerradas": ["Closed tables", "Lukkede borde"],
 });

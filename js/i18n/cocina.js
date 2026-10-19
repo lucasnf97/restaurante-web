@@ -48,4 +48,5 @@ I18N.agregar({
     "Take Away": ["Takeaway", "Takeaway"],
     "Take Away de hoy": ["Today's takeaway", "Dagens takeaway"],
     "Take Away {0}": ["Takeaway {0}", "Takeaway {0}"],
+    "0 min": ["0 min", "0 min"],
 });
