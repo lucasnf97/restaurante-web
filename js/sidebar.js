@@ -21,6 +21,8 @@
 })();
 
 (function () {
+    // Textos del menú en el idioma de la persona (js/i18n.js; sin él, castellano).
+    const _L = (x) => (window._t ? window._t(x) : x);
     // ── PÁGINAS DEL SISTEMA ─────────────────────────────────────
     // perm: string o array de strings — basta con tener UNO para ver el ítem.
     // Sin perm → siempre visible para cualquier usuario autenticado.
@@ -386,7 +388,7 @@
         if (!c.children) {
             return `
                 <a href="${c.href}" class="sidebar-child${_esActual(c.href) ? " active" : ""}">
-                    <span class="si-icon">${c.icon}</span>${c.label}
+                    <span class="si-icon">${c.icon}</span>${_L(c.label)}
                 </a>`;
         }
         const key   = groupKey(c);
@@ -394,7 +396,7 @@
         const nietos = c.children.filter(_visibleHijo).map(_renderHijo).join("");
         return `
                 <div class="sidebar-subhead${abre ? " active" : ""}" onclick="toggleGroup('${key}')">
-                    <span class="si-icon">${c.icon}</span>${c.label}
+                    <span class="si-icon">${c.icon}</span>${_L(c.label)}
                     <span class="grp-arrow${abre}" id="grpa-${key}">›</span>
                 </div>
                 <div class="sidebar-children nivel-3${abre}" id="grpc-${key}">${nietos}</div>`;
@@ -412,7 +414,7 @@
                 return `
                 <a href="${p.href}" class="sidebar-link${currentPage === p.href ? " active" : ""}">
                     <span class="si-icon">${p.icon}</span>
-                    ${p.label}${badgeHtml}
+                    ${_L(p.label)}${badgeHtml}
                 </a>`;
             }
 
@@ -436,7 +438,7 @@
             return `
                 <div class="sidebar-group-head${headActive}" onclick="toggleGroup('${key}')">
                     <span class="si-icon">${p.icon}</span>
-                    ${p.label}
+                    ${_L(p.label)}
                     <span class="grp-arrow${openCls}" id="grpa-${key}">›</span>
                 </div>
                 <div class="sidebar-children${openCls}" id="grpc-${key}">
@@ -500,7 +502,7 @@
     function renderNavEmpleado() {
         const comunes = COMMON_EMP.filter(c => c.ready).map(c => {
             const act = currentPage === c.href ? " active" : "";
-            return `<a href="#" onclick="navCuenta('${c.href}');return false;" class="sidebar-link${act}"><span class="si-icon">${c.icon}</span>${c.label}</a>`;
+            return `<a href="#" onclick="navCuenta('${c.href}');return false;" class="sidebar-link${act}"><span class="si-icon">${c.icon}</span>${_L(c.label)}</a>`;
         }).join("");
         return comunes + `<div id="emp-rest-groups"><div style="padding:10px 16px;color: var(--tx-4, #9ca3af);font-size:12px;">Cargando tus restaurantes…</div></div>`;
     }
@@ -510,7 +512,7 @@
         if (!vis.length) return "";
         const key = "resto-" + r.restaurante_id;
         const children = vis.map(c =>
-            `<a href="#" onclick="navResto(${r.restaurante_id},'${c.href}');return false;" class="sidebar-child"><span class="si-icon">${c.icon}</span>${c.label}</a>`).join("");
+            `<a href="#" onclick="navResto(${r.restaurante_id},'${c.href}');return false;" class="sidebar-child"><span class="si-icon">${c.icon}</span>${_L(c.label)}</a>`).join("");
         return `
             <div class="sidebar-group-head" onclick="toggleGroup('${key}')">
                 <span class="si-icon">🍽️</span>${_escS(r.restaurante)}
@@ -671,7 +673,7 @@
 
         const btn = document.createElement("button");
         btn.id = "sidebar-toggle";
-        btn.setAttribute("aria-label", "Menú");
+        btn.setAttribute("aria-label", _L("Menú"));
         btn.innerHTML = "<span></span><span></span><span></span>";
         btn.addEventListener("click", toggleSidebar);
         leftGroup.appendChild(btn);
@@ -681,7 +683,7 @@
             const home = document.createElement("a");
             home.id = "sidebar-home";
             home.href = "dashboard.html";
-            home.setAttribute("aria-label", "Ir al dashboard");
+            home.setAttribute("aria-label", _L("Ir al dashboard"));
             home.textContent = "🏠";
             leftGroup.appendChild(home);
         }
@@ -690,7 +692,7 @@
         const msgBtn = document.createElement("a");
         msgBtn.id   = "nav-mensajes-btn";
         msgBtn.href = "mensajes.html";
-        msgBtn.setAttribute("aria-label", "Mensajes");
+        msgBtn.setAttribute("aria-label", _L("Mensajes"));
         msgBtn.innerHTML = `💬<span id="nav-mensajes-badge"></span>`;
         leftGroup.appendChild(msgBtn);
 
@@ -900,7 +902,7 @@
         brand.setAttribute("role", "button");
         brand.setAttribute("tabindex", "0");
         brand.setAttribute("aria-haspopup", "true");
-        brand.setAttribute("aria-label", "Cambiar de restaurante");
+        brand.setAttribute("aria-label", _L("Cambiar de restaurante"));
         brand.addEventListener("click", () => _gerAbrirMenu(brand));
         brand.addEventListener("keydown", e => {
             if (e.key === "Enter" || e.key === " ") { e.preventDefault(); _gerAbrirMenu(brand); }

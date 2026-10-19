@@ -111,66 +111,68 @@
 </head>
 <body>
     <div class="card">
+        <div id="i18n-slot" style="display:flex;justify-content:flex-end;margin:-8px -6px 6px 0;"></div>
         <div class="logo">
             <h1><img class="marca-claro"  src="img/marca/chiefpoint-horizontal-claro.svg" alt="Chief Point"><img class="marca-oscuro" src="img/marca/chiefpoint-horizontal.svg" alt="Chief Point"></h1>
-            <p>Panel de gerencia</p>
+            <p data-i18n>Panel de gerencia</p>
         </div>
 
         <!-- Empleado: login por email (sin código) -->
         <div class="form-group" id="grp-email">
-            <label for="email">Email o usuario</label>
-            <input type="text" id="email" placeholder="tu@email.com o tu usuario" autocomplete="username">
+            <label for="email" data-i18n>Email o usuario</label>
+            <input type="text" id="email" placeholder="tu@email.com o tu usuario" data-i18n-ph autocomplete="username">
         </div>
 
         <!-- Gerente / administración: con código + usuario (oculto por defecto) -->
         <div class="form-group" id="grp-codigo" style="display:none">
-            <label for="codigo">N° de restaurante / cadena</label>
-            <input type="text" id="codigo" placeholder="Código" autocomplete="off">
+            <label for="codigo" data-i18n>N° de restaurante / cadena</label>
+            <input type="text" id="codigo" placeholder="Código" data-i18n-ph autocomplete="off">
         </div>
         <div class="form-group" id="grp-username" style="display:none">
-            <label for="username">Usuario</label>
-            <input type="text" id="username" placeholder="Tu usuario" autocomplete="username">
+            <label for="username" data-i18n>Usuario</label>
+            <input type="text" id="username" placeholder="Tu usuario" data-i18n-ph autocomplete="username">
         </div>
 
         <div class="form-group">
-            <label for="password">Contraseña</label>
-            <input type="password" id="password" placeholder="Tu contraseña" autocomplete="current-password">
+            <label for="password" data-i18n>Contraseña</label>
+            <input type="password" id="password" placeholder="Tu contraseña" data-i18n-ph autocomplete="current-password">
         </div>
 
-        <button id="btn-login" onclick="handleLogin()">Ingresar</button>
+        <button id="btn-login" onclick="handleLogin()" data-i18n>Ingresar</button>
 
         <div style="text-align:center;margin-top:14px;">
-            <a href="#" id="toggle-modo" onclick="toggleModo(event)" style="font-size:13px;color: var(--tx-ac, #4f46e5);text-decoration:none;">Ingresar con código (gerente / administración)</a>
+            <a href="#" id="toggle-modo" onclick="toggleModo(event)" style="font-size:13px;color: var(--tx-ac, #4f46e5);text-decoration:none;" data-i18n>Ingresar con código (gerente / administración)</a>
         </div>
         <div style="text-align:center;margin-top:8px;">
-            <a href="#" onclick="abrirReset(event)" style="font-size:13px;color: var(--tx-3, #6b7280);text-decoration:none;">¿Olvidaste tu contraseña?</a>
+            <a href="#" onclick="abrirReset(event)" style="font-size:13px;color: var(--tx-3, #6b7280);text-decoration:none;" data-i18n>¿Olvidaste tu contraseña?</a>
         </div>
 
         <div class="error" id="error-msg"></div>
 
         <div style="text-align:center;margin-top:18px;font-size:11.5px;color: var(--tx-4, #9ca3af);">
-            <a href="terminos.html" style="color: var(--tx-4, #9ca3af);">Términos y Condiciones</a>
+            <a href="terminos.html" style="color: var(--tx-4, #9ca3af);" data-i18n>Términos y Condiciones</a>
             &nbsp;·&nbsp;
-            <a href="privacidad.html" style="color: var(--tx-4, #9ca3af);">Privacidad y Protección de Datos</a>
+            <a href="privacidad.html" style="color: var(--tx-4, #9ca3af);" data-i18n>Privacidad y Protección de Datos</a>
         </div>
     </div>
 
     <!-- Modal: recuperar contraseña por email -->
     <div id="reset-ov" style="display:none;position:fixed;inset:0;background:rgba(10,10,25,.6);z-index:900;align-items:center;justify-content:center;padding:16px;">
         <div style="background: var(--sup, #fff);border-radius:14px;width:400px;max-width:94vw;padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.4);">
-            <h3 style="margin:0 0 6px;font-size:18px;color: var(--tx, #1a1a2e);">Recuperar contraseña</h3>
-            <p style="font-size:13px;color: var(--tx-3, #6b7280);margin:0 0 14px;line-height:1.5;">Ingresá tu <b>correo</b>. Si tiene una cuenta con email cargado, te mandamos un enlace para elegir una nueva contraseña. Si no tenés correo, pedile al encargado que te la cambie.</p>
+            <h3 style="margin:0 0 6px;font-size:18px;color: var(--tx, #1a1a2e);" data-i18n>Recuperar contraseña</h3>
+            <p style="font-size:13px;color: var(--tx-3, #6b7280);margin:0 0 14px;line-height:1.5;" data-i18n-html>Ingresá tu <b>correo</b>. Si tiene una cuenta con email cargado, te mandamos un enlace para elegir una nueva contraseña. Si no tenés correo, pedile al encargado que te la cambie.</p>
             <input type="email" id="reset-email" placeholder="tu@correo.com" autocomplete="email"
                    style="width:100%;padding:10px 12px;border: 1.5px solid var(--bd-3, #d1d5db);border-radius:8px;font-size:14px;box-sizing:border-box;"
                    onkeydown="if(event.key==='Enter') enviarReset()">
             <div id="reset-msg" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px;">
-                <button onclick="cerrarReset()" style="background: var(--sup, #fff);border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;color: var(--tx-3, #6b7280);cursor:pointer;">Cerrar</button>
-                <button id="reset-btn" onclick="enviarReset()" style="background: var(--ac, #4f46e5);color: var(--tx-inv, #fff);border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;">Enviar enlace</button>
+                <button onclick="cerrarReset()" style="background: var(--sup, #fff);border: 1.5px solid var(--bd-2, #e0e0e0);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;color: var(--tx-3, #6b7280);cursor:pointer;" data-i18n>Cerrar</button>
+                <button id="reset-btn" onclick="enviarReset()" style="background: var(--ac, #4f46e5);color: var(--tx-inv, #fff);border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;" data-i18n>Enviar enlace</button>
             </div>
         </div>
     </div>
 
+    <script src="js/i18n.js"></script>
     <script src="js/api.js"></script>
     <script>
         function abrirReset(e){ if(e) e.preventDefault();
@@ -181,15 +183,15 @@
         async function enviarReset(){
             const email=document.getElementById('reset-email').value.trim();
             const msg=document.getElementById('reset-msg'); const btn=document.getElementById('reset-btn');
-            if(!email || email.indexOf('@')<0){ msg.style.color='#dc2626'; msg.textContent='Ingresá un correo válido.'; return; }
-            btn.disabled=true; btn.textContent='Enviando…'; msg.style.color='#6b7280'; msg.textContent='';
+            if(!email || email.indexOf('@')<0){ msg.style.color='#dc2626'; msg.textContent=_t('Ingresá un correo válido.'); return; }
+            btn.disabled=true; btn.textContent=_t('Enviando…'); msg.style.color='#6b7280'; msg.textContent='';
             try{
                 const r=await fetch(API_URL+'/auth/reset/solicitar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
                 const d=await r.json().catch(()=>({}));
                 msg.style.color='#16a34a';
-                msg.textContent=d.mensaje || 'Si el correo corresponde a una cuenta, te enviamos un enlace.';
-            }catch(err){ msg.style.color='#dc2626'; msg.textContent='No se pudo enviar. Probá de nuevo.'; }
-            finally{ btn.disabled=false; btn.textContent='Enviar enlace'; }
+                msg.textContent=d.mensaje || _t('Si el correo corresponde a una cuenta, te enviamos un enlace.');
+            }catch(err){ msg.style.color='#dc2626'; msg.textContent=_t('No se pudo enviar. Probá de nuevo.'); }
+            finally{ btn.disabled=false; btn.textContent=_t('Enviar enlace'); }
         }
 
         // Si ya está logueado, ir a la pantalla de inicio de la web.
@@ -215,8 +217,8 @@
             document.getElementById('grp-codigo').style.display   = _modoCodigo ? '' : 'none';
             document.getElementById('grp-username').style.display = _modoCodigo ? '' : 'none';
             document.getElementById('toggle-modo').textContent = _modoCodigo
-                ? 'Soy empleado — ingresar con email o usuario'
-                : 'Ingresar con código (gerente / administración)';
+                ? _t('Soy empleado — ingresar con email o usuario')
+                : _t('Ingresar con código (gerente / administración)');
             document.getElementById('error-msg').style.display = 'none';
         }
 
@@ -234,15 +236,15 @@
             if (_modoCodigo) {
                 userArg   = document.getElementById("username").value.trim();
                 codigoArg = document.getElementById("codigo").value.trim();
-                if (!userArg || !password) { mostrarError("Completá usuario y contraseña."); return; }
+                if (!userArg || !password) { mostrarError(_t("Completá usuario y contraseña.")); return; }
             } else {
                 userArg   = document.getElementById("email").value.trim();
                 codigoArg = "";
-                if (!userArg || !password) { mostrarError("Completá tu email o usuario y la contraseña."); return; }
+                if (!userArg || !password) { mostrarError(_t("Completá tu email o usuario y la contraseña.")); return; }
             }
 
             btn.disabled = true;
-            btn.textContent = "Ingresando...";
+            btn.textContent = _t("Ingresando...");
             try {
                 await login(userArg, password, codigoArg);
                 const _u2 = JSON.parse(localStorage.getItem('user') || '{}');
@@ -251,7 +253,7 @@
                 mostrarError(err.message);
             } finally {
                 btn.disabled = false;
-                btn.textContent = "Ingresar";
+                btn.textContent = _t("Ingresar");
             }
         }
 

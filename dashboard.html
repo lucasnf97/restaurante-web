@@ -277,15 +277,15 @@ input:checked + .tsl::before { transform:translateX(14px); }
     <div class="navbar-brand">🍽️ Gestión Restaurante</div>
     <div class="navbar-user">
         <span id="nav-username"></span>
-        <button class="btn-config" onclick="abrirConfig()">⚙️ Personalizar</button>
-        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+        <button class="btn-config" onclick="abrirConfig()" data-i18n>⚙️ Personalizar</button>
+        <button class="btn-logout" onclick="logout()" data-i18n>Cerrar sesión</button>
     </div>
 </nav>
 
 <div class="content">
     <div class="welcome">
-        <h2 id="welcome-msg">Bienvenido</h2>
-        <p>Panel de administración y gerencia</p>
+        <h2 id="welcome-msg" data-i18n>Bienvenido</h2>
+        <p data-i18n>Panel de administración y gerencia</p>
     </div>
     <div class="dash-grid" id="dash-grid"></div>
 </div>
@@ -306,6 +306,7 @@ input:checked + .tsl::before { transform:translateX(14px); }
     </div>
 </div>
 
+<script src="js/i18n.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
@@ -314,7 +315,7 @@ requireAuth();
 
 const user = getUser();
 document.getElementById("nav-username").textContent = displayName(user);
-document.getElementById("welcome-msg").textContent = `Bienvenido, ${displayName(user)}`;
+document.getElementById("welcome-msg").textContent = `${_t("Bienvenido")}, ${displayName(user)}`;
 
 // ── MÓDULOS DISPONIBLES ──────────────────────────────────────
 const ALL_MODULES = [
@@ -611,7 +612,7 @@ function renderDash() {
         } catch (err) {
             console.error(`[dashboard] widget "${block.id}" falló:`, err);
             el.innerHTML = `${blockHeader("")}<div class="caja-card">
-                <span class="widget-title" style="cursor:default">⚠️ ${block.label || block.id}</span>
+                <span class="widget-title" style="cursor:default">⚠️ ${_t(block.label || block.id)}</span>
                 <div class="res-empty">Este widget falló al cargar (ver consola)</div></div>`;
         }
         grid.appendChild(el);
@@ -700,7 +701,7 @@ function buildSocial(b) {
     }
     return `${blockHeader("")}
     <div class="social-card">
-        <a href="social.html" class="widget-title">📣 Social</a>
+        <a href="social.html" class="widget-title">📣 ${_t("Social")}</a>
         <div class="sw-tabs">${tabs}</div>
         <div class="social-list">${inner}</div>
     </div>`;
@@ -742,7 +743,7 @@ function buildMensajes(b) {
     }
     return `${blockHeader("")}
     <div class="msg-card">
-        <a href="mensajes.html" class="widget-title">💬 Últimos mensajes</a>
+        <a href="mensajes.html" class="widget-title">💬 ${_t("Últimos mensajes")}</a>
         <div class="msg-list">${inner}</div>
     </div>`;
 }
@@ -800,13 +801,13 @@ function buildHorariosSemana(b) {
     }
     return `${blockHeader("")}
     <div class="hs-card">
-        <a href="horarios.html" class="widget-title">📅 Mis horarios de la semana</a>
+        <a href="horarios.html" class="widget-title">📅 ${_t("Mis horarios de la semana")}</a>
         <div class="hs-grid">${celdas}</div>
     </div>`;
 }
 
 function blockHeader(label) {
-    return `<div class="block-label"><span class="block-drag">⠿</span>${label}</div>`;
+    return `<div class="block-label"><span class="block-drag">⠿</span>${_t(label)}</div>`;
 }
 
 function buildStats(b) {
@@ -859,7 +860,7 @@ function buildStats(b) {
         const v = d.data;
         return `
         <div class="sum-card ${d.cls}">
-            <div class="sum-title">${d.title}</div>
+            <div class="sum-title">${_t(d.title)}</div>
             <div class="sum-subtitle">${d.sub}</div>
             <div class="sum-total">${v ? fmtTotal(v.total) : "—"}</div>
             ${v && v.total_neto != null ? `<div style="font-size:12px;color: var(--tx-4, #9ca3af);margin-top:-4px;text-align:right;">${fmtTotal(v.total_neto)} sin imp.</div>` : ""}
@@ -964,7 +965,7 @@ function buildReservas(b) {
     return `${blockHeader("")}
     <div class="reservas-card">
         <div class="widget-head">
-            <a href="reservas.html" class="widget-title">📅 Reservas de hoy</a>
+            <a href="reservas.html" class="widget-title">📅 ${_t("Reservas de hoy")}</a>
             <div class="res-summary">
                 ${nProg     ? `<span class="res-badge prog">🟠 ${nProg} programada${nProg!==1?'s':''}</span>` : ''}
                 ${nEspera   ? `<span class="res-badge espera">🔵 ${nEspera} en espera</span>` : ''}
@@ -991,8 +992,8 @@ function buildAccesos(b) {
     const cards = mods.map(m => `
         <a href="${m.href}" class="module-card">
             <div class="module-icon">${m.icon}</div>
-            <div class="module-title">${m.title}</div>
-            <div class="module-desc">${m.desc}</div>
+            <div class="module-title">${_t(m.title)}</div>
+            <div class="module-desc">${_t(m.desc)}</div>
         </a>`).join("");
     return `${blockHeader("Accesos rápidos")}<div class="modules-grid modules-cols-${cn}">${cards}</div>`;
 }
@@ -1000,7 +1001,7 @@ function buildAccesos(b) {
 function buildStock(b) {
     return `${blockHeader("")}
     <div class="stock-card">
-        <a href="stock.html" class="widget-title">📦 Estado del stock</a>
+        <a href="stock.html" class="widget-title">📦 ${_t("Estado del stock")}</a>
         <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-ok"></div><span>OK</span></div><div class="stock-num" style="color: var(--ok-tx-2, #16a34a);">${stockData.ok}</div></div>
         <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-warn"></div><span>Advertencia</span></div><div class="stock-num" style="color: var(--fg-a45, #d97706);">${stockData.warn}</div></div>
         <div class="stock-row"><div style="display:flex;align-items:center;gap:8px;"><div class="stock-dot dot-red"></div><span>Agotados</span></div><div class="stock-num" style="color: var(--pel-tx-2, #dc2626);">${stockData.agotado}</div></div>
@@ -1013,8 +1014,8 @@ function buildQuick(b) {
     return `${blockHeader("")}
     <a href="${m.href}" class="module-card" style="min-height:120px;">
         <div class="module-icon">${m.icon}</div>
-        <div class="module-title">${m.title}</div>
-        <div class="module-desc">${m.desc}</div>
+        <div class="module-title">${_t(m.title)}</div>
+        <div class="module-desc">${_t(m.desc)}</div>
     </a>`;
 }
 
@@ -1143,7 +1144,7 @@ function buildVistaOnline(b) {
     return `${blockHeader("")}
     <div class="caja-card">
         <div class="widget-head">
-            <span class="widget-title" style="cursor:default">🛰️ Vista Online</span>
+            <span class="widget-title" style="cursor:default">🛰️ ${_t("Vista Online")}</span>
             ${cajaChip}
         </div>
         <div class="vo-grid">
@@ -1174,7 +1175,7 @@ function buildPersonalTurno(b) {
     const badge = `<span style="font-size:11px;background:${activos.length ? "#f0fdf4":"#f3f4f6"};color:${activos.length ? "#16a34a":"#9ca3af"};padding:2px 8px;border-radius:20px;font-weight:700">${activos.length} fichados</span>`;
     return `${blockHeader("")}
     <div class="personal-card">
-        <div class="widget-head"><a href="fichajes.html" class="widget-title">👥 Personal en turno</a>${badge}</div>
+        <div class="widget-head"><a href="fichajes.html" class="widget-title">👥 ${_t("Personal en turno")}</a>${badge}</div>
         ${activos.length ? rows : '<div class="res-empty">Sin personal fichado</div>'}
         ${activos.length > maxItems ? `<div style="font-size:11px;color: var(--tx-4, #9ca3af);text-align:center;padding:6px 0">+${activos.length - maxItems} más</div>` : ""}
     </div>`;
@@ -1196,7 +1197,7 @@ function buildVentas7Dias(b) {
         .slice(-7);
 
     if (!dias.length) return `${blockHeader("")}<div class="trend-card">
-        <div class="widget-head"><a href="estadisticas.html" class="widget-title">📈 Tendencia de ventas</a></div>
+        <div class="widget-head"><a href="estadisticas.html" class="widget-title">📈 ${_t("Tendencia de ventas")}</a></div>
         <div class="res-empty">Sin datos históricos disponibles</div></div>`;
 
     const maxVal  = Math.max(...dias.map(d => d.total), 1);
@@ -1222,7 +1223,7 @@ function buildVentas7Dias(b) {
     return `${blockHeader("")}
     <div class="trend-card">
         <div class="widget-head">
-            <a href="estadisticas.html" class="widget-title">📈 Tendencia de ventas — últimos ${dias.length} días</a>
+            <a href="estadisticas.html" class="widget-title">📈 ${_t("Tendencia de ventas")} — ${_t("últimos {n} días", { n: dias.length })}</a>
             <span style="font-size:11px;color: var(--tx-4, #9ca3af);">Prom. ${sym}${promDia.toLocaleString("es-AR",{maximumFractionDigits:0})}/día</span>
         </div>
         <div class="trend-bars">${barsHTML}</div>
@@ -1344,7 +1345,7 @@ function buildCblock(b) {
     // Acceso rápido individual: selector de módulo
     if (b.type === "quick") {
         const modOptions = ALL_MODULES.filter(m => _moduloHabilitado(_MOD_ACCESO[m.id])).map(m =>
-            `<option value="${m.id}" ${b.moduleId===m.id?"selected":""}>${m.icon} ${m.title}</option>`
+            `<option value="${m.id}" ${b.moduleId===m.id?"selected":""}>${m.icon} ${_t(m.title)}</option>`
         ).join("");
         opts += `<div class="opt-row"><span>Módulo</span>
             <select onchange="setQuickModule('${id}',this.value)" style="padding:3px 6px;border: 1px solid var(--bd-3, #d1d5db);border-radius:6px;font-size:12px;">
@@ -1357,7 +1358,7 @@ function buildCblock(b) {
         const items = ALL_MODULES.filter(m => _moduloHabilitado(_MOD_ACCESO[m.id])).map(m => {
             const on = (b.modules||[]).includes(m.id);
             return `<div class="mi-item">
-                <span>${m.icon}</span><span class="mi-name">${m.title}</span>
+                <span>${m.icon}</span><span class="mi-name">${_t(m.title)}</span>
                 <label class="tsw"><input type="checkbox" ${on?"checked":""} onchange="toggleModAcceso('${id}','${m.id}',this.checked)"><span class="tsl"></span></label>
             </div>`;
         }).join("");
@@ -1374,7 +1375,7 @@ function buildCblock(b) {
     return `<div class="cblock">
         <div class="cblock-head" onclick="toggleOpts('${id}')">
             <span class="cblock-drag">⠿</span>
-            <span class="cblock-name">${b.label} ${nuevoBadge}</span>
+            <span class="cblock-name">${_t(b.label)} ${nuevoBadge}</span>
             <span class="span-badge">${spanLabel}</span>
             ${canDelete ? `<button class="mi-del" onclick="event.stopPropagation();eliminarBloque('${id}')">✕</button>` : ""}
             <label class="tsw" onclick="event.stopPropagation()">
@@ -1537,7 +1538,7 @@ function _empBuildMuro() {
     }).join('') : '<div class="res-empty">Sin publicaciones</div>';
     return `${blockHeader("")}
     <div class="social-card">
-        <a href="social.html" class="widget-title">📣 Muro</a>
+        <a href="social.html" class="widget-title">📣 ${_t("Muro")}</a>
         <div class="social-list">${inner}</div>
     </div>`;
 }
