@@ -152,6 +152,151 @@
         return s;
     }
 
+    // ── Frases con datos: la clave "{0} productos" cubre "12 productos". Se indexan por las
+    //    primeras letras fijas para no probar cientos de expresiones por cada texto.
+    var PAT = [], PAT_IDX = {};
+    function _compilar(k) {
+        if (k.indexOf("{") < 0) return;
+        var nombres = [], rx = "";
+        k.split(/(\{\w+\})/).forEach(function (p) {
+            var m = /^\{(\w+)\}$/.exec(p);
+            if (m) { nombres.push(m[1]); rx += "([\\s\\S]*?)"; }   // puede venir vacío ("programada{1}")
+            else rx += p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        });
+        // Frases con poco texto fijo ("{0} de {1}") sólo valen con datos cortos: si no, se
+        // comerían una oración entera que casualmente tiene un " de " en el medio.
+        var fijo = k.replace(/\{\w+\}/g, "").replace(/\s+/g, "").length;
+        var it = { re: new RegExp("^" + rx + "$"), nombres: nombres, k: k, maxDato: fijo < 10 ? 25 : 400 };
+        var pre = k.split("{")[0].slice(0, 3).toLowerCase();
+        if (pre.length === 3) (PAT_IDX[pre] = PAT_IDX[pre] || []).push(it);
+        else PAT.push(it);
+    }
+    Object.keys(D).forEach(_compilar);
+    // Diccionarios por página (js/i18n/<pagina>.js) y el común.
+    function agregar(obj) {
+        for (var k in obj) { if (!(k in D)) _compilar(k); D[k] = obj[k]; }
+    }
+    function _de(k) { var v = D[k]; return v ? (v[LANG === "en" ? 0 : 1] || k) : null; }
+    function _patron(s) {
+        var lista = (PAT_IDX[s.slice(0, 3).toLowerCase()] || []).concat(PAT);
+        for (var i = 0; i < lista.length; i++) {
+            var m = lista[i].re.exec(s);
+            if (!m) continue;
+            var largo = false;
+            for (var q = 1; q < m.length; q++) if (m[q].length > lista[i].maxDato) largo = true;
+            if (largo) continue;
+            var out = _de(lista[i].k);
+            for (var j = 0; j < lista[i].nombres.length; j++) {
+                var parte = m[j + 1], tr = _de(parte.trim());
+                out = out.split("{" + lista[i].nombres[j] + "}").join(tr != null ? tr : parte);
+            }
+            return out;
+        }
+        return null;
+    }
+    // Traduce un texto ya armado: exacto, sin el emoji/símbolo del principio, o por patrón.
+    // Conserva los espacios de los bordes (el texto vive entre otras etiquetas).
+    function traducir(texto) {
+        if (LANG === "es" || !texto) return texto;
+        var m = /^(\s*)([\s\S]*?)(\s*)$/.exec(texto), ini = m[1], fin = m[3];
+        // El HTML trae saltos de línea y sangrías dentro de los textos largos: se comparan
+        // con los espacios normalizados (en pantalla se ven igual).
+        var core = m[2].indexOf("\n") >= 0 && !/\n\s*\n/.test(m[2]) ? m[2].replace(/\s+/g, " ") : m[2];
+        if (!core) return texto;
+        var r = _de(core);
+        if (r != null) return ini + r + fin;
+        var p = /^([^A-Za-zÀ-ÿ¿¡0-9"'(]+)([\s\S]+)$/.exec(core);
+        if (p) {
+            r = _de(p[2]);
+            if (r != null) return ini + p[1] + r + fin;
+            r = _patron(p[2]);
+            if (r != null) return ini + p[1] + r + fin;
+        }
+        r = _patron(core);
+        if (r != null) return ini + r + fin;
+        // Avisos de varias líneas: línea por línea.
+        if (core.indexOf("\n") >= 0) {
+            var lineas = core.split("\n"), cambio = false;
+            for (var i = 0; i < lineas.length; i++) {
+                var tl = traducir(lineas[i]);
+                if (tl !== lineas[i]) { lineas[i] = tl; cambio = true; }
+            }
+            if (cambio) return ini + lineas.join("\n") + fin;
+        }
+        return texto;
+    }
+
+    // ── Traducción automática de lo que se ve (estático y lo que las páginas arman por JS) ──
+    var SALTAR = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, CODE: 1, PRE: 1, NOSCRIPT: 1 };
+    var ATTRS = ["placeholder", "title", "aria-label"];
+    function _saltarEl(el) {
+        return SALTAR[el.tagName] || el.isContentEditable || el.hasAttribute("data-no-i18n") ||
+               (el.classList && el.classList.contains("idiomas"));
+    }
+    function _saltar(el) {
+        for (; el && el.nodeType === 1; el = el.parentNode) if (_saltarEl(el)) return true;
+        return false;
+    }
+    function _texto(n) {
+        var v = n.nodeValue;
+        if (!v || !/[A-Za-zÀ-ÿ]/.test(v)) return;
+        var t2 = traducir(v);
+        if (t2 !== v) n.nodeValue = t2;
+    }
+    function _attrs(el) {
+        for (var i = 0; i < ATTRS.length; i++) {
+            var a = el.getAttribute(ATTRS[i]);
+            if (a && /[A-Za-zÀ-ÿ]/.test(a)) { var t2 = traducir(a); if (t2 !== a) el.setAttribute(ATTRS[i], t2); }
+        }
+        if (el.tagName === "INPUT" && (el.type === "button" || el.type === "submit") && el.value) {
+            var tv = traducir(el.value); if (tv !== el.value) el.value = tv;
+        }
+    }
+    function _filtro(n) {
+        if (n.nodeType !== 1 || !_saltarEl(n)) return NodeFilter.FILTER_ACCEPT;
+        // De un <textarea> no se toca lo escrito, pero sí el placeholder.
+        if (n.tagName === "TEXTAREA") _attrs(n);
+        return NodeFilter.FILTER_REJECT;
+    }
+    function traducirArbol(raiz) {
+        if (LANG === "es" || !raiz) return;
+        if (raiz.nodeType === 3) { if (!_saltar(raiz.parentNode)) _texto(raiz); return; }
+        if (raiz.nodeType !== 1 || _saltar(raiz)) return;
+        _attrs(raiz);
+        var w = document.createTreeWalker(raiz, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, { acceptNode: _filtro });
+        var n;
+        while ((n = w.nextNode())) { if (n.nodeType === 3) _texto(n); else _attrs(n); }
+    }
+    function _observar() {
+        if (LANG === "es" || !window.MutationObserver) return;
+        new MutationObserver(function (muts) {
+            for (var i = 0; i < muts.length; i++) {
+                var m = muts[i];
+                if (m.type === "childList") {
+                    for (var j = 0; j < m.addedNodes.length; j++) traducirArbol(m.addedNodes[j]);
+                } else if (m.type === "characterData") {
+                    if (!_saltar(m.target.parentNode)) _texto(m.target);
+                } else if (m.type === "attributes" &&
+                           !_saltar(m.target.tagName === "TEXTAREA" ? m.target.parentNode : m.target)) {
+                    _attrs(m.target);
+                }
+            }
+        }).observe(document.documentElement, { childList: true, subtree: true, characterData: true,
+                                               attributes: true, attributeFilter: ATTRS });
+    }
+    // Los avisos del navegador también.
+    if (LANG !== "es") {
+        ["alert", "confirm", "prompt"].forEach(function (f) {
+            var orig = window[f];
+            if (typeof orig !== "function") return;
+            window[f] = function (msg) {
+                var a = Array.prototype.slice.call(arguments);
+                if (typeof msg === "string") a[0] = traducir(msg);
+                return orig.apply(window, a);
+            };
+        });
+    }
+
     // Marca en el HTML: data-i18n (texto; vacío = el texto propio del elemento),
     // data-i18n-html (permite <b>), data-i18n-ph (placeholder), data-i18n-title.
     function aplicar(raiz) {
@@ -248,10 +393,20 @@
     }
 
     document.documentElement.lang = LANG;
-    window.I18N = { idioma: function () { return LANG; }, t: t, aplicar: aplicar, set: set, selector: selector, dic: D };
-    window._t = t;
+    window.I18N = { idioma: function () { return LANG; }, t: t, aplicar: aplicar, set: set, selector: selector, dic: D,
+                    agregar: agregar, traducir: traducir, traducirArbol: traducirArbol };
+    // _t: lo que arma el JS. Con el diccionario de la página cargado, cubre también frases con datos.
+    window._t = function (es, vars) { return vars ? t(es, vars) : traducir(es); };
     aplicar(document);
-    function _alCargar() { aplicar(document); _montar(); _sincronizar(); }
+    function _alCargar() {
+        aplicar(document); _montar(); _sincronizar();
+        // Para acá ya cargaron el diccionario común y el de la página (van después de este archivo).
+        if (LANG !== "es") {
+            if (document.title) document.title = traducir(document.title);
+            traducirArbol(document.body);
+            _observar();
+        }
+    }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", _alCargar);
     else _alCargar();
 })();
