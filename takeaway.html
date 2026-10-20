@@ -229,6 +229,9 @@ input:focus, textarea:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba
 .check input{ width:20px; height:20px; margin:1px 0 0; accent-color:var(--navy); flex:none; }
 .err{ background:var(--pel-sf); color:var(--pel); border-radius:14px; padding:12px 14px; font-size:14.5px; }
 .nota{ font-size:14px; color:var(--tx-3); margin:0; }
+/* Nota del local sobre el producto ("contiene frutos secos"): se distingue de la descripción. */
+.nota-prod{ margin:0; padding:10px 14px; border-radius:12px; background:var(--sup-2); border-left:3px solid var(--navy);
+    font-size:14.5px; color:var(--tx-2); }
 .hp{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
 
 /* ── Seguimiento del pedido ── */
@@ -701,6 +704,7 @@ function abrirProducto(id) {
         <div class="cuerpo">
             <h2>${esc(p.nombre)}</h2>
             ${p.descripcion ? `<p class="desc">${esc(p.descripcion)}</p>` : ''}
+            ${p.nota ? `<p class="nota-prod">${esc(p.nota)}</p>` : ''}
             ${p.extras.length ? `<span class="lbl">${esc(t('extras_t'))}</span><div class="extras">${p.extras.map(e => `
                 <label class="extra"><input type="checkbox" onchange="marcarExtra(${e.id}, this.checked)">${esc(e.nombre)}
                     <span class="p">+ ${esc(dinero(e.precio))}</span></label>`).join('')}</div>` : ''}

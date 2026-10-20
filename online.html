@@ -470,9 +470,16 @@
             </div>
             <div class="checkbox-row"><input type="checkbox" id="tk-mp-destacado"><label for="tk-mp-destacado">Destacado en el inicio</label></div>
             <div class="checkbox-row"><input type="checkbox" id="tk-mp-activo" checked><label for="tk-mp-activo">Visible en la web</label></div>
+            <div class="form-group"><label>Nota para el cliente <span style="font-weight:400;color:var(--tx-9,#64748b);">(opcional)</span></label>
+                <textarea id="tk-mp-nota" maxlength="200" rows="2" placeholder="Ej: Contiene frutos secos"
+                          style="width:100%;resize:vertical;"></textarea>
+                <div style="font-size:11.5px;color:var(--tx-9,#64748b);margin-top:3px;">La ve el cliente al abrir el producto en la tienda.</div></div>
             <div class="form-group"><label>Extras que el cliente puede sumar</label>
                 <div id="tk-mp-extras"></div>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="tkAgregarExtra()">+ Extra</button></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <select id="tk-mp-extra-menu" onchange="tkElegirExtraMenu(this)" style="flex:1;min-width:200px;"></select>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="tkAgregarExtra()">+ Extra a mano</button>
+                </div></div>
             <div class="modal-footer">
                 <button class="btn btn-danger" id="tk-mp-borrar" onclick="tkBorrarProducto()" style="margin-right:auto;">Quitar del take away</button>
                 <button class="btn btn-secondary" onclick="tkCerrar('tk-modal-prod')">Cancelar</button>
@@ -851,12 +858,13 @@ async function tkEditarProducto(id) {
     val('tk-mp-desde', p && p.promo_desde); val('tk-mp-hasta', p && p.promo_hasta);
     document.getElementById('tk-mp-destacado').checked = !!(p && p.destacado);
     document.getElementById('tk-mp-activo').checked = p ? !!p.activo : true;
+    val('tk-mp-nota', p && p.nota);
     const catDef = p ? p.categoria_id : (typeof _tk.catSel === 'number' ? _tk.catSel : null);
     document.getElementById('tk-mp-cat').innerHTML = '<option value="">Sin categoría</option>' +
         _tk.menu.categorias.map(c => `<option value="${c.id}"${c.id === catDef ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('');
     document.getElementById('tk-mp-extras').innerHTML = '';
     (p ? p.extras : []).forEach(e => tkAgregarExtra(e));
-    tkFiltrarMenu();
+    tkFiltrarMenu();   // también pinta los extras del Menú (según la categoría del producto)
     document.getElementById('tk-modal-prod').classList.add('active');
     setTimeout(() => document.getElementById('tk-mp-buscar').focus(), 50);
 }
@@ -882,6 +890,7 @@ function tkPintarElegido() {
         <div style="color:var(--tx-9,#64748b);font-size:12px;">Nombre y descripción se cambian en el Menú. Abajo podés poner una foto sólo para la web.</div></div>`;
     document.getElementById('tk-mp-precio').placeholder = `${_tkMoney(x.precio)} (el del Menú)`;
     tkPintarFotoWeb();
+    tkPintarExtrasMenu();
 }
 // Foto para la web: propia del take away (promo, combo, evento) o, si no hay, la del Menú.
 function tkPintarFotoWeb() {
@@ -906,11 +915,49 @@ function tkQuitarFotoWeb() { _tk.fotoWeb = null; tkPintarFotoWeb(); }
 function tkAgregarExtra(e) {
     const div = document.createElement('div');
     div.className = 'tk-extra';
-    div.innerHTML = `<input type="text" class="tk-ex-nom" maxlength="80" placeholder="Ej: Queso extra" value="${escAttr(e ? e.nombre : '')}">
-        <input type="number" class="tk-ex-pre" min="0" step="0.01" placeholder="Precio" value="${e ? e.precio : ''}">
-        <button type="button" class="tk-mini" title="Quitar" onclick="this.parentElement.remove()">✕</button>`;
+    // Vinculado a un producto del Menú: el precio es el de ese extra (lo que cobra la tienda)
+    // y se cambia en el Menú; acá queda fijo para no prometer un precio que no se cobra.
+    const vinc = !!(e && e.producto_id);
+    const avisoOff = vinc && e.extra_activo === false ? ' — desactivado en el Menú: la tienda no lo ofrece' : '';
+    div.innerHTML = `<input type="text" class="tk-ex-nom" maxlength="80" placeholder="Ej: Queso extra" value="${escAttr(e ? e.nombre : '')}"
+            ${vinc ? `title="${escAttr('Extra del Menú' + avisoOff)}"` : ''} style="${avisoOff ? 'text-decoration:line-through;' : ''}">
+        <input type="number" class="tk-ex-pre" min="0" step="0.01" placeholder="Precio" value="${e ? e.precio : ''}"
+            ${vinc ? `readonly title="${escAttr('Precio del extra en el Menú (se cambia ahí)')}" style="background:var(--sup-3,#f1f5f9);"` : ''}>
+        <button type="button" class="tk-mini" title="Quitar" onclick="this.parentElement.remove();tkPintarExtrasMenu()">✕</button>`;
     if (e && e.producto_id) div.dataset.prod = e.producto_id;
     document.getElementById('tk-mp-extras').appendChild(div);
+}
+// Extras del Menú: los productos habilitados como extra (Stock › "se puede agregar como
+// extra"). Primero los que aplican a la categoría del producto elegido; los ya agregados
+// no se repiten. Elegir uno lo suma con su nombre, su precio y el vínculo al producto.
+function tkPintarExtrasMenu() {
+    const sel = document.getElementById('tk-mp-extra-menu');
+    if (!sel) return;
+    const cat = _tk.catalogo || {};
+    const todos = cat.extras || [];
+    const prod = (cat.productos || []).find(y => y.id === _tk.prodElegido);
+    const catProd = prod ? prod.categoria_id : null;
+    const ya = new Set([...document.querySelectorAll('#tk-mp-extras .tk-extra')]
+        .map(r => Number(r.dataset.prod)).filter(Boolean));
+    const libres = todos.filter(e => !ya.has(e.id));
+    const deCat = libres.filter(e => catProd != null && (e.categorias || []).includes(catProd));
+    const otros = libres.filter(e => !deCat.includes(e));
+    const opt = (e) => `<option value="${e.id}">${esc(e.nombre)} — ${_tkMoney(e.precio)}</option>`;
+    if (!todos.length) {
+        sel.innerHTML = '<option value="">No hay productos habilitados como extra</option>';
+        sel.disabled = true; return;
+    }
+    sel.disabled = !libres.length;
+    sel.innerHTML = `<option value="">${libres.length ? '＋ Agregar un extra del Menú…' : 'Ya están todos los extras del Menú'}</option>`
+        + (deCat.length ? `<optgroup label="Para esta categoría">${deCat.map(opt).join('')}</optgroup>` : '')
+        + (otros.length ? `<optgroup label="${deCat.length ? 'Otros extras' : 'Extras del Menú'}">${otros.map(opt).join('')}</optgroup>` : '');
+}
+function tkElegirExtraMenu(sel) {
+    const e = ((_tk.catalogo || {}).extras || []).find(x => x.id === Number(sel.value));
+    sel.value = '';
+    if (!e) return;
+    tkAgregarExtra({ nombre: e.nombre, precio: e.precio, producto_id: e.id });
+    tkPintarExtrasMenu();
 }
 async function tkSubirImagen(tipo, input) {
     const f = input.files && input.files[0]; input.value = '';
@@ -933,6 +980,7 @@ async function tkGuardarProducto() {
         destacado: document.getElementById('tk-mp-destacado').checked,
         activo: document.getElementById('tk-mp-activo').checked,
         imagen_url: _tk.fotoWeb || null,
+        nota: v('tk-mp-nota') || null,
         extras: [...document.querySelectorAll('#tk-mp-extras .tk-extra')].map(r => ({
             nombre: r.querySelector('.tk-ex-nom').value.trim(),
             precio: Number(r.querySelector('.tk-ex-pre').value || 0),
