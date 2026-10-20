@@ -419,6 +419,11 @@
                                 style="font-size:12px;padding:7px 10px;border: 1.5px dashed var(--ac-bd-2, #c4b5fd);color: var(--tx-ac-2, #7c3aed);background: var(--sup-2, #faf5ff);font-weight:700;">
                             🗂️ ＋ Agrupación
                         </button>
+                        <button class="btn btn-secondary" onclick="abrirCargo()"
+                                title="Un botón sin producto: nombre y precio a elección (o el precio se pone al usarlo). Sirve para cargos y ajustes de cuenta."
+                                style="font-size:12px;padding:7px 10px;border: 1.5px dashed var(--av-bd, #fcd34d);color: var(--av-tx, #92400e);background: var(--av-sf, #fffbeb);font-weight:700;">
+                            💲 ＋ Botón personalizado
+                        </button>
                         <div id="menu-prod-lista" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
                     </div>
                 </div>
@@ -531,6 +536,31 @@
         <div style="font-size:11px;color: var(--tx-4, #9ca3af);">Para sumar productos: cerrá esta ventana y arrastralos a la celda de la agrupación, o seleccioná la celda y hacé clic en el producto.</div>
         <div class="modal-footer">
             <button class="btn btn-primary" onclick="cerrarModal('modal-grupo');renderMenuGrid();">Listo</button>
+        </div>
+    </div>
+</div>
+
+<!-- Botón personalizado del menú: un cargo sin producto (nombre + precio opcional). -->
+<div class="modal-overlay" id="modal-cargo">
+    <div class="modal" style="max-width:440px;">
+        <h3>💲 Botón personalizado</h3>
+        <p style="font-size:12.5px;color: var(--tx-5, #888);margin:0 0 12px;line-height:1.5;">No está atado a ningún producto: al tocarlo en la comanda suma a la cuenta una línea con este nombre y este precio. No va a cocina ni descuenta stock.</p>
+        <div class="form-group">
+            <label>Nombre del botón *</label>
+            <input type="text" id="cargo-nombre" maxlength="100" placeholder="Ej: Cargo por servicio">
+        </div>
+        <div class="form-group">
+            <label>Precio</label>
+            <input type="number" id="cargo-precio" min="0" step="0.01" placeholder="Vacío = se pone al usarlo">
+            <div style="font-size:11.5px;color: var(--tx-4, #9ca3af);margin-top:4px;">Si lo dejás vacío, al tocar el botón se pregunta el importe.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <span style="font-size:12px;color: var(--tx-7, #666);font-weight:600;">Color de la etiqueta:</span>
+            <div id="cargo-colores" style="display:flex;gap:6px;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-cargo')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarCargo()">Listo</button>
         </div>
     </div>
 </div>
@@ -1566,6 +1596,9 @@ let _menuLocalItems  = {};   // "f,c" → valor: >0 prodId, <0 -comboId
 let _menuLocalColors = {};   // "f,c" → color key
 let _menuGrupos      = {};   // "f,c" → { nombre, miembros:[{val,color}] }  (celda = agrupación)
 let _grupoAbierto    = null; // "f,c" de la agrupación abierta en el sub-editor
+let _menuCargos      = {};   // "f,c" → { nombre, precio|null }  (botón personalizado, sin producto)
+let _cargoAbierto    = null; // "f,c" del botón personalizado en edición (null = nuevo)
+let _cargoColor      = 'yellow';
 let _menuProdColors  = {};   // prodId/comboKey → color key seleccionado en sidebar
 let _menuCeldaSel = null;
 let _menuDragProdId = null;   // >0 producto, <0 combo (-comboId)
@@ -1659,9 +1692,13 @@ async function seleccionarPagina(id) {
     _menuLocalItems  = {};
     _menuLocalColors = {};
     _menuGrupos      = {};
+    _menuCargos      = {};
     (_menuLayout.items || []).forEach(it => {
         const key = `${it.fila},${it.columna}`;
-        if (it.nombre) {
+        if (it.cargo_nombre) {
+            _menuCargos[key] = { nombre: it.cargo_nombre,
+                                 precio: it.cargo_precio != null ? Number(it.cargo_precio) : null };
+        } else if (it.nombre) {
             // Agrupación: sus miembros ordenados por sub-posición (fila,columna).
             const miembros = (it.miembros || [])
                 .slice().sort((a, b) => (a.fila - b.fila) || (a.columna - b.columna))
@@ -1760,7 +1797,28 @@ function renderMenuGrid() {
             const prodId = _menuLocalItems[key];
             const esSel = _menuCeldaSel && _menuCeldaSel.fila === f && _menuCeldaSel.col === c;
             const borde = esSel ? '2px solid #4f46e5' : '2px solid #e0e0e0';
-            if (_menuGrupos[key]) {
+            if (_menuCargos[key]) {
+                // Botón personalizado: nombre + precio (o "precio al usarlo"). Doble click = editar.
+                const cg = _menuCargos[key];
+                const cl = MENU_COLORS[_menuLocalColors[key] || 'yellow'] || MENU_COLORS.yellow;
+                const borderColor = esSel ? '#4f46e5' : cl.border;
+                const precioTxt = cg.precio != null ? `${simboloMoneda()} ${cg.precio.toFixed(2)}` : _t('Precio al usarlo');
+                html += `<div class="menu-cell" data-fila="${f}" data-col="${c}"
+                    draggable="true"
+                    style="background:${cl.bg};border:2px dashed ${borderColor};border-radius:8px;padding:6px;min-height:70px;cursor:grab;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:700;color:${cl.text};"
+                    ondragstart="onDragStartCell(event,${f},${c})"
+                    ondragover="event.preventDefault()"
+                    ondrop="onDropCell(event,${f},${c})"
+                    onclick="onClickCell(${f},${c})"
+                    ondblclick="abrirCargo(${f},${c})"
+                    title="${esc(_t('Botón personalizado — doble click para editar'))}">
+                    <div style="font-size:15px;line-height:1;">💲</div>
+                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${esc(cg.nombre)}</div>
+                    <div style="font-size:10px;font-weight:600;opacity:.75;">${esc(precioTxt)}</div>
+                    <button onclick="event.stopPropagation();quitarDeCelda(${f},${c})"
+                        style="position:absolute;top:3px;right:3px;background:none;border:none;cursor:pointer;color: var(--pel-tx-2, #dc2626);font-size:14px;line-height:1;">✕</button>
+                </div>`;
+            } else if (_menuGrupos[key]) {
                 // Celda-AGRUPACIÓN: botón con nombre + cant. de ítems. Doble click = editar.
                 const g = _menuGrupos[key];
                 const colorKey = _menuLocalColors[key] || 'blue';
@@ -1910,13 +1968,14 @@ function onDropCell(e, fila, col) {
         if (srcKey === destKey) { _menuDragFromCell = null; return; }
         const sP = _menuLocalItems[srcKey], dP = _menuLocalItems[destKey];
         const sG = _menuGrupos[srcKey],     dG = _menuGrupos[destKey];
+        const sK = _menuCargos[srcKey],     dK = _menuCargos[destKey];
         const sCol = _menuLocalColors[srcKey], dCol = _menuLocalColors[destKey];
-        [srcKey, destKey].forEach(k => { delete _menuLocalItems[k]; delete _menuGrupos[k]; delete _menuLocalColors[k]; });
+        [srcKey, destKey].forEach(k => { delete _menuLocalItems[k]; delete _menuGrupos[k]; delete _menuCargos[k]; delete _menuLocalColors[k]; });
         // contenido de src → dest
-        if (sG) _menuGrupos[destKey] = sG; else if (sP) _menuLocalItems[destKey] = sP;
+        if (sG) _menuGrupos[destKey] = sG; else if (sK) _menuCargos[destKey] = sK; else if (sP) _menuLocalItems[destKey] = sP;
         if (sCol) _menuLocalColors[destKey] = sCol;
         // contenido de dest → src
-        if (dG) _menuGrupos[srcKey] = dG; else if (dP) _menuLocalItems[srcKey] = dP;
+        if (dG) _menuGrupos[srcKey] = dG; else if (dK) _menuCargos[srcKey] = dK; else if (dP) _menuLocalItems[srcKey] = dP;
         if (dCol) _menuLocalColors[srcKey] = dCol;
         _menuDragFromCell = null;
     } else if (_menuDragProdId !== null) {
@@ -1927,6 +1986,10 @@ function onDropCell(e, fila, col) {
             _menuDragProdId = null;
             renderMenuGrid();
             return;
+        }
+        if (_menuCargos[destKey]) {
+            if (!confirm(_t('Esta celda ya tiene "{0}". ¿Reemplazar?', {0: _menuCargos[destKey].nombre}))) { _menuDragProdId = null; return; }
+            delete _menuCargos[destKey];
         }
         if (_menuLocalItems[destKey] && _menuLocalItems[destKey] !== _menuDragProdId) {
             const actual = _menuLocalItems[destKey] < 0
@@ -1966,6 +2029,10 @@ function onClickProd(id) {
         renderMenuGrid();
         return;
     }
+    if (_menuCargos[key]) {
+        if (!confirm(_t('Esta celda ya tiene "{0}". ¿Reemplazar?', {0: _menuCargos[key].nombre}))) return;
+        delete _menuCargos[key];
+    }
     if (_menuLocalItems[key] && _menuLocalItems[key] !== id) {
         const cur = _menuLocalItems[key];
         const actual = cur < 0
@@ -1985,6 +2052,7 @@ function quitarDeCelda(fila, col) {
         !confirm(`¿Eliminar la agrupación "${_menuGrupos[key].nombre}" y sus ${_menuGrupos[key].miembros.length} ítem(s)?`)) return;
     delete _menuLocalItems[key];
     delete _menuGrupos[key];
+    delete _menuCargos[key];
     renderMenuGrid();
 }
 
@@ -1993,7 +2061,7 @@ function _primeraCeldaLibre() {
     for (let f = 0; f < _menuLayout.filas; f++)
         for (let c = 0; c < _menuLayout.columnas; c++) {
             const k = `${f},${c}`;
-            if (!_menuLocalItems[k] && !_menuGrupos[k]) return k;
+            if (!_menuLocalItems[k] && !_menuGrupos[k] && !_menuCargos[k]) return k;
         }
     return null;
 }
@@ -2023,6 +2091,53 @@ function _agregarMiembroGrupo(key, val) {
 function _nombreDe(val) {
     const obj = val < 0 ? _menuCombos.find(c => c.id === -val) : _menuProds.find(p => p.id === val);
     return obj ? obj.nombre : (val < 0 ? `🍱#${-val}` : `#${val}`);
+}
+
+// ── Botón personalizado (cargo sin producto) ──────────────────
+// Sin argumentos = nuevo (en la celda vacía seleccionada o en la primera libre).
+function abrirCargo(fila, col) {
+    if (!_menuPagId || !_menuLayout) { alert('Seleccioná una página de menú primero.'); return; }
+    const key = fila != null ? `${fila},${col}` : null;
+    _cargoAbierto = key && _menuCargos[key] ? key : null;
+    const cg = _cargoAbierto ? _menuCargos[_cargoAbierto] : null;
+    document.getElementById('cargo-nombre').value = cg ? cg.nombre : '';
+    document.getElementById('cargo-precio').value = cg && cg.precio != null ? cg.precio : '';
+    _cargoColor = (_cargoAbierto && _menuLocalColors[_cargoAbierto]) || 'yellow';
+    _renderCargoColores();
+    document.getElementById('modal-cargo').classList.add('active');
+    setTimeout(() => document.getElementById('cargo-nombre').focus(), 50);
+}
+function _renderCargoColores() {
+    document.getElementById('cargo-colores').innerHTML = ['green', 'red', 'blue', 'yellow'].map(ck => {
+        const sc = MENU_COLORS[ck];
+        const ring = _cargoColor === ck ? `box-shadow:0 0 0 2px white,0 0 0 3.5px ${sc.swatch};` : '';
+        return `<div onclick="_cargoColor='${ck}';_renderCargoColores()" style="width:22px;height:22px;background:${sc.swatch};border-radius:5px;cursor:pointer;${ring}"></div>`;
+    }).join('');
+}
+function guardarCargo() {
+    const nombre = document.getElementById('cargo-nombre').value.trim();
+    if (!nombre) { alert('Escribí un nombre.'); return; }
+    const txtPrecio = document.getElementById('cargo-precio').value.trim();
+    let precio = null;
+    if (txtPrecio !== '') {
+        precio = parseFloat(txtPrecio.replace(',', '.'));
+        if (isNaN(precio) || precio < 0) { alert('Poné un precio válido (0 o más), o dejalo vacío.'); return; }
+    }
+    let key = _cargoAbierto;
+    if (!key) {
+        // Nuevo: la celda vacía seleccionada, o la primera libre.
+        if (_menuCeldaSel) {
+            const k = `${_menuCeldaSel.fila},${_menuCeldaSel.col}`;
+            if (!_menuLocalItems[k] && !_menuGrupos[k] && !_menuCargos[k]) key = k;
+        }
+        if (!key) key = _primeraCeldaLibre();
+        if (!key) { alert('No hay celdas libres. Agrandá la grilla o liberá una celda.'); return; }
+    }
+    _menuCargos[key] = { nombre, precio };
+    _menuLocalColors[key] = _cargoColor;
+    _menuCeldaSel = null;
+    cerrarModal('modal-cargo');
+    renderMenuGrid();
 }
 
 // ── Sub-editor de agrupación ──────────────────────────────────
@@ -2116,6 +2231,12 @@ async function guardarMenuDiseno() {
                 : { fila: mf, columna: mc, producto_id: m.val, combo_id: null, color: m.color || 'green' };
         });
         items.push({ fila: f, columna: c, nombre: g.nombre, color, miembros });
+    });
+    // Botones personalizados: sin producto ni combo; precio null = se pregunta al usarlo.
+    Object.entries(_menuCargos).forEach(([key, cg]) => {
+        const [f, c] = key.split(',').map(Number);
+        items.push({ fila: f, columna: c, color: _menuLocalColors[key] || 'yellow',
+                     cargo_nombre: cg.nombre, cargo_precio: cg.precio });
     });
     try {
         await api.put(`/menu/paginas/${_menuPagId}/layout`, {
