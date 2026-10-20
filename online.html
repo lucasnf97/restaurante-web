@@ -194,7 +194,7 @@
 
         <!-- PEDIDOS DE HOY: lo que entró por la web (se actualiza solo) -->
         <div class="tk-panel" id="tk-p-pedidos">
-            <div class="card" style="margin-bottom:14px;font-size:12.5px;color: var(--tx-9, #64748b);">
+            <div class="card" style="margin-bottom:14px;font-size:12.5px;color: var(--tx-9, #64748b);" data-i18n-html>
                 Los pedidos pagados entran solos a cocina (los programados, un rato antes de la hora de retiro).
                 Cuando cocina marca la comanda como entregada, el pedido se cierra solo; <b>Entregar</b> lo cierra a mano.
             </div>
@@ -209,7 +209,7 @@
         <!-- MENÚ ONLINE: productos del Menú agrupados en categorías propias del take away -->
         <div class="tk-panel" id="tk-p-menu">
             <div class="card" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                <div style="flex:1;min-width:220px;font-size:12.5px;color: var(--tx-9, #64748b);">
+                <div style="flex:1;min-width:220px;font-size:12.5px;color: var(--tx-9, #64748b);" data-i18n-html>
                     Lo que ve el cliente en la web. Son productos del <b>Menú</b> (estén o no en la carta del salón),
                     agrupados en categorías propias del take away. Nombre y descripción salen del Menú; acá podés
                     poner un precio para llevar, promos, extras y una foto sólo para la web (un combo, una promo,
@@ -253,7 +253,7 @@
                                 <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="tkSubirFotoTienda(this)"></label>
                             <button type="button" class="btn btn-secondary btn-sm" onclick="tkQuitarFotoTienda()">Quitar</button>
                         </div></div>
-                    <p style="font-size:12px;color: var(--tx-9, #64748b);margin-top:8px;">El horario de retiro es el horario del local
+                    <p style="font-size:12px;color: var(--tx-9, #64748b);margin-top:8px;" data-i18n-html>El horario de retiro es el horario del local
                         (<a href="reservas.html">Reservas › Horarios</a>). La dirección y el contacto son los de
                         <a href="online.html?s=reservas">Online › Reservas</a>.</p>
                 </div>
@@ -291,7 +291,7 @@
         <!-- PÁGINA DEL LOCAL: el Inicio de la web de take away de este local -->
         <div class="tk-panel" id="tk-p-sitio">
             <div class="card" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                <div style="flex:1;min-width:220px;font-size:12.5px;color: var(--tx-9, #64748b);" id="tk-sitio-aviso">
+                <div style="flex:1;min-width:220px;font-size:12.5px;color: var(--tx-9, #64748b);" id="tk-sitio-aviso" data-i18n-html>
                     El Inicio de la página de pedidos de <b>este local</b>: portada, información y promociones.
                     "Pedir ahora" lleva al menú.</div>
                 <a id="tk-ver-sitio" class="btn btn-secondary btn-sm" target="_blank" rel="noopener" href="#">Ver la página ↗</a>
@@ -371,7 +371,7 @@
                     <label>Redes sociales y web</label>
                     <div id="ol-redes-lista" class="ol-redes"></div>
                     <button type="button" class="btn btn-secondary btn-sm" onclick="olAgregarRed()" style="margin-top:6px;">+ Agregar red</button>
-                    <span style="display:block;font-size:11.5px;color: var(--tx-9, #64748b);margin-top:6px;">
+                    <span style="display:block;font-size:11.5px;color: var(--tx-9, #64748b);margin-top:6px;" data-i18n-html>
                         <b>Texto</b> = lo que ve el cliente · <b>Enlace</b> = a dónde lo lleva al tocarlo.
                         Si dejás el enlace vacío en Instagram, Facebook o TikTok, se arma solo con el usuario.</span>
                 </div>
@@ -499,6 +499,7 @@
 </div>
 <script src="js/i18n.js"></script>
 <script src="js/i18n/comun.js"></script>
+<script src="js/i18n/online.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
@@ -563,11 +564,11 @@ function _olPreview(){
     const tel = document.getElementById('ol-tel').value.trim();
     const em  = document.getElementById('ol-email').value.trim();
     if(tel) partes.push('Tel. ' + tel);
-    if(em)  partes.push('Correo: ' + em);
+    if(em)  partes.push(_t('Correo:') + ' ' + em);
     if(max){
         pv.style.display = '';
-        pv.textContent = `El cliente verá: "¿Son más de ${max}? Contactate con el restaurante` +
-            (partes.length ? ': ' + partes.join(' · ') : '') + '."';
+        pv.textContent = _t('El cliente verá: "¿Son más de {0}? Contactate con el restaurante{1}."',
+            {0: max, 1: partes.length ? ': ' + partes.join(' · ') : ''});
     }else{
         pv.style.display = 'none';
     }
@@ -987,8 +988,9 @@ async function tkImportar() {
             incluir_extras: document.getElementById('tk-imp-extras').checked,
         });
         msg.style.color = r.omitidos ? 'var(--adv-tx, #b45309)' : 'var(--ok-tx, #15803d)';
-        msg.textContent = `✅ ${r.creados} importado${r.creados === 1 ? '' : 's'}.` + (r.omitidos
-            ? ` ⚠️ Ya estaban en el take away y no se duplicaron: ${r.omitidos_nombres.join(', ')}.` : '');
+        // Dos frases en un mismo texto: cada una se traduce por separado.
+        msg.textContent = _t(`✅ ${r.creados} importado${r.creados === 1 ? '' : 's'}.`) + (r.omitidos
+            ? ' ' + _t(`⚠️ Ya estaban en el take away y no se duplicaron: ${r.omitidos_nombres.join(', ')}.`) : '');
         if (r.omitidos) alert(`Ya estaban en el take away y no se volvieron a importar:\n\n• ${r.omitidos_nombres.join('\n• ')}`);
         _tk.catalogo = null;
         await tkCargarMenu();

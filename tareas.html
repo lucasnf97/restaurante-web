@@ -103,7 +103,7 @@
 
     <!-- ═══ TURNO ═══ -->
     <div id="tab-turno" style="display:none;">
-        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:12px;line-height:1.6;">
+        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:12px;line-height:1.6;" data-i18n-html>
             La <strong>lista del día</strong> de cada empleado (por rol o asignadas a él):
             la <strong>acepta al fichar</strong>, la va <strong>tildando durante el día</strong>
             (queda la hora de cada tarea), puede agregar encargos o tachar lo que no aplique,
@@ -124,7 +124,7 @@
 
     <!-- ═══ CAJA ═══ -->
     <div id="tab-caja" style="display:none;">
-        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:12px;line-height:1.6;">
+        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:12px;line-height:1.6;" data-i18n-html>
             Checklists de la <strong>acción</strong> de abrir/cerrar la caja: los completa
             <strong>quien la opere</strong>, sin importar rol (la firma registra quién fue).
         </p>
@@ -143,7 +143,7 @@
 
     <!-- ═══ DIARIAS (comunitarias del local) ═══ -->
     <div id="tab-diarias" style="display:none;">
-        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:12px;line-height:1.6;">
+        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:12px;line-height:1.6;" data-i18n-html>
             Tareas del <strong>local</strong>, no de una persona: las ve todo el personal
             (o los roles que elijas) para hacerlas a lo largo del día. El check es
             <strong>comunitario</strong>: la marca uno y todos la ven marcada, con
@@ -156,7 +156,7 @@
 
     <!-- ═══ PLANTILLAS ═══ -->
     <div id="tab-plantillas" style="display:none;">
-        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:12px;line-height:1.6;">
+        <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-bottom:12px;line-height:1.6;" data-i18n-html>
             Listados genéricos de tareas reutilizables (tocá una para ver su contenido).
             Al aplicarlas elegís rol/empleado; entran a la lista del día, al grupo
             General, y de ahí las movés. Aplicar siempre <strong>suma</strong>, nunca reemplaza.
@@ -314,12 +314,12 @@
 <div class="modal-overlay" id="m-aplicar">
     <div class="modal" style="width:460px;">
         <h3>🗂 Aplicar plantillas</h3>
-        <p style="font-size:12.5px;color: var(--tx-3, #6b7280);line-height:1.5;">Las tareas de las plantillas
+        <p style="font-size:12.5px;color: var(--tx-3, #6b7280);line-height:1.5;" data-i18n-html>Las tareas de las plantillas
             elegidas se <strong>suman</strong> a las actuales (podés aplicar varias y después
             agregar más tareas sueltas).</p>
         <label class="lbl">Plantillas</label>
         <div id="ma-lista" style="max-height:180px;overflow-y:auto;border: 1px solid var(--bd-4, #f0f0f0);border-radius:8px;padding:8px;"></div>
-        <div style="font-size:11.5px;color: var(--tx-4, #9ca3af);margin-top:8px;">Las tareas entran a la <b>lista del día</b> del destinatario
+        <div style="font-size:11.5px;color: var(--tx-4, #9ca3af);margin-top:8px;" data-i18n-html>Las tareas entran a la <b>lista del día</b> del destinatario
             (se aceptan al fichar y se tildan durante la jornada). Las de caja se crean directo en la solapa 💰 Caja.</div>
         <div id="ma-quien">
             <label class="lbl">¿Quién debe hacerlas?</label>
@@ -377,6 +377,7 @@
 
 <script src="js/i18n.js"></script>
 <script src="js/i18n/comun.js"></script>
+<script src="js/i18n/tareas.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script>
@@ -628,7 +629,7 @@ function _progLabel(t) {
         return '📅 ' + ds.map(d => DIAS_CORTOS[d]).join(' · ');
     }
     if (t.prog_tipo === 'dias_mes') {
-        const dm = (t.prog_dias_mes || []).map(d => d === DIA_MES_ULTIMO ? 'último' : d);
+        const dm = (t.prog_dias_mes || []).map(d => d === DIA_MES_ULTIMO ? _t('último') : d);
         return `🗓 Días ${dm.join(', ')} del mes`;
     }
     return '';
@@ -1312,10 +1313,11 @@ async function verConfirmacion(id) {
         .toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
     const ref = c.ref_tipo ? ` &nbsp;·&nbsp; Ref: ${esc(c.ref_tipo)} #${c.ref_id}` : '';
     document.getElementById('mc-meta').innerHTML =
-        `<strong>${esc(c.username)}</strong> (${esc(c.rol || '—')}) &nbsp;·&nbsp; Día ${fecha}` +
-        ` &nbsp;·&nbsp; Firmado: ${hora}${ref}<br>` +
-        `Declaró <strong>${c.tildadas}/${c.total}</strong> tareas realizadas` +
-        (c.comentarios ? ` &nbsp;·&nbsp; 💬 ${c.comentarios} comentario(s)` : '');
+        // Cada pieza con _t: quedan en un mismo texto con los datos y el motor no las separa.
+        `<strong>${esc(c.username)}</strong> (${esc(c.rol || '—')}) &nbsp;·&nbsp; ${_t('Día {0}', {0: fecha})}` +
+        ` &nbsp;·&nbsp; ${_t('Firmado: {0}', {0: hora})}${ref}<br>` +
+        `${_t('Declaró')} <strong>${c.tildadas}/${c.total}</strong> ${_t('tareas realizadas')}` +
+        (c.comentarios ? ` &nbsp;·&nbsp; 💬 ${_t('{0} comentario(s)', {0: c.comentarios})}` : '');
     const grupos = {}, orden = [];
     (c.items || []).forEach(i => {
         if (!grupos[i.grupo]) { grupos[i.grupo] = []; orden.push(i.grupo); }

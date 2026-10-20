@@ -74,7 +74,7 @@ th { color: var(--tx-4, #9ca3af); font-size:11px; text-transform:uppercase; }
     <div id="view-uso" style="display:none;">
         <div class="card">
             <h3>📊 Cuánto ocupa cada restaurante</h3>
-            <p class="hint" style="line-height:1.7;">
+            <p class="hint" style="line-height:1.7;" data-i18n-html>
                 Son <strong>dos proveedores</strong> y crecen por motivos distintos.
                 <strong>Base de datos</strong> (Railway): lo manda el <strong>volumen de ventas</strong> —
                 medido en producción, las líneas de pedido y de comanda son el 78&nbsp;% de un restaurante
@@ -310,6 +310,7 @@ th { color: var(--tx-4, #9ca3af); font-size:11px; text-transform:uppercase; }
 
 <script src="js/i18n.js"></script>
 <script src="js/i18n/comun.js"></script>
+<script src="js/i18n/restaurantes.js"></script>
 <script src="js/api.js"></script>
 <script>
 requireAuth();
@@ -810,9 +811,8 @@ async function cargarUso() {
         </div>
         ${d.cloudinary_sin_atribuir_bytes > 0 ? `
         <div class="hint" style="margin-top:10px;padding:10px;background: var(--pel-sf-2, #fffbeb);border-radius:8px;">
-            <strong>${_mb(d.cloudinary_sin_atribuir_bytes)} sin atribuir.</strong>
-            Son los archivos subidos <em>antes</em> de empezar a medir por restaurante: no
-            faltan por cobrar, simplemente no se sabe de quién son. Lo nuevo sí se atribuye.
+            <strong>${_t('{0} sin atribuir.', {0: _mb(d.cloudinary_sin_atribuir_bytes)})}</strong>
+            ${_t('Son los archivos subidos <em>antes</em> de empezar a medir por restaurante: no faltan por cobrar, simplemente no se sabe de quién son. Lo nuevo sí se atribuye.')}
         </div>` : ""}`;
 
     const rs = (d.restaurantes || []).slice()
@@ -842,9 +842,7 @@ async function cargarUso() {
         }).join("")}</tbody>
     </table>
     <p class="hint" style="margin-top:12px;line-height:1.7;">
-        Referencias medidas en producción: un restaurante <strong>recién creado</strong> pesa
-        2,2&nbsp;MB (sólo estructura); con <strong>un año de operación</strong>, unos
-        75-80&nbsp;MB. La columna de archivos empieza en cero para todos: se mide desde ahora.
+        ${_t('Referencias medidas en producción: un restaurante <strong>recién creado</strong> pesa 2,2&nbsp;MB (sólo estructura); con <strong>un año de operación</strong>, unos 75-80&nbsp;MB. La columna de archivos empieza en cero para todos: se mide desde ahora.')}
     </p>`;
 }
 

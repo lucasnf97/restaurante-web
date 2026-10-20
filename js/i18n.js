@@ -324,7 +324,9 @@
         });
         raiz.querySelectorAll("[data-i18n-html]").forEach(function (el) {
             var es = el.getAttribute("data-i18n-html") || el.innerHTML.trim();
-            el.innerHTML = t(es);
+            // El HTML trae saltos y sangrías: la clave del diccionario va en una línea.
+            if (!D[es]) es = es.replace(/\s+/g, " ");
+            if (D[es]) el.innerHTML = t(es);
         });
         raiz.querySelectorAll("[data-i18n-ph]").forEach(function (el) {
             el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph") || el.getAttribute("placeholder") || ""));
