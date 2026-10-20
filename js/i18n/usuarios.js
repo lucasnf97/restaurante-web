@@ -51,7 +51,6 @@ I18N.agregar({
     "Teléfono": ["Phone", "Telefon"],
     "Tiene los permisos, la documentación, las capacitaciones, el muro y las menciones de TODOS sus roles (si un rol da acceso a algo, gana el Sí). La pantalla del ejecutable la decide el turno agendado del día.": ["They get the permissions, documents, trainings, wall and mentions of ALL their roles (if one role grants access to something, Yes wins). The program screen is decided by the shift scheduled for the day.", "De får rettigheder, dokumenter, kurser, væg og omtaler fra ALLE deres roller (hvis én rolle giver adgang til noget, vinder Ja). Programmets skærm bestemmes af dagens planlagte vagt."],
     "el nuevo usuario": ["the new user", "den nye bruger"],
-    "error de conexión": ["connection error", "forbindelsesfejl"],
     "¿Quitar a \"{0}\" de ESTE restaurante? Su ficha y su historial se conservan (y sigue en los demás restaurantes donde esté). La ficha completa solo se elimina desde el panel de cadena.": ["Remove \"{0}\" from THIS restaurant? Their record and history are kept (and they stay in the other restaurants they belong to). The full record can only be deleted from the chain panel.", "Fjern \"{0}\" fra DENNE restaurant? Kortet og historikken bevares (og personen bliver i de andre restauranter). Hele kortet kan kun slettes fra kædepanelet."],
     "Único en el sistema": ["Unique in the system", "Unikt i systemet"],
     "Único en el sistema — permite loguear por correo": ["Unique in the system — allows signing in by email", "Unikt i systemet — giver login med e-mail"],

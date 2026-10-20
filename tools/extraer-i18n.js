@@ -136,10 +136,24 @@ const todo = args.includes("--todo");
 const res = {};
 // Lo que el motor ya resuelve: exacto, sin el emoji/símbolo del principio, por patrón
 // ("{0} visitas") o como comienzo de un patrón ("Error al guardar:" ← "Error al guardar: {0}").
+// Los patrones se prueban con los mismos límites que el motor (_compilar/_patron en
+// js/i18n.js): con poco texto fijo, datos de hasta 25 letras; "{0} de {1}" sólo con números.
+// Sin eso, "{0} de {1}" daba por traducida cualquier frase con un " de " en el medio.
 function cubierto(dic) {
-  const pats = Object.keys(dic).filter(k => k.includes("{")).map(k => new RegExp("^" +
-    k.split(/(\{\w+\})/).map(p => /^\{\w+\}$/.test(p) ? "[\\s\\S]*?" : p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("") + "$"));
-  const uno = t => t in dic || pats.some(re => re.test(t)) || (t + " {0}") in dic || (t + "{0}") in dic;
+  const pats = Object.keys(dic).filter(k => k.includes("{")).map(k => {
+    const fijo = k.replace(/\{\w+\}/g, "").replace(/\s+/g, "").length;
+    return { re: new RegExp("^" + k.split(/(\{\w+\})/).map(p => /^\{\w+\}$/.test(p) ? "([\\s\\S]*?)" :
+               p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("") + "$"),
+             maxDato: fijo < 10 ? 25 : 400,
+             numeros: fijo <= 3 && /^\{\w+\}/.test(k) && /\{\w+\}$/.test(k) };
+  });
+  const encaja = t => pats.some(p => {
+    const m = p.re.exec(t);
+    // En el código los datos son {0}, {1}… (sin dígitos reales): un patrón "de números"
+    // sólo cubre si el dato también es un hueco.
+    return m && m.slice(1).every(d => d.length <= p.maxDato && (!p.numeros || /\d|^\{\d+\}$/.test(d)));
+  });
+  const uno = t => t in dic || encaja(t) || (t + " {0}") in dic || (t + "{0}") in dic;
   return k => {
     const sin = k.replace(/^[^A-Za-zÀ-ÿ¿¡0-9"'(]+/, "");
     return uno(k) || (sin && uno(sin));

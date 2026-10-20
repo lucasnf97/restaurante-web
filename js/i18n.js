@@ -409,8 +409,23 @@
     // _t: lo que arma el JS. Con el diccionario de la página cargado, cubre también frases con datos.
     window._t = function (es, vars) { return vars ? t(es, vars) : traducir(es); };
     aplicar(document);
+    // Chart.js dibuja en un canvas, fuera del alcance del TreeWalker: un plugin traduce las
+    // etiquetas, las series (leyenda) y los títulos de los ejes antes de cada dibujo. Lo que
+    // arman los tooltips con datos (callbacks de cada página) va con _t() en la página.
+    function _graficos() {
+        if (LANG === "es" || !window.Chart || !Chart.register || _graficos.hecho) return;
+        _graficos.hecho = true;
+        var tr = function (x) { return typeof x === "string" ? traducir(x) : x; };
+        Chart.register({ id: "i18n", beforeUpdate: function (ch) {
+            var d = ch.config.data || {};
+            if (Array.isArray(d.labels)) d.labels = d.labels.map(tr);
+            (d.datasets || []).forEach(function (ds) { if (ds.label) ds.label = tr(ds.label); });
+            var esc = (ch.config.options || {}).scales || {};
+            for (var k in esc) if (esc[k] && esc[k].title && esc[k].title.text) esc[k].title.text = tr(esc[k].title.text);
+        } });
+    }
     function _alCargar() {
-        aplicar(document); _montar(); _sincronizar();
+        aplicar(document); _montar(); _sincronizar(); _graficos();
         // Para acá ya cargaron el diccionario común y el de la página (van después de este archivo).
         if (LANG !== "es") {
             if (document.title) document.title = traducir(document.title);

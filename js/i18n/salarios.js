@@ -71,7 +71,6 @@ I18N.agregar({
     "− {0} comida 🍽": ["− {0} meal 🍽", "− {0} måltid 🍽"],
     "Agregar ajuste — {0}": ["Add adjustment — {0}", "Tilføj justering — {0}"],
     "Ajuste de horas": ["Hours adjustment", "Timejustering"],
-    "Pendiente de confirmación": ["Awaiting confirmation", "Afventer bekræftelse"],
     "Períodos pendientes de confirmación": ["Periods awaiting confirmation", "Perioder der afventer bekræftelse"],
     "Confirmar período": ["Confirm period", "Bekræft periode"],
     "Editar ajuste — {0}": ["Edit adjustment — {0}", "Redigér justering — {0}"],

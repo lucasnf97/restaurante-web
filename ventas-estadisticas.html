@@ -402,6 +402,7 @@ body.config-open .wgt-drag { display:flex; }
 
 <script src="js/i18n.js"></script>
 <script src="js/i18n/comun.js"></script>
+<script src="js/i18n/ventas-estadisticas.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
@@ -572,7 +573,7 @@ function renderRentMenu() {
             pointHoverRadius: grupos[k].map(pt => pt._vis ? 6 : 0),
             pointHitRadius:   grupos[k].map(pt => pt._vis ? 5 : 0),
         })) },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.raw.nombre}: ${fmtInt(c.raw.x)} u, margen ${simboloMoneda()} ${fmt(c.raw.y)}`}}},
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.raw.nombre+': '+_t(`${fmtInt(c.raw.x)} u, margen ${simboloMoneda()} ${fmt(c.raw.y)}`)}}},
             scales:{ x:{title:{display:true,text:'Unidades'}}, y:{title:{display:true,text:'Margen unitario'}} } }
     });
 }
@@ -1476,7 +1477,7 @@ function barRender(key, data) {
                     callbacks: {
                         label: ctx => ctx.dataset.yAxisID === 'yRev'
                             ? ` ${fmt(ctx.raw)}`
-                            : ` ${fmtInt(ctx.raw)} uds`,
+                            : ' '+_t(`${fmtInt(ctx.raw)} uds`),
                     },
                 },
             },

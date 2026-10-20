@@ -96,4 +96,6 @@ I18N.agregar({
     "Cantidad": ["Quantity", "Antal"], "Costo": ["Cost", "Omkostning"], "Precio": ["Price", "Pris"], "Horas": ["Hours", "Timer"],
     "Empleado": ["Employee", "Medarbejder"], "Descuentos": ["Discounts", "Rabatter"], "Refunds": ["Refunds", "Refunderinger"],
     "Opciones": ["Options", "Indstillinger"], "Cargar": ["Load", "Indlæs"], "Cargar más": ["Load more", "Indlæs flere"],
+    "error de conexión": ["connection error", "forbindelsesfejl"],
+    "Pendiente de confirmación": ["Awaiting confirmation", "Afventer bekræftelse"],
 });
