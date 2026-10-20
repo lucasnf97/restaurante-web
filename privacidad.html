@@ -264,6 +264,15 @@ function setLang(l) {
     try { localStorage.setItem('legal_lang', l); } catch (e) {}
 }
 (function () {
+    // Desde el login (que va siempre en inglés) se abre en inglés y sin poder cambiarlo.
+    if (new URLSearchParams(location.search).get('desde') === 'login') {
+        const sel = document.querySelector('.lang');
+        if (sel) sel.style.display = 'none';
+        document.getElementById('doc-en').style.display = '';
+        document.getElementById('doc-es').style.display = 'none';
+        document.documentElement.lang = 'en';
+        return;
+    }
     let l = null;
     try { l = localStorage.getItem('legal_lang'); } catch (e) {}
     if (!l) l = (navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en';

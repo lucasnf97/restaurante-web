@@ -137,7 +137,12 @@
         } catch (e) { return "@anon"; }
     }
     function _clave() { return "idioma::" + _sub(); }
+    // Una página puede fijar su idioma: <html data-idioma-fijo="en"> (el login va siempre en
+    // inglés, decisión del dueño 2026-10-20). Sin selector y sin preferencia del servidor.
+    var FIJO = document.documentElement.getAttribute("data-idioma-fijo");
+    if (IDIOMAS.indexOf(FIJO) < 0) FIJO = null;
     function idioma() {
+        if (FIJO) return FIJO;
         try {
             var v = localStorage.getItem(_clave()) || localStorage.getItem("idioma_ultimo");
             return IDIOMAS.indexOf(v) >= 0 ? v : "es";
@@ -337,7 +342,7 @@
     }
 
     function set(lang) {
-        if (IDIOMAS.indexOf(lang) < 0 || lang === LANG) return;
+        if (FIJO || IDIOMAS.indexOf(lang) < 0 || lang === LANG) return;
         try { localStorage.setItem(_clave(), lang); localStorage.setItem("idioma_ultimo", lang); } catch (e) {}
         var tok = null; try { tok = localStorage.getItem("token"); } catch (e) {}
         var recargar = function () { location.reload(); };
@@ -351,7 +356,7 @@
     function _sincronizar() {
         var tok = null, local = null;
         try { tok = localStorage.getItem("token"); local = localStorage.getItem(_clave()); } catch (e) {}
-        if (!tok || local) return;
+        if (FIJO || !tok || local) return;
         fetch(API + "/prefs/idioma", { headers: { Authorization: "Bearer " + tok } })
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (d) {
@@ -394,6 +399,7 @@
         return g;
     }
     function _montar() {
+        if (FIJO) return;           // idioma fijo: no se ofrece cambiarlo
         _css();
         if (document.querySelector(".idiomas")) return;
         var slot = document.getElementById("i18n-slot");

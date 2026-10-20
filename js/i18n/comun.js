@@ -349,4 +349,5 @@ I18N.agregar({
     "Ej: Distribuidora del Sur": ["E.g. Southern Distributors", "F.eks. Nordisk Engros"],
     "Dirección": ["Address", "Adresse"],
     "Error al guardar: {0}": ["Error saving: {0}", "Fejl ved lagring: {0}"],
+    "tu@correo.com": ["you@email.com", "dig@email.dk"],
 });
