@@ -30,7 +30,7 @@ function diccionarios(pagina) {
 }
 
 const ES = /[a-záéíóúñ]{2,}/i;
-const CODIGO = /(^[\w.$-]+$(?<![A-ZÁÉÍÓÚ].*)|\.html|\.js\b|https?:|\bvar\(|rgba?\(|#[0-9a-f]{3,6}\b|=>|&&|\|\||===|!==|\bfunction\b|\breturn\b|\bconst\b|\blet\b|document\.|window\.|\bpx\b|;\s*$|^[\w-]+\s*:\s*[\w#(-]|^\s*[.#][\w-]+|\b(api|fetch)\b)/i;
+const CODIGO = /(^[\w.$-]+$(?<![A-ZÁÉÍÓÚ].*)|\.html|\.js\b|https?:|\bvar\(|rgba?\(|#[0-9a-f]{3,6}\b|=>|&&|\|\||===|!==|\bfunction\b|\breturn\b|\bconst\b|\blet\b|document\.|window\.|\bpx\b|;\s*$|^(?!Ej:|Ejemplo:)[\w-]+\s*:\s*[\w#(-]|^\s*[.#][\w-]+|\b(api|fetch)\b)/i;
 
 function candidato(t) {
   t = t.replace(/\s+/g, " ").trim();

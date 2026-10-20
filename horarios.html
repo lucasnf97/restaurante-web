@@ -256,6 +256,7 @@
 
     <script src="js/i18n.js"></script>
     <script src="js/i18n/comun.js"></script>
+    <script src="js/i18n/horarios.js"></script>
     <script src="js/api.js"></script>
     <script>
     // Menú lateral (hamburguesa + acceso al panel): para usuarios de restaurante
@@ -340,6 +341,22 @@
     const DIAS_LARGO = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
     const MESES   = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
     const MESES_C = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    // En inglés/danés los nombres los da Intl (no pasan por el diccionario: "Mar" es martes
+    // y también marzo).
+    if (window.I18N && I18N.idioma() !== 'es') {
+        const fmt = o => new Intl.DateTimeFormat(I18N.idioma(), o);
+        // 2024-01-01 fue lunes: el índice 0 de los días es el lunes, como acá.
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(2024, 0, 1 + i);
+            DIAS_CORTO[i] = fmt({ weekday: 'short' }).format(d);
+            DIAS_LARGO[i] = fmt({ weekday: 'long' }).format(d).replace(/^./, c => c.toUpperCase());
+        }
+        for (let m = 0; m < 12; m++) {
+            const d = new Date(2024, m, 1);
+            MESES[m] = fmt({ month: 'long' }).format(d);
+            MESES_C[m] = fmt({ month: 'short' }).format(d);
+        }
+    }
     const COLOR_PALETTE = ['#10b981','#3b82f6','#f59e0b','#ec4899','#14b8a6','#f97316','#8b5cf6','#84cc16','#ef4444','#06b6d4','#a78bfa','#fb923c'];
     const ROL_LABELS = { gerente:'Gerencia', empleado:'Personal', bartender:'Bartender', cocinero:'Cocina', camarero:'Sala' };
     let rolColorMap = {}, rolesDisponibles = [], rolesGrilla = [], _rolesCatalogo = [];
@@ -475,8 +492,9 @@
     }
     function updateNavLabel(){
         const days=getDays(), a=days[0], z=days[days.length-1]; let lbl;
-        if(viewMode==='semana') lbl=`Semana del ${a.getDate()} al ${z.getDate()} de ${MESES[z.getMonth()]} ${z.getFullYear()}`;
-        else if(viewMode==='dos_semanas') lbl=a.getMonth()===z.getMonth()?`${a.getDate()} — ${z.getDate()} de ${MESES[z.getMonth()]} ${z.getFullYear()}`:`${a.getDate()} ${MESES_C[a.getMonth()]} — ${z.getDate()} ${MESES_C[z.getMonth()]} ${z.getFullYear()}`;
+        const _v={0:a.getDate(),1:z.getDate(),2:MESES[z.getMonth()],3:z.getFullYear()};
+        if(viewMode==='semana') lbl=_t('Semana del {0} al {1} de {2} {3}',_v);
+        else if(viewMode==='dos_semanas') lbl=a.getMonth()===z.getMonth()?_t('{0} — {1} de {2} {3}',_v):`${a.getDate()} ${MESES_C[a.getMonth()]} — ${z.getDate()} ${MESES_C[z.getMonth()]} ${z.getFullYear()}`;
         else { const m=MESES[anchorDate.getMonth()]; lbl=m.charAt(0).toUpperCase()+m.slice(1)+' '+anchorDate.getFullYear(); }
         document.getElementById('nav-label').textContent=lbl;
     }
@@ -1318,7 +1336,7 @@
         let ov=document.getElementById('desglose-modal');
         if(!ov){ ov=document.createElement('div'); ov.id='desglose-modal'; document.body.appendChild(ov); }
         const dd=new Date(fecha+'T00:00:00');
-        const titulo=`Desglose · ${DIAS_LARGO[jsDay2Api(dd)]} ${dd.getDate()} de ${MESES[dd.getMonth()]}`;
+        const titulo=_t('Desglose · {0} {1} de {2}',{0:DIAS_LARGO[jsDay2Api(dd)],1:dd.getDate(),2:MESES[dd.getMonth()]});
         const leyenda = rolesUsados.size
             ? `<div class="dg-legend">${[...rolesUsados].map(r=>`<span><i style="background:${getRolColor(r)}"></i>${_esc(getRolLabel(r))}</span>`).join('')}</div>` : '';
         ov.innerHTML=`<div class="dg-card"><div class="dg-top"><h3>🗓 ${titulo}</h3><span class="dg-x" onclick="document.getElementById('desglose-modal').style.display='none'">✕</span></div>${leyenda}${body}</div>`;
@@ -1527,7 +1545,7 @@
     async function publicarHorarios(){
         const days=getDays(), desde=formatDate(days[0]), hasta=formatDate(days[days.length-1]);
         const ids=_selRest.size?[..._selRest]:null;
-        const quien=_SINGLE?'este restaurante':(ids?`${ids.length} restaurante(s) seleccionado(s)`:'TODOS tus restaurantes');
+        const quien=_t(_SINGLE?'este restaurante':(ids?`${ids.length} restaurante(s) seleccionado(s)`:'TODOS tus restaurantes'));
         if(!confirm(`¿Publicar los horarios en borrador del período ${desde} a ${hasta} para ${quien}?`)) return;
         try{ const r=await _publicarTurnos(desde, hasta, ids); alert(`Publicados: ${r.publicados||0} horario(s).`); await cargarYRenderizar(); }
         catch(e){ alert('No se pudo publicar: '+(e.message||e)); }

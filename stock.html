@@ -491,6 +491,7 @@
 
 <script src="js/i18n.js"></script>
 <script src="js/i18n/comun.js"></script>
+<script src="js/i18n/stock.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
@@ -1178,9 +1179,9 @@ async function eliminarInsumo(id) {
     const r = ins.en_recetas || 0, p = ins.en_produccion || 0;
     if (r || p) {
         const partes = [];
-        if (r) partes.push(`${r} receta${r !== 1 ? 's' : ''}`);
-        if (p) partes.push(`${p} de producción`);
-        msg += `\n\n⚠ Sigue usado en ${partes.join(' y ')}: se archiva igual, pero seguirá ahí (no se borra de esas recetas).`;
+        if (r) partes.push(_t(`${r} receta${r !== 1 ? 's' : ''}`));
+        if (p) partes.push(_t(`${p} de producción`));
+        msg += `\n\n⚠ Sigue usado en ${partes.join(" "+_t("y")+" ")}: se archiva igual, pero seguirá ahí (no se borra de esas recetas).`;
     }
     if (!confirm(msg)) return;
     try { await api.delete(`/stock/insumos/${id}`); await cargarInsumos(); }
@@ -1740,9 +1741,9 @@ async function eliminarInsumoProduccion(id) {
     const p = ip.producciones || 0, r = ip.en_recetas || 0;
     if (p || r) {
         const partes = [];
-        if (p) partes.push(`${p} ${p !== 1 ? 'producciones registradas' : 'producción registrada'}`);
-        if (r) partes.push(`${r} receta${r !== 1 ? 's' : ''} que lo usa${r !== 1 ? 'n' : ''}`);
-        msg += `\n\nTiene ${partes.join(' y ')}: se conservan tal cual.`;
+        if (p) partes.push(_t(`${p} ${p !== 1 ? 'producciones registradas' : 'producción registrada'}`));
+        if (r) partes.push(_t(`${r} receta${r !== 1 ? 's' : ''} que lo usa${r !== 1 ? 'n' : ''}`));
+        msg += `\n\nTiene ${partes.join(" "+_t("y")+" ")}: se conservan tal cual.`;
     }
     if (!confirm(msg)) return;
     try { await api.delete(`/stock/insumos-produccion/${id}`); await cargarInsumosProduccion(); }
