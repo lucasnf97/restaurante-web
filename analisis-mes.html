@@ -624,6 +624,7 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
 
 <script src="js/i18n.js"></script>
 <script src="js/i18n/comun.js"></script>
+<script src="js/i18n/analisis-mes.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
@@ -841,8 +842,8 @@ function renderBillingCards(d) {
             cls:"ventas", icon:"💰", label:"Ventas del mes",
             value: fmt(vn),
             extraCls: vn >= 0 ? "" : "negativo",
-            sub: (d.ventas_neto != null ? `${fmt(d.ventas)} con impuesto · sin IVA arriba` : "Suma de cierres de caja")
-                 + ((d.refunds || 0) > 0 ? ` · refunds ${fmt(d.refunds)}` : "")
+            sub: _t(d.ventas_neto != null ? `${fmt(d.ventas)} con impuesto · sin IVA arriba` : "Suma de cierres de caja")
+                 + ((d.refunds || 0) > 0 ? _t(` · refunds ${fmt(d.refunds)}`) : "")
         },
         {
             cls:"salarios", icon:"👥", label: aprobado ? "Salarios" : "Salarios (estimado)",
@@ -888,12 +889,12 @@ function renderBillingCards(d) {
         {
             cls:"stock", icon:"🏗️", label:"Monto acumulado de stock",
             value: fmt(d.monto_acumulado_stock), extraCls:"",
-            sub: (d.stock_es_cierre ? "Valor al cierre del mes" : "Valor actual en inventario")
+            sub: _t(d.stock_es_cierre ? "Valor al cierre del mes" : "Valor actual en inventario")
                  // La merma es un BALANCE: si en la revisión aparece stock de MÁS
                  // (se vendió un plato sin uno de sus insumos y no se declaró), el
                  // neto puede ser negativo. Antes eso caía en "sin merma este mes"
                  // y el excedente no se veía en ningún lado.
-                 + (mermaTotal > 0.005  ? ` · merma del mes ${fmt(mermaTotal)}`
+                 + _t(mermaTotal > 0.005  ? ` · merma del mes ${fmt(mermaTotal)}`
                   : mermaTotal < -0.005 ? ` · excedente del mes ${fmt(-mermaTotal)}`
                                         : " · sin merma este mes")
         },
@@ -1885,13 +1886,13 @@ function renderMetricas() {
     const av = [];
     if (d && d.actual) {
         if (d.actual.salarios_aprobado === false)
-            av.push('El coste de personal es estimado: hay fichajes del período sin aprobar.');
+            av.push(_t('El coste de personal es estimado: hay fichajes del período sin aprobar.'));
         if (d.actual.horas_trabajadas == null)
-            av.push('Las horas trabajadas no se muestran: hace falta permiso de revisión de salarios.');
+            av.push(_t('Las horas trabajadas no se muestran: hace falta permiso de revisión de salarios.'));
         // Si alguna vez el desglose dejara de cuadrar con el resultado, se dice: es
         // preferible a mostrar un total que nadie puede reconciliar con el detalle.
         if (d.actual.descuadre)
-            av.push('Descuadre de ' + fmt(d.actual.descuadre) + ' entre el total y su desglose.');
+            av.push(_t('Descuadre de {0} entre el total y su desglose.', {0: fmt(d.actual.descuadre)}));
     }
     // El período EN CURSO es lo primero que hay que aclarar: sin eso, un mes a
     // medias contra meses cerrados se lee como un derrumbe.
@@ -1899,9 +1900,8 @@ function renderMetricas() {
     if (avisoPer) av.push(avisoPer);
     // Y si no está en curso pero los meses duran distinto, también se dice.
     else if (d && d.vs_anterior && d.periodo.duraciones_distintas) {
-        av.push('Ojo al comparar importes: ' + d.periodo.label + ' tiene ' +
-                d.periodo.dias + ' días y ' + d.periodo.label_anterior + ' tiene ' +
-                d.periodo.dias_anterior + '. Los porcentajes no se ven afectados.');
+        av.push(_t('Ojo al comparar importes: {0} tiene {1} días y {2} tiene {3}. Los porcentajes no se ven afectados.',
+                {0: _t(d.periodo.label), 1: d.periodo.dias, 2: _t(d.periodo.label_anterior), 3: d.periodo.dias_anterior}));
     }
     document.getElementById('mx-aviso').textContent = av.join(' ');
     renderCostesChart();
@@ -2004,22 +2004,23 @@ function renderPrevision(p) {
     Metricas.inyectarEstilos();
     const fFecha = iso => { const t = iso.split('-'); return (+t[2]) + '/' + (+t[1]); };
     document.getElementById('mx-prev-rango').textContent =
-        fFecha(p.semana.desde) + ' al ' + fFecha(p.semana.hasta);
+        _t('{0} al {1}', {0: fFecha(p.semana.desde), 1: fFecha(p.semana.hasta)});
 
+    // Cada frase se traduce sola: juntas en un texto, el motor no las reconoce.
     const cab = [];
     if (p.hay_datos) {
-        cab.push('Previsión de la semana: ' + fmt(p.total.prevision) +
-                 ' (confianza ' + Metricas.CONFIANZA_TXT[p.total.confianza].toLowerCase() + ').');
+        cab.push(_t('Previsión de la semana: {0} (confianza ' +
+                 Metricas.CONFIANZA_TXT[p.total.confianza].toLowerCase() + ').', {0: fmt(p.total.prevision)}));
         if (p.total.cambio_pct != null)
-            cab.push(Metricas.FLECHA[p.total.tendencia] + ' ' +
-                     (p.total.cambio_pct > 0 ? '+' : '') + Metricas.num(p.total.cambio_pct, 1) +
-                     ' % respecto de las últimas semanas.');
+            cab.push(Metricas.FLECHA[p.total.tendencia] + ' ' + _t('{0} % respecto de las últimas semanas.',
+                     {0: (p.total.cambio_pct > 0 ? '+' : '') + Metricas.num(p.total.cambio_pct, 1)}));
         if (p.factor_anual)
-            cab.push('El local factura un ' + Metricas.num(Math.abs(p.factor_anual.pct), 1) +
-                     ' % ' + (p.factor_anual.pct >= 0 ? 'más' : 'menos') +
-                     ' por día de servicio que hace un año.');
+            cab.push(_t(p.factor_anual.pct >= 0
+                     ? 'El local factura un {0} % más por día de servicio que hace un año.'
+                     : 'El local factura un {0} % menos por día de servicio que hace un año.',
+                     {0: Metricas.num(Math.abs(p.factor_anual.pct), 1)}));
     } else {
-        cab.push('No hay datos suficientes para prever esta semana.');
+        cab.push(_t('No hay datos suficientes para prever esta semana.'));
     }
     document.getElementById('mx-prev-cab').textContent = cab.join(' ');
 
@@ -2030,8 +2031,8 @@ function renderPrevision(p) {
             '<div class="mx-dia-val">' + (d.prevision == null ? 'Sin datos' : fmt(d.prevision)) + '</div>' +
             '<div class="mx-dia-sub">' +
                 (d.base_reciente != null ? 'media reciente ' + fmt(d.base_reciente) : '&nbsp;') + '</div>' +
-            '<span class="mx-conf ' + esc(d.confianza) + '">Confianza ' +
-                esc(Metricas.CONFIANZA_TXT[d.confianza].toLowerCase()) + '</span>' +
+            '<span class="mx-conf ' + esc(d.confianza) + '">' +
+                esc(_t('Confianza ' + Metricas.CONFIANZA_TXT[d.confianza].toLowerCase())) + '</span>' +
             '<div class="mx-dia-exp">' + esc(Metricas.explicarDia(d, p)) + '</div>' +
         '</div>').join('') + '</div>';
 }

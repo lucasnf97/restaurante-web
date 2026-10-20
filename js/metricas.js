@@ -190,57 +190,71 @@
      * No hay ninguna frase que no salga de un dato que viaja en la respuesta: si
      * mañana cambian los pesos o los umbrales en el backend, el texto cambia solo.
      */
+    // Frase con datos en el idioma de la persona (js/i18n.js); sin el motor, en castellano.
+    function T(k, v) {
+        if (window._t) return v ? window._t(k, v) : window._t(k);
+        return v ? k.replace(/\{(\w+)\}/g, function (m, x) { return v[x]; }) : k;
+    }
     function explicarDia(d, meta) {
-        var n = d.nombre.toLowerCase();
+        // El día llega en castellano ("Lunes"); en inglés va con mayúscula, en castellano y
+        // danés en minúscula. Plural: lunes → lunes, sábado → sábados; Monday → Mondays;
+        // mandag → mandage.
+        var L = window.I18N ? I18N.idioma() : "es";
+        var dia = T(d.nombre);
+        var n = L === "en" ? dia : dia.toLowerCase();
+        var ns = L === "da" ? n + "e" : (L === "es" && /s$/.test(n)) ? n : n + "s";
         var partes = [];
 
         if (d.motivo === "cerrado") {
-            partes.push("En las últimas " + meta.ventana.semanas_historia +
-                " semanas el local no abrió ningún " + n + ".");
+            partes.push(T("En las últimas {0} semanas el local no abrió ningún {1}.",
+                { 0: meta.ventana.semanas_historia, 1: n }));
             return partes.join(" ");
         }
         if (d.motivo === "sin_datos") {
             if (!meta.ventana.hay_patron) {
-                partes.push("En las últimas " + meta.ventana.semanas_historia +
-                    " semanas hubo ventas en " + meta.ventana.dias_con_venta +
-                    " días, y hacen falta al menos " + meta.ventana.minimo_dias +
-                    " para leer un patrón de trabajo.");
+                partes.push(T("En las últimas {0} semanas hubo ventas en {1} días, y hacen falta al menos {2} para leer un patrón de trabajo.",
+                    { 0: meta.ventana.semanas_historia, 1: meta.ventana.dias_con_venta, 2: meta.ventana.minimo_dias }));
             }
-            partes.push("No hay datos suficientes para prever este " + n + ".");
+            partes.push(T("No hay datos suficientes para prever este {0}.", { 0: n }));
             return partes.join(" ");
         }
 
         if (d.muestras && d.muestras.length) {
-            partes.push("Los últimos " + d.muestras.length + " " + n + "s facturaron " +
-                d.muestras.map(function (v) { return dinero(v, 0); }).join(" y ") +
-                (d.muestras.length > 1 ? " (media " + dinero(d.base_reciente, 0) + ")" : "") + ".");
+            var montos = d.muestras.map(function (v) { return dinero(v, 0); }).join(" " + T("y") + " ");
+            partes.push(d.muestras.length > 1
+                ? T("Los últimos {0} {1} facturaron {2} (media {3}).",
+                    { 0: d.muestras.length, 1: ns, 2: montos, 3: dinero(d.base_reciente, 0) })
+                : T("El último {0} facturó {1}.", { 0: n, 1: montos }));
         }
         if (d.muestras_descartadas) {
-            partes.push("Se descartó " + d.muestras_descartadas + " " + n +
-                (d.muestras_descartadas > 1 ? "s sin venta" : " sin venta") +
-                " por tratarse de un cierre excepcional.");
+            partes.push(T("Se descartó {0} {1} sin venta por tratarse de un cierre excepcional.",
+                { 0: d.muestras_descartadas, 1: d.muestras_descartadas > 1 ? ns : n }));
         }
         if (d.motivo === "mezcla" || d.motivo === "solo_anio_pasado") {
             var f = meta.factor_anual;
-            partes.push("El mismo " + n + " del año pasado facturó " + dinero(d.anio_pasado, 0) +
-                "; el local factura un " + num(Math.abs(f.pct), 1) + " % " +
-                (f.pct >= 0 ? "más" : "menos") + " por día de servicio que entonces, así que " +
-                "equivale a " + dinero(d.anio_pasado_ajustado, 0) + " de hoy.");
+            partes.push(T(f.pct >= 0
+                ? "El mismo {0} del año pasado facturó {1}; el local factura un {2} % más por día de servicio que entonces, así que equivale a {3} de hoy."
+                : "El mismo {0} del año pasado facturó {1}; el local factura un {2} % menos por día de servicio que entonces, así que equivale a {3} de hoy.",
+                { 0: n, 1: dinero(d.anio_pasado, 0), 2: num(Math.abs(f.pct), 1), 3: dinero(d.anio_pasado_ajustado, 0) }));
         }
         if (d.motivo === "mezcla") {
-            partes.push("La previsión pesa lo reciente al " + Math.round(meta.pesos.reciente * 100) +
-                " % y el año pasado al " + Math.round(meta.pesos.anio_pasado * 100) + " %.");
+            partes.push(T("La previsión pesa lo reciente al {0} % y el año pasado al {1} %.",
+                { 0: Math.round(meta.pesos.reciente * 100), 1: Math.round(meta.pesos.anio_pasado * 100) }));
         } else if (d.motivo === "solo_reciente") {
-            partes.push("No hay dato del mismo " + n + " del año pasado, así que la previsión es esa media.");
+            partes.push(T("No hay dato del mismo {0} del año pasado, así que la previsión es esa media.", { 0: n }));
         } else if (d.motivo === "solo_anio_pasado") {
-            partes.push("No hay " + n + "s recientes con venta, así que la previsión sale sólo de ahí.");
+            partes.push(T("No hay {0} recientes con venta, así que la previsión sale sólo de ahí.", { 0: ns }));
         }
         if (d.tendencia === "sube" || d.tendencia === "baja") {
-            partes.push("Viene " + (d.tendencia === "sube" ? "subiendo" : "bajando") + ": el último fue un " +
-                num(Math.abs(d.cambio_pct), 1) + " % " + (d.tendencia === "sube" ? "mejor" : "peor") +
-                " que el anterior.");
+            partes.push(T(d.tendencia === "sube"
+                ? "Viene subiendo: el último fue un {0} % mejor que el anterior."
+                : "Viene bajando: el último fue un {0} % peor que el anterior.",
+                { 0: num(Math.abs(d.cambio_pct), 1) }));
         }
-        partes.push("Confianza " + CONFIANZA_TXT[d.confianza].toLowerCase() + ": " + d.confianza_porque + ".");
+        // Frase entera por nivel: "Alta"/"Baja" sueltas significan otra cosa en otras
+        // pantallas (alta/baja de un empleado).
+        partes.push(T("Confianza " + CONFIANZA_TXT[d.confianza].toLowerCase() + ": {0}.",
+            { 0: T(d.confianza_porque) }));
         return partes.join(" ");
     }
 
@@ -414,15 +428,15 @@
     function avisoPeriodo(datos) {
         var per = (datos && datos.periodo) || {};
         if (!per.en_curso) return "";
-        var partes = [per.label + " va por el día " + per.dias_transcurridos +
-                      " de " + per.dias + "."];
+        // Las etiquetas ("Octubre 2026") llegan en castellano: se traducen solas antes
+        // de entrar a la frase, porque dentro de una frase el motor no las ve.
+        var partes = [T("{0} va por el día {1} de {2}.",
+                        { 0: T(per.label), 1: per.dias_transcurridos, 2: per.dias })];
         if (datos.comparable) {
-            partes.push("Ventas, personal y horas se comparan contra los mismos " +
-                        per.dias_transcurridos + " días de " + per.label_anterior +
-                        " y de " + per.label_anio_pasado + ".");
+            partes.push(T("Ventas, personal y horas se comparan contra los mismos {0} días de {1} y de {2}.",
+                          { 0: per.dias_transcurridos, 1: T(per.label_anterior), 2: T(per.label_anio_pasado) }));
         }
-        partes.push("Insumos y gastos fijos se imputan por período de factura, " +
-                    "así que su comparación se completa al cerrar el mes.");
+        partes.push(T("Insumos y gastos fijos se imputan por período de factura, así que su comparación se completa al cerrar el mes."));
         return partes.join(" ");
     }
 

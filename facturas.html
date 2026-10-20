@@ -573,6 +573,7 @@
 
 <script src="js/i18n.js"></script>
 <script src="js/i18n/comun.js"></script>
+<script src="js/i18n/facturas.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
@@ -675,13 +676,14 @@ async function agregarArchivos(files) {
         if (dupHist || dupCola) {
             let donde;
             if (dupHist) {
-                const prov  = (dupHist.proveedor_nombre_reg || dupHist.proveedor_nombre) ? ` de ${dupHist.proveedor_nombre_reg || dupHist.proveedor_nombre}` : '';
+                const provN = dupHist.proveedor_nombre_reg || dupHist.proveedor_nombre;
                 const fecha = dupHist.fecha_factura ? ` (${dupHist.fecha_factura})` : '';
-                donde = `ya está registrada${prov}${fecha}`;
+                // Cada parte traducida antes de entrar al aviso (dentro, el motor no la ve).
+                donde = (provN ? _t('ya está registrada de {0}', {0: provN}) : _t('ya está registrada')) + fecha;
             } else {
-                donde = dupCola.estado === 'borrador' ? 'ya tiene un borrador en proceso' : 'ya está en la lista para procesar';
+                donde = _t(dupCola.estado === 'borrador' ? 'ya tiene un borrador en proceso' : 'ya está en la lista para procesar');
             }
-            const enLocal = _modoCadena ? ` en ${destLote.nombre}` : '';
+            const enLocal = _modoCadena ? ' ' + _t('en {0}', {0: destLote.nombre}) : '';
             if (!confirm(`⚠️ Ya hay una factura con el archivo "${f.name}"${enLocal}: ${donde}.\n\nPodrías estar duplicándola. ¿Cargarla igual?`)) continue;
         }
         // ⚠ El destino queda ESTAMPADO en la factura. No se reasigna después: el análisis
@@ -2327,10 +2329,10 @@ async function confirmarFactura() {
         renderArchivos();
         cargarHistorialFacturas();   // refresca el histórico (aparece la nueva; si era edición, la vieja ya no está)
         const msg = [];
-        if (itemsInsumo.length)   msg.push(`${itemsInsumo.length} recarga(s) de stock`);
-        if (itemsBien.length)     msg.push(`${itemsBien.length} bien(es) de uso`);
-        if (itemsServicio.length) msg.push(`${itemsServicio.length} gasto(s) de servicio`);
-        alert(`✅ ${editId ? 'Factura actualizada' : 'Registrado'}: ${msg.join(" y ")}.`);
+        if (itemsInsumo.length)   msg.push(_t(`${itemsInsumo.length} recarga(s) de stock`));
+        if (itemsBien.length)     msg.push(_t(`${itemsBien.length} bien(es) de uso`));
+        if (itemsServicio.length) msg.push(_t(`${itemsServicio.length} gasto(s) de servicio`));
+        alert(`✅ ${editId ? 'Factura actualizada' : 'Registrado'}: ${msg.join(" "+_t("y")+" ")}.`);
     } catch(e) { alert("Error: " + e.message); }
 }
 
@@ -2932,9 +2934,9 @@ async function eliminarProveedor(id) {
     const c = p.compras || 0, f = p.facturas || 0;
     if (c || f) {
         const partes = [];
-        if (c) partes.push(`${c} compra${c !== 1 ? 's' : ''}`);
-        if (f) partes.push(`${f} factura${f !== 1 ? 's' : ''}`);
-        msg += `\n\nTiene ${partes.join(' y ')} a su nombre: se conservan tal cual.`;
+        if (c) partes.push(_t(`${c} compra${c !== 1 ? 's' : ''}`));
+        if (f) partes.push(_t(`${f} factura${f !== 1 ? 's' : ''}`));
+        msg += `\n\nTiene ${partes.join(" "+_t("y")+" ")} a su nombre: se conservan tal cual.`;
     }
     if (!confirm(msg)) return;
     try { await api.delete(`/stock/proveedores/${id}`); await cargarProveedores(); }

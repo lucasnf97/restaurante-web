@@ -221,4 +221,8 @@ I18N.agregar({
     "Registrar pérdida": ["Record loss", "Registrér tab"],
     "Insumos de stock de la receta · costo sin impuesto": ["Recipe stock ingredients · cost excl. tax", "Opskriftens lagerråvarer · omkostning ekskl. moms"],
     "y": ["and", "og"],
+    "¿Archivar \"{0}\"?": ["Archive \"{0}\"?", "Arkivér \"{0}\"?"],
+    "No se borra: sale de la lista pero conserva todo su historial y lo podés reactivar cuando quieras (marcá \"Ver archivados\").": ["It isn't deleted: it leaves the list but keeps all its history, and you can reactivate it whenever you want (tick \"View archived\").", "Den slettes ikke: den forsvinder fra listen, men beholder hele sin historik, og du kan genaktivere den når som helst (markér \"Se arkiverede\")."],
+    "No se borra: sale de la lista pero conserva su receta y su historial de producción, y lo podés reactivar cuando quieras (marcá \"Ver archivados\").": ["It isn't deleted: it leaves the list but keeps its recipe and production history, and you can reactivate it whenever you want (tick \"View archived\").", "Den slettes ikke: den forsvinder fra listen, men beholder sin opskrift og produktionshistorik, og du kan genaktivere den når som helst (markér \"Se arkiverede\")."],
+    "No se borra: sale de la lista pero conserva su historial de movimientos (compras, pérdidas), y lo podés reactivar cuando quieras (marcá \"Ver archivados\").": ["It isn't deleted: it leaves the list but keeps its movement history (purchases, losses), and you can reactivate it whenever you want (tick \"View archived\").", "Den slettes ikke: den forsvinder fra listen, men beholder sin bevægelseshistorik (køb, tab), og du kan genaktivere den når som helst (markér \"Se arkiverede\")."],
 });

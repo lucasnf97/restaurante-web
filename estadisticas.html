@@ -838,6 +838,7 @@ body.config-open .hub-wgt-grid {
 
 <script src="js/i18n.js"></script>
 <script src="js/i18n/comun.js"></script>
+<script src="js/i18n/estadisticas.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/api.js"></script>
 <script src="js/moneda.js"></script>
@@ -1103,6 +1104,14 @@ let anioActual = new Date().getFullYear();
 // ── Gráfico Gastos vs Ventas ────────────────────────────────────
 const BAR_H           = 200;
 const MESES_SHORT     = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+// En inglés/danés los meses los da Intl ("Mar" en el diccionario es martes).
+if (window.I18N && I18N.idioma() !== 'es') {
+    for (let m = 0; m < 12; m++) {
+        const d = new Date(2024, m, 1), L = I18N.idioma();
+        MESES[m] = new Intl.DateTimeFormat(L, { month: 'long' }).format(d).replace(/^./, c => c.toUpperCase());
+        MESES_SHORT[m] = new Intl.DateTimeFormat(L, { month: 'short' }).format(d).replace(/^./, c => c.toUpperCase());
+    }
+}
 const GRAFICO_MIN_OFF = -9;   // offset mínimo: 4 + 9 = ventana que empieza 12m atrás
 let   graficoOffset   = 0;    // 0 = termina en mesActual, negativo = hacia atrás
 
@@ -1381,8 +1390,8 @@ function renderBillingCards(d) {
             cls:"ventas", icon:"💰", label:"Ventas del mes",
             value: fmt(vn),
             extraCls: vn >= 0 ? "" : "negativo",
-            sub: (d.ventas_neto != null ? `${fmt(d.ventas)} con impuesto · sin IVA arriba` : "Suma de cierres de caja")
-                 + ((d.refunds || 0) > 0 ? ` · refunds ${fmt(d.refunds)}` : "")
+            sub: _t(d.ventas_neto != null ? `${fmt(d.ventas)} con impuesto · sin IVA arriba` : "Suma de cierres de caja")
+                 + ((d.refunds || 0) > 0 ? _t(` · refunds ${fmt(d.refunds)}`) : "")
         },
         {
             cls:"salarios", icon:"👥", label: aprobado ? "Salarios" : "Salarios (estimado)",
@@ -1423,8 +1432,8 @@ function renderBillingCards(d) {
         {
             cls:"stock", icon:"🏗️", label:"Monto acumulado de stock",
             value: fmt(d.monto_acumulado_stock), extraCls:"",
-            sub: (d.stock_es_cierre ? "Valor al cierre del mes" : "Valor actual en inventario")
-                 + (mermaTotal > 0 ? ` · merma del mes ${fmt(mermaTotal)}` : " · sin merma este mes")
+            sub: _t(d.stock_es_cierre ? "Valor al cierre del mes" : "Valor actual en inventario")
+                 + _t(mermaTotal > 0 ? ` · merma del mes ${fmt(mermaTotal)}` : " · sin merma este mes")
         },
     ];
 
