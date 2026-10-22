@@ -598,7 +598,9 @@
             ["Personal", a.coste_personal], ["Insumos", a.coste_insumos],
             ["Gastos fijos", a.gastos_fijos], ["Extraordinarios", a.gastos_extraordinarios],
             ["Devoluciones", a.refunds],
-            [a.resultado >= 0 ? "Resultado" : "Pérdida", Math.abs(a.resultado)],
+            // ⚠ Sólo la GANANCIA es una porción: costes + resultado = ventas. Con
+            //   pérdida los costes ya superan las ventas y la pérdida no es parte de nada.
+            ["Resultado", a.resultado],
         ].filter(x => x[1] > 0);
         if (!partes.length) { Metricas.borrarGrafico("mxc-cv-costes"); return; }
         Metricas.grafico("mxc-cv-costes", {
@@ -606,7 +608,7 @@
             data: { labels: partes.map(x => x[0]), datasets: [{
                 data: partes.map(x => x[1]),
                 backgroundColor: partes.map((x, i) => x[0] === "Resultado" ? "#1baf7a"
-                    : (x[0] === "Pérdida" ? "#e34948" : Metricas.PALETA[i % Metricas.PALETA.length])),
+                    : Metricas.PALETA[i % Metricas.PALETA.length]),
                 borderColor: Metricas.tcol("--hoja", "#fff"), borderWidth: 2 }] },
             options: {
                 responsive: true, maintainAspectRatio: false, cutout: "55%",

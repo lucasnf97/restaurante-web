@@ -599,6 +599,25 @@ test.describe("Consolidado de cadena", () => {
     expect(await graficos(), "ningún gráfico puede seguir mostrando el período anterior").toEqual([0, 0]);
   });
 
+  test("el desglose de costes no muestra la pérdida como una porción", async ({ page }) => {
+    // Reportado 2026-10-22 (vista anual): con resultado negativo, el anillo sumaba la
+    // PÉRDIDA como una porción más, al lado de los costes. Con ganancia, costes +
+    // resultado = ventas y la porción tiene sentido; con pérdida no es parte de nada.
+    await page.goto("/cadena.html?cadena=1");
+    await esperarTableroCadena(page);
+    const datos = await page.evaluate(() => {
+      const d = JSON.parse(JSON.stringify(_mxcDatos));
+      d.total = Object.assign({}, d.total, {
+        hay_datos: true, ventas: 1000, coste_personal: 800, coste_insumos: 500,
+        gastos_fijos: 200, gastos_extraordinarios: 0, refunds: 0,
+        gastos_totales: 1500, resultado: -500 });
+      document.getElementById("mxc-rest").value = "";
+      _mxcDatos = d; mxcRender();
+      return Chart.getChart(document.getElementById("mxc-cv-costes")).data.datasets[0].data;
+    });
+    expect(datos, "sólo los costes, sin la pérdida").toEqual([800, 500, 200]);
+  });
+
   test("pedir una moneda ajena a la cadena se rechaza", async ({ page }) => {
     await page.goto("/cadena.html?cadena=1");
     // Nunca se convierte a una moneda que nadie usa: sin tasa, el resultado
