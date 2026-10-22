@@ -1910,7 +1910,9 @@ function renderMetricas() {
 /** Torta de a dónde se va cada euro facturado en el período. */
 function renderCostesChart() {
     const a = _mxDatos && _mxDatos.actual;
-    if (!a || !a.hay_datos || !window.Chart) return;
+    if (!window.Chart) return;
+    // ⚠ Sin datos se BORRA: si no, queda el anillo del período anterior.
+    if (!a || !a.hay_datos) { Metricas.borrarGrafico('mx-cv-costes'); return; }
     const partes = [
         ['Personal',        a.coste_personal],
         ['Insumos',         a.coste_insumos],
@@ -1919,6 +1921,7 @@ function renderCostesChart() {
         ['Devoluciones',    a.refunds],
         [a.resultado >= 0 ? 'Resultado' : 'Pérdida', Math.abs(a.resultado)],
     ].filter(x => x[1] > 0);
+    if (!partes.length) { Metricas.borrarGrafico('mx-cv-costes'); return; }
     const colores = partes.map((x, i) =>
         x[0] === 'Resultado' ? '#1baf7a'
         : (x[0] === 'Pérdida' ? '#e34948' : Metricas.PALETA[i % Metricas.PALETA.length]));

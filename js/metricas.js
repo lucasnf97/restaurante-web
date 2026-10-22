@@ -470,9 +470,18 @@
         return new Chart(el, cfg);
     }
 
+    /** Borra el gráfico de ese canvas. ⚠ Todo camino que NO dibuja tiene que
+     *  llamarlo: si no, queda a la vista el del período anterior bajo la etiqueta
+     *  del nuevo (pasó: los insumos de agosto debajo de "septiembre"). */
+    function borrarGrafico(idCanvas) {
+        var el = document.getElementById(idCanvas);
+        if (!el || !window.Chart) return;
+        try { Chart.getChart(el) && Chart.getChart(el).destroy(); } catch (e) { }
+    }
+
     window.Metricas = {
         KPIS: KPIS, PALETA: PALETA, GRIS: GRIS,
-        tcol: tcol, grafico: grafico,
+        tcol: tcol, grafico: grafico, borrarGrafico: borrarGrafico,
         esc: esc, dinero: dinero, num: num, pct: pct, horas: horas,
         varImporte: varImporte,
         claseDelta: claseDelta, flechaDelta: flechaDelta,

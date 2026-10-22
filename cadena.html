@@ -590,16 +590,17 @@
                     },
                 },
             });
-        }
+        } else Metricas.borrarGrafico("mxc-cv-rests");
 
         const a = ambito.actual;
-        if (!a || !a.hay_datos) return;
+        if (!a || !a.hay_datos) { Metricas.borrarGrafico("mxc-cv-costes"); return; }
         const partes = [
             ["Personal", a.coste_personal], ["Insumos", a.coste_insumos],
             ["Gastos fijos", a.gastos_fijos], ["Extraordinarios", a.gastos_extraordinarios],
             ["Devoluciones", a.refunds],
             [a.resultado >= 0 ? "Resultado" : "Pérdida", Math.abs(a.resultado)],
         ].filter(x => x[1] > 0);
+        if (!partes.length) { Metricas.borrarGrafico("mxc-cv-costes"); return; }
         Metricas.grafico("mxc-cv-costes", {
             type: "doughnut",
             data: { labels: partes.map(x => x[0]), datasets: [{

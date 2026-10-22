@@ -573,6 +573,32 @@ test.describe("Consolidado de cadena", () => {
     }
   });
 
+  test("pasar a un período sin datos no deja los gráficos del período anterior", async ({ page }) => {
+    // Reportado 2026-10-22: al pasar de agosto a septiembre el anillo seguía
+    // mostrando los insumos de AGOSTO debajo de "septiembre". Los gráficos sólo se
+    // redibujaban si había datos; si no, quedaba el del período anterior.
+    expect(await abrirCadenaEnPeriodoConDatos(page)).toBe(true);
+    const graficos = () => page.evaluate(() => ["mxc-cv-rests", "mxc-cv-costes"].map((id) => {
+      const c = Chart.getChart(document.getElementById(id));
+      return c ? c.data.datasets.reduce((s, ds) => s + ds.data.length, 0) : 0;
+    }));
+    expect((await graficos()).some((n) => n > 0), "el período con datos debería dibujar algo").toBe(true);
+
+    // El mismo payload, vaciado: un período sin ventas ni gastos.
+    await page.evaluate(() => {
+      const vacio = (b) => b && Object.assign({}, b, {
+        hay_datos: false, ventas: 0, coste_personal: 0, coste_insumos: 0, gastos_fijos: 0,
+        gastos_extraordinarios: 0, refunds: 0, gastos_totales: 0, resultado: 0 });
+      const d = JSON.parse(JSON.stringify(_mxcDatos));
+      d.total = vacio(d.total);
+      (d.restaurantes || []).forEach((x) => {
+        x.actual = vacio(x.actual); x.actual_convertido = vacio(x.actual_convertido);
+      });
+      _mxcDatos = d; mxcRender();
+    });
+    expect(await graficos(), "ningún gráfico puede seguir mostrando el período anterior").toEqual([0, 0]);
+  });
+
   test("pedir una moneda ajena a la cadena se rechaza", async ({ page }) => {
     await page.goto("/cadena.html?cadena=1");
     // Nunca se convierte a una moneda que nadie usa: sin tasa, el resultado
