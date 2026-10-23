@@ -189,7 +189,8 @@
                 const r=await fetch(API_URL+'/auth/reset/solicitar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
                 const d=await r.json().catch(()=>({}));
                 msg.style.color='#16a34a';
-                msg.textContent=d.mensaje || _t('Si el correo corresponde a una cuenta, te enviamos un enlace.');
+                // El texto llega de la API en castellano: se traduce acá (el login va siempre en inglés).
+                msg.textContent=_t(d.mensaje || 'Si el correo corresponde a una cuenta, te enviamos un enlace.');
             }catch(err){ msg.style.color='#dc2626'; msg.textContent=_t('No se pudo enviar. Probá de nuevo.'); }
             finally{ btn.disabled=false; btn.textContent=_t('Enviar enlace'); }
         }

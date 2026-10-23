@@ -86,6 +86,11 @@
         "Enviando…": ["Sending…", "Sender…"],
         "Ingresá un correo válido.": ["Enter a valid email.", "Skriv en gyldig e-mail."],
         "Si el correo corresponde a una cuenta, te enviamos un enlace.": ["If the email belongs to an account, we've sent you a link.", "Hvis e-mailen hører til en konto, har vi sendt dig et link."],
+        // ⚠ Texto EXACTO de la API (_RESET_GENERICO en app/routers/auth.py): si allá cambia,
+        //   acá deja de reconocerse y el login vuelve a mostrarlo en castellano.
+        "Si el correo corresponde a una cuenta con email cargado, te enviamos un enlace para restablecer la contraseña. Revisá tu bandeja (y el spam).":
+            ["If the email belongs to an account, we've sent you a link to reset your password. Check your inbox (and spam).",
+             "Hvis e-mailen hører til en konto, har vi sendt dig et link til at nulstille adgangskoden. Tjek din indbakke (og spam)."],
         "No se pudo enviar. Probá de nuevo.": ["Couldn't send it. Please try again.", "Kunne ikke sende. Prøv igen."],
         "Completá usuario y contraseña.": ["Enter your username and password.", "Udfyld brugernavn og adgangskode."],
         "Completá tu email o usuario y la contraseña.": ["Enter your email or username and the password.", "Udfyld e-mail eller brugernavn og adgangskoden."],
