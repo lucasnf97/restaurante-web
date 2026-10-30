@@ -670,12 +670,80 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
                     <label class="cfg-label">CUIT / CIF / NIF</label>
                     <input class="cfg-input" type="text" id="l-cuit"
                            placeholder="Ej: 20-12345678-9">
+                    <span class="cfg-hint">En Dinamarca, el CVR: 8 dígitos.</span>
+                </div>
+            </div>
+
+            <!-- Dirección legal ESTRUCTURADA: SAF-T (Skat) la pide por campo. Su país es el
+                 país fiscal: con Dinamarca rige el registro digital de ventas. -->
+            <div class="cfg-label" style="margin-top:18px;">Dirección legal (la del registro de la empresa)</div>
+            <div class="cfg-grid" style="margin-top:8px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Calle</label>
+                    <input class="cfg-input" type="text" id="l-calle" maxlength="100">
+                </div>
+                <div class="cfg-field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="cfg-field"><label class="cfg-label">Número</label>
+                        <input class="cfg-input" type="text" id="l-numero" maxlength="20" placeholder="12B"></div>
+                    <div class="cfg-field"><label class="cfg-label">Piso / puerta</label>
+                        <input class="cfg-input" type="text" id="l-piso" maxlength="20" placeholder="2. th."></div>
+                </div>
+                <div class="cfg-field" style="display:grid;grid-template-columns:1fr 2fr;gap:12px;">
+                    <div class="cfg-field"><label class="cfg-label">Código postal</label>
+                        <input class="cfg-input" type="text" id="l-cp" maxlength="20"></div>
+                    <div class="cfg-field"><label class="cfg-label">Ciudad</label>
+                        <input class="cfg-input" type="text" id="l-ciudad" maxlength="50"></div>
                 </div>
                 <div class="cfg-field">
-                    <label class="cfg-label">Dirección legal</label>
-                    <input class="cfg-input" type="text" id="l-dir-legal"
-                           placeholder="Domicilio fiscal registrado">
+                    <label class="cfg-label">País</label>
+                    <select class="cfg-input" id="l-pais">
+                        <option value="">—</option>
+                        <option value="DK">Dinamarca</option>
+                        <option value="SE">Suecia</option>
+                        <option value="ES">España</option>
+                        <option value="AR">Argentina</option>
+                        <option value="BO">Bolivia</option>
+                    </select>
                 </div>
+            </div>
+            <div class="cfg-hint" id="l-dir-vieja" style="display:none;margin-top:6px;"></div>
+
+            <div class="cfg-label" style="margin-top:18px;">Dirección del local (donde está la caja)</div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" id="l-local-igual" checked onchange="mostrarDirLocal()">
+                Igual a la dirección legal
+            </label>
+            <div class="cfg-grid" id="l-local-campos" style="display:none;margin-top:8px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Calle</label>
+                    <input class="cfg-input" type="text" id="l-local-calle" maxlength="100">
+                </div>
+                <div class="cfg-field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="cfg-field"><label class="cfg-label">Número</label>
+                        <input class="cfg-input" type="text" id="l-local-numero" maxlength="20"></div>
+                    <div class="cfg-field"><label class="cfg-label">Piso / puerta</label>
+                        <input class="cfg-input" type="text" id="l-local-piso" maxlength="20"></div>
+                </div>
+                <div class="cfg-field" style="display:grid;grid-template-columns:1fr 2fr;gap:12px;">
+                    <div class="cfg-field"><label class="cfg-label">Código postal</label>
+                        <input class="cfg-input" type="text" id="l-local-cp" maxlength="20"></div>
+                    <div class="cfg-field"><label class="cfg-label">Ciudad</label>
+                        <input class="cfg-input" type="text" id="l-local-ciudad" maxlength="50"></div>
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">País</label>
+                    <select class="cfg-input" id="l-local-pais">
+                        <option value="">—</option>
+                        <option value="DK">Dinamarca</option>
+                        <option value="SE">Suecia</option>
+                        <option value="ES">España</option>
+                        <option value="AR">Argentina</option>
+                        <option value="BO">Bolivia</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="cfg-grid" style="margin-top:18px;">
                 <div class="cfg-field">
                     <label class="cfg-label">Dirección de facturación</label>
                     <input class="cfg-input" type="text" id="l-dir-factura"
@@ -692,6 +760,9 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
                            placeholder="contacto@restaurante.com">
                 </div>
             </div>
+            <!-- Estado frente a Skat (sólo con país fiscal Dinamarca): qué falta para el
+                 registro digital de ventas. Lo calcula GET /config/fiscal. -->
+            <div id="l-fiscal-estado" style="display:none;margin-top:14px;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.5;"></div>
             <div class="cfg-actions">
                 <button class="btn-save" onclick="guardarLegal()">Guardar datos legales</button>
                 <span class="save-ok" id="ok-legal">✓ Guardado</span>
@@ -2217,11 +2288,17 @@ async function cargarDatos() {
         if (cfg.neg_logo_url) setLogoPreview(cfg.neg_logo_url);
         document.getElementById('l-razon').value       = cfg.legal_razon || '';
         document.getElementById('l-cuit').value        = cfg.legal_cuit || '';
-        document.getElementById('l-dir-legal').value   = cfg.legal_dir_legal || '';
         document.getElementById('l-dir-factura').value = cfg.legal_dir_factura || '';
         document.getElementById('l-telefono').value    = cfg.legal_telefono || '';
         document.getElementById('l-email').value       = cfg.legal_email || '';
+        // La dirección legal vieja era texto libre: se muestra para pasarla a los campos.
+        const vieja = document.getElementById('l-dir-vieja');
+        if (cfg.legal_dir_legal) {
+            vieja.textContent = _t('Dirección cargada antes: {0}', {0: cfg.legal_dir_legal});
+            vieja.style.display = '';
+        }
     } catch {}
+    await cargarFiscal();
 
     // Modo edición
     actualizarEstadoEdicion();
@@ -2284,20 +2361,80 @@ function eliminarLogo() {
     _logoQuitar = true;        // se borra del servidor al tocar Guardar
 }
 
+// ── Identidad fiscal (registro digital de ventas, Skat) ─────
+// Las direcciones van por campo porque SAF-T las pide así. El país de la dirección legal
+// es el país fiscal: con Dinamarca, la API valida el CVR (8 dígitos) y dice qué falta.
+const _DIR = ['calle', 'numero', 'piso', 'cp', 'ciudad', 'pais'];
+
+function mostrarDirLocal() {
+    const igual = document.getElementById('l-local-igual').checked;
+    document.getElementById('l-local-campos').style.display = igual ? 'none' : '';
+}
+
+async function cargarFiscal() {
+    try {
+        const f = await apiFetch('/config/fiscal');
+        // El CVR vuelve normalizado ("DK 12 34 56 78" → "12345678"): se ve lo que quedó guardado.
+        if (f.cvr) document.getElementById('l-cuit').value = f.cvr;
+        _DIR.forEach(c => {
+            document.getElementById('l-' + c).value = (f.direccion_legal || {})[c] || '';
+        });
+        if (!f.pais && f.pais_sugerido) document.getElementById('l-pais').value = f.pais_sugerido;
+        document.getElementById('l-local-igual').checked = f.local_igual_legal !== false;
+        if (f.local_igual_legal === false) {
+            _DIR.forEach(c => {
+                document.getElementById('l-local-' + c).value = (f.direccion_local || {})[c] || '';
+            });
+        }
+        mostrarDirLocal();
+        pintarEstadoFiscal(f);
+    } catch {}
+}
+
+const _FALTA_TXT = { cvr: 'CVR', razon: 'Razón social', calle: 'Calle', numero: 'Número',
+                     cp: 'Código postal', ciudad: 'Ciudad', pais: 'País' };
+
+function pintarEstadoFiscal(f) {
+    const box = document.getElementById('l-fiscal-estado');
+    if (!f || !f.aplica_dk) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    if (f.completa) {
+        box.style.background = 'var(--ok-sf-2, #f0fdf4)';
+        box.style.color = 'var(--ok-tx, #15803d)';
+        box.textContent = '✓ ' + _t('Datos completos para el registro digital de ventas (Skat).');
+        return;
+    }
+    const lista = (f.faltan || []).map(k => {
+        const [grupo, campo] = k.split('.');
+        if (!campo) return _t(_FALTA_TXT[grupo] || grupo);
+        const donde = grupo === 'direccion_local' ? _t('dirección del local') : _t('dirección legal');
+        return `${_t(_FALTA_TXT[campo] || campo)} (${donde})`;
+    });
+    box.style.background = 'var(--av-sf, #fef3c7)';
+    box.style.color = 'var(--av-tx, #92400e)';
+    box.textContent = '⚠ ' + _t('Faltan para el registro digital de ventas (Skat): {0}', {0: lista.join(', ')});
+}
+
 // ── Guardar Legal ───────────────────────────────────────────
 async function guardarLegal() {
+    const v = id => document.getElementById(id).value.trim();
+    const igual = document.getElementById('l-local-igual').checked;
     const data = {
-        legal_razon:       document.getElementById('l-razon').value.trim(),
-        legal_cuit:        document.getElementById('l-cuit').value.trim(),
-        legal_dir_legal:   document.getElementById('l-dir-legal').value.trim(),
-        legal_dir_factura: document.getElementById('l-dir-factura').value.trim(),
-        legal_telefono:    document.getElementById('l-telefono').value.trim(),
-        legal_email:       document.getElementById('l-email').value.trim(),
+        legal_razon:       v('l-razon'),
+        legal_cuit:        v('l-cuit'),
+        legal_dir_factura: v('l-dir-factura'),
+        legal_telefono:    v('l-telefono'),
+        legal_email:       v('l-email'),
+        local_igual_legal: igual,
     };
+    _DIR.forEach(c => { data['legal_' + c] = v('l-' + c); });
+    // Con "igual a la legal" no se mandan los campos del local: quedan como estaban.
+    if (!igual) _DIR.forEach(c => { data['local_' + c] = v('l-local-' + c); });
     try {
         await apiFetch('/config/negocio', { method: 'PUT', body: JSON.stringify(data) });
         mostrarOk('ok-legal');
-    } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); }
+        await cargarFiscal();
+    } catch (e) { alert(_t('No se pudo guardar: {0}', {0: e.message || e})); }
 }
 
 // ── Modo Edición ────────────────────────────────────────────
@@ -2404,7 +2541,11 @@ function desactivarEdicion() {
 // ── Base de datos ───────────────────────────────────────────
 const _CAMPOS_NEGOCIO = ['neg_nombre', 'neg_direccion', 'neg_cuit', 'neg_telefono', 'neg_logo_url',
                          'legal_razon', 'legal_cuit', 'legal_dir_legal', 'legal_dir_factura',
-                         'legal_telefono', 'legal_email'];
+                         'legal_telefono', 'legal_email',
+                         // Identidad fiscal estructurada (SAF-T / Skat)
+                         'legal_calle', 'legal_numero', 'legal_piso', 'legal_cp', 'legal_ciudad',
+                         'legal_pais', 'local_igual_legal', 'local_calle', 'local_numero',
+                         'local_piso', 'local_cp', 'local_ciudad', 'local_pais'];
 
 async function descargarBackup() {
     let datos = {};
@@ -2452,7 +2593,15 @@ function restaurarBackup() {
                 };
             }
             const body = {};
-            _CAMPOS_NEGOCIO.forEach(k => { if (k in datos) body[k] = datos[k] || ''; });
+            // Los booleanos van tal cual: `false || ''` mandaría un texto donde va un sí/no.
+            _CAMPOS_NEGOCIO.forEach(k => {
+                if (!(k in datos)) return;
+                if (k === 'local_igual_legal') {
+                    if (typeof datos[k] === 'boolean') body[k] = datos[k];
+                    return;
+                }
+                body[k] = datos[k] || '';
+            });
             await apiFetch('/config/negocio', { method: 'PUT', body: JSON.stringify(body) });
             alert('✓ Configuración restaurada en ESTE restaurante.');
             cargarDatos();
