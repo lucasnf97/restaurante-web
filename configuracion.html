@@ -1196,6 +1196,31 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
         </div>
     </div>
 
+    <!-- ═══ PUESTOS DE VENTA (registro digital de ventas, Skat) ═══ -->
+    <!-- Cada equipo que cobra es un puesto con su `register_id` (el registerID de SAF-T).
+         Se dan de alta solos al cobrar; acá se ven y se dan de baja (baja lógica). -->
+    <div class="cfg-section" id="sec-puestos">
+        <div class="cfg-section-head" onclick="toggleSection('puestos')">
+            <span class="cfg-section-icon">🖥️</span>
+            <span class="cfg-section-title">Puestos de venta</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-top:14px;line-height:1.6;" data-i18n-html>
+                Cada equipo que cobra (programa de caja o POS) es un <strong>puesto</strong> con un
+                número propio, que sale en el ticket y en el registro de ventas para Skat. Se dan de
+                alta solos al cobrar por primera vez. Dá de baja los equipos que ya no se usan: lo que
+                vendieron queda guardado.
+            </p>
+            <table class="tasa-table">
+                <thead><tr>
+                    <th>Puesto</th><th>Tipo</th><th>Terminal</th><th>Versión</th><th>Último uso</th><th></th>
+                </tr></thead>
+                <tbody id="puestos-body"><tr><td colspan="6" class="tasa-empty">Cargando…</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- ═══ CARGAS SOCIALES / SEGUROS (NÓMINA) ════════════════════ -->
     <div class="cfg-section" id="sec-cargassoc">
         <div class="cfg-section-head" onclick="toggleSection('cargassoc')">
@@ -1734,6 +1759,56 @@ function _cargarSeccionLazy(id) {
     else if (id === 'descpersonal') cargarSeccionDescuentoPersonal();
     else if (id === 'cargassoc')   cargarCargasSociales();
     else if (id === 'datafono')    cargarDatafono();
+    else if (id === 'puestos')     cargarPuestos();
+}
+
+// ── 🖥️ Puestos de venta (registro digital de ventas, Skat) ────
+// Cada equipo que cobra es un puesto con su `register_id`, que va en el ticket y en el
+// SAF-T. Se dan de alta solos al cobrar (API: app/fiscal/puestos.py); acá sólo se ven y se
+// dan de baja. La baja es lógica: lo vendido por ese puesto queda en el registro.
+const _TIPO_PUESTO = { exe: 'Programa de caja', pos: 'POS (móvil)', virtual: 'Virtual' };
+
+function _fmtUso(ts) {
+    try {
+        return new Date(ts).toLocaleString('es-AR', { day: '2-digit', month: '2-digit',
+            year: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+}
+
+async function cargarPuestos() {
+    const tb = document.getElementById('puestos-body');
+    let lista;
+    try { lista = await apiFetch('/puestos'); }
+    catch (e) {
+        tb.innerHTML = `<tr><td colspan="6" class="tasa-empty">${esc(_t('No se pudieron cargar los puestos.'))}</td></tr>`;
+        return;
+    }
+    if (!lista.length) {
+        tb.innerHTML = `<tr><td colspan="6" class="tasa-empty">${esc(_t('Todavía ningún equipo cobró: los puestos aparecen solos con el primer cobro.'))}</td></tr>`;
+        return;
+    }
+    tb.innerHTML = lista.map(p => {
+        const baja = !!p.baja_en;
+        const accion = p.tipo === 'virtual' ? ''
+            : baja ? `<button class="btn-tasa-edit" onclick="bajaPuesto(${p.id}, false)">${esc(_t('Reactivar'))}</button>`
+                   : `<button class="btn-tasa-del" title="${escAttr(_t('Dar de baja'))}" onclick="bajaPuesto(${p.id}, true)">✕</button>`;
+        return `<tr style="${baja ? 'opacity:.5;' : ''}">
+            <td><b>${esc(p.register_id)}</b>${baja ? ` <span style="font-size:11px;">(${esc(_t('de baja'))})</span>` : ''}</td>
+            <td>${esc(_t(_TIPO_PUESTO[p.tipo] || 'Equipo'))}</td>
+            <td>${esc(p.nombre || '—')}</td>
+            <td>${esc(p.version || '—')}</td>
+            <td>${esc(_fmtUso(p.ultimo_uso))}</td>
+            <td style="text-align:right;">${accion}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function bajaPuesto(id, baja) {
+    if (baja && !confirm(_t('¿Dar de baja este puesto? Lo que vendió queda guardado; si vuelve a cobrar, se reactiva solo.'))) return;
+    try {
+        await apiFetch(`/puestos/${id}`, { method: 'PATCH', body: JSON.stringify({ baja }) });
+        await cargarPuestos();
+    } catch (e) { alert(_t('No se pudo guardar: {0}', {0: e.message || e})); }
 }
 
 // ── 💳 Pagos con tarjeta (datáfono) ───────────────────────────
