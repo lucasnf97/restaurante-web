@@ -1221,6 +1221,51 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
         </div>
     </div>
 
+    <!-- ═══ REGISTRO DIGITAL DE VENTAS (Skat) ═════════════════════ -->
+    <!-- Estado del registro (datos fiscales, certificado de firma, diario) + carga del
+         certificado OCES3 del restaurante + inicio del registro (irreversible).
+         API: GET /fiscal/diario, POST /fiscal/certificado, POST /fiscal/diario/iniciar. -->
+    <div class="cfg-section" id="sec-skat">
+        <div class="cfg-section-head" onclick="toggleSection('skat')">
+            <span class="cfg-section-icon">🧾</span>
+            <span class="cfg-section-title">Registro de ventas (Skat)</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-top:14px;line-height:1.6;" data-i18n-html>
+                En Dinamarca, cada venta tiene que quedar en un <strong>registro firmado digitalmente</strong>
+                con el certificado de la empresa (OCES3 de organización, se pide en MitID Erhverv).
+                Cargá el certificado y después iniciá el registro: desde ese momento cada cobro se firma.
+            </p>
+            <div id="skat-estado" style="margin-top:14px;font-size:13px;line-height:1.9;"></div>
+
+            <div class="cfg-label" style="margin-top:20px;">Certificado de firma</div>
+            <div class="cfg-grid" style="margin-top:8px;">
+                <div class="cfg-field" style="grid-column:1/-1;">
+                    <label class="cfg-label">Archivo del certificado (.p12 / .pfx)</label>
+                    <input type="file" id="skat-archivo" accept=".p12,.pfx,application/x-pkcs12" style="font-size:13px;">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Contraseña del certificado</label>
+                    <input class="cfg-input" type="password" id="skat-clave-cert" autocomplete="off">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Tu contraseña</label>
+                    <input class="cfg-input" type="password" id="skat-clave-usuario" autocomplete="current-password">
+                </div>
+            </div>
+            <div class="cfg-actions">
+                <button class="btn-save" id="skat-btn-cargar" onclick="cargarCertificadoSkat()">Cargar certificado</button>
+                <span class="save-ok" id="ok-skat-cert">✓ Certificado cargado</span>
+            </div>
+
+            <div class="cfg-actions" style="margin-top:22px;border-top: 1px solid var(--bd-4, #f0f0f0);padding-top:16px;">
+                <button class="btn-save" id="skat-btn-iniciar" onclick="iniciarRegistroSkat()" disabled>Iniciar el registro de ventas</button>
+                <span style="font-size:12px;color: var(--tx-4, #9ca3af);">Una sola vez y sin vuelta atrás.</span>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ CARGAS SOCIALES / SEGUROS (NÓMINA) ════════════════════ -->
     <div class="cfg-section" id="sec-cargassoc">
         <div class="cfg-section-head" onclick="toggleSection('cargassoc')">
@@ -1760,6 +1805,71 @@ function _cargarSeccionLazy(id) {
     else if (id === 'cargassoc')   cargarCargasSociales();
     else if (id === 'datafono')    cargarDatafono();
     else if (id === 'puestos')     cargarPuestos();
+    else if (id === 'skat')        cargarSkat();
+}
+
+// ── 🧾 Registro de ventas (Skat) ──────────────────────────────
+// Estado del registro digital de ventas: datos fiscales, certificado de firma y diario.
+// La lógica vive en la API (app/fiscal/); acá sólo se muestra, se carga el certificado
+// (.p12 + su contraseña + la del usuario) y se inicia el registro (irreversible).
+function _fmtDia(ts) {
+    try { return new Date(ts).toLocaleDateString('es-AR'); } catch (e) { return ''; }
+}
+
+async function cargarSkat() {
+    const box = document.getElementById('skat-estado');
+    let e;
+    try { e = await apiFetch('/fiscal/diario'); }
+    catch (err) { box.textContent = _t('No se pudo leer el estado del registro de ventas.'); return; }
+    const ok = '<span style="color: var(--ok-tx, #15803d);">✓</span> ';
+    const no = '<span style="color: var(--av-tx, #92400e);">⚠</span> ';
+    const lin = [];
+    lin.push(e.identidad_completa ? ok + esc(_t('Datos fiscales completos'))
+             : no + esc(_t('Faltan datos fiscales: completalos en Configuración legal e impositiva')));
+    const c = e.certificado;
+    if (!c) lin.push(no + esc(_t('Falta el certificado de firma')));
+    else if (c.vencido) lin.push(no + esc(_t('El certificado de firma venció el {0}: cargá el nuevo', {0: _fmtDia(c.vence)})));
+    else lin.push(ok + esc(_t('Certificado del CVR {0}, vence el {1} (faltan {2} días)', {0: c.cvr, 1: _fmtDia(c.vence), 2: c.dias})));
+    lin.push(e.activo ? ok + esc(_t('Registro de ventas iniciado el {0}', {0: _fmtDia(e.desde)}))
+             : no + esc(_t('El registro de ventas todavía no está iniciado')));
+    if (!e.clave_maestra) lin.push(no + esc(_t('El servidor todavía no está listo para guardar certificados.')));
+    if (e.con_caja_local && !e.activo) lin.push(no + esc(_t('Con caja local, el registro se podrá iniciar en la próxima etapa.')));
+    if (!e.habilitado && !e.activo) lin.push(no + esc(_t('El registro digital de ventas todavía no está disponible.')));
+    box.innerHTML = lin.map(l => `<div>${l}</div>`).join('');
+    document.getElementById('skat-btn-iniciar').disabled = !e.puede_iniciar;
+    document.getElementById('skat-btn-cargar').disabled = !e.clave_maestra;
+}
+
+async function cargarCertificadoSkat() {
+    const archivo = document.getElementById('skat-archivo').files[0];
+    if (!archivo) { alert(_t('Elegí el archivo del certificado (.p12).')); return; }
+    const fd = new FormData();
+    fd.append('archivo', archivo);
+    fd.append('contrasena_certificado', document.getElementById('skat-clave-cert').value);
+    fd.append('password', document.getElementById('skat-clave-usuario').value);
+    const btn = document.getElementById('skat-btn-cargar');
+    window.UI && UI.busy(btn, true, _t('Cargando…'));
+    try {
+        await apiFetch('/fiscal/certificado', { method: 'POST', body: fd });
+        document.getElementById('skat-archivo').value = '';
+        document.getElementById('skat-clave-cert').value = '';
+        document.getElementById('skat-clave-usuario').value = '';
+        mostrarOk('ok-skat-cert');
+    } catch (err) { alert(_t('No se pudo cargar el certificado: {0}', {0: err.message || err})); }
+    finally { window.UI && UI.busy(btn, false); await cargarSkat(); }
+}
+
+async function iniciarRegistroSkat() {
+    if (!confirm(_t('¿Iniciar el registro de ventas?') + '\n\n' +
+                 _t('Desde ahora cada cobro se firma y queda en el registro para Skat.') + '\n' +
+                 _t('No hay vuelta atrás: el CVR y el país fiscal quedan fijos y la base ya no se puede formatear ni importar.'))) return;
+    const password = prompt(_t('Para confirmar, escribí tu contraseña:'));
+    if (password === null) return;
+    try {
+        await apiFetch('/fiscal/diario/iniciar', { method: 'POST', body: JSON.stringify({ password }) });
+        alert(_t('Registro de ventas iniciado.'));
+    } catch (err) { alert(_t('No se pudo iniciar: {0}', {0: err.message || err})); }
+    await cargarSkat();
 }
 
 // ── 🖥️ Puestos de venta (registro digital de ventas, Skat) ────

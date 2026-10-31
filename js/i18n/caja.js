@@ -1,4 +1,12 @@
 I18N.agregar({
+    // Recordatorio del certificado de firma del registro de ventas (2026-10-31). El motor
+    // traduce los diálogos línea por línea y separa solo el "⚠" del principio.
+    "El certificado de firma del registro de ventas venció.": ["The signing certificate for the sales register has expired.", "Signaturcertifikatet til salgsregistreringen er udløbet."],
+    "Hasta cargar el nuevo en Configuración no se puede cobrar.": ["Until the new one is loaded in Settings, payments can't be taken.", "Indtil det nye er indlæst under Indstillinger, kan der ikke tages imod betaling."],
+    "El certificado de firma vence hoy ({0}).": ["The signing certificate expires today ({0}).", "Signaturcertifikatet udløber i dag ({0})."],
+    "El certificado de firma vence mañana ({0}).": ["The signing certificate expires tomorrow ({0}).", "Signaturcertifikatet udløber i morgen ({0})."],
+    "El certificado de firma vence en {0} días ({1}).": ["The signing certificate expires in {0} days ({1}).", "Signaturcertifikatet udløber om {0} dage ({1})."],
+    "Cargá el nuevo en Configuración antes de esa fecha: al vencer no se va a poder cobrar.": ["Load the new one in Settings before that date: once it expires, payments can't be taken.", "Indlæs det nye under Indstillinger før den dato: når det er udløbet, kan der ikke tages imod betaling."],
     "Restaurante — Caja": ["Restaurant — Cash register", "Restaurant — Kasse"],
     "Take Away": ["Takeaway", "Takeaway"],
     "({0} elim.)": ["({0} removed)", "({0} fjernet)"],

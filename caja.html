@@ -1431,6 +1431,22 @@ async function verItems(pedidoId, mesaNumero) {
     } catch(e) { alert("Error: " + e.message); }
 }
 
+// Recordatorio del certificado de firma del registro de ventas (decisión del dueño,
+// 2026-10-31): desde 30 días antes del vencimiento, con los días que faltan, AL ABRIR Y AL
+// CERRAR LA CAJA. Al vencer no se puede cobrar. La API lo manda en `aviso_fiscal`.
+function textoAvisoFiscal(av) {
+    if (!av) return "";
+    if (av.vencido) {
+        return "⚠ El certificado de firma del registro de ventas venció.\n" +
+               "Hasta cargar el nuevo en Configuración no se puede cobrar.\n\n";
+    }
+    const fecha = av.vence ? new Date(av.vence).toLocaleDateString("es-AR") : "";
+    const cuando = av.dias === 0 ? `⚠ El certificado de firma vence hoy (${fecha}).`
+                 : av.dias === 1 ? `⚠ El certificado de firma vence mañana (${fecha}).`
+                 : `⚠ El certificado de firma vence en ${av.dias} días (${fecha}).`;
+    return cuando + "\nCargá el nuevo en Configuración antes de esa fecha: al vencer no se va a poder cobrar.\n\n";
+}
+
 async function abrirCaja() {
     // ⚠ ABRIR LA CAJA ES UN ARQUEO (decisión del dueño, 2026-10-03): se muestra lo que
     //   debería haber en el cajón y la persona lo cuenta y lo confirma. El conteo es
@@ -1463,6 +1479,7 @@ async function abrirCaja() {
 
     const objetivo = prev.saldo_objetivo;
     const txt = prompt(
+        textoAvisoFiscal(prev.aviso_fiscal) +
         "ABRIR CAJA — contá el efectivo del cajón.\n\n" +
         (aviso ? aviso + "\n" : "") +
         (prev.origen === "sin_referencia"
@@ -1516,6 +1533,7 @@ async function cerrarCaja() {
     const hay = a.efectivo_esperado, objetivo = a.saldo_objetivo, sug = a.retiro_sugerido;
 
     const txtRet = prompt(
+        textoAvisoFiscal(a.aviso_fiscal) +
         "CERRAR CAJA\n\n" +
         `En el cajón hay ${arqMoneda(hay)}.\n` +
         `El saldo inicial configurado es ${arqMoneda(objetivo)}.\n\n` +
