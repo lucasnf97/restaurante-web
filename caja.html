@@ -1360,10 +1360,15 @@ async function verDetalle(id) {
 // se manda por correo, GET /pedidos/{id}/ticket) y lo muestra en un iframe imprimible.
 // Registro de ventas (DK): toda reimpresión desde la web es una COPIA (marcada en el papel) y
 // queda en el diario fiscal (13014) — sin terminal propio va al puesto SISTEMA del local.
-const BANNER_COPIA = '<div style="text-align:center;font-size:20px;font-weight:800;letter-spacing:2px;' +
-    'border:3px solid #111;padding:6px 0;margin-bottom:8px;">— COPIA —</div>';
+// El ticket de un restaurante con país fiscal Dinamarca viene en danés (`lang='da'`): su copia
+// dice KOPI.
+function _bannerCopia(danes) {
+    return '<div style="text-align:center;font-size:20px;font-weight:800;letter-spacing:2px;' +
+        'border:3px solid #111;padding:6px 0;margin-bottom:8px;">— ' + (danes ? 'KOPI' : 'COPIA') + ' —</div>';
+}
 function _marcarCopia(html) {
-    return /<body[^>]*>/i.test(html) ? html.replace(/<body([^>]*)>/i, m => m + BANNER_COPIA) : BANNER_COPIA + html;
+    const banner = _bannerCopia(/<html[^>]*lang=['"]da['"]/i.test(html));
+    return /<body[^>]*>/i.test(html) ? html.replace(/<body([^>]*)>/i, m => m + banner) : banner + html;
 }
 function _eventoCopia(datos) {
     api.post("/fiscal/eventos", { tipo: "copia", ...datos }).catch(() => {});
@@ -1388,7 +1393,7 @@ function imprimirTicketCaja() {
     try {
         const body = frame.contentDocument && frame.contentDocument.body;
         if (body && !body.dataset.copia) {
-            body.insertAdjacentHTML("afterbegin", BANNER_COPIA);
+            body.insertAdjacentHTML("afterbegin", _bannerCopia(frame.contentDocument.documentElement.lang === "da"));
             body.dataset.copia = "1";
         }
         frame.contentWindow.focus(); frame.contentWindow.print();
