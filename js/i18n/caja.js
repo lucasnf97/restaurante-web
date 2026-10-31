@@ -38,6 +38,8 @@ I18N.agregar({
     "Cerrar caja": ["Close register", "Luk kasse"],
     // Informes X/Z del registro de ventas (DK, 2026-10-31)
     "Informe X": ["X report", "X-rapport"],
+    "Informes Z": ["Z reports", "Z-rapporter"],
+    "Informe Z de cada terminal (registro de ventas)": ["Z report of each terminal (sales register)", "Z-rapport for hver kasse (salgsregistrering)"],
     "Lo vendido en cada terminal desde su último Z (no cierra la caja)": ["What each terminal sold since its last Z (doesn't close the register)", "Hvad hver kasse har solgt siden sidste Z (lukker ikke kassen)"],
     "Cerró": ["Closed by", "Lukket af"],
     "Cierre": ["Close", "Lukning"],

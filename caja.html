@@ -185,11 +185,12 @@
             <thead>
                 <tr>
                     <th>ID</th><th>Abierto por</th><th>Hora apertura</th>
-                    <th>Cerrado por</th><th>Hora cierre</th><th>Total</th><th>Acciones</th>
+                    <th>Cerrado por</th><th>Hora cierre</th><th>Total</th>
+                    <th title="Informe Z de cada terminal (registro de ventas)">Informes Z</th><th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tabla-body">
-                <tr><td colspan="7" class="empty">Cargando...</td></tr>
+                <tr><td colspan="8" class="empty">Cargando...</td></tr>
             </tbody>
         </table>
     </div>
@@ -1091,7 +1092,7 @@ async function cargarCierres() {
             const data = await api.get(`/caja/cierres/${cierreId}`);
             if (!_vigente()) return;
             if (!data || !data.cierre) {
-                tbody.innerHTML = `<tr><td colspan="7" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
                 return;
             }
             const c = data.cierre;
@@ -1102,12 +1103,13 @@ async function cargarCierres() {
                 <td>${c.cerrado_por}</td>
                 <td>${formatTs(c.ts_cierre)}</td>
                 <td><strong>${simboloMoneda()} ${parseFloat(c.total).toFixed(2)}</strong></td>
+                <td>${celdaInformesZ(c)}</td>
                 <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
             </tr>`;
         } catch(e) {
             if (!_vigente()) return;
             document.getElementById("tabla-body").innerHTML =
-                `<tr><td colspan="7" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
+                `<tr><td colspan="8" class="empty">Cierre #${cierreId} no encontrado</td></tr>`;
         }
         return;
     }
@@ -1128,7 +1130,7 @@ async function cargarCierres() {
         //   el listado completo con el campo diciendo otro número.
         if (!_vigente()) return;
         if (!cierres.length && !abiertaRow) {
-            tbody.innerHTML = `<tr><td colspan="7" class="empty">No hay cierres en el período seleccionado</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="empty">No hay cierres en el período seleccionado</td></tr>`;
             return;
         }
         let totalGeneral = 0;
@@ -1141,6 +1143,7 @@ async function cargarCierres() {
                 <td>${c.cerrado_por}</td>
                 <td>${formatTs(c.ts_cierre)}</td>
                 <td><strong>${simboloMoneda()} ${parseFloat(c.total).toFixed(2)}</strong></td>
+                <td>${celdaInformesZ(c)}</td>
                 <td><button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver detalle</button></td>
             </tr>`;
         }).join("");
@@ -1148,7 +1151,7 @@ async function cargarCierres() {
             <tr style="background: var(--sup-2, #f8f9fa)">
                 <td colspan="5" style="text-align:right;font-weight:700;color: var(--tx-7, #666);">TOTAL PERÍODO</td>
                 <td style="font-weight:700;font-size:16px;">${simboloMoneda()} ${totalGeneral.toFixed(2)}</td>
-                <td></td>
+                <td></td><td></td>
             </tr>` : "";
         tbody.innerHTML = abiertaRow + filasCierres + totalRow;
     } catch(e) {
@@ -1156,7 +1159,7 @@ async function cargarCierres() {
         // SIEMPRE y el encargado creia que seguia cargando. Ahora la tabla dice que fallo.
         console.error("Error cierres:", e);
         const tb = document.getElementById("tabla-body");
-        if (tb) tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color: var(--pel-tx, #b91c1c);">
+        if (tb) tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:18px;color: var(--pel-tx, #b91c1c);">
             No se pudieron cargar los cierres: ${esc(e.message || "error de conexión")}.
             <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="cargarCierres()">Reintentar</button>
         </td></tr>`;
@@ -1171,8 +1174,33 @@ function filaCajaAbierta(ab) {
         <td>—</td>
         <td>—</td>
         <td><strong>${simboloMoneda()} ${parseFloat(ab.total).toFixed(2)}</strong></td>
+        <td>—</td>
         <td><button class="btn btn-secondary btn-sm" onclick="verDetalleAbierta()">Ver mesas cobradas</button></td>
     </tr>`;
+}
+
+// Informes Z del cierre (registro de ventas DK): uno por terminal con movimiento. Quedan
+// guardados al cerrar (nadie los ve en ese momento); el PDF A4 está en Cloudinary o, si
+// todavía no subió, se arma en el momento.
+function celdaInformesZ(c) {
+    const zs = c.informes_z || [];
+    if (!zs.length) return '<span style="color: var(--tx-4, #9ca3af);">—</span>';
+    return zs.map((z, i) => {
+        const nn = String(z.register_id || "").split("-")[1] || z.register_id;
+        return `<a href="#" onclick="cajaVerZ(${c.id}, ${i}, ${JSON.stringify(z.pdf_url || "").replace(/"/g, "&quot;")});return false;"
+                   title="${esc(z.register_id)}" style="display:inline-block;margin:1px 6px 1px 0;white-space:nowrap;">📄 Z ${esc(z.reportID)} · ${esc(nn)}</a>`;
+    }).join("");
+}
+async function cajaVerZ(cierreId, n, url) {
+    if (url) { window.open(url, "_blank"); return; }
+    try {
+        const resp = await fetch(`${API_URL}/caja/cierres/${cierreId}/informes-z/${n}/pdf`,
+                                 { headers: { "Authorization": `Bearer ${getToken()}` } });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const u = URL.createObjectURL(await resp.blob());
+        window.open(u, "_blank");
+        setTimeout(() => URL.revokeObjectURL(u), 120000);
+    } catch(e) { alert("No se pudo abrir el informe Z: " + (e.message || e)); }
 }
 
 // ── Fila del desglose de caja (compartida entre caja abierta y cierre) ──
@@ -1640,7 +1668,9 @@ async function cerrarCaja() {
               (dif == null || Math.abs(dif) < 0.005
                   ? "La caja queda cuadrada para mañana."
                   : `Diferencia: ${arqMoneda(dif)} (queda registrada con tu explicación).`));
-        cajaImprimirInformes(res.informes_z, "Z-rapport");   // registro de ventas DK
+        // Registro de ventas DK: los Z quedan guardados (columna "Informes Z" de abajo); sólo
+        // salen por la impresora si el restaurante eligió la impresora de tickets.
+        cajaImprimirInformes((res.informes_z || []).filter(z => z.impresion === "ticket"), "Z-rapport");
     } catch(err) { alert("Error: " + err.message); }
     finally {
         window.UI && UI.busy(btn, false);
