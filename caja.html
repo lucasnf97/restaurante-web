@@ -874,54 +874,24 @@ async function revRefundConfirmar() {
 // (misma fuente que precarga el refund) y arma un ticket imprimible en una ventana
 // nueva — no hace falta un endpoint de ticket "fiscal" para una simple copia.
 async function revReimprimir(pedidoId, mesaNumero) {
-    if (!confirm(`¿Reimprimir el ticket de la ${mesaNumero ? 'Mesa ' + mesaNumero : 'cuenta #' + pedidoId}?\nSe imprime marcado como COPIA.`)) return;
-    let items = [];
+    if (!confirm(`¿Reimprimir el ticket de la ${mesaNumero ? 'Mesa ' + mesaNumero : 'cuenta #' + pedidoId}?
+Se imprime marcado como COPIA.`)) return;
+    // El MISMO ticket que se entregó (el del servidor), marcado COPIA: antes se armaba uno
+    // propio con otro formato, que no era el comprobante fiscal.
+    let html;
     try {
-        items = await api.get(`/caja/refund/pedido/${pedidoId}`);
+        html = (await api.get(`/pedidos/${pedidoId}/ticket?fiscal=true`)).html;
     } catch(e) {
-        alert("No se pudieron cargar los ítems para reimprimir: " + (e.message || e));
+        alert("No se pudo cargar el ticket para reimprimir: " + (e.message || e));
         return;
     }
-    const total = items.reduce((sum, i) =>
-        sum + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio_unit) || 0) * (1 - (parseFloat(i.descuento_pct) || 0) / 100), 0);
-
-    let marca = null;
-    try { marca = JSON.parse(localStorage.getItem("navbar_marca") || "null"); } catch(e) {}
-    const nombreNegocio = (marca && marca.nombre) ? esc(marca.nombre) : "";
-    const mesaTxt = mesaNumero ? `Mesa ${mesaNumero}` : "Take Away";
-
-    const filas = items.map(i => {
-        const linea = (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio_unit) || 0) * (1 - (parseFloat(i.descuento_pct) || 0) / 100);
-        return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0;">
-            <span>${parseFloat(i.cantidad) || 1} × ${esc(i.nombre)}</span>
-            <span>${simboloMoneda()} ${linea.toFixed(2)}</span>
-        </div>`;
-    }).join("") || `<div style="text-align:center;color: var(--tx-5, #888);">Sin ítems</div>`;
-
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ticket</title>
-        <style>
-            body { font-family: 'Courier New', monospace; width: 280px; margin: 0 auto; padding: 12px; color: var(--fg-a7, #111); }
-            .copia { text-align:center; font-size:22px; font-weight:800; letter-spacing:2px; border: 3px solid var(--bd-a4, #111); padding:6px 0; margin-bottom:10px; }
-            .neg { text-align:center; font-weight:700; font-size:14px; margin-bottom:4px; }
-            .sub { text-align:center; font-size:11px; color: var(--tx-10, #444); margin-bottom:10px; }
-            hr { border:none; border-top: 1px dashed var(--bd-a4, #111); margin:8px 0; }
-            .total { display:flex; justify-content:space-between; font-weight:800; font-size:16px; margin-top:8px; }
-        </style></head><body>
-            <div class="copia">COPIA</div>
-            ${nombreNegocio ? `<div class="neg">${nombreNegocio}</div>` : ''}
-            <div class="sub">${esc(mesaTxt)} · Cuenta #${pedidoId} · ${new Date().toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</div>
-            <hr>
-            ${filas}
-            <hr>
-            <div class="total"><span>TOTAL</span><span>${simboloMoneda()} ${total.toFixed(2)}</span></div>
-        </body></html>`;
-
     const w = window.open("", "_blank", "width=340,height=600");
     if (!w) { alert("El navegador bloqueó la ventana de impresión. Habilitá pop-ups para este sitio."); return; }
     w.document.open();
-    w.document.write(html);
+    w.document.write(_marcarCopia(html || ""));
     w.document.close();
     setTimeout(() => { try { w.focus(); w.print(); } catch(e) {} }, 250);
+    _eventoCopia({ pedido_id: pedidoId });
 }
 
 async function verRefundTicket(ticketId) {
@@ -1307,7 +1277,20 @@ async function verDetalle(id) {
 // ── Ticket guardado de la cuenta (ver + reimprimir) ─────────────────────────
 // Mismo patrón que clientes.html: trae el HTML único del ticket (el que se imprimió y
 // se manda por correo, GET /pedidos/{id}/ticket) y lo muestra en un iframe imprimible.
+// Registro de ventas (DK): toda reimpresión desde la web es una COPIA (marcada en el papel) y
+// queda en el diario fiscal (13014) — sin terminal propio va al puesto SISTEMA del local.
+const BANNER_COPIA = '<div style="text-align:center;font-size:20px;font-weight:800;letter-spacing:2px;' +
+    'border:3px solid #111;padding:6px 0;margin-bottom:8px;">— COPIA —</div>';
+function _marcarCopia(html) {
+    return /<body[^>]*>/i.test(html) ? html.replace(/<body([^>]*)>/i, m => m + BANNER_COPIA) : BANNER_COPIA + html;
+}
+function _eventoCopia(datos) {
+    api.post("/fiscal/eventos", { tipo: "copia", ...datos }).catch(() => {});
+}
+let _ticketEnModal = null;     // {pedido_id} o {refund_id}: lo que muestra el modal del ticket
+
 async function verTicketCaja(pedidoId) {
+    _ticketEnModal = { pedido_id: pedidoId };
     document.getElementById("ticket-titulo").textContent = "Ticket — Cuenta #" + pedidoId;
     const frame = document.getElementById("ticket-frame");
     frame.srcdoc = '<div style="font-family:sans-serif;color: var(--tx-5, #888);padding:20px;">Cargando…</div>';
@@ -1321,12 +1304,21 @@ async function verTicketCaja(pedidoId) {
 }
 function imprimirTicketCaja() {
     const frame = document.getElementById("ticket-frame");
-    try { frame.contentWindow.focus(); frame.contentWindow.print(); }
+    try {
+        const body = frame.contentDocument && frame.contentDocument.body;
+        if (body && !body.dataset.copia) {
+            body.insertAdjacentHTML("afterbegin", BANNER_COPIA);
+            body.dataset.copia = "1";
+        }
+        frame.contentWindow.focus(); frame.contentWindow.print();
+        if (_ticketEnModal) _eventoCopia(_ticketEnModal);
+    }
     catch(e) { alert("No se pudo imprimir: " + (e.message || e)); }
 }
 
 // Ticket impreso del refund (mismo patrón que verTicketCaja: {datos, html} → iframe).
 async function verTicketRefund(id) {
+    _ticketEnModal = { refund_id: id };
     document.getElementById("ticket-titulo").textContent = "Ticket — Refund";
     const frame = document.getElementById("ticket-frame");
     frame.srcdoc = '<div style="font-family:sans-serif;color: var(--tx-5, #888);padding:20px;">Cargando…</div>';
