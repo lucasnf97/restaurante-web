@@ -1263,6 +1263,20 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
                 <button class="btn-save" id="skat-btn-iniciar" onclick="iniciarRegistroSkat()" disabled>Iniciar el registro de ventas</button>
                 <span style="font-size:12px;color: var(--tx-4, #9ca3af);">Una sola vez y sin vuelta atrás.</span>
             </div>
+
+            <div class="cfg-label" style="margin-top:22px;">Informes X y Z</div>
+            <div class="cfg-grid" style="margin-top:8px;">
+                <div class="cfg-field" style="grid-column:1/-1;">
+                    <select class="cfg-input" id="skat-informes" onchange="guardarInformesSkat()">
+                        <option value="pdf">PDF en hoja A4 (se abre para guardar o imprimir)</option>
+                        <option value="ticket">Impresora de tickets</option>
+                    </select>
+                    <div style="font-size:12px;color: var(--tx-4, #9ca3af);margin-top:6px;">
+                        La ley pide generarlos y que queden en el registro, no imprimirlos en papel.
+                    </div>
+                </div>
+            </div>
+            <div class="cfg-actions"><span class="save-ok" id="ok-skat-informes">✓ Guardado</span></div>
         </div>
     </div>
 
@@ -1841,7 +1855,16 @@ async function cargarSkat() {
     if (!e.habilitado && !e.activo) lin.push(no + esc(_t('El registro digital de ventas todavía no está disponible.')));
     box.innerHTML = lin.map(l => `<div>${l}</div>`).join('');
     document.getElementById('skat-btn-iniciar').disabled = !e.puede_iniciar;
+    document.getElementById('skat-informes').value = e.informes_impresion || 'pdf';
     document.getElementById('skat-btn-cargar').disabled = !e.clave_maestra;
+}
+
+async function guardarInformesSkat() {
+    const valor = document.getElementById('skat-informes').value;
+    try {
+        await apiFetch('/fiscal/config', { method: 'PATCH', body: JSON.stringify({ informes_impresion: valor }) });
+        mostrarOk('ok-skat-informes');
+    } catch (err) { alert(_t('No se pudo guardar: {0}', {0: err.message || err})); cargarSkat(); }
 }
 
 async function cargarCertificadoSkat() {

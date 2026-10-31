@@ -997,8 +997,24 @@ async function cargarEstado() {
 // ── Informes X / Z del registro de ventas (Dinamarca) ───────────────────────
 // La API arma el texto (en danés, es un informe legal de Skat); acá sólo se imprime. Todos
 // los informes van en una sola ventana, uno por página.
-function cajaImprimirInformes(informes, titulo) {
+// Cómo los quiere el restaurante (Configuración → Registro de ventas): PDF A4 (por defecto,
+// uno por pestaña) o la impresora de tickets. La ley pide generarlos, no imprimirlos.
+async function cajaAbrirPdfInforme(r) {
+    const resp = await fetch(`${API_URL}/fiscal/informes/${r.evento_id}/pdf`,
+                             { headers: { "Authorization": `Bearer ${getToken()}` } });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const url = URL.createObjectURL(await resp.blob());
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+}
+async function cajaImprimirInformes(informes, titulo) {
     if (!informes || !informes.length) return;
+    if (informes.every(r => r.impresion === "pdf" && r.evento_id)) {
+        try {
+            for (const r of informes) await cajaAbrirPdfInforme(r);
+            return;
+        } catch(e) { console.error("PDF del informe:", e); }   // sin PDF: se imprime igual
+    }
     const w = window.open("", "_blank", "width=420,height=700");
     if (!w) { alert("El navegador bloqueó la ventana de impresión. Habilitá pop-ups para este sitio."); return; }
     const cuerpos = informes.map(r => (r.html || "")
