@@ -749,7 +749,11 @@ async function revRefound(pedidoId, mesaNumero) {
                 cantidad:      parseFloat(i.cantidad) || 0,
                 precio_unit:   parseFloat(i.precio_unit) || 0,
                 descuento_pct: parseFloat(i.descuento_pct) || 0,
-                producto_id:   (i.producto_id != null) ? i.producto_id : (prod ? prod.id : null)
+                producto_id:   (i.producto_id != null) ? i.producto_id : (prod ? prod.id : null),
+                // Línea de la venta (registro de ventas DK): la devolución la referencia y el
+                // backend no deja devolver más de lo vendido.
+                item_id:         (i.item_id != null) ? i.item_id : null,
+                nombre_original: i.nombre || ""
             };
         });
     } catch(e) {
@@ -842,7 +846,10 @@ async function revRefundConfirmar() {
             cantidad:      it.cantidad,
             precio_unit:   it.precio_unit,
             descuento_pct: it.descuento_pct,
-            producto_id:   (it.producto_id != null) ? it.producto_id : null
+            producto_id:   (it.producto_id != null) ? it.producto_id : null,
+            // Sigue siendo ESA línea de la venta mientras no le cambien el producto.
+            item_id: (it.item_id && (it.nombre || "").trim() === (it.nombre_original || "").trim())
+                     ? it.item_id : null
         })),
         motivo,
         metodo_pago:      document.getElementById("refund-metodo").value,
