@@ -125,6 +125,12 @@ I18N.agregar({
     "Nuevo gerente": ["New manager", "Ny leder"],
     "Nuevo restaurante": ["New restaurant", "Ny restaurant"],
     "Backup": ["Backup", "Backup"],
+    // Clave de caja por restaurante (registro de ventas DK, F4b — 2026-10-31)
+    "Clave de la caja": ["Till key", "Kassenøgle"],
+    "Va en \"Clave de sincronización\" al instalar el servidor local de ESTE restaurante. Con ella la caja recibe el certificado de firma del registro de ventas.": ["It goes in \"Sync key\" when installing the local server of THIS restaurant. With it the till receives the sales register signing certificate.", "Den indtastes i \"Synkroniseringsnøgle\", når den lokale server for DENNE restaurant installeres. Med den modtager kassen salgsregistreringens signaturcertifikat."],
+    "Mostrar clave": ["Show key", "Vis nøgle"],
+    "Clave copiada.": ["Key copied.", "Nøgle kopieret."],
+    "No se pudo copiar: seleccioná la clave y copiala a mano.": ["It couldn't be copied: select the key and copy it by hand.", "Den kunne ikke kopieres: markér nøglen og kopiér den manuelt."],
     "Códigos": ["Codes", "Koder"],
     "Gestionar gerentes": ["Manage managers", "Administrér ledere"],
     "Cuánto ocupa cada restaurante": ["How much space each restaurant takes", "Hvor meget plads hver restaurant fylder"],

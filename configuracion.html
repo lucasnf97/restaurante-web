@@ -1833,7 +1833,11 @@ async function cargarSkat() {
     lin.push(e.activo ? ok + esc(_t('Registro de ventas iniciado el {0}', {0: _fmtDia(e.desde)}))
              : no + esc(_t('El registro de ventas todavía no está iniciado')));
     if (!e.clave_maestra) lin.push(no + esc(_t('El servidor todavía no está listo para guardar certificados.')));
-    if (e.con_caja_local && !e.activo) lin.push(no + esc(_t('Con caja local, el registro se podrá iniciar en la próxima etapa.')));
+    // Con caja local se firma en la caja: tiene que haber recibido el certificado vigente.
+    if (e.con_caja_local && c && !c.vencido) {
+        lin.push(e.caja_con_certificado ? ok + esc(_t('La caja local ya tiene el certificado'))
+                 : no + esc(_t('La caja local todavía no recibió el certificado. Tiene que estar encendida, con internet y con su clave de caja propia (la da el administrador del sistema). Lo recibe sola en unos minutos.')));
+    }
     if (!e.habilitado && !e.activo) lin.push(no + esc(_t('El registro digital de ventas todavía no está disponible.')));
     box.innerHTML = lin.map(l => `<div>${l}</div>`).join('');
     document.getElementById('skat-btn-iniciar').disabled = !e.puede_iniciar;

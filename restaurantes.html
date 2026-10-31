@@ -279,6 +279,18 @@ th { color: var(--tx-4, #9ca3af); font-size:11px; text-transform:uppercase; }
         <h3 id="db-titulo">Base de datos</h3>
 
         <div style="padding:12px 0;border-bottom: 1px solid var(--bd-4, #f1f5f9);">
+            <div style="font-weight:700;color: var(--tx, #1a1a2e);margin-bottom:4px;">🖥️ Clave de la caja</div>
+            <div class="hint" style="margin-bottom:8px;">Va en "Clave de sincronización" al instalar el servidor local de ESTE restaurante. Con ella la caja recibe el certificado de firma del registro de ventas.</div>
+            <input type="password" id="db-pass-caja" placeholder="Tu contraseña de super-admin" autocomplete="off"
+                   style="width:100%;padding:9px 11px;border: 1px solid var(--bd-3, #d1d5db);border-radius:8px;margin-bottom:8px;">
+            <button class="btn btn-secondary" onclick="dbClaveCaja()">Mostrar clave</button>
+            <div id="db-clave-caja" style="display:none;margin-top:8px;align-items:center;gap:8px;">
+                <code id="db-clave-caja-txt" style="font-size:15px;letter-spacing:1px;user-select:all;"></code>
+                <button class="btn btn-secondary btn-sm" onclick="copiarClaveCaja()">Copiar</button>
+            </div>
+        </div>
+
+        <div style="padding:12px 0;border-bottom: 1px solid var(--bd-4, #f1f5f9);">
             <div style="font-weight:700;color:#1a1a2e;margin-bottom:4px;">⬇️ Backup</div>
             <div class="hint" style="margin-bottom:8px;">Descarga un archivo con TODOS los datos del restaurante (incluye URLs de imágenes/facturas en Cloudinary).</div>
             <button class="btn btn-secondary" onclick="dbBackup()">Descargar backup</button>
@@ -647,7 +659,29 @@ function gestionarDb(rid, codigo, nombre){
     document.getElementById('db-file').value='';
     document.getElementById('db-pass-restore').value='';
     document.getElementById('db-pass-format').value='';
+    document.getElementById('db-pass-caja').value='';
+    document.getElementById('db-clave-caja').style.display='none';
+    document.getElementById('db-clave-caja-txt').textContent='';
     document.getElementById('modal-db').classList.add('active');
+}
+// Clave de sincronización PROPIA del restaurante (cumplimiento DK F4b): la que se escribe al
+// instalar su caja. La global sigue andando para lo demás, pero no baja el certificado de firma.
+async function dbClaveCaja(){
+    const pass=document.getElementById('db-pass-caja').value;
+    if(!pass){ _dbMsg('err', _t('Ingresá tu contraseña de super-admin.')); return; }
+    try{
+        const res = await api.post('/restaurantes/'+_dbId+'/clave-caja', { password:pass });
+        document.getElementById('db-pass-caja').value='';
+        document.getElementById('db-clave-caja-txt').textContent=res.clave;
+        document.getElementById('db-clave-caja').style.display='flex';
+        _dbMsg('', '');
+    }catch(err){ _dbMsg('err', _t('Error: {0}', {0: err.message})); }
+}
+async function copiarClaveCaja(){
+    try{
+        await navigator.clipboard.writeText(document.getElementById('db-clave-caja-txt').textContent);
+        _dbMsg('ok', _t('Clave copiada.'));
+    }catch(e){ _dbMsg('err', _t('No se pudo copiar: seleccioná la clave y copiala a mano.')); }
 }
 function _dbMsg(cls,txt){ const m=document.getElementById('db-msg'); m.className='msg '+cls; m.textContent=txt; }
 async function dbBackup(){
