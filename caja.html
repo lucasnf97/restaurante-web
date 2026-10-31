@@ -148,6 +148,8 @@
         <div class="caja-acciones">
             <button class="btn btn-success" id="btn-abrir" onclick="abrirCaja()" disabled>Abrir caja</button>
             <button class="btn btn-danger" id="btn-cerrar" onclick="cerrarCaja()" disabled>Cerrar caja</button>
+            <button class="btn btn-secondary" id="btn-informe-x" onclick="cajaInformeX()" style="display:none;"
+                    title="Lo vendido en cada terminal desde su último Z (no cierra la caja)">Informe X</button>
         </div>
     </div>
 
@@ -968,6 +970,7 @@ async function init() {
     document.getElementById("filtro-desde").value = hoy;
     document.getElementById("filtro-hasta").value = hoy;
     await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
+    cajaMostrarInformeX();
 }
 
 async function cargarEstado() {
@@ -989,6 +992,40 @@ async function cargarEstado() {
             btnAbrir.disabled = false; btnCerrar.disabled = true;
         }
     } catch(e) { console.error("Error estado caja:", e); }
+}
+
+// ── Informes X / Z del registro de ventas (Dinamarca) ───────────────────────
+// La API arma el texto (en danés, es un informe legal de Skat); acá sólo se imprime. Todos
+// los informes van en una sola ventana, uno por página.
+function cajaImprimirInformes(informes, titulo) {
+    if (!informes || !informes.length) return;
+    const w = window.open("", "_blank", "width=420,height=700");
+    if (!w) { alert("El navegador bloqueó la ventana de impresión. Habilitá pop-ups para este sitio."); return; }
+    const cuerpos = informes.map(r => (r.html || "")
+        .replace(/^[\s\S]*?<body[^>]*>/i, "").replace(/<\/body>[\s\S]*$/i, ""));
+    w.document.open();
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + titulo + '</title></head>' +
+        '<body style="background:#fff;color:#000;margin:0;padding:8px;">' +
+        cuerpos.join('<div style="page-break-after:always;height:16px;"></div>') + '</body></html>');
+    w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch(e) {} }, 250);
+}
+async function cajaInformeX() {
+    const btn = document.getElementById("btn-informe-x");
+    window.UI && UI.busy(btn, true);
+    try {
+        const lista = await api.post("/fiscal/informe-x?todos=true", {});
+        if (!lista.length) { alert("No hubo ventas desde el último Z."); return; }
+        cajaImprimirInformes(lista, "X-rapport");
+    } catch(e) { alert("No se pudo generar el informe X: " + (e.message || e)); }
+    finally { window.UI && UI.busy(btn, false); }
+}
+// El botón sólo tiene sentido con el registro de ventas iniciado.
+async function cajaMostrarInformeX() {
+    try {
+        const d = await api.get("/fiscal/diario");
+        if (d && d.activo) document.getElementById("btn-informe-x").style.display = "";
+    } catch(e) {}
 }
 
 async function cargarResumen() {
@@ -1587,6 +1624,7 @@ async function cerrarCaja() {
               (dif == null || Math.abs(dif) < 0.005
                   ? "La caja queda cuadrada para mañana."
                   : `Diferencia: ${arqMoneda(dif)} (queda registrada con tu explicación).`));
+        cajaImprimirInformes(res.informes_z, "Z-rapport");   // registro de ventas DK
     } catch(err) { alert("Error: " + err.message); }
     finally {
         window.UI && UI.busy(btn, false);
