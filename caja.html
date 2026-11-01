@@ -1338,13 +1338,24 @@ function limpiarFiltros() {
 
 let _revCierreActual = null;
 
+/** [{tipo, valor, cantidad}] → "2 × 200 · 5 × 20 · 3 × 0.50" (de mayor a menor, como se cuenta). */
+function cajaConteoTxt(conteo) {
+    return conteo.map(f => `${f.cantidad} × ${Number(f.valor) % 1 ? Number(f.valor).toFixed(2) : Number(f.valor)}`)
+                 .join(" · ") + ` = ${arqMoneda(conteo.reduce((t, f) => t + f.valor * f.cantidad, 0))}`;
+}
+
 async function verDetalle(id) {
     _revCierreActual = id;
     try {
         const data = await api.get(`/caja/cierres/${id}`);
         const c = data.cierre;
         document.getElementById("modal-titulo").textContent = `Cierre #${c.id}`;
-        document.getElementById("modal-sub").textContent = data.detalle.length ? resumenMetodos(data.detalle) : "";
+        // Conteo por billete y moneda (registro de ventas DK F9, opcional): se muestra si se contó.
+        const conteos = [["Conteo al abrir", c.apertura_conteo], ["Conteo al cerrar", c.conteo]]
+            .filter(([, v]) => v && v.length)
+            .map(([t, v]) => `${t}: ${cajaConteoTxt(v)}`);
+        document.getElementById("modal-sub").textContent =
+            [data.detalle.length ? resumenMetodos(data.detalle) : "", ...conteos].filter(Boolean).join("\n");
         const tbody = document.getElementById("modal-tabla");
         if (!data.detalle.length) {
             tbody.innerHTML = `<tr><td colspan="${NCOLS_DETALLE}" class="empty">Sin pedidos registrados</td></tr>`;
