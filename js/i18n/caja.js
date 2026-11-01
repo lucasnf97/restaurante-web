@@ -228,4 +228,7 @@ I18N.agregar({
     "Plataforma": ["Platform", "Platform"],
     "Todas las cuentas": ["All bills", "Alle regninger"],
     "De cualquier plataforma": ["From any platform", "Fra enhver platform"],
+    "Suma de los Z de todos los terminales (no es un informe de Skat)": ["Sum of the Z reports of all terminals (not a Skat report)", "Summen af Z-rapporterne fra alle kasser (ikke en rapport til Skat)"],
+    "Resumen": ["Summary", "Oversigt"],
+    "No se pudo abrir el resumen: {0}": ["Could not open the summary: {0}", "Kunne ikke åbne oversigten: {0}"],
 });

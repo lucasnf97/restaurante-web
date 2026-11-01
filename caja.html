@@ -1210,11 +1210,25 @@ function filaCajaAbierta(ab) {
 function celdaInformesZ(c) {
     const zs = c.informes_z || [];
     if (!zs.length) return '<span style="color: var(--tx-4, #9ca3af);">—</span>';
-    return zs.map((z, i) => {
+    // Resumen PROPIO del cierre (dueño, 2026-11-02): la suma de los Z de todos los terminales.
+    const resumen = `<a href="#" onclick="cajaVerResumenZ(${c.id});return false;"
+                   title="${esc(_t('Suma de los Z de todos los terminales (no es un informe de Skat)'))}"
+                   style="display:inline-block;margin:1px 6px 1px 0;white-space:nowrap;font-weight:600;">📊 ${esc(_t('Resumen'))}</a>`;
+    return resumen + zs.map((z, i) => {
         const nn = String(z.register_id || "").split("-")[1] || z.register_id;
         return `<a href="#" onclick="cajaVerZ(${c.id}, ${i}, ${JSON.stringify(z.pdf_url || "").replace(/"/g, "&quot;")});return false;"
                    title="${esc(z.register_id)}" style="display:inline-block;margin:1px 6px 1px 0;white-space:nowrap;">📄 Z ${esc(z.reportID)} · ${esc(nn)}</a>`;
     }).join("");
+}
+async function cajaVerResumenZ(cierreId) {
+    try {
+        const resp = await fetch(`${API_URL}/caja/cierres/${cierreId}/resumen-z/pdf`,
+                                 { headers: { "Authorization": `Bearer ${getToken()}` } });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const u = URL.createObjectURL(await resp.blob());
+        window.open(u, "_blank");
+        setTimeout(() => URL.revokeObjectURL(u), 120000);
+    } catch(e) { alert(_t("No se pudo abrir el resumen: {0}", {0: e.message || e})); }
 }
 async function cajaVerZ(cierreId, n, url) {
     if (url) { window.open(url, "_blank"); return; }
