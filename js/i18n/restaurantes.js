@@ -141,4 +141,8 @@ I18N.agregar({
     "Formatear (dejar en blanco)": ["Format (leave blank)", "Formatér (gør tom)"],
     "{0} ({1} advertencias)": ["{0} ({1} warnings)", "{0} ({1} advarsler)"],
     "Local {0} agregado. Por defecto con todos los módulos — ajustá con 🧩 Módulos si querés (ej. solo gestión).": ["Venue {0} added. By default with all modules — adjust with 🧩 Modules if you want (e.g. management only).", "Sted {0} tilføjet. Som standard med alle moduler — justér med 🧩 Moduler, hvis du vil (f.eks. kun administration)."],
+    "🧾 Registro de ventas (Skat)": ["🧾 Sales register (Skat)", "🧾 Salgsregistrering (Skat)"],
+    "Todo el registro de ventas en un ZIP (un archivo SAF-T por mes). Si el restaurante deja Chief Point, se le entrega para que lo guarde 5 años. Funciona aunque esté desactivado.": ["The whole sales register in a ZIP (one SAF-T file per month). If the restaurant leaves Chief Point, it is handed over so it can keep it for 5 years. Works even if it is deactivated.", "Hele salgsregistreringen i en ZIP (én SAF-T-fil pr. måned). Hvis restauranten forlader Chief Point, udleveres den, så den kan opbevares i 5 år. Virker også, hvis den er deaktiveret."],
+    "Descargar el registro completo": ["Download the whole register", "Hent hele registreringen"],
+    "Registro de ventas descargado.": ["Sales register downloaded.", "Salgsregistreringen er hentet."],
 });

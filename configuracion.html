@@ -1359,6 +1359,11 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
             <div class="cfg-actions">
                 <button class="btn-save" id="skat-btn-saft" onclick="exportarSaftSkat()">Exportar SAF-T</button>
                 <button class="btn-save" id="skat-btn-revisar" onclick="revisarRegistroSkat()">Revisar el registro</button>
+                <button class="btn-save" id="skat-btn-completo" onclick="exportarSaftCompleto()">Todo el registro (ZIP)</button>
+            </div>
+            <div style="font-size:12px;color: var(--tx-4, #9ca3af);margin-top:6px;">
+                «Todo el registro» baja un SAF-T por mes desde el inicio: guardalo si el restaurante cambia de
+                sistema (hay que conservarlo 5 años).
             </div>
             <div id="skat-revision" style="margin-top:10px;font-size:13px;line-height:1.8;"></div>
         </div>
@@ -1982,6 +1987,29 @@ async function exportarSaftSkat() {
         }
         const nombre = ((res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1]
                        || `SAF-T_${p.desde}_${p.hasta}.xml`;
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) { alert(_t('No se pudo exportar: {0}', {0: err.message || err})); }
+    finally { window.UI && UI.busy(btn, false); }
+}
+
+async function exportarSaftCompleto() {
+    const btn = document.getElementById('skat-btn-completo');
+    window.UI && UI.busy(btn, true, _t('Generando…'));
+    try {
+        const res = await fetch(`${API_URL}/fiscal/saft/completo`, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` } });
+        if (res.status === 401) { logout(true); return; }
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            alert(_t('No se pudo exportar: {0}', {0: e.detail || res.status}));
+            return;
+        }
+        const nombre = ((res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1]
+                       || 'SAF-T.zip';
         const url = URL.createObjectURL(await res.blob());
         const a = document.createElement('a');
         a.href = url; a.download = nombre;

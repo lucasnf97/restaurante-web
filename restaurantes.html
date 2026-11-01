@@ -290,6 +290,15 @@ th { color: var(--tx-4, #9ca3af); font-size:11px; text-transform:uppercase; }
             </div>
         </div>
 
+        <!-- Registro de ventas completo (FAQ de Skat para comercios, 15): POST /restaurantes/{rid}/saft -->
+        <div style="padding:12px 0;border-bottom: 1px solid var(--bd-4, #f1f5f9);">
+            <div style="font-weight:700;color: var(--tx, #1a1a2e);margin-bottom:4px;">🧾 Registro de ventas (Skat)</div>
+            <div class="hint" style="margin-bottom:8px;">Todo el registro de ventas en un ZIP (un archivo SAF-T por mes). Si el restaurante deja Chief Point, se le entrega para que lo guarde 5 años. Funciona aunque esté desactivado.</div>
+            <input type="password" id="db-pass-saft" placeholder="Tu contraseña de super-admin" autocomplete="off"
+                   style="width:100%;padding:9px 11px;border: 1px solid var(--bd-3, #d1d5db);border-radius:8px;margin-bottom:8px;">
+            <button class="btn btn-secondary" onclick="dbSaftCompleto()">Descargar el registro completo</button>
+        </div>
+
         <div style="padding:12px 0;border-bottom: 1px solid var(--bd-4, #f1f5f9);">
             <div style="font-weight:700;color:#1a1a2e;margin-bottom:4px;">⬇️ Backup</div>
             <div class="hint" style="margin-bottom:8px;">Descarga un archivo con TODOS los datos del restaurante (incluye URLs de imágenes/facturas en Cloudinary).</div>
@@ -660,6 +669,7 @@ function gestionarDb(rid, codigo, nombre){
     document.getElementById('db-pass-restore').value='';
     document.getElementById('db-pass-format').value='';
     document.getElementById('db-pass-caja').value='';
+    document.getElementById('db-pass-saft').value='';
     document.getElementById('db-clave-caja').style.display='none';
     document.getElementById('db-clave-caja-txt').textContent='';
     document.getElementById('modal-db').classList.add('active');
@@ -682,6 +692,27 @@ async function copiarClaveCaja(){
         await navigator.clipboard.writeText(document.getElementById('db-clave-caja-txt').textContent);
         _dbMsg('ok', _t('Clave copiada.'));
     }catch(e){ _dbMsg('err', _t('No se pudo copiar: seleccioná la clave y copiala a mano.')); }
+}
+// Registro de ventas completo (ZIP con un SAF-T por mes): lo que se le entrega a un
+// restaurante que deja Chief Point (FAQ de Skat para comercios, pregunta 15).
+async function dbSaftCompleto(){
+    const pass=document.getElementById('db-pass-saft').value;
+    if(!pass){ _dbMsg('err', _t('Ingresá tu contraseña de super-admin.')); return; }
+    _dbMsg('', _t('Generando…'));
+    try{
+        const res = await fetch(API_URL+'/restaurantes/'+_dbId+'/saft', { method:'POST',
+            headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+getToken() },
+            body: JSON.stringify({ password:pass }) });
+        if(!res.ok){ const e = await res.json().catch(()=>({})); throw new Error(e.detail || res.status); }
+        const nombre = ((res.headers.get('Content-Disposition')||'').match(/filename="([^"]+)"/)||[])[1]
+                       || ('SAF-T_'+_dbCodigo+'.zip');
+        const url = URL.createObjectURL(await res.blob());
+        const a=document.createElement('a'); a.href=url; a.download=nombre;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url), 60000);
+        document.getElementById('db-pass-saft').value='';
+        _dbMsg('ok', _t('Registro de ventas descargado.'));
+    }catch(err){ _dbMsg('err', _t('Error: {0}', {0: err.message})); }
 }
 function _dbMsg(cls,txt){ const m=document.getElementById('db-msg'); m.className='msg '+cls; m.textContent=txt; }
 async function dbBackup(){
