@@ -1339,6 +1339,28 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
                 </div>
             </div>
             <div class="cfg-actions"><span class="save-ok" id="ok-skat-informes">✓ Guardado</span></div>
+
+            <!-- Export SAF-T (POST /fiscal/saft) y revisión del diario (GET /fiscal/verificacion, F13). -->
+            <div class="cfg-label" style="margin-top:22px;">Exportar y revisar el registro</div>
+            <div style="font-size:12px;color: var(--tx-4, #9ca3af);margin-top:4px;">
+                El archivo SAF-T es el que pide Skat. La revisión comprueba que no falte ningún número, que
+                las firmas sean válidas y que cada informe Z cuadre con lo vendido.
+            </div>
+            <div class="cfg-grid" style="margin-top:8px;">
+                <div class="cfg-field">
+                    <label class="cfg-label">Desde</label>
+                    <input class="cfg-input" type="date" id="skat-desde">
+                </div>
+                <div class="cfg-field">
+                    <label class="cfg-label">Hasta</label>
+                    <input class="cfg-input" type="date" id="skat-hasta">
+                </div>
+            </div>
+            <div class="cfg-actions">
+                <button class="btn-save" id="skat-btn-saft" onclick="exportarSaftSkat()">Exportar SAF-T</button>
+                <button class="btn-save" id="skat-btn-revisar" onclick="revisarRegistroSkat()">Revisar el registro</button>
+            </div>
+            <div id="skat-revision" style="margin-top:10px;font-size:13px;line-height:1.8;"></div>
         </div>
     </div>
 
@@ -1920,6 +1942,100 @@ async function cargarSkat() {
     document.getElementById('skat-btn-iniciar').disabled = !e.puede_iniciar;
     document.getElementById('skat-informes').value = e.informes_impresion || 'pdf';
     document.getElementById('skat-btn-cargar').disabled = !e.clave_maestra;
+    _skatConCaja = !!e.con_caja_local;
+    // Período por defecto: del 1 del mes a hoy (fecha LOCAL: toISOString corre el día).
+    const d = document.getElementById('skat-desde'), h = document.getElementById('skat-hasta');
+    if (!d.value || !h.value) {
+        const hoy = new Date(), dd = n => String(n).padStart(2, '0');
+        const mes = `${hoy.getFullYear()}-${dd(hoy.getMonth() + 1)}`;
+        d.value = `${mes}-01`;
+        h.value = `${mes}-${dd(hoy.getDate())}`;
+    }
+}
+
+// ── Exportar SAF-T y revisar el registro (F13) ────────────────
+let _skatConCaja = false;
+
+function _skatPeriodo() {
+    const desde = document.getElementById('skat-desde').value;
+    const hasta = document.getElementById('skat-hasta').value;
+    if (!desde || !hasta) { alert(_t('Elegí el período.')); return null; }
+    if (desde > hasta) { alert(_t('La fecha «desde» es posterior a «hasta».')); return null; }
+    return { desde, hasta };
+}
+
+async function exportarSaftSkat() {
+    const p = _skatPeriodo();
+    if (!p) return;
+    const btn = document.getElementById('skat-btn-saft');
+    window.UI && UI.busy(btn, true, _t('Generando…'));
+    try {
+        const res = await fetch(`${API_URL}/fiscal/saft`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify(p)});
+        if (res.status === 401) { logout(true); return; }
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            alert(_t('No se pudo exportar: {0}', {0: e.detail || res.status}));
+            return;
+        }
+        const nombre = ((res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1]
+                       || `SAF-T_${p.desde}_${p.hasta}.xml`;
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) { alert(_t('No se pudo exportar: {0}', {0: err.message || err})); }
+    finally { window.UI && UI.busy(btn, false); }
+}
+
+function _skatHallazgo(h) {
+    const n = {0: h.nr};
+    switch (h.tipo) {
+        case 'hueco': return h.desde_nr === h.hasta_nr ? _t('Falta el número {0}', {0: h.desde_nr})
+                             : _t('Faltan los números {0} a {1}', {0: h.desde_nr, 1: h.hasta_nr});
+        case 'cadena': return _t('Nº {0}: la firma no sigue a la anterior del puesto', n);
+        case 'datos': return _t('Nº {0}: los datos firmados no coinciden con el asiento', n);
+        case 'cvr': return _t('Nº {0}: tiene otro CVR ({1})', {0: h.nr, 1: h.cvr});
+        case 'sin_firma': return _t('Nº {0}: no tiene firma', n);
+        case 'certificado': return _t('Nº {0}: se firmó con un certificado que no está guardado', n);
+        case 'vigencia': return _t('Nº {0}: se firmó fuera de la vigencia del certificado', n);
+        case 'firma': return _t('Nº {0}: la firma no es válida', n);
+        case 'z': return _t('El informe Z nº {0} del puesto {1} ({2}) no cuadra con lo vendido',
+                            {0: h.report_id, 1: h.register_id, 2: h.fecha});
+        default: return h.tipo;
+    }
+}
+
+async function revisarRegistroSkat() {
+    const p = _skatPeriodo();
+    if (!p) return;
+    const box = document.getElementById('skat-revision');
+    const btn = document.getElementById('skat-btn-revisar');
+    window.UI && UI.busy(btn, true, _t('Revisando…'));
+    box.textContent = '';
+    try {
+        // Un diario de años tarda: más que el corte de 20 s de apiFetch.
+        const v = await apiFetch(`/fiscal/verificacion?desde=${p.desde}&hasta=${p.hasta}`, { timeout: 180000 });
+        const lin = [];
+        if (v.ok) {
+            lin.push('<span style="color: var(--ok-tx, #15803d);">✓</span> ' + esc(_t(
+                'El registro está íntegro: {0} asientos con firma válida y {1} informes Z que cuadran.',
+                {0: v.firmas_revisadas, 1: v.z_revisados})));
+        } else {
+            lin.push('<span style="color: var(--err-tx, #b91c1c);">⚠</span> <strong>' + esc(_t(
+                'Se encontraron {0} problemas en el registro:', {0: v.hallazgos_total})) + '</strong>');
+            v.hallazgos.forEach(h => lin.push('· ' + esc(_skatHallazgo(h))));
+            if (v.hallazgos_total > v.hallazgos.length)
+                lin.push(esc(_t('… y {0} más', {0: v.hallazgos_total - v.hallazgos.length})));
+        }
+        if (_skatConCaja) lin.push('<span style="color: var(--tx-4, #9ca3af);">' + esc(_t(
+            'Con caja local, las ventas se firman en la caja: exportá y revisá desde el programa de la caja lo que todavía no llegó a la nube.')) + '</span>');
+        box.innerHTML = lin.map(l => `<div>${l}</div>`).join('');
+    } catch (err) { box.textContent = _t('No se pudo revisar: {0}', {0: err.message || err}); }
+    finally { window.UI && UI.busy(btn, false); }
 }
 
 async function guardarInformesSkat() {
