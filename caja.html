@@ -371,6 +371,14 @@
                     <input type="number" id="rev-f-mesa" placeholder="—" style="width:72px;" onchange="revCargar()">
                 </div>
                 <div class="rev-fgrupo">
+                    <!-- Plataforma de reparto (Wolt, Just Eat…): una, o cualquiera ("*"). -->
+                    <label>Plataforma</label>
+                    <select id="rev-f-plataforma" onchange="revCargar()">
+                        <option value="">Todas las cuentas</option>
+                        <option value="*">De cualquier plataforma</option>
+                    </select>
+                </div>
+                <div class="rev-fgrupo">
                     <label>Cuenta Nº</label>
                     <div class="rev-fcombo">
                         <input type="number" id="rev-f-pedido" placeholder="—" style="width:90px;"
@@ -608,6 +616,7 @@ async function revCrearCliente() {
 }
 
 async function revCargar() {
+    revCargarPlataformas();
     const cont = document.getElementById("rev-lista-cuentas");
     cont.innerHTML = `<p style="color: var(--tx-5, #888);text-align:center;padding:32px;">Cargando…</p>`;
     const pedido = document.getElementById("rev-f-pedido").value.trim();
@@ -621,6 +630,8 @@ async function revCargar() {
         const hasta   = document.getElementById("rev-f-hasta").value;
         const mesa    = document.getElementById("rev-f-mesa").value.trim();
         const cliente = document.getElementById("rev-f-cliente").value.trim();
+        const plat    = document.getElementById("rev-f-plataforma").value;
+        if (plat)    url += `plataforma=${encodeURIComponent(plat)}&`;
         if (fecha)   url += `fecha=${encodeURIComponent(fecha)}&`;
         if (desde)   url += `desde=${encodeURIComponent(desde)}&`;
         if (hasta)   url += `hasta=${encodeURIComponent(hasta)}&`;
@@ -642,9 +653,23 @@ async function revCargar() {
     }
 }
 
+// Las plataformas activas para el filtro de Revisión (una vez por página).
+let _revPlataformasCargadas = false;
+async function revCargarPlataformas() {
+    if (_revPlataformasCargadas) return;
+    _revPlataformasCargadas = true;
+    try {
+        const lista = await api.get("/plataformas");
+        const sel = document.getElementById("rev-f-plataforma");
+        lista.forEach(p => sel.insertAdjacentHTML("beforeend",
+            `<option value="${escAttr(p.nombre)}">${esc(p.nombre)}</option>`));
+    } catch (e) { /* sin plataformas o servidor viejo: queda el filtro básico */ }
+}
+
 function revFilaCuenta(c) {
     const esTakeAway = !c.mesa_numero;
-    const mesaLabel  = esTakeAway ? `🥡 Take Away` : `Mesa ${c.mesa_numero}`;
+    const plataforma = c.plataforma ? `${c.plataforma}${c.plataforma_pedido ? " #" + c.plataforma_pedido : ""}` : "";
+    const mesaLabel  = plataforma ? `🛵 ${esc(plataforma)}` : (esTakeAway ? `🥡 Take Away` : `Mesa ${c.mesa_numero}`);
     const mesaArg    = c.mesa_numero ?? 'null';
     const personas   = c.comensales != null ? `${c.comensales} persona${c.comensales != 1 ? 's' : ''} · ` : '';
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background: var(--sup, white);border: 1px solid var(--bd-5, #e2e8f0);border-radius:10px;margin-bottom:8px;">

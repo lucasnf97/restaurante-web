@@ -224,4 +224,8 @@ I18N.agregar({
     "Reimprimir": ["Reprint", "Genudskriv"],
     "Arqueo": ["Cash count", "Kasseoptælling"],
     "Arqueo de caja": ["Cash count", "Kasseoptælling"],
+    // Plataformas de reparto (2026-11-01)
+    "Plataforma": ["Platform", "Platform"],
+    "Todas las cuentas": ["All bills", "Alle regninger"],
+    "De cualquier plataforma": ["From any platform", "Fra enhver platform"],
 });

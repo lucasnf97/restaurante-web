@@ -1197,6 +1197,67 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
     </div>
 
     <!-- ═══ PUESTOS DE VENTA (registro digital de ventas, Skat) ═══ -->
+    <!-- ═══ PLATAFORMAS DE REPARTO (Wolt, Just Eat…) ═════════════════════ -->
+    <!-- Cada plataforma por separado, a mano o automática (directa o por un intermediario).
+         API: /plataformas (ver restaurante-api/app/plataformas.py). Dueño o gerente. -->
+    <div class="cfg-section" id="sec-plataformas">
+        <div class="cfg-section-head" onclick="toggleSection('plataformas')">
+            <span class="cfg-section-icon">🛵</span>
+            <span class="cfg-section-title">Plataformas de reparto</span>
+            <span class="cfg-section-arrow">›</span>
+        </div>
+        <div class="cfg-section-body">
+            <p style="font-size:13px;color: var(--tx-3, #6b7280);margin-top:14px;line-height:1.6;" data-i18n-html>
+                Los pedidos de <strong>Wolt, Just Eat</strong> y otras plataformas entran a la cola de
+                Take Away con la plataforma y su número de pedido. <strong>A mano</strong>: el empleado
+                los carga en el programa o el POS desde la tablet de la plataforma.
+                <strong>Automático</strong>: entran solos por su conexión (directa con la plataforma o por
+                un intermediario). Se cobran con «Plataforma» (los pagó a la plataforma) y quedan en el
+                registro de ventas.
+            </p>
+            <table class="tasa-table">
+                <thead><tr><th>Plataforma</th><th>Modo</th><th>Conexión</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="pl-body"><tr><td colspan="5" class="tasa-empty">Cargando…</td></tr></tbody>
+            </table>
+            <button class="btn-tasa-edit" id="pl-agregar" style="margin-top:12px;" onclick="plEditar(null)">+ Agregar plataforma</button>
+            <div id="pl-form" style="display:none;margin-top:16px;padding:16px;border:1px solid var(--bd-1, #e5e7eb);border-radius:10px;">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+                    <div style="flex:1;min-width:180px;">
+                        <label class="cfg-label">Nombre</label>
+                        <input id="pl-nombre" class="cfg-input" placeholder="p. ej. Wolt">
+                    </div>
+                    <div style="min-width:180px;">
+                        <label class="cfg-label">Modo</label>
+                        <select id="pl-modo" class="cfg-input" onchange="plPintarModo()">
+                            <option value="manual">A mano</option>
+                            <option value="automatico">Automático</option>
+                        </select>
+                    </div>
+                    <label style="display:flex;gap:6px;align-items:center;font-size:14px;">
+                        <input type="checkbox" id="pl-activa" checked> Activa
+                    </label>
+                </div>
+                <div id="pl-auto" style="display:none;margin-top:12px;">
+                    <label class="cfg-label">Conexión</label>
+                    <select id="pl-conexion" class="cfg-input" onchange="plPintarCampos()"></select>
+                    <div id="pl-aviso" style="font-size:12px;color:#b45309;margin-top:6px;"></div>
+                    <div id="pl-campos" style="margin-top:8px;"></div>
+                    <div id="pl-entrada" style="display:none;margin-top:10px;font-size:13px;">
+                        <div style="color: var(--tx-3, #6b7280);">Dirección para que la plataforma mande los pedidos:</div>
+                        <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+                            <code id="pl-url" style="word-break:break-all;font-size:12px;"></code>
+                            <button class="btn-tasa-edit" onclick="plCopiar()">Copiar</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                    <button class="btn-tasa-edit" onclick="plGuardar()">Guardar</button>
+                    <button class="btn-tasa-del" style="width:auto;padding:6px 14px;" onclick="plCerrarForm()">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Cada equipo que cobra es un puesto con su `register_id` (el registerID de SAF-T).
          Se dan de alta solos al cobrar; acá se ven y se dan de baja (baja lógica). -->
     <div class="cfg-section" id="sec-puestos">
@@ -1820,6 +1881,7 @@ function _cargarSeccionLazy(id) {
     else if (id === 'cargassoc')   cargarCargasSociales();
     else if (id === 'datafono')    cargarDatafono();
     else if (id === 'puestos')     cargarPuestos();
+    else if (id === 'plataformas') cargarPlataformas();
     else if (id === 'skat')        cargarSkat();
 }
 
@@ -1947,6 +2009,115 @@ async function bajaPuesto(id, baja) {
         await apiFetch(`/puestos/${id}`, { method: 'PATCH', body: JSON.stringify({ baja }) });
         await cargarPuestos();
     } catch (e) { alert(_t('No se pudo guardar: {0}', {0: e.message || e})); }
+}
+
+// ── 🛵 Plataformas de reparto (Wolt, Just Eat…) ─────────────────────────────
+// Cada una por separado: a mano o automática (con su conexión, directa o por un intermediario).
+// Las credenciales van cifradas en el servidor y nunca vuelven: al editar, un campo vacío
+// conserva la guardada. Ver restaurante-api/app/plataformas.py.
+let _plLista = [];
+let _plConexiones = [];
+let _plEditando = null;
+
+async function cargarPlataformas() {
+    const tb = document.getElementById('pl-body');
+    try {
+        [_plLista, _plConexiones] = await Promise.all([apiFetch('/plataformas'), apiFetch('/plataformas/conexiones')]);
+    } catch (e) {
+        tb.innerHTML = `<tr><td colspan="5" class="tasa-empty">${esc(_t('No se pudieron cargar las plataformas.'))}</td></tr>`;
+        return;
+    }
+    if (!_plLista.length) {
+        tb.innerHTML = `<tr><td colspan="5" class="tasa-empty">${esc(_t('Todavía no hay plataformas. Agregá la primera.'))}</td></tr>`;
+        return;
+    }
+    const nombreCx = (id) => ((_plConexiones.find(c => c.id === id) || {}).nombre) || '—';
+    tb.innerHTML = _plLista.map(p => `<tr style="${p.activa ? '' : 'opacity:.5;'}">
+        <td><b>${esc(p.nombre)}</b></td>
+        <td>${esc(_t(p.modo === 'automatico' ? 'Automático' : 'A mano'))}</td>
+        <td>${p.modo === 'automatico' ? esc(nombreCx(p.conexion)) + (p.conexion_disponible ? '' : ` <span style="font-size:11px;color:#b45309;">(${esc(_t('pendiente'))})</span>`) : '—'}</td>
+        <td>${esc(_t(p.activa ? 'Activa' : 'Pausada'))}</td>
+        <td style="text-align:right;white-space:nowrap;">
+            <button class="btn-tasa-edit" onclick="plEditar(${p.id})">${esc(_t('Editar'))}</button>
+            <button class="btn-tasa-del" title="${escAttr(_t('Borrar'))}" onclick="plBorrar(${p.id})">✕</button>
+        </td>
+    </tr>`).join('');
+}
+
+function plEditar(id) {
+    _plEditando = id ? _plLista.find(p => p.id === id) : null;
+    const p = _plEditando || { nombre: '', modo: 'manual', activa: true, conexion: null };
+    document.getElementById('pl-nombre').value = p.nombre;
+    document.getElementById('pl-modo').value = p.modo;
+    document.getElementById('pl-activa').checked = !!p.activa;
+    const sel = document.getElementById('pl-conexion');
+    sel.innerHTML = _plConexiones.map(c =>
+        `<option value="${escAttr(c.id)}">${esc(_t(c.nombre))}${c.disponible ? '' : ' — ' + esc(_t('pendiente'))}</option>`).join('');
+    sel.value = p.conexion || 'prueba';
+    document.getElementById('pl-form').style.display = '';
+    plPintarModo();
+}
+
+function plCerrarForm() {
+    _plEditando = null;
+    document.getElementById('pl-form').style.display = 'none';
+}
+
+function plPintarModo() {
+    const auto = document.getElementById('pl-modo').value === 'automatico';
+    document.getElementById('pl-auto').style.display = auto ? '' : 'none';
+    if (auto) plPintarCampos();
+}
+
+function plPintarCampos() {
+    const id = document.getElementById('pl-conexion').value;
+    const cx = _plConexiones.find(c => c.id === id) || { campos: [] };
+    const guardados = _plEditando && _plEditando.conexion === id && _plEditando.con_datos;
+    document.getElementById('pl-aviso').textContent = cx.disponible ? '' :
+        _t('Esta conexión todavía no recibe pedidos: falta la documentación y el alta como socio de la plataforma.');
+    document.getElementById('pl-campos').innerHTML = cx.campos.map(f => `
+        <label class="cfg-label">${esc(_t(f.label))}</label>
+        <input class="cfg-input" data-pl-campo="${escAttr(f.key)}" type="${f.tipo === 'password' ? 'password' : 'text'}"
+               placeholder="${escAttr(guardados ? _t('(guardado — dejalo vacío para conservarlo)') : '')}" autocomplete="off">`).join('');
+    const p = _plEditando;
+    const url = p && p.entrada && p.conexion === id ? API_URL + p.entrada : '';
+    document.getElementById('pl-entrada').style.display = url ? '' : 'none';
+    document.getElementById('pl-url').textContent = url;
+}
+
+function plCopiar() {
+    const url = document.getElementById('pl-url').textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(url);
+}
+
+async function plGuardar() {
+    const nombre = document.getElementById('pl-nombre').value.trim();
+    if (!nombre) { alert(_t('Falta el nombre de la plataforma')); return; }
+    const modo = document.getElementById('pl-modo').value;
+    const cuerpo = { nombre, modo, activa: document.getElementById('pl-activa').checked };
+    if (modo === 'automatico') {
+        cuerpo.conexion = document.getElementById('pl-conexion').value;
+        cuerpo.config = {};
+        document.querySelectorAll('[data-pl-campo]').forEach(i => { cuerpo.config[i.dataset.plCampo] = i.value; });
+    }
+    try {
+        const r = _plEditando
+            ? await apiFetch(`/plataformas/${_plEditando.id}`, { method: 'PUT', body: JSON.stringify(cuerpo) })
+            : await apiFetch('/plataformas', { method: 'POST', body: JSON.stringify(cuerpo) });
+        await cargarPlataformas();
+        // Recién creada en automático: queda abierta para copiar la dirección de entrada.
+        if (r && r.modo === 'automatico') plEditar(r.id); else plCerrarForm();
+    } catch (e) { alert(_t('No se pudo guardar: {0}', {0: e.message || e})); }
+}
+
+async function plBorrar(id) {
+    const p = _plLista.find(x => x.id === id);
+    if (!p || !confirm(_t('¿Borrar la plataforma «{0}»? Los pedidos que ya entraron conservan su nombre.', {0: p.nombre}))) return;
+    try {
+        await apiFetch(`/plataformas/${id}`, { method: 'DELETE' });
+        plCerrarForm();
+        await cargarPlataformas();
+    } catch (e) { alert(_t('No se pudo borrar: {0}', {0: e.message || e})); }
 }
 
 // ── 💳 Pagos con tarjeta (datáfono) ───────────────────────────
