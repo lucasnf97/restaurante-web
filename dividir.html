@@ -288,6 +288,7 @@ const TXT = {
     demo_nota: 'Modo de prueba: el pago se confirma en el TPV virtual del local.',
     esperando_pago: 'Esperando la confirmación del pago…', cancelar_pago: 'Cancelar el pago',
     pago_ok: '¡Pago aprobado! Gracias.', pago_mal: 'El pago no se aprobó. Podés intentar de nuevo o pagarle al camarero.',
+    sin_conexion_pago: 'Ahora no se puede pagar desde el celular: hay un problema de conexión con la caja del local. Pagale al camarero o en la caja.',
     pagado_ok: '✓ Pagado',
     previo: 'Ya se pagaron {m} de esta cuenta: los precios muestran lo que falta.',
     eligiendo: 'Estás eligiendo para', vos: 'Vos', agregar_persona: '+ Agregar persona',
@@ -334,6 +335,7 @@ const TXT = {
     demo_nota: 'Test mode: the payment is confirmed on the restaurant’s virtual terminal.',
     esperando_pago: 'Waiting for the payment confirmation…', cancelar_pago: 'Cancel payment',
     pago_ok: 'Payment approved! Thank you.', pago_mal: 'The payment was not approved. Try again or pay the waiter.',
+    sin_conexion_pago: 'Paying from your phone is not possible right now: there is a connection problem with the till. Please pay the waiter or at the till.',
     pagado_ok: '✓ Paid',
     previo: '{m} of this bill was already paid: prices show what’s left.',
     eligiendo: 'You’re choosing for', vos: 'You', agregar_persona: '+ Add a person',
@@ -380,6 +382,7 @@ const TXT = {
     demo_nota: 'Testtilstand: betalingen bekræftes på restaurantens virtuelle terminal.',
     esperando_pago: 'Venter på bekræftelse af betalingen…', cancelar_pago: 'Annuller betalingen',
     pago_ok: 'Betalingen er godkendt! Tak.', pago_mal: 'Betalingen blev ikke godkendt. Prøv igen eller betal tjeneren.',
+    sin_conexion_pago: 'Det er ikke muligt at betale fra telefonen lige nu: der er et forbindelsesproblem med kassen. Betal tjeneren eller ved kassen.',
     pagado_ok: '✓ Betalt',
     previo: '{m} af regningen er allerede betalt: priserne viser, hvad der mangler.',
     eligiendo: 'Du vælger for', vos: 'Dig', agregar_persona: '+ Tilføj en person',
@@ -644,7 +647,8 @@ async function pagarParte() {
             dispositivo: DISP, ...(sel.num !== yo.num ? { para: sel.num } : {}), propina: propinaDe(sel.importe) }) });
         if (r.modo === 'redireccion' && r.url) { location.href = r.url; return; }   // pasarela (Apple Pay, etc.)
     } catch (e) {
-        toast((LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err'));
+        toast(e.status === 503 && e.data && e.data.detail && e.data.detail.sin_conexion ? t('sin_conexion_pago')
+              : (LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err'));
     }
     PAGANDO = false; S = null; await consultar();
 }
@@ -655,6 +659,9 @@ async function cancelarPago() {
 }
 function pagoHTML(yo, sel) {
     const po = S.pago_online || {};
+    // Caja del local sin conexión (dueño, 2026-11-02): no se paga por QR.
+    if (po.sin_conexion && S.estado === 'abierta')
+        return `<div class="tarjeta pagar"><h3>${t('pagar_t')}</h3><p class="t" style="margin-top:6px;">${esc(t('sin_conexion_pago'))}</p></div>`;
     if (!po.disponible || S.estado !== 'abierta') return '';
     const titulo = sel.num === yo.num ? t('pagar_t') : esc(t('pagar_t_otro', { n: nombreDe(sel) }));
     if (sel.pagado) return `<div class="tarjeta pagar"><h3>${titulo}</h3><div class="pagado" style="margin-top:6px;">${t('pagado_ok')} · ${dinero(sel.importe)}</div></div>`;
