@@ -342,7 +342,8 @@ es: {
     retira:'Retiro', local:'Local', calendario:'Agregar al calendario', ver_ticket:'Ver ticket',
     sin_sitio:'Este enlace no corresponde a ningún local.', sin_menu:'Este local todavía no tiene menú online.',
     info_t:'Información', horario_t:'Horario', promos_t:'Promociones', cerrado_dia:'Cerrado',
-    no_disponible:'Hubo un problema con el local y el servicio no está disponible en este momento. Probá de nuevo en unos minutos.',
+    no_disponible:'Hubo un problema con el local y en este momento no podemos tomar pedidos online.',
+    llamanos:'Para hacer tu pedido, comunicate con el local:', proba_luego:'Probá de nuevo en unos minutos.',
     pedidos_con:'Pedidos con', aviso_no_pedidos:'Pedidos online muy pronto.',
 },
 en: {
@@ -378,7 +379,8 @@ en: {
     retira:'Pickup', local:'Store', calendario:'Add to calendar', ver_ticket:'View receipt',
     sin_sitio:'This link does not belong to any store.', sin_menu:'This store has no online menu yet.',
     info_t:'Information', horario_t:'Opening hours', promos_t:'Offers', cerrado_dia:'Closed',
-    no_disponible:'There is a problem at the store and ordering is not available right now. Please try again in a few minutes.',
+    no_disponible:'There is a problem at the store and we cannot take online orders right now.',
+    llamanos:'To place your order, please contact the store:', proba_luego:'Please try again in a few minutes.',
     pedidos_con:'Orders by', aviso_no_pedidos:'Online ordering coming soon.',
 },
 da: {
@@ -414,7 +416,8 @@ da: {
     retira:'Afhentning', local:'Butik', calendario:'Føj til kalender', ver_ticket:'Se kvittering',
     sin_sitio:'Dette link hører ikke til nogen butik.', sin_menu:'Denne butik har endnu ingen onlinemenu.',
     info_t:'Information', horario_t:'Åbningstider', promos_t:'Tilbud', cerrado_dia:'Lukket',
-    no_disponible:'Der er et problem i butikken, og det er ikke muligt at bestille lige nu. Prøv igen om et par minutter.',
+    no_disponible:'Der er et problem i butikken, og vi kan ikke tage imod onlinebestillinger lige nu.',
+    llamanos:'Kontakt butikken for at afgive din bestilling:', proba_luego:'Prøv igen om et par minutter.',
     pedidos_con:'Bestillinger via', aviso_no_pedidos:'Onlinebestilling kommer snart.',
 },
 };
@@ -654,7 +657,7 @@ async function pintarMenu(cod) {
         </div>
     </div></section>`;
     if (L.aviso) html += `<div class="envase" style="padding-top:16px;"><div class="err" style="background:var(--ok-sf);color:var(--ok-tx);">${esc(L.aviso)}</div></div>`;
-    if (!L.acepta_ahora) html += `<div class="envase" style="padding-top:16px;"><div class="err">${esc(t(L.sin_conexion ? 'no_disponible' : 'no_toma'))}</div></div>`;
+    if (!L.acepta_ahora) html += `<div class="envase" style="padding-top:16px;"><div class="err">${L.sin_conexion ? avisoSinConexion(L) : esc(t('no_toma'))}</div></div>`;
     html += `<nav class="cats" aria-label="Categorías"><div class="envase" id="cats">${cats.map(c =>
         `<button type="button" data-cat="${c.id ?? 'otros'}" onclick="irACategoria('${c.id ?? 'otros'}')">${esc(c.nombre)}</button>`).join('')}</div></nav>`;
     html += `<div class="envase menu-cuerpo"><div>` + cats.map(c => {
@@ -880,6 +883,19 @@ async function actualizarPreciosCarrito() {
     } catch (_) {}
 }
 function mostrarErrCo(msg) { const e = $('co-err'); e.textContent = msg; e.classList.remove('hidden'); }
+// Caja del local sin conexión (dueño, 2026-11-02): no entra ningún pedido online — así todo
+// pedido lo firma la caja en el momento (registro de ventas DK). Se dice con quién comunicarse.
+function avisoSinConexion(L) {
+    L = L || {};
+    const tel = L.telefono || L.telefono_negocio;
+    const contactos = [
+        tel ? `<a href="tel:${esc(tel.replace(/\s+/g, ''))}">${esc(tel)}</a>` : '',
+        L.email ? `<a href="mailto:${esc(L.email)}">${esc(L.email)}</a>` : '',
+    ].filter(Boolean);
+    return esc(t('no_disponible')) + '<br>' + (contactos.length
+        ? `${esc(t('llamanos'))} <strong>${contactos.join(' · ')}</strong>`
+        : esc(t('proba_luego')));
+}
 function nuevaClave() { return (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(36).slice(2)); }
 async function confirmarPedido() {
     const email = $('co-email').value.trim();
@@ -916,7 +932,10 @@ async function confirmarPedido() {
             return mostrarErrCo(t('err_precio', { t: dinero(e.data.total) }));
         }
         // El local perdió la conexión (servidor local caído): no se pueden tomar pedidos.
-        if (e.status === 503) return mostrarErrCo(t('no_disponible'));
+        if (e.status === 503 && e.data && e.data.detail && e.data.detail.sin_conexion) {
+            const box = $('co-err'); box.innerHTML = avisoSinConexion(S.local); box.classList.remove('hidden');
+            return;
+        }
         if (e.status === 409 && e.data && e.data.retiro) { S.horaElegida = null; delete _menus[CARRITO.codigo]; pintarCheckout(); }
         mostrarErrCo((LANG === 'es' && e.data && typeof e.data.detail === 'string') ? e.data.detail : t('err_general'));
     }
