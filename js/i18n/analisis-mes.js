@@ -60,4 +60,9 @@ I18N.agregar({
     "Insumos facturados — por factura": ["Invoiced ingredients — per invoice", "Fakturerede råvarer — pr. faktura"],
     "Servicios facturados — por factura": ["Invoiced services — per invoice", "Fakturerede ydelser — pr. faktura"],
     "Baja": ["Low", "Lav"],
+    // Paquete para el gestor (2026-11-02)
+    "📦 Paquete para el gestor": ["📦 Package for the accountant", "📦 Pakke til bogholderen"],
+    "Resumen, ventas por día, devoluciones, cierres, facturas de proveedores, salarios y (con registro de ventas) los informes Z y el SAF-T del mes": ["Summary, sales per day, refunds, till closings, supplier invoices, salaries and (with the sales register) the Z reports and SAF-T of the month", "Oversigt, salg pr. dag, returneringer, kasseopgørelser, leverandørfakturaer, løn og (med salgsregistrering) månedens Z-rapporter og SAF-T"],
+    "Armando el paquete…": ["Building the package…", "Pakken dannes…"],
+    "No se pudo armar el paquete: {0}": ["Could not build the package: {0}", "Pakken kunne ikke dannes: {0}"],
 });

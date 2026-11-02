@@ -406,6 +406,10 @@ body { font-family:'Segoe UI',sans-serif; background: var(--sup-app, #f0f2f5); m
             <span id="lbl-mes">—</span>
             <button onclick="mxMover(1)" title="Período siguiente">›</button>
         </div>
+        <!-- Paquete del mes para el gestor (dueño, 2026-11-02): GET /reportes/paquete-gestor -->
+        <button id="btn-paquete-gestor" type="button" onclick="bajarPaqueteGestor()"
+                title="Resumen, ventas por día, devoluciones, cierres, facturas de proveedores, salarios y (con registro de ventas) los informes Z y el SAF-T del mes"
+                style="display:none;margin-left:auto;padding:8px 14px;border-radius:8px;border: 1.5px solid var(--bd-2, #e0e0e0);background: var(--sup, #fff);color: var(--tx, #1a1a2e);font-weight:700;font-size:13px;cursor:pointer;">📦 Paquete para el gestor</button>
     </div>
 
     <!-- ═══════ MÉTRICAS DEL PERÍODO ═══════ -->
@@ -686,6 +690,33 @@ function actualizarLblMes() {
     // El mismo navegador sirve para mes y para año: lo decide el selector de arriba.
     document.getElementById("lbl-mes").textContent =
         (_mxTipo === 'anio') ? `Año ${anioActual}` : `${MESES[mesActual-1]} ${anioActual}`;
+    // El paquete es de UN mes y lo baja el dueño o un gerente.
+    const u = getUser() || {};
+    const btn = document.getElementById("btn-paquete-gestor");
+    if (btn) btn.style.display = (_mxTipo === 'mes' && ['admin', 'gerente'].includes(u.rol)) ? '' : 'none';
+}
+
+async function bajarPaqueteGestor() {
+    const btn = document.getElementById("btn-paquete-gestor");
+    window.UI && UI.busy(btn, true, _t('Armando el paquete…'));
+    try {
+        const res = await fetch(`${API_URL}/reportes/paquete-gestor?year=${anioActual}&month=${mesActual}`,
+                                { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        if (res.status === 401) { logout(true); return; }
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            alert(_t('No se pudo armar el paquete: {0}', {0: e.detail || res.status}));
+            return;
+        }
+        const nombre = ((res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1]
+                       || `paquete-${anioActual}-${mesActual}.zip`;
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { alert(_t('No se pudo armar el paquete: {0}', {0: e.message || e})); }
+    finally { window.UI && UI.busy(btn, false); }
 }
 
 // ── Meta mensual (barra de progreso) ────────────────────────────
