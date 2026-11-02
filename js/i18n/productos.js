@@ -154,4 +154,14 @@ I18N.agregar({
     "Eliminar producto": ["Delete product", "Slet produkt"],
     "Insumo que contiene": ["Ingredient it contains", "Råvare, den indeholder"],
     "Insumos de la receta · costo sin impuesto": ["Recipe ingredients · cost excl. tax", "Opskriftens råvarer · omkostning ekskl. moms"],
+    // Escandallo (2026-11-02)
+    "Costo desde la receta, con el promedio de lo pagado en las facturas de los últimos 30 días · margen y food-cost % sobre el precio de venta.": ["Cost from the recipe, using the average paid on invoices in the last 30 days · margin and food-cost % on the selling price.", "Kostpris fra opskriften, med gennemsnittet af det betalte på fakturaer de sidste 30 dage · avance og food cost % af salgsprisen."],
+    "Frente a los 30 días anteriores": ["Compared with the previous 30 days", "I forhold til de foregående 30 dage"],
+    "promedio de {0} compra(s) en 30 días": ["average of {0} purchase(s) in 30 days", "gennemsnit af {0} indkøb på 30 dage"],
+    "última compra (sin compras en 30 días)": ["last purchase (no purchases in 30 days)", "seneste indkøb (ingen indkøb på 30 dage)"],
+    "costo cargado a mano (sin compras)": ["manually entered cost (no purchases)", "manuelt indtastet kostpris (ingen indkøb)"],
+    "de su sub-receta": ["from its sub-recipe", "fra dens underopskrift"],
+    "sin costo": ["no cost", "ingen kostpris"],
+    "Última": ["Last", "Seneste"],
+    "factura": ["invoice", "faktura"],
 });

@@ -540,7 +540,7 @@
             <option value="con">Con receta</option>
             <option value="sin">Sin receta</option>
         </select>
-        <span style="color: var(--tx-4, #9ca3af);font-size:12px;">Costo desde la receta · margen y food-cost % sobre el precio de venta. Cargá costo a los insumos para que sea exacto.</span>
+        <span style="color: var(--tx-4, #9ca3af);font-size:12px;">Costo desde la receta, con el promedio de lo pagado en las facturas de los últimos 30 días · margen y food-cost % sobre el precio de venta.</span>
         <button class="btn btn-secondary" style="margin-left:auto;" onclick="imprimirCostos()">🖨 Imprimir</button>
     </div>
     <div class="tabla-wrapper">
@@ -961,7 +961,7 @@ function renderCostos() {
             <td><span class="cos-arr" id="cos-arr-${p.id}" style="display:inline-block;width:14px;color: var(--tx-4, #9ca3af);">▸</span> <strong>${_e(p.nombre)}</strong></td>
             <td>${_e(p.categoria||'—')}</td>
             <td style="text-align:right;">${fmt(p.precio)}</td>
-            <td style="text-align:right;">${fmt(p.costo)}</td>
+            <td style="text-align:right;">${fmt(p.costo)}${_badgeVariacion(p.variacion_pct)}</td>
             <td style="text-align:right;color: ${neg?'var(--pel-tx-2, #dc2626)':'var(--tx, #111827)'};font-weight:600;">${fmt(p.margen)}</td>
             <td style="text-align:right;">${p.margen_pct==null?'—':p.margen_pct+'%'}</td>
             <td style="text-align:right;font-weight:600;color:${sem(p.food_cost_pct)};">${p.food_cost_pct==null?'—':p.food_cost_pct+'%'}</td>
@@ -969,6 +969,26 @@ function renderCostos() {
         <tr class="cos-det" id="cos-det-${p.id}" style="display:none;"><td colspan="7" style="padding:0;background: var(--sup-2, #f9fafb);"><div id="cos-det-cont-${p.id}" style="padding:10px 16px 12px 30px;">…</div></td></tr>`;
     }).join("");
 }
+// Escandallo (dueño, 2026-11-02): cuánto cambió el costo frente a los 30 días anteriores. Sólo
+// se marca desde 1 %: lo demás es ruido de redondeo.
+function _badgeVariacion(v) {
+    if (v == null || Math.abs(v) < 1) return '';
+    const sube = v > 0;
+    return ` <span title="${_t('Frente a los 30 días anteriores')}" style="font-size:11px;font-weight:700;white-space:nowrap;color:${sube ? 'var(--pel-tx-2, #dc2626)' : 'var(--ok-tx, #15803d)'};">${sube ? '▲ +' : '▼ '}${v}%</span>`;
+}
+function _origenCosto(it) {
+    const o = it.origen;
+    if (o === 'promedio_30d') return _t('promedio de {0} compra(s) en 30 días', {0: it.n_compras});
+    if (o === 'ultima_compra') return _t('última compra (sin compras en 30 días)');
+    if (o === 'manual') return _t('costo cargado a mano (sin compras)');
+    if (o === 'produccion') return _t('de su sub-receta');
+    return _t('sin costo');
+}
+function _fechaCorta(iso) {
+    const p = String(iso || '').split('-');
+    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : (iso || '');
+}
+
 async function _toggleReceta(id) {
     const det = document.getElementById('cos-det-' + id), arr = document.getElementById('cos-arr-' + id);
     if (!det) return;
@@ -983,15 +1003,23 @@ async function _toggleReceta(id) {
     cont.innerHTML = '<span style="color: var(--tx-4, #9ca3af);font-size:13px;">Cargando…</span>';
     try {
         const r = await api.get('/stock/receta-costo/' + id);
-        const filas = (r.items || []).map(it => `
-            <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom: 1px solid var(--bd-4, #eef0f3);font-size:13px;">
-                <span>${_e(it.insumo)}${it.es_produccion ? ' <span style="color: var(--tx-ac-2, #7c3aed);font-size:11px;">(producción)</span>' : ''}</span>
-                <span style="color: var(--tx-3, #6b7280);white-space:nowrap;">${it.cantidad} ${_e(it.unidad||'')} × ${f(it.costo_unit)} = <b style="color: var(--tx, #111827);">${f(it.subtotal)}</b></span>
-            </div>`).join('');
+        const filas = (r.items || []).map(it => {
+            const u = it.ultima_compra;
+            const ultima = u ? `${_t('Última')}: ${f(u.precio)}${u.proveedor ? ' · ' + _e(u.proveedor) : ''} · ${_fechaCorta(u.fecha)}`
+                + (u.factura_url ? ` · <a href="#" onclick="abrirDocumento(${JSON.stringify(u.factura_url).replace(/"/g, '&quot;')});return false;">${_t('factura')}</a>` : '') : '';
+            return `
+            <div style="padding:5px 0;border-bottom: 1px solid var(--bd-4, #eef0f3);font-size:13px;">
+                <div style="display:flex;justify-content:space-between;gap:12px;">
+                    <span>${_e(it.insumo)}${it.es_produccion ? ' <span style="color: var(--tx-ac-2, #7c3aed);font-size:11px;">(producción)</span>' : ''}</span>
+                    <span style="color: var(--tx-3, #6b7280);white-space:nowrap;">${it.cantidad} ${_e(it.unidad||'')} × ${f(it.costo_unit)}${_badgeVariacion(it.variacion_pct)} = <b style="color: var(--tx, #111827);">${f(it.subtotal)}</b></span>
+                </div>
+                <div style="font-size:11px;color: var(--tx-4, #9ca3af);margin-top:2px;">${_e(_origenCosto(it))}${ultima ? ' · ' + ultima : ''}</div>
+            </div>`;
+        }).join('');
         cont.innerHTML =
             `<div style="font-size:11px;font-weight:700;color: var(--tx-3, #6b7280);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🧾 Insumos de la receta · costo sin impuesto</div>`
             + (filas || '<div style="color: var(--tx-4, #9ca3af);font-size:13px;">Esta receta no tiene insumos cargados.</div>')
-            + `<div style="text-align:right;font-size:13px;font-weight:700;margin-top:8px;">Costo total: ${f(r.costo_total)}</div>`;
+            + `<div style="text-align:right;font-size:13px;font-weight:700;margin-top:8px;">Costo total: ${f(r.costo_total)}${_badgeVariacion(r.variacion_pct)}</div>`;
         cont.dataset.loaded = '1';
     } catch (e) { cont.innerHTML = '<span style="color: var(--pel-tx-2, #dc2626);font-size:13px;">No se pudo cargar el detalle.</span>'; }
 }
