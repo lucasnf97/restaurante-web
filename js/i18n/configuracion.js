@@ -560,4 +560,6 @@ I18N.agregar({
     "Con caja local, las ventas se firman en la caja: exportá y revisá desde el programa de la caja lo que todavía no llegó a la nube.": ["With a local register server, sales are signed there: export and check from the register program whatever has not reached the cloud yet.", "Med lokal kasseserver signeres salget i kassen: eksportér og kontrollér fra kasseprogrammet det, der endnu ikke er nået til skyen."],
     "Todo el registro (ZIP)": ["Whole register (ZIP)", "Hele registreringen (ZIP)"],
     "«Todo el registro» baja un SAF-T por mes desde el inicio: guardalo si el restaurante cambia de sistema (hay que conservarlo 5 años).": ["\"Whole register\" downloads one SAF-T per month since the start: keep it if the restaurant changes system (it must be kept for 5 years).", "\"Hele registreringen\" henter én SAF-T pr. måned fra starten: gem den, hvis restauranten skifter system (den skal opbevares i 5 år)."],
+    // Demo / oficial (2026-11-15)
+    "Es una demo: el registro de Skat se inicia cuando el restaurante pasa a oficial (lo hace el administrador del sistema).": ["It is a demo: the Skat register is started when the restaurant becomes official (the system administrator does it).", "Det er en demo: Skat-registreringen startes, når restauranten bliver officiel (det gør systemadministratoren)."],
 });

@@ -314,7 +314,19 @@ th { color: var(--tx-4, #9ca3af); font-size:11px; text-transform:uppercase; }
             <button class="btn btn-secondary" onclick="dbRestaurar()">Restaurar backup</button>
         </div>
 
-        <div style="padding:12px 0;">
+        <!-- Demo / oficial (2026-11-15): POST /restaurantes/{rid}/pasar-a-oficial. Sólo en demos. -->
+        <div id="db-sec-oficial" style="padding:12px 0;border-bottom: 1px solid var(--bd-4, #f1f5f9);">
+            <div style="font-weight:700;color: var(--tx, #1a1a2e);margin-bottom:4px;">⭐ Pasar a oficial</div>
+            <div class="hint" style="margin-bottom:8px;">Es para siempre: no vuelve a ser demo. Se borran todas las ventas de prueba (también las importadas) y el stock queda en 0. Se conservan productos, carta, facturas de proveedores, personal y configuración. Después hay que iniciar el registro de Skat para poder vender.</div>
+            <input type="password" id="db-pass-oficial" placeholder="Tu contraseña de super-admin" autocomplete="off"
+                   style="width:100%;padding:9px 11px;border: 1px solid var(--bd-3, #d1d5db);border-radius:8px;margin-bottom:8px;">
+            <input type="text" id="db-conf-oficial" placeholder="Escribí el código del local" autocomplete="off"
+                   style="width:100%;padding:9px 11px;border: 1px solid var(--bd-3, #d1d5db);border-radius:8px;margin-bottom:8px;">
+            <button class="btn btn-primary" onclick="dbPasarAOficial()">Pasar a oficial</button>
+        </div>
+        <div id="db-nota-oficial" class="hint" style="display:none;padding:12px 0;">Es oficial: no se formatea. Restaurar una copia sí se puede.</div>
+
+        <div id="db-sec-formatear" style="padding:12px 0;">
             <div style="font-weight:700;color: var(--pel-tx-2, #dc2626);margin-bottom:4px;">🗑 Formatear (dejar en blanco)</div>
             <div class="hint" style="margin-bottom:8px;">Vacía toda la base del restaurante. Se conservan los gerentes asignados. <b>No se puede deshacer.</b></div>
             <input type="password" id="db-pass-format" placeholder="Tu contraseña de super-admin" autocomplete="off"
@@ -504,12 +516,13 @@ async function cargarRestaurantes(){
                 <td class="code">${esc(r.codigo)}</td>
                 <td>${esc(r.nombre||'—')}</td>
                 <td>${gers}</td>
-                <td><span class="badge ${r.activo?'on':'off'}">${r.activo?'ACTIVO':'INACTIVO'}</span>${badgeServidorLocal(r)}</td>
+                <td><span class="badge ${r.activo?'on':'off'}">${r.activo?'ACTIVO':'INACTIVO'}</span>
+                    <span class="badge ${r.oficial_desde?'on':'off'}" title="${r.oficial_desde?esc(_t('Oficial desde el {0}', {0: fechaCorta(r.oficial_desde)})):esc(_t('Demo: se puede formatear y no inicia el registro de Skat'))}">${r.oficial_desde?'OFICIAL':'DEMO'}</span>${badgeServidorLocal(r)}</td>
                 <td>${fechaCorta(r.creado_en)}</td>
                 <td class="row-acc">
                     <button class="btn btn-secondary btn-sm" onclick="entrarComoAdmin(${r.id}, '${esc(r.codigo)}')" title="Entrar como admin (oculto)">🔓 Entrar</button>
                     <button class="btn btn-secondary btn-sm" onclick="gestionarGerentes(${r.id})">👥 Gerentes</button>
-                    <button class="btn btn-secondary btn-sm" onclick="gestionarDb(${r.id}, '${esc(r.codigo)}', '${esc(r.nombre||'').replace(/'/g,"\\'")}')">🗄️ BD</button>
+                    <button class="btn btn-secondary btn-sm" onclick="gestionarDb(${r.id}, '${esc(r.codigo)}', '${esc(r.nombre||'').replace(/'/g,"\\'")}', ${r.oficial_desde?'true':'false'})">🗄️ BD</button>
                     <button class="btn btn-secondary btn-sm" onclick="gestionarModulos(${r.id})">🧩 Módulos</button>
                     <button class="btn btn-secondary btn-sm" onclick="editarNombre(${r.id}, '${esc(r.nombre||'').replace(/'/g,"\\'")}')">✏️</button>
                     <button class="btn btn-secondary btn-sm" onclick="editarCodigo(${r.id}, '${esc(r.codigo)}')">🔑</button>
@@ -661,7 +674,7 @@ async function entrarComoAdmin(rid, codigo){
 
 // ── Gestión de base de datos de un restaurante ────────────────
 let _dbId=null, _dbCodigo='';
-function gestionarDb(rid, codigo, nombre){
+function gestionarDb(rid, codigo, nombre, oficial){
     _dbId=rid; _dbCodigo=codigo;
     document.getElementById('db-titulo').textContent='Base de datos — '+(nombre||codigo)+' (N° '+codigo+')';
     document.getElementById('db-msg').textContent='';
@@ -672,7 +685,33 @@ function gestionarDb(rid, codigo, nombre){
     document.getElementById('db-pass-saft').value='';
     document.getElementById('db-clave-caja').style.display='none';
     document.getElementById('db-clave-caja-txt').textContent='';
+    _dbMostrarOficial(oficial);
     document.getElementById('modal-db').classList.add('active');
+}
+// Demo / oficial (2026-11-15): en una demo se puede pasar a oficial y formatear; un oficial
+// no se formatea (restaurar sí). La API lo impide igual: esto sólo no ofrece lo que no va.
+function _dbMostrarOficial(oficial){
+    document.getElementById('db-sec-oficial').style.display = oficial ? 'none' : '';
+    document.getElementById('db-sec-formatear').style.display = oficial ? 'none' : '';
+    document.getElementById('db-nota-oficial').style.display = oficial ? '' : 'none';
+    document.getElementById('db-pass-oficial').value='';
+    document.getElementById('db-conf-oficial').value='';
+}
+async function dbPasarAOficial(){
+    const pass=document.getElementById('db-pass-oficial').value;
+    const conf=document.getElementById('db-conf-oficial').value.trim();
+    if(!pass){ _dbMsg('err', _t('Ingresá tu contraseña de super-admin.')); return; }
+    if(conf.toUpperCase()!==String(_dbCodigo).toUpperCase()){
+        _dbMsg('err', _t('Para confirmar, escribí el código del restaurante ({0}).', {0: _dbCodigo})); return;
+    }
+    if(!confirm(_t('{0} pasa a OFICIAL para siempre: se borran todas sus ventas de prueba y el stock queda en 0. ¿Continuar?', {0: _dbCodigo}))) return;
+    _dbMsg('', _t('Pasando a oficial…'));
+    try{
+        const res = await api.post('/restaurantes/'+_dbId+'/pasar-a-oficial', { password:pass, confirmacion:conf });
+        _dbMostrarOficial(true);
+        _dbMsg('ok', res.mensaje);
+        cargarRestaurantes();
+    }catch(err){ _dbMsg('err', _t('Error: {0}', {0: err.message})); }
 }
 // Clave de sincronización PROPIA del restaurante (cumplimiento DK F4b): la que se escribe al
 // instalar su caja. La global sigue andando para lo demás, pero no baja el certificado de firma.

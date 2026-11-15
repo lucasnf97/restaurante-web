@@ -145,4 +145,17 @@ I18N.agregar({
     "Todo el registro de ventas en un ZIP (un archivo SAF-T por mes). Si el restaurante deja Chief Point, se le entrega para que lo guarde 5 años. Funciona aunque esté desactivado.": ["The whole sales register in a ZIP (one SAF-T file per month). If the restaurant leaves Chief Point, it is handed over so it can keep it for 5 years. Works even if it is deactivated.", "Hele salgsregistreringen i en ZIP (én SAF-T-fil pr. måned). Hvis restauranten forlader Chief Point, udleveres den, så den kan opbevares i 5 år. Virker også, hvis den er deaktiveret."],
     "Descargar el registro completo": ["Download the whole register", "Hent hele registreringen"],
     "Registro de ventas descargado.": ["Sales register downloaded.", "Salgsregistreringen er hentet."],
+    // Demo / oficial (2026-11-15)
+    "⭐ Pasar a oficial": ["⭐ Make official", "⭐ Gør officiel"],
+    "Es para siempre: no vuelve a ser demo. Se borran todas las ventas de prueba (también las importadas) y el stock queda en 0. Se conservan productos, carta, facturas de proveedores, personal y configuración. Después hay que iniciar el registro de Skat para poder vender.": ["It is permanent: it never becomes a demo again. All test sales are deleted (imported ones too) and stock is set to 0. Products, menu, supplier invoices, staff and settings are kept. Afterwards the Skat sales register must be started before anything can be sold.", "Det er permanent: den bliver aldrig demo igen. Alle testsalg slettes (også de importerede), og lageret sættes til 0. Produkter, menu, leverandørfakturaer, personale og indstillinger bevares. Derefter skal Skat-salgsregistreringen startes, før der kan sælges."],
+    "Escribí el código del local": ["Type the venue code", "Skriv stedets kode"],
+    "Pasar a oficial": ["Make official", "Gør officiel"],
+    "Es oficial: no se formatea. Restaurar una copia sí se puede.": ["It is official: it cannot be formatted. Restoring a backup is still possible.", "Den er officiel: den kan ikke formateres. Det er stadig muligt at gendanne en backup."],
+    "OFICIAL": ["OFFICIAL", "OFFICIEL"],
+    "DEMO": ["DEMO", "DEMO"],
+    "Oficial desde el {0}": ["Official since {0}", "Officiel siden {0}"],
+    "Demo: se puede formatear y no inicia el registro de Skat": ["Demo: it can be formatted and does not start the Skat register", "Demo: kan formateres og starter ikke Skat-registreringen"],
+    "Para confirmar, escribí el código del restaurante ({0}).": ["To confirm, type the restaurant code ({0}).", "Skriv restaurantens kode ({0}) for at bekræfte."],
+    "{0} pasa a OFICIAL para siempre: se borran todas sus ventas de prueba y el stock queda en 0. ¿Continuar?": ["{0} becomes OFFICIAL permanently: all its test sales are deleted and stock is set to 0. Continue?", "{0} bliver OFFICIEL permanent: alle testsalg slettes, og lageret sættes til 0. Fortsæt?"],
+    "Pasando a oficial…": ["Making official…", "Gør officiel…"],
 });

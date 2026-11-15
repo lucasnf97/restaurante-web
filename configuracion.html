@@ -1936,6 +1936,9 @@ async function cargarSkat() {
     else lin.push(ok + esc(_t('Certificado del CVR {0}, vence el {1} (faltan {2} días)', {0: c.cvr, 1: _fmtDia(c.vence), 2: c.dias})));
     lin.push(e.activo ? ok + esc(_t('Registro de ventas iniciado el {0}', {0: _fmtDia(e.desde)}))
              : no + esc(_t('El registro de ventas todavía no está iniciado')));
+    // Demo / oficial (2026-11-15): en una demo el registro no se inicia; lo habilita el
+    // administrador del sistema al pasar el restaurante a oficial.
+    if (e.es_demo && !e.activo) lin.push(no + esc(_t('Es una demo: el registro de Skat se inicia cuando el restaurante pasa a oficial (lo hace el administrador del sistema).')));
     if (!e.clave_maestra) lin.push(no + esc(_t('El servidor todavía no está listo para guardar certificados.')));
     // Con caja local se firma en la caja: tiene que haber recibido el certificado vigente.
     if (e.con_caja_local && c && !c.vencido) {
