@@ -314,17 +314,6 @@ th { color: var(--tx-4, #9ca3af); font-size:11px; text-transform:uppercase; }
             <button class="btn btn-secondary" onclick="dbRestaurar()">Restaurar backup</button>
         </div>
 
-        <!-- Sólo las ventas (dueño, 2026-11-15): POST /restaurantes/{rid}/db/borrar-ventas -->
-        <div style="padding:12px 0;border-bottom: 1px solid var(--bd-4, #f1f5f9);">
-            <div style="font-weight:700;color: var(--pel-tx-2, #dc2626);margin-bottom:4px;">🧹 Borrar el historial de ventas</div>
-            <div class="hint" style="margin-bottom:8px;">Para un local demo que se probó con ventas de verdad: borra cuentas, productos vendidos, comandas, cobros, cierres de caja, retiros, refunds, las ventas importadas de otro sistema y los bloques automáticos de reservas, y deja el stock en 0. Se conservan productos, stock, facturas de proveedores, personal y configuración. <b>No se puede deshacer:</b> descargá un backup antes.</div>
-            <input type="password" id="db-pass-ventas" placeholder="Tu contraseña de super-admin" autocomplete="off"
-                   style="width:100%;padding:9px 11px;border: 1px solid var(--bd-3, #d1d5db);border-radius:8px;margin-bottom:8px;">
-            <input type="text" id="db-conf-ventas" placeholder="Escribí el código del restaurante para confirmar" autocomplete="off"
-                   style="width:100%;padding:9px 11px;border: 1px solid var(--bd-3, #d1d5db);border-radius:8px;margin-bottom:8px;">
-            <button class="btn-x" onclick="dbBorrarVentas()">Borrar el historial de ventas</button>
-        </div>
-
         <div style="padding:12px 0;">
             <div style="font-weight:700;color: var(--pel-tx-2, #dc2626);margin-bottom:4px;">🗑 Formatear (dejar en blanco)</div>
             <div class="hint" style="margin-bottom:8px;">Vacía toda la base del restaurante. Se conservan los gerentes asignados. <b>No se puede deshacer.</b></div>
@@ -681,8 +670,6 @@ function gestionarDb(rid, codigo, nombre){
     document.getElementById('db-pass-format').value='';
     document.getElementById('db-pass-caja').value='';
     document.getElementById('db-pass-saft').value='';
-    document.getElementById('db-pass-ventas').value='';
-    document.getElementById('db-conf-ventas').value='';
     document.getElementById('db-clave-caja').style.display='none';
     document.getElementById('db-clave-caja-txt').textContent='';
     document.getElementById('modal-db').classList.add('active');
@@ -753,23 +740,6 @@ async function dbRestaurar(){
         _dbMsg('ok', res.mensaje + (res.advertencias ? (' ('+res.advertencias.length+' advertencias)') : ''));
         cargarRestaurantes();
     }catch(err){ _dbMsg('err','Error: '+err.message); }
-}
-// Sólo las ventas de un local demo (dueño, 2026-11-15): el resto de la base se queda.
-async function dbBorrarVentas(){
-    const pass=document.getElementById('db-pass-ventas').value;
-    const conf=document.getElementById('db-conf-ventas').value.trim();
-    if(!pass){ _dbMsg('err', _t('Ingresá tu contraseña de super-admin.')); return; }
-    if(conf.toUpperCase()!==String(_dbCodigo).toUpperCase()){
-        _dbMsg('err', _t('Para confirmar, escribí el código del restaurante ({0}).', {0: _dbCodigo})); return;
-    }
-    if(!confirm(_t('Se borra TODO el historial de ventas de {0} y el stock queda en 0. No se puede deshacer. ¿Continuar?', {0: _dbCodigo}))) return;
-    _dbMsg('', _t('Borrando…'));
-    try{
-        const res = await api.post('/restaurantes/'+_dbId+'/db/borrar-ventas', { password:pass, confirmacion:conf });
-        document.getElementById('db-pass-ventas').value='';
-        document.getElementById('db-conf-ventas').value='';
-        _dbMsg('ok', res.mensaje);
-    }catch(err){ _dbMsg('err', _t('Error: {0}', {0: err.message})); }
 }
 async function dbFormatear(){
     const pass=document.getElementById('db-pass-format').value;
