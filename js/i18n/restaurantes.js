@@ -145,4 +145,13 @@ I18N.agregar({
     "Todo el registro de ventas en un ZIP (un archivo SAF-T por mes). Si el restaurante deja Chief Point, se le entrega para que lo guarde 5 años. Funciona aunque esté desactivado.": ["The whole sales register in a ZIP (one SAF-T file per month). If the restaurant leaves Chief Point, it is handed over so it can keep it for 5 years. Works even if it is deactivated.", "Hele salgsregistreringen i en ZIP (én SAF-T-fil pr. måned). Hvis restauranten forlader Chief Point, udleveres den, så den kan opbevares i 5 år. Virker også, hvis den er deaktiveret."],
     "Descargar el registro completo": ["Download the whole register", "Hent hele registreringen"],
     "Registro de ventas descargado.": ["Sales register downloaded.", "Salgsregistreringen er hentet."],
+    // Borrar sólo el historial de ventas de un local demo (2026-11-15).
+    "Borrar el historial de ventas": ["Delete the sales history", "Slet salgshistorikken"],
+    "Para un local demo que se probó con ventas de verdad: borra cuentas, productos vendidos, comandas, cobros, cierres de caja, retiros, refunds y los bloques automáticos de reservas, y deja el stock en 0. Se conservan productos, stock, facturas de proveedores, personal y configuración.": ["For a demo venue that was tested with real sales: deletes bills, sold products, kitchen orders, payments, till closings, withdrawals, refunds and the automatic booking blocks, and sets the stock to 0. Products, stock, supplier invoices, staff and settings are kept.", "Til et demosted, der blev testet med rigtige salg: sletter regninger, solgte produkter, køkkenbestillinger, betalinger, kasseafslutninger, udtag, refusioner og de automatiske bookingblokke og sætter lageret til 0. Produkter, lager, leverandørfakturaer, personale og indstillinger bevares."],
+    "No se puede deshacer:": ["It can't be undone:", "Det kan ikke fortrydes:"],
+    "descargá un backup antes.": ["download a backup first.", "hent en backup først."],
+    "Escribí el código del restaurante para confirmar": ["Type the restaurant code to confirm", "Skriv restaurantens kode for at bekræfte"],
+    "Para confirmar, escribí el código del restaurante ({0}).": ["To confirm, type the restaurant code ({0}).", "Skriv restaurantens kode ({0}) for at bekræfte."],
+    "Se borra TODO el historial de ventas de {0} y el stock queda en 0. No se puede deshacer. ¿Continuar?": ["The WHOLE sales history of {0} is deleted and the stock is set to 0. It can't be undone. Continue?", "HELE salgshistorikken for {0} slettes, og lageret sættes til 0. Det kan ikke fortrydes. Fortsæt?"],
+    "Borrando…": ["Deleting…", "Sletter…"],
 });
