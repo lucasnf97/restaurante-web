@@ -231,4 +231,11 @@ I18N.agregar({
     "Suma de los Z de todos los terminales (no es un informe de Skat)": ["Sum of the Z reports of all terminals (not a Skat report)", "Summen af Z-rapporterne fra alle kasser (ikke en rapport til Skat)"],
     "Resumen": ["Summary", "Oversigt"],
     "No se pudo abrir el resumen: {0}": ["Could not open the summary: {0}", "Kunne ikke åbne oversigten: {0}"],
+    // Caja abierta o cerrada desde otro terminal (2026-11-11). Mismo texto que el exe.
+    "La caja ya está abierta: la abrió {0} a las {1}.": ["The register is already open: {0} opened it at {1}.", "Kassen er allerede åben: {0} åbnede den kl. {1}."],
+    "La caja ya está cerrada: la cerró {0} a las {1}.": ["The register is already closed: {0} closed it at {1}.", "Kassen er allerede lukket: {0} lukkede den kl. {1}."],
+    "La caja ya está abierta: la abrieron desde otro terminal.": ["The register is already open: it was opened from another terminal.", "Kassen er allerede åben: den blev åbnet fra en anden kasse."],
+    "La caja ya está cerrada: la cerraron desde otro terminal.": ["The register is already closed: it was closed from another terminal.", "Kassen er allerede lukket: den blev lukket fra en anden kasse."],
+    "La pantalla ya se actualizó.": ["The screen has been updated.", "Skærmen er opdateret."],
+    "el cierre automático": ["the automatic close", "den automatiske lukning"],
 });

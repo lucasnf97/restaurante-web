@@ -997,6 +997,53 @@ async function init() {
     document.getElementById("filtro-hasta").value = hoy;
     await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
     cajaMostrarInformeX();
+    // Abrir/cerrar la caja desde otro terminal publica "pos": esta pantalla se actualiza sola.
+    let _cajaEvT = null;
+    suscribirEventos(["pos"], () => {
+        clearTimeout(_cajaEvT);
+        _cajaEvT = setTimeout(cargarEstado, 800);
+    });
+}
+
+// ── Caja abierta o cerrada desde OTRO terminal (dueño, 2026-11-11) ──
+// Nunca se manda abrir una caja abierta ni cerrar una cerrada: se dice quién se adelantó y
+// la pantalla se actualiza sola. La API igual lo rechaza con 409. Mismo texto que el exe y
+// el POS (salon.py `_avisar_caja_cambiada`, restaurante-pos core/caja-estado.js).
+function cajaTextoCambio(abierta, est) {
+    est = est || {};
+    let quien = (abierta ? est.abierta_por : est.cerrada_por) || "";
+    if (quien === "sistema") quien = _t("el cierre automático");
+    const iso = abierta ? est.ts_apertura : est.ts_cierre;
+    const d = iso ? new Date(iso) : null;
+    const hora = d && !isNaN(d)
+        ? d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
+    if (quien && hora) {
+        return abierta ? `La caja ya está abierta: la abrió ${quien} a las ${hora}.`
+                       : `La caja ya está cerrada: la cerró ${quien} a las ${hora}.`;
+    }
+    return abierta ? "La caja ya está abierta: la abrieron desde otro terminal."
+                   : "La caja ya está cerrada: la cerraron desde otro terminal.";
+}
+
+async function cajaYaCambio(esperadaAbierta) {
+    let est;
+    try { est = await api.get("/caja/estado"); } catch (_) { return false; }
+    const abierta = !!(est && est.abierta);
+    if (abierta === esperadaAbierta) return false;
+    alert(cajaTextoCambio(abierta, est) + "\n\n" + "La pantalla ya se actualizó.");
+    await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
+    return true;
+}
+
+/** El error de abrir/cerrar: si otro terminal se adelantó mientras se contaba (409 de la API,
+ *  que ya dice quién y cuándo), sin el "Error:" y avisando que la pantalla se actualizó. */
+function cajaAvisarError(err) {
+    const msg = (err && err.message) || "";
+    if (msg.startsWith("La caja ya está")) {
+        alert(msg + "\n\n" + "La pantalla ya se actualizó.");
+    } else {
+        alert("Error: " + msg);
+    }
 }
 
 async function cargarEstado() {
@@ -1587,6 +1634,8 @@ async function abrirCaja() {
     //   debería haber en el cajón y la persona lo cuenta y lo confirma. El conteo es
     //   OBLIGATORIO acá — sin él, un faltante aparecido entre turnos se le carga al
     //   turno siguiente, que no tuvo nada que ver.
+    // Primero el estado REAL: la abrieron desde otro terminal y esta pantalla no se enteró.
+    if (await cajaYaCambio(false)) return;
     let prev = null;
     try { prev = await api.get("/caja/apertura"); } catch (e) {
         alert("No se pudo consultar el estado del cajón: " + e.message); return;
@@ -1649,7 +1698,7 @@ async function abrirCaja() {
                   `Descuadre de apertura: ${arqMoneda(r.apertura_diferencia)}.\n` +
                   "Queda registrado en el cierre de este turno.");
         }
-    } catch(err) { alert("Error: " + err.message); }
+    } catch(err) { cajaAvisarError(err); }
     // busy(off) primero y luego cargarEstado, que fija el disabled correcto de los botones.
     finally { window.UI && UI.busy(btn, false); await cargarEstado(); }
 }
@@ -1661,6 +1710,7 @@ async function cerrarCaja() {
     // ⚠ EL CIERRE NO ES "CONTÁ EL CAJÓN": es "sacá el excedente y confirmá que quedó
     //   el saldo inicial". Es el flujo que pidió el dueño y es el que de verdad hace
     //   la gente — lo que se guarda es el DINERO RETIRADO y, si no cuadra, el porqué.
+    if (await cajaYaCambio(true)) return;          // ya la cerraron desde otro terminal
     let a = null;
     try { a = await api.get("/caja/arqueo"); } catch (e) {
         alert("No se pudo calcular el cierre: " + e.message); return;
@@ -1726,7 +1776,7 @@ async function cerrarCaja() {
         // Registro de ventas DK: los Z quedan guardados (columna "Informes Z" de abajo); sólo
         // salen por la impresora si el restaurante eligió la impresora de tickets.
         cajaImprimirInformes((res.informes_z || []).filter(z => z.impresion === "ticket"), "Z-rapport");
-    } catch(err) { alert("Error: " + err.message); }
+    } catch(err) { cajaAvisarError(err); }
     finally {
         window.UI && UI.busy(btn, false);
         await Promise.all([cargarEstado(), cargarResumen(), cargarCierres()]);
