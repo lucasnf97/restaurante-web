@@ -1,0 +1,133 @@
+/* ── base.css — tokens del sistema + capa táctil ──────────────
+   Mismos tokens visuales que restaurante-web (Segoe UI, #f0f2f5,
+   primario #4f46e5, cards blancas radius 12) + ajustes para tablet
+   en mano: targets ≥48px, fuente ≥16px, sin dependencia de :hover. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --primario:       #4f46e5;
+    --primario-hover: #4338ca;
+    --primario-suave: #eef2ff;
+    --fondo:          #f0f2f5;
+    --texto:          #1a1a2e;
+    --texto-suave:    #666;
+    --borde:          #e0e0e0;
+    --ok:             #16a34a;
+    --peligro:        #dc2626;
+    --alerta:         #d97706;
+    --card-sombra:    0 4px 24px rgba(0,0,0,.08);
+    --safe-top:       env(safe-area-inset-top, 0px);
+    --safe-bottom:    env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+    height: 100%;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--fondo);
+    color: var(--texto);
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+}
+
+#app { height: 100%; display: flex; flex-direction: column; }
+
+/* Controles: táctiles por defecto */
+button, input, select, textarea { font-family: inherit; font-size: 16px; }
+button {
+    min-height: 48px;
+    border: none; border-radius: 10px;
+    padding: 12px 20px;
+    font-weight: 600; cursor: pointer;
+    touch-action: manipulation;
+    user-select: none; -webkit-user-select: none;
+}
+input, select, textarea {
+    min-height: 48px;
+    border: 1.5px solid var(--borde); border-radius: 10px;
+    padding: 10px 14px; background: #fff;
+    width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--primario);
+}
+
+.btn-primario { background: var(--primario); color: #fff; }
+.btn-primario:active { background: var(--primario-hover); }
+.btn-primario:disabled { background: #a5b4fc; cursor: default; }
+.btn-secundario { background: #fff; color: var(--texto); border: 1.5px solid var(--borde); }
+.btn-peligro { background: var(--peligro); color: #fff; }
+.btn-ok { background: var(--ok); color: #fff; }
+.btn-ghost { background: transparent; color: var(--texto-suave); }
+
+.card {
+    background: #fff; border-radius: 12px;
+    box-shadow: var(--card-sombra);
+    padding: 20px;
+}
+
+/* Header de pantalla (barra superior fija) — azul oscuro del sidebar */
+.pantalla { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.pantalla-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: calc(10px + var(--safe-top)) 16px 10px;
+    background: #1a1a2e; box-shadow: 0 1px 8px rgba(0,0,0,.18);
+    position: sticky; top: 0; z-index: 50;
+}
+.pantalla-header h1 { font-size: 19px; font-weight: 700; flex: 1; color: #fff; }
+.pantalla-header .hbtn {
+    min-width: 48px; min-height: 44px; padding: 8px 12px;
+    background: transparent; font-size: 22px; color: #a5b4fc;
+}
+.pantalla-body {
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 16px; padding-bottom: calc(16px + var(--safe-bottom));
+}
+
+/* Footer fijo de acciones */
+.pantalla-footer {
+    display: flex; gap: 10px;
+    padding: 12px 16px calc(12px + var(--safe-bottom));
+    background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,.07);
+}
+.pantalla-footer button { flex: 1; min-height: 54px; font-size: 17px; }
+
+/* Modal genérico */
+.modal-overlay {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(17,24,39,.5);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    /* --kb = alto del teclado (ui.js/visualViewport): el modal se levanta
+       para que el pie no quede tapado en iOS */
+    padding-bottom: calc(20px + var(--kb, 0px));
+}
+.modal-box {
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 16px 48px rgba(0,0,0,.28);
+    width: 100%; max-width: 440px; max-height: 88vh;
+    display: flex; flex-direction: column; overflow: hidden;
+}
+.modal-head {
+    padding: 18px 20px 12px; font-size: 18px; font-weight: 700;
+}
+.modal-body { padding: 4px 20px 16px; overflow-y: auto; }
+.modal-foot { display: flex; gap: 10px; padding: 12px 20px 18px; }
+.modal-foot button { flex: 1; }
+
+/* Splash de arranque */
+.boot-splash {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    color: var(--texto-suave);
+}
+.boot-logo { font-size: 54px; }
+.boot-txt { font-size: 15px; }
+
+/* Utilidades */
+.muted { color: var(--texto-suave); }
+.centrado { text-align: center; }
+.fila { display: flex; gap: 10px; align-items: center; }
+.crece { flex: 1; }
+label.campo { display: block; font-size: 14px; font-weight: 600; color: #444; margin: 12px 0 6px; }
